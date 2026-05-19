@@ -42,6 +42,7 @@
 /* ── Base URL ─────────────────────────────────
    TODO: Change to production URL before deploy   */
 const API_BASE = 'http://localhost:8000/api';
+const API_BASE_REG = 'http://localhost/Final-backend(VBETTER)/Final-Backend/backend';
 
 /* ── Auth Header Builder ──────────────────────
    Reads JWT token saved on login.
@@ -74,10 +75,14 @@ const api = {
    * @param {string} password
    */
   login: (email, password) =>
-    fetch(`${API_BASE}/auth/login`, {
+    fetch(`${API_BASE_REG}/auth/login.php`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: (() => {
+        const formData = new FormData();
+        formData.append('email', email);
+        formData.append('password', password);
+        return formData;
+      })()
     }).then(r => r.json()),
 
   /**
@@ -91,13 +96,12 @@ const api = {
 
   /**
    * Register new account
-   * @param {Object} data — { full_name, email, password, barangay }
+   * @param {Object} data — { full_name, email, password, barangay, phone_number }
    */
   register: (data) =>
-    fetch(`${API_BASE}/auth/register`, {
+    fetch(`${API_BASE_REG}/auth/register.php`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      body: data
     }).then(r => r.json()),
 
   /**
@@ -227,21 +231,38 @@ const api = {
    * Get all appointments for current user
    * Replaces: static appt rows in book-appointment.html
    */
-  getAppointments: () =>
-    fetch(`${API_BASE}/appointments`, {
-      headers: authHeaders()
-    }).then(r => r.json()),
+  getAppointments: (filters = {}) => {
+    const formData = new FormData();
+    formData.append('action', 'list');
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        formData.append(key, value);
+      }
+    });
+    return fetch(`${API_BASE_REG}/appointments/appointment.php`, {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json());
+  },
 
   /**
    * Book a new appointment
    * @param {Object} data — { owner, pet, visit_type, date, time, notes }
    */
   bookAppointment: (data) =>
-    fetch(`${API_BASE}/appointments`, {
+    fetch(`${API_BASE_REG}/appointments/appointment.php`, {
       method: 'POST',
-      headers: authHeaders(),
       body: JSON.stringify(data)
     }).then(r => r.json()),
+
+  getVets: () => {
+    const formData = new FormData();
+    formData.append('action', 'vets');
+    return fetch(`${API_BASE_REG}/appointments/appointment.php`, {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json());
+  },
 
 
   /* ══════════════════════════════════════════
@@ -302,4 +323,80 @@ const api = {
       headers: authHeaders(),
       body: JSON.stringify(data)
     }).then(r => r.json()),
+
+    getBarangays: () =>
+  fetch(`${API_BASE_REG}/barangays/list.php`)
+    .then(r => r.json()),
+
+
+  allUsers: () => {
+    const formData = new FormData();
+    formData.append('action', 'list');
+    return fetch(`${API_BASE_REG}/admin/account-management.php`, {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json());
+  },
+
+  accountRoles: () => {
+    const formData = new FormData();
+    formData.append('action', 'roles');
+    return fetch(`${API_BASE_REG}/admin/account-management.php`, {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json());
+  },
+
+  createAccountUser: (data) => {
+    data.append('action', 'create');
+    return fetch(`${API_BASE_REG}/admin/account-management.php`, {
+      method: 'POST',
+      body: data
+    }).then(r => r.json());
+  },
+
+  deleteUser: (userId) => {
+    const formData = new FormData();
+    formData.append('action', 'delete');
+    formData.append('user_id', userId);
+    return fetch(`${API_BASE_REG}/admin/account-management.php`, {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json());
+  },
+
+  approveUser: (userId) => {
+    const formData = new FormData();
+    formData.append('action', 'approve');
+    formData.append('user_id', userId);
+    return fetch(`${API_BASE_REG}/admin/account-management.php`, {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json());
+  },
+
+  rejectUser: (userId, reviewNotes = '') => {
+    const formData = new FormData();
+    formData.append('action', 'reject');
+    formData.append('user_id', userId);
+    formData.append('review_notes', reviewNotes);
+    return fetch(`${API_BASE_REG}/admin/account-management.php`, {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json());
+  },
+
+  deleteUser: (userId) => {
+    const formData = new FormData();
+    formData.append('action', 'delete');
+    formData.append('user_id', userId);
+    return fetch(`${API_BASE_REG}/admin/account-management.php`, {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json());
+  },
+
+  
+
 };
+

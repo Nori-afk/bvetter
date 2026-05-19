@@ -53,21 +53,26 @@ function updateStepper(step) {
 
 /* ── Populate review step from earlier inputs ─── */
 function reviewStep() {
-  const fullname  = document.getElementById('reg_fullname')?.value  || '';
-  const email     = document.getElementById('reg_email')?.value     || '';
-  const pw1       = document.getElementById('reg_pw1')?.value       || '';
-  const pw2       = document.getElementById('reg_pw2')?.value       || '';
+  const fullname  = document.getElementById('reg_fullname')?.value || '';
+  const email     = document.getElementById('reg_email')?.value || '';
+  const pw1       = document.getElementById('reg_pw1')?.value || '';
+  const pw2       = document.getElementById('reg_pw2')?.value || '';
+  const phone     = document.getElementById('rv_phone')?.value || '';
   const barangay  = document.getElementById('reg_barangay');
   const proofFile = document.getElementById('reg_proof');
 
   document.getElementById('rv_fullname').value = fullname;
-  document.getElementById('rv_email').value    = email;
-  document.getElementById('rv_pw').value       = pw1;
-  document.getElementById('rv_pw2').value      = pw2;
+  document.getElementById('rv_email').value = email;
+  document.getElementById('rv_pw').value = pw1;
+  document.getElementById('rv_pw2').value = pw2;
+  document.getElementById('phone').value = phone;
 
   if (barangay) {
     document.getElementById('rv_barangay').value =
       barangay.options[barangay.selectedIndex]?.text || '';
+
+    document.getElementById('rv_barangay_id').value =
+      barangay.value || '';
   }
 
   document.getElementById('rv_proof_name').textContent =
@@ -91,5 +96,81 @@ function copyRef() {
   navigator.clipboard.writeText(ref).catch(() => {});
 }
 
+async function submitRegistration() {
+  const proofInput = document.getElementById('reg_proof');
+  const password = document.getElementById('rv_pw')?.value || '';
+  const confirmPassword = document.getElementById('rv_pw2')?.value || '';
+
+  if (password !== confirmPassword) {
+    alert('Passwords do not match.');
+    return;
+  }
+
+  if (!proofInput?.files.length) {
+    alert('Please upload your proof of residence.');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('full_name', document.getElementById('rv_fullname')?.value || '');
+  formData.append('email', document.getElementById('rv_email')?.value || '');
+  formData.append('password', password);
+  formData.append('phone_number', document.getElementById('phone')?.value || '');
+formData.append('barangay_id', document.getElementById('rv_barangay_id')?.value || '');
+  formData.append('proof_document', proofInput.files[0]);
+
+  try {
+    const result = await api.register(formData);
+
+    if (!result.success) {
+      alert(result.message || 'Registration failed.');
+      return;
+    }
+
+    const refEl = document.getElementById('reg_ref_number');
+    if (refEl && result.reference_number) {
+      refEl.textContent = result.reference_number;
+    }
+
+    goTo(4);
+  } catch (error) {
+    alert('Registration failed. Please try again.');
+  }
+}
+
+function checkMobile(){
+  const mobile_num = document.getElementById('rv_phone').value;
+  const starter = mobile_num.slice(0,3);
+  if (starter !== '09' && starter !== '+63') {
+    alert('Invalid phone number. Must start with 09 or +63');
+    return false;
+  }
+}
+async function loadBarangays() {
+  const select = document.getElementById('reg_barangay');
+  if (!select) return;
+
+  try {
+    const result = await api.getBarangays();
+
+    if (!result.success) {
+      alert(result.message || 'Failed to load barangays.');
+      return;
+    }
+
+    select.innerHTML = '<option value="">Select Barangay</option>';
+
+    result.data.forEach(barangay => {
+      const option = document.createElement('option');
+      option.value = barangay.id;
+      option.textContent = barangay.name;
+      select.appendChild(option);
+    });
+  } catch (error) {
+    alert('Could not load barangays.');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadBarangays);
 /* ── Initialize stepper on page load ─────────── */
 updateStepper(1);

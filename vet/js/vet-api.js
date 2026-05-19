@@ -15,6 +15,7 @@
 'use strict';
 
 const BASE_URL = '/api';   // [BACKEND] e.g. 'https://api.vbetter.ph'
+const BACKEND_URL = '/Final-backend(VBETTER)/Final-Backend/backend';
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
@@ -67,25 +68,61 @@ async function getDashboardSummary() {
 
 /** GET /api/vet/appointments */
 async function getAppointments(filters = {}) {
-    const params = new URLSearchParams(filters).toString();
-    // [BACKEND] return apiFetch(`/vet/appointments?${params}`);
-    return { ok: true, data: window.appointmentDataset || [] };
+    const formData = new FormData();
+    formData.append('action', 'list');
+    Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+            formData.append(key, value);
+        }
+    });
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        return { ok: result.success, data: result.data || [], error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, data: [], error: error.message };
+    }
 }
 
 /** PATCH /api/vet/appointments/:id/status */
 async function updateAppointmentStatus(id, status) {
-    // [BACKEND]
-    // return apiFetch(`/vet/appointments/${id}/status`, {
-    //     method: 'PATCH',
-    //     body: JSON.stringify({ status })
-    // });
-    return { ok: true, data: { id, status } };
+    const formData = new FormData();
+    formData.append('action', 'update_status');
+    formData.append('appointment_id', id);
+    formData.append('status', status);
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        return { ok: result.success, data: { id, status }, error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, data: null, error: error.message };
+    }
 }
 
 /** DELETE /api/vet/appointments/:id */
 async function deleteAppointment(id) {
-    // [BACKEND] return apiFetch(`/vet/appointments/${id}`, { method: 'DELETE' });
-    return { ok: true, data: { deleted: id } };
+    const formData = new FormData();
+    formData.append('action', 'delete');
+    formData.append('appointment_id', id);
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        return { ok: result.success, data: { deleted: id }, error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, data: null, error: error.message };
+    }
 }
 
 /* ── Patient Records ─────────────────────────────────────── */

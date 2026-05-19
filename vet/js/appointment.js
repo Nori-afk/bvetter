@@ -11,7 +11,7 @@ const FALLBACK_APPOINTMENTS = [
 	{ id: 10, datetime: '2026-04-25T16:00:00', patient: 'Rocky', owner: 'Monica Reyes', service: 'Ear Infection Follow-up', status: 'pending', type: 'Follow-up' }
 ];
 
-const VALID_STATUSES = new Set(['pending', 'confirmed', 'completed', 'canceled']);
+const VALID_STATUSES = new Set(['pending', 'confirmed', 'completed', 'canceled', 'cancelled', 'rejected']);
 const RESCHEDULE_SLOTS = [
 	{ label: 'Morning', value: '09:30', display: '09:30 AM' },
 	{ label: 'Morning', value: '10:15', display: '10:15 AM' },
@@ -162,13 +162,13 @@ function buildRescheduleCalendar(monthDate, selectedIsoDate) {
 function statusClass(status) {
 	if (status === 'confirmed') return 'status-confirmed';
 	if (status === 'completed') return 'status-completed';
-	if (status === 'canceled') return 'status-canceled';
+	if (status === 'canceled' || status === 'cancelled' || status === 'rejected') return 'status-canceled';
 	return 'status-pending';
 }
 
 function actionTitle(status) {
 	if (status === 'completed') return 'Completed';
-	if (status === 'canceled') return 'Canceled';
+	if (status === 'canceled' || status === 'cancelled' || status === 'rejected') return 'Canceled';
 	return 'Open';
 }
 
@@ -292,9 +292,16 @@ function refreshUI() {
 	rebuildCalendarEvents();
 }
 
-function updateStatus(id, nextStatus) {
+async function updateStatus(id, nextStatus) {
 	const selected = getAppointmentById(id);
 	if (!selected) return;
+	if (window.VetAPI?.updateAppointmentStatus) {
+		const result = await window.VetAPI.updateAppointmentStatus(id, nextStatus);
+		if (!result.ok) {
+			alert(result.error || 'Failed to update appointment.');
+			return;
+		}
+	}
 	selected.status = nextStatus;
 	state.page = 1;
 	refreshUI();
@@ -553,13 +560,20 @@ function applyComplete() {
 }
 
 function applyCancel() {
-	updateStatus(state.selectedAppointmentId, 'canceled');
+	updateStatus(state.selectedAppointmentId, 'cancelled');
 	closeModal();
 }
 
-function applyDelete() {
+async function applyDelete() {
 	const input = document.getElementById('delete-confirm');
 	if (!input || input.value !== 'DELETE') return;
+	if (window.VetAPI?.deleteAppointment) {
+		const result = await window.VetAPI.deleteAppointment(state.selectedAppointmentId);
+		if (!result.ok) {
+			alert(result.error || 'Failed to delete appointment.');
+			return;
+		}
+	}
 	removeAppointment(state.selectedAppointmentId);
 	closeModal();
 }
@@ -612,10 +626,9 @@ function setupEvents() {
 		renderTable();
 	});
 
-	ui.acceptAllButton.addEventListener('click', () => {
-		state.appointments.forEach((item) => {
-			if (item.status === 'pending') item.status = 'confirmed';
-		});
+	ui.acceptAllButton.addEventListener('click', async () => {
+		const pending = state.appointments.filter((item) => item.status === 'pending');
+		await Promise.all(pending.map((item) => updateStatus(item.id, 'confirmed')));
 		refreshUI();
 	});
 
@@ -639,7 +652,10 @@ function setupEvents() {
 		state.selectedAppointmentId = id;
 
 		if (button.dataset.action === 'view') openDetailsModal(id);
-		if (button.dataset.action === 'delete') openDeleteModal();
+		if (button.dataset.action === 'delete') {
+			state.selectedAppointmentId = id;
+			openDeleteModal();
+		}
 	});
 
 	ui.modalClose.addEventListener('click', closeModal);
@@ -723,12 +739,17 @@ function exposeApi() {
 	};
 }
 
-function init() {
+async function init() {
 	ui.modalOverlay.hidden = true;
 	document.body.style.overflow = '';
 	setupCalendar();
 	setupEvents();
-	loadAppointments();
+	if (window.VetAPI?.getAppointments) {
+		const result = await window.VetAPI.getAppointments();
+		loadAppointments(result.ok ? result.data : undefined);
+	} else {
+		loadAppointments();
+	}
 	exposeApi();
 }
 

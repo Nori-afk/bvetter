@@ -87,61 +87,54 @@
     <div class="vet-layout">
 
       <!-- Sidebar -->
-      <div class="vet-sidebar">
+      <div class="vet-sidebar" id="vetContainer">
         <div class="sidebar-label">Available Vets</div>
         <div class="sidebar-sub">Select your preferred specialist</div>
-        <div class="vet-item active">
-          <img src="../images/img/vet-profile.png" alt="Dr. Kizea" class="vet-thumb"/>
-          <div>
-            <div class="vet-item-name">Kizea Bien Igaya</div>
-            <div class="vet-item-role">Senior Surgeon</div>
-          </div>
-        </div>
       </div>
 
       <!-- Vet Profile -->
       <div class="vet-profile-card">
         <div class="vet-profile-header">
-          <img src="../images/img/vet-profile.png" alt="Dr. Kizea" class="vet-profile-img"/>
+          <img alt="Dr. Kizea" class="vet-profile-img" id="profile-heads"/>
           <div class="vet-profile-info">
-            <div class="vet-profile-name">Dr. Kizea Bien Igaya</div>
-            <div class="vet-profile-title">Senior Veterinary Surgeon</div>
+            <div class="vet-profile-name" id="profile-name">Dr. Kizea Bien Igaya</div>
+            <div class="vet-profile-title" id="profile-title">Senior Veterinary Surgeon</div>
             <div class="vet-profile-clinic">
-              <img src="../images/icons/icon-location.svg" alt="" class="info-icon"/>
+              <img src="../images/icons/icon-location.svg" alt="" class="info-icon" id="profile-clinic"/>
               Baliwag Vet Clinic
             </div>
             <div class="vet-profile-rating">
               <img src="../images/icons/rating.svg" alt="star" class="info-icon"/>
-              <span class="rating-num">4.9</span>
-              <span class="rating-count">(124 reviews)</span>
+              <span class="rating-num" id="profile-rating">4.9</span>
+              <span class="rating-count" id="profile-review-count">(124 reviews)</span>
             </div>
           </div>
         </div>
 
         <div class="vet-stats-row">
           <div class="vet-stat">
-            <div class="vet-stat-label">Experience</div>
-            <div class="vet-stat-val">12+ Years</div>
+            <div class="vet-stat-label" id="stat-experience">Experience</div>
+            <div class="vet-stat-val" id="stat-experience-val">12+ Years</div>
           </div>
           <div class="vet-stat">
-            <div class="vet-stat-label">Patients</div>
-            <div class="vet-stat-val">2.4k</div>
+            <div class="vet-stat-label" id="stat-patients">Patients</div>
+            <div class="vet-stat-val" id="stat-patients-val">2.4k</div>
           </div>
           <div class="vet-stat">
-            <div class="vet-stat-label">Rating</div>
-            <div class="vet-stat-val">98%</div>
+            <div class="vet-stat-label" id="stat-rating">Rating</div>
+            <div class="vet-stat-val" id="stat-rating-val">98%</div>
           </div>
         </div>
 
         <div class="vet-profile-body">
-          <div class="section-title">Education &amp; Expertise</div>
-          <div class="section-desc">Dr. Igaya specializes in complex orthopedic surgeries and soft tissue repair. She completed her residency at the Royal Veterinary College and has been leading our surgical department for over 6 years.</div>
+          <div class="section-title" id="section-education">Education &amp; Expertise</div>
+          <div class="section-desc" id="section-desc">Dr. Igaya specializes in complex orthopedic surgeries and soft tissue repair. She completed her residency at the Royal Veterinary College and has been leading our surgical department for over 6 years.</div>
           <div class="tag-row">
-            <span class="edu-tag">DVM, Cornell University</span>
-            <span class="edu-tag">MS, Animal Science</span>
+            <span class="edu-tag" id="edu-tag">DVM, Cornell University</span>
+           
           </div>
 
-          <div class="section-title">Common Symptoms Treated</div>
+          <div class="section-title" id="section-symptoms">Common Symptoms Treated</div>
           <div class="symptoms-grid">
             <div class="symptom-item">
               <div class="symptom-icon"><img src="../images/icons/vet-symptom-1.svg" alt=""/></div>
@@ -162,15 +155,15 @@
           </div>
 
           <div class="feedback-header">
-            <div class="section-title" style="margin-bottom:0;">Patient Feedback</div>
+            <div class="section-title" id="section-feedback" style="margin-bottom:0;">Patient Feedback</div>
             <a href="#" class="see-all">See All</a>
           </div>
           <div class="feedback-card">
             <div class="feedback-user">
               <div class="feedback-avatar"></div>
               <div class="feedback-user-info">
-                <div class="feedback-name">Sarah Jenkins</div>
-                <div class="feedback-pet">Pet: Buster (Golden Retriever)</div>
+                <div class="feedback-name" id="feedback-name">Sarah Jenkins</div>
+                <div class="feedback-pet" id="feedback-pet">Pet: Buster (Golden Retriever)</div>
               </div>
               <div class="feedback-stars">
                 <img src="../images/icons/rate.svg" alt="star" class="star-sm"/>
@@ -214,14 +207,9 @@
             <span class="legend-label"><span class="legend-dot na"></span> Not Available</span>
             <span class="legend-label"><span class="legend-dot av"></span> Available</span>
           </div>
-          <div class="time-grid">
-            <div class="time-slot na">09:00 AM</div>
-            <div class="time-slot available selected">10:30 AM</div>
-            <div class="time-slot na">11:00 AM</div>
-            <div class="time-slot available">01:30 PM</div>
-            <div class="time-slot available">02:00 PM</div>
-            <div class="time-slot available">04:30 PM</div>
-          </div>
+         <div class="time-grid" id="timeGrid">
+  <!-- slots populated dynamically by buildTimeSlots() in book-appointment.js -->
+</div>
 
           <button class="btn-book" id="btnBook">
             <img src="../images/icons/book-white.svg" alt="" class="btn-icon"/>
@@ -523,6 +511,7 @@
 
   </div>
 </div>
+</div>
 
 
 <!-- ══════════════════════════════════════════
@@ -708,12 +697,11 @@
       </div>
     </div>
   </footer>
-  <!-- ══ SCRIPTS — auth.js MUST be first ══ -->
-  <script src="../../shared/js/auth.js"></script>
+  <!-- SCRIPTS - auth.js must load first -->
+  <!-- <script src="../../shared/js/auth.js"></script>
   <script>
-    /* Route guard — redirects wrong role to their home */
-    guardPage([ROLES.PET_OWNER]);
-  </script>
+    VBetterAuth.requireAuth(['owner']);
+  </script> -->
   <script src="../js/nav.js"></script>
   <script src="../js/api.js"></script>
   <script src="../js/book-appointment.js"></script>

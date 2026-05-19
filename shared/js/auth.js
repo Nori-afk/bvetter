@@ -18,12 +18,12 @@
 const SESSION_KEY = 'vbetter_session';
 
 const ROLE_ROUTES = {
-    vet:   '/vet/html/index.html',
-    admin: '/admin/pages/index.html',
-    owner: '/public/pages/landing.html'
+    vet:   '/Final-backend(VBETTER)/Final-Backend/vet/html/index.html',
+    admin: '/Final-backend(VBETTER)/Final-Backend/admin/pages/index.html',
+    owner: '/Final-backend(VBETTER)/Final-Backend/public/pages/landing.html'
 };
 
-const LOGIN_PAGE = '/public/pages/login.html';
+const LOGIN_PAGE = '/Final-backend(VBETTER)/Final-Backend/public/pages/login.html';
 
 /* ── Session helpers ────────────────────────────────────────── */
 function getSession() {
@@ -88,15 +88,15 @@ function requireAuth(allowedRoles = []) {
  */
 async function login(email, password) {
     /* ── MOCK (remove when backend is ready) ── */
-    const MOCK_USERS = [
-        { email: 'vet@vbetter.ph',   password: 'vet123',   userId: 'U-001', role: 'vet',   name: 'Dr. Kizea Bien Igaya', avatarUrl: '' },
-        { email: 'admin@vbetter.ph', password: 'admin123', userId: 'U-002', role: 'admin', name: 'Admin User',           avatarUrl: '' },
-        { email: 'owner@vbetter.ph', password: 'owner123', userId: 'U-003', role: 'owner', name: 'Pet Owner',            avatarUrl: '' },
-        // login.js test credentials
-        { email: 'vet@test.com',     password: 'vet123',   userId: 'U-001', role: 'vet',   name: 'Dr. Aris V.',          avatarUrl: '' },
-        { email: 'admin@test.com',   password: 'admin123', userId: 'U-002', role: 'admin', name: 'Admin User',           avatarUrl: '' },
-        { email: 'owner@test.com',   password: 'owner123', userId: 'U-003', role: 'owner', name: 'Mark Depa',            avatarUrl: '' },
-    ];
+    // const MOCK_USERS = [
+    //     { email: 'vet@vbetter.ph',   password: 'vet123',   userId: 'U-001', role: 'vet',   name: 'Dr. Kizea Bien Igaya', avatarUrl: '' },
+    //     { email: 'admin@vbetter.ph', password: 'admin123', userId: 'U-002', role: 'admin', name: 'Admin User',           avatarUrl: '' },
+    //     { email: 'owner@vbetter.ph', password: 'owner123', userId: 'U-003', role: 'owner', name: 'Pet Owner',            avatarUrl: '' },
+    //     // login.js test credentials
+    //     { email: 'vet@test.com',     password: 'vet123',   userId: 'U-001', role: 'vet',   name: 'Dr. Aris V.',          avatarUrl: '' },
+    //     { email: 'admin@test.com',   password: 'admin123', userId: 'U-002', role: 'admin', name: 'Admin User',           avatarUrl: '' },
+    //     { email: 'owner@test.com',   password: 'owner123', userId: 'U-003', role: 'owner', name: 'Mark Depa',            avatarUrl: '' },
+    // ];
 
     const match = MOCK_USERS.find(
         u => u.email === email.trim().toLowerCase() && u.password === password

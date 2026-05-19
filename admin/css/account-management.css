@@ -581,6 +581,9 @@ body { display: flex; min-height: 100vh; }
 /* modal with photo upload (Add/Edit/Unblock) */
 .am-modal-lg {
     width: min(520px, 100%);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
 }
 
 .am-modal-header-plain {
@@ -664,6 +667,8 @@ body { display: flex; min-height: 100vh; }
     display: flex;
     flex-direction: column;
     gap: 14px;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .am-form-row {
@@ -760,6 +765,7 @@ body { display: flex; min-height: 100vh; }
     justify-content: flex-end;
     gap: 10px;
     padding: 20px 28px 24px;
+    flex-shrink: 0;
 }
 
 .am-btn-cancel {
@@ -868,7 +874,7 @@ body { display: flex; min-height: 100vh; }
 
 .am-btn-delete-confirm {
     flex: 1;
-    background: linear-gradient(135deg, #7B0A14, #C53030);
+    background: #7B0A14;
     border: none;
     border-radius: var(--radius-sm);
     padding: 12px;

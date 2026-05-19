@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css"/>
     <link rel="stylesheet" href="../css/account-management.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
 <body>
 
@@ -150,7 +151,7 @@
                 <table class="am-table">
                     <thead>
                         <tr>
-                            <th>All User</th>
+                            <th>Name</th>
                             <th>Role</th>
                             <th>Status</th>
                             <th>Joined Date</th>
@@ -205,9 +206,7 @@
                     <div class="am-form-group">
                         <label class="am-label" for="add-role">Role</label>
                         <select class="am-input" id="add-role">
-                            <option value="vet">Veterinarian</option>
-                            <option value="owner">Pet Owner</option>
-                            <option value="admin">Administrator</option>
+                            <option value="">Loading roles...</option>
                         </select>
                     </div>
                     <div class="am-form-group">
@@ -233,6 +232,39 @@
                             <option value="inactive">Inactive</option>
                         </select>
                     </div>
+                </div>
+                <div class="am-form-row">
+                    <div class="am-form-group">
+                        <label class="am-label" for="add-password">Temporary Password</label>
+                        <input class="am-input" type="password" id="add-password" placeholder="Minimum 8 characters">
+                    </div>
+                    <div class="am-form-group" id="add-position-wrap">
+                        <label class="am-label" for="add-position-title">Position Title</label>
+                        <input class="am-input" type="text" id="add-position-title" placeholder="Veterinarian">
+                    </div>
+                </div>
+                <!-- If the role is veterinarian, show additional fields. -->
+                <div id="vet-additional-fields" style="display: none;">
+                <div class="am-form-row">   
+                     <div class="am-form-group">
+                     <label class="am-label" for="add-education">Education</label>
+                     <input class="am-input" type="text" id="add-education" placeholder="Enter Education">
+                     </div>
+                     <div class="am-form-group">
+                        <label class="am-label" for="add-specialization">Specialization</label>
+                        <input class="am-input" type="text" id="add-specialization" placeholder="Enter Specialization">
+                     </div>
+                </div>
+                <div class="am-form-row">
+                        <div class="am-form-group">
+                             <label class="am-label" for="add-license">License Number</label>
+                     <input class="am-input" type="text" id="add-license" placeholder="Enter License Number">
+                    </div>
+                    <div class="am-form-group">
+                       <label class="am-label" for="add-clinic-location">Clinic Location</label>
+                    <input class="am-input" type="text" id="add-clinic-location" placeholder="Enter Clinic Location">
+                        </div>
+                </div>
                 </div>
             </div>
 
@@ -477,9 +509,10 @@
         </div>
     </div>
 
-    <script src="../../shared/js/auth.js"></script>
-    <script>VBetterAuth.requireAuth(['admin']);</script>
+    <!-- <script src="../../shared/js/auth.js"></script>
+    <script>VBetterAuth.requireAuth(['admin']);</script> -->
     <script src="../../shared/js/sidebar.js"></script>
+    <script src="../../public/js/api.js"></script>
     <script src="../js/account-management.js"></script>
 </body>
 </html>
