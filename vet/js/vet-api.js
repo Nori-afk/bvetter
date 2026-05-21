@@ -16,6 +16,7 @@
 
 const BASE_URL = '/api';   // [BACKEND] e.g. 'https://api.vbetter.ph'
 const BACKEND_URL = '/Final-backend(VBETTER)/Final-Backend/backend';
+const LOST_FOUND_URL = `${BACKEND_URL}/Lost%26Found/lost_and_found.php`;
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
@@ -85,6 +86,45 @@ async function getAppointments(filters = {}) {
         return { ok: result.success, data: result.data || [], error: result.success ? null : result.message };
     } catch (error) {
         return { ok: false, data: [], error: error.message };
+    }
+}
+
+function sessionValue() {
+    try {
+        return JSON.parse(sessionStorage.getItem('vbetter_session') || 'null');
+    } catch {
+        return null;
+    }
+}
+
+function lostFoundForm(action, data = {}) {
+    const formData = data instanceof FormData ? data : new FormData();
+    formData.append('action', action);
+
+    if (!(data instanceof FormData)) {
+        Object.entries(data).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+                formData.append(key, value);
+            }
+        });
+    }
+
+    const session = sessionValue();
+    if (session?.userId && !formData.has('reviewed_by_user_id')) formData.append('reviewed_by_user_id', session.userId);
+    if (session?.role && !formData.has('role')) formData.append('role', session.role);
+    return formData;
+}
+
+async function lostFoundFetch(action, data = {}) {
+    try {
+        const response = await fetch(LOST_FOUND_URL, {
+            method: 'POST',
+            body: lostFoundForm(action, data)
+        });
+        const result = await response.json();
+        return { ok: result.success, data: result.data || result, error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, data: null, error: error.message };
     }
 }
 
@@ -175,23 +215,50 @@ async function getDiseaseAnalytics(disease = 'all') {
 
 /** GET /api/vet/lost-and-found */
 async function getLostAndFound(tab = 'pending', filters = {}) {
-    const params = new URLSearchParams({ tab, ...filters }).toString();
-    // [BACKEND] return apiFetch(`/vet/lost-and-found?${params}`);
-    return { ok: true, data: window.lfData || {} };
+    if (tab === 'claims') return lostFoundFetch('management_claims', filters);
+    if (tab === 'sighting') return lostFoundFetch('list_sightings', filters);
+    if (tab === 'potential') return lostFoundFetch('matches', filters);
+    if (tab === 'resolved') return lostFoundFetch('management_list', { ...filters, status: 'resolved' });
+    if (tab === 'active') return lostFoundFetch('management_list', { ...filters, status: 'active' });
+    return lostFoundFetch('management_list', { ...filters, status: 'pending' });
 }
 
 /** PATCH /api/vet/lost-and-found/:id/approve */
-async function approveLostFoundReport(id) {
-    // [BACKEND]
-    // return apiFetch(`/vet/lost-and-found/${id}/approve`, { method: 'PATCH' });
-    return { ok: true, data: { id, status: 'active' } };
+async function approveLostFoundReport(id, reviewNotes = '') {
+    return lostFoundFetch('approve_report', { report_id: id, review_notes: reviewNotes });
 }
 
 /** PATCH /api/vet/lost-and-found/:id/resolve */
-async function resolveLostFoundCase(id) {
-    // [BACKEND]
-    // return apiFetch(`/vet/lost-and-found/${id}/resolve`, { method: 'PATCH' });
-    return { ok: true, data: { id, status: 'resolved' } };
+async function resolveLostFoundCase(id, reviewNotes = '') {
+    return lostFoundFetch('resolve_report', { report_id: id, review_notes: reviewNotes });
+}
+
+async function rejectLostFoundReport(id, reviewNotes = '') {
+    return lostFoundFetch('reject_report', { report_id: id, review_notes: reviewNotes });
+}
+
+async function approveLostFoundMatch(id) {
+    return lostFoundFetch('approve_match', { match_id: id });
+}
+
+async function dismissLostFoundMatch(id) {
+    return lostFoundFetch('dismiss_match', { match_id: id });
+}
+
+async function approveLostFoundClaim(id, reviewNotes = '') {
+    return lostFoundFetch('approve_claim', { claim_id: id, review_notes: reviewNotes });
+}
+
+async function rejectLostFoundClaim(id, reviewNotes = '') {
+    return lostFoundFetch('reject_claim', { claim_id: id, review_notes: reviewNotes });
+}
+
+async function approveLostFoundSighting(id, reviewNotes = '') {
+    return lostFoundFetch('approve_sighting', { sighting_id: id, review_notes: reviewNotes });
+}
+
+async function rejectLostFoundSighting(id, reviewNotes = '') {
+    return lostFoundFetch('reject_sighting', { sighting_id: id, review_notes: reviewNotes });
 }
 
 /* ── Chatbot Management ──────────────────────────────────── */
@@ -276,6 +343,13 @@ window.VetAPI = {
     getLostAndFound,
     approveLostFoundReport,
     resolveLostFoundCase,
+    rejectLostFoundReport,
+    approveLostFoundMatch,
+    dismissLostFoundMatch,
+    approveLostFoundClaim,
+    rejectLostFoundClaim,
+    approveLostFoundSighting,
+    rejectLostFoundSighting,
     getInquiryRules,
     createInquiryRule,
     updateInquiryRule,

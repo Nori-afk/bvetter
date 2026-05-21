@@ -82,6 +82,7 @@ function buildCalendar(year, month) {
   }
 }
 
+
 // Init calendar to current month and set today as the selected date
 (function initCalendar() {
   const now = new Date();
@@ -233,7 +234,8 @@ async function fectchVets() {
       item.classList.add('active');
       selectedVetId = vet.id;          // track selected vet
       updateVetProfile(vet);
-      fetchAndBuildSlots();            // refresh slots for new vet + current date
+      fetchAndBuildSlots();    
+      loadVetFeedback(vet.id);        // refresh slots for new vet + current date
     });
 
     container.appendChild(item);
@@ -243,11 +245,342 @@ async function fectchVets() {
   if (VetAccounts.data.length > 0) {
     selectedVetId = VetAccounts.data[0].id;
     updateVetProfile(VetAccounts.data[0]);
-    fetchAndBuildSlots();   // now both selectedVetId + selectedCalDate are set
+    fetchAndBuildSlots();   
+    loadVetFeedback(VetAccounts.data[0].id);// now both selectedVetId + selectedCalDate are set
   }
 }
+async function loadRecentHistory() {
+  try {
+    const session = JSON.parse(
+      sessionStorage.getItem('vbetter_session') ||
+      sessionStorage.getItem('bvetter_user') ||
+      'null'
+    );
 
+    const res = await fetch('/FINAL-BACKEND(VBETTER)/Final-Backend/backend/appointments/appointment.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'list',
+        owner_id: session?.userId || session?.id || ''
+      })
+    });
+
+    const json = await res.json();
+
+    if (!json.success || !json.data) return;
+
+    const container = document.getElementById('recentHistoryList');
+    container.innerHTML = '';
+
+    // LIMIT TO ONLY 5
+    const recentAppointments = json.data.slice(0, 5);
+
+    recentAppointments.forEach(appt => {
+      let reviewBtn = '';
+
+      // completed but no review
+      if (appt.status === 'completed' && !appt.owner_rating) {
+        reviewBtn = `
+          <button class="btn-rate"
+            onclick="openReviewForm(${appt.id})">
+            Rate & Review
+          </button>
+        `;
+      }
+
+      // already reviewed
+      else if (appt.owner_rating) {
+        reviewBtn = `
+          <button class="btn-rate"
+            onclick="openReviewForm(
+              ${appt.id},
+              ${appt.owner_rating},
+              '${(appt.review_comment || '').replace(/'/g, "\\'")}'
+            )">
+            ${appt.owner_rating} ★ Rated
+          </button>
+        `;
+      }
+
+      // pending / cancelled
+      else {
+        reviewBtn = `
+          <button class="btn-rate" disabled>
+            ${capitalize(appt.status)}
+          </button>
+        `;
+      }
+//  const icons = {
+//   Consultation: "../images/icons/consultation.svg",
+//   Vaccination: "../images/icons/syringe.svg",
+//   Surgery: "../images/icons/surgery.svg",
+//   Grooming: "../images/icons/grooming.svg",
+//   "Check-up": "../images/icons/checkup.svg"
+// };
+
+// json.data.slice(0, 5).forEach(appt => {
+//   const iconPath = icons[appt.appointment_type] ;
+
+//   container.innerHTML += `
+//     <div class="history-card">
+//       <div style="display:flex; align-items:center; gap:14px;">
+//         <div class="history-icon">
+//           <img src="${iconPath}" alt="${appt.appointment_type}"/>
+//         </div>
+
+//         <div class="history-info">
+//           <div class="history-name">${appt.service}</div>
+//           <div class="history-meta">
+//             ${appt.patient} &bull; ${formatDate(appt.preferred_date)}
+//           </div>
+//         </div>
+//       </div>
+
+//       ${reviewBtn}
+//     </div>
+//   `;
+// });
+//     });
+      container.innerHTML += `
+        <div class="history-card">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div class="history-icon">
+              <img src="../images/icons/syringe.svg" alt="service"/>
+            </div>
+
+            <div class="history-info">
+              <div class="history-name">
+                ${appt.service}
+              </div>
+
+              <div class="history-meta">
+                ${appt.patient} &bull; ${formatDate(appt.preferred_date)}
+              </div>
+            </div>
+          </div>
+
+          ${reviewBtn}
+        </div>
+      `;
+    });
+
+  } catch (err) {
+    console.error('Failed to load recent history:', err);
+  }
+}
+async function submitReview(appointmentId, rating, comment) {
+  try {
+    const res = await fetch('/FINAL-BACKEND(VBETTER)/Final-Backend/backend/appointments/appointment.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'submit_review',
+        appointment_id: appointmentId,
+        rating: rating,
+        comment: comment
+      })
+    });
+
+    const json = await res.json();
+
+    if (json.success) {
+      alert('Review submitted successfully!');
+      loadAppointmentHistory(); // refresh history
+    } else {
+      alert(json.message || 'Failed to submit review.');
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Failed to submit review.');
+  }
+}
+function openReviewForm(appointmentId, currentRating = '', currentComment = '') {
+  const rating = prompt('Rate this appointment (1 to 5):', currentRating);
+  if (!rating) return;
+
+  const numRating = parseInt(rating);
+
+  if (numRating < 1 || numRating > 5) {
+    alert('Rating must be between 1 and 5.');
+    return;
+  }
+
+  const comment = prompt('Leave a comment:', currentComment || '');
+
+  submitReview(appointmentId, numRating, comment);
+}async function loadAppointmentHistory() {
+  try {
+    const session = JSON.parse(
+      sessionStorage.getItem('vbetter_session') ||
+      sessionStorage.getItem('bvetter_user') ||
+      'null'
+    );
+
+    const res = await fetch('/FINAL-BACKEND(VBETTER)/Final-Backend/backend/appointments/appointment.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'list',
+        owner_id: session?.userId || session?.id || ''
+      })
+    });
+
+    const json = await res.json();
+    console.log('Appointment history:', json);
+    const histList = document.getElementById('histList');
+    const histEmpty = document.getElementById('histEmpty');
+    const completedCountEl = document.getElementById('complted-visit');
+
+    completedCountEl.textContent = json.data ? json.data.filter(appt => appt.status === 'completed').length : '0';
+
+    if (!json.success || !json.data || json.data.length === 0) {
+      histList.style.display = 'none';
+      histEmpty.style.display = 'block';
+      return;
+    }
+
+    histEmpty.style.display = 'none';
+    histList.style.display = 'flex';
+    histList.innerHTML = '';
+
+    json.data.forEach(appt => {
+      const rowClass = appt.status === 'completed'
+        ? 'appt-row appt-completed'
+        : 'appt-row appt-pending';
+
+      const statusBadge = `
+        <span class="status-badge s-${appt.status}">
+          <span class="status-dot"></span>
+          ${capitalize(appt.status)}
+        </span>
+      `;
+
+      let reviewSection = '';
+
+      // completed + not reviewed
+      if (appt.status === 'completed' && !appt.owner_rating) {
+        reviewSection = `
+          ${statusBadge}
+          <button class="btn-rate-review"
+            onclick="openReviewForm(${appt.id})">
+            Rate & Review
+          </button>
+        `;
+      }
+
+      // completed + already reviewed
+      else if (appt.status === 'completed' && appt.owner_rating) {
+        reviewSection = `
+          ${statusBadge}
+          <span class="rated-badge"
+            onclick="openReviewForm(
+              ${appt.id},
+              ${appt.owner_rating},
+              '${(appt.review_comment || '').replace(/'/g, "\\'")}'
+            )"
+            style="cursor:pointer;">
+            <img src="../images/icons/icon-star.svg" alt="" class="star-xs"/>
+            ${appt.owner_rating} Rated
+          </span>
+        `;
+      }
+
+      // pending / others
+      else {
+        reviewSection = statusBadge;
+      }
+
+      histList.innerHTML += `
+        <div class="${rowClass}">
+          <div class="appt-col">
+            <div class="appt-col-label">PET NAME</div>
+            <div class="appt-pet-name">${appt.patient}</div>
+            <div class="appt-pet-meta">
+              ${appt.pet.species} &bull; ${appt.pet.age} yrs
+            </div>
+          </div>
+
+          <div class="appt-col">
+            <div class="appt-col-label">SERVICE</div>
+            <div class="appt-service-name">${appt.service}</div>
+            <div class="appt-doctor">
+              ${appt.veterinarian || 'No veterinarian assigned'}
+            </div>
+          </div>
+
+          <div class="appt-col">
+            <div class="appt-col-label">DATE</div>
+            <div class="appt-date-val">
+              ${formatDate(appt.preferred_date)}
+            </div>
+            <div class="appt-time-val">${appt.time_slot}</div>
+          </div>
+
+          <div class="appt-actions">
+            ${reviewSection}
+          </div>
+        </div>
+      `;
+    });
+
+  } catch (err) {
+    console.error('Failed to load appointment history:', err);
+  }
+}
+async function loadVetFeedback(vetId) {
+  try {
+    const res = await fetch('/FINAL-BACKEND(VBETTER)/Final-Backend/backend/appointments/appointment.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'vet_reviews',
+        veterinarian_id: vetId
+      })
+    });
+
+    const json = await res.json();
+
+    if (!json.success || !json.data || json.data.length === 0) {
+      // No reviews yet
+      document.getElementById('feedback-name').textContent = 'No reviews yet';
+      document.getElementById('feedback-pet').textContent = '';
+      document.getElementById('comment').textContent = 'This veterinarian has not received feedback yet.';
+      document.getElementById('rate').innerHTML = '';
+      return;
+    }
+
+    // Get latest review (or first one)
+    const review = json.data[0];
+
+    // Update reviewer info
+    document.getElementById('feedback-name').textContent =
+      review.owner_name || 'Anonymous';
+
+    document.getElementById('feedback-pet').textContent =
+      `Pet: ${review.pet_name || 'Unknown Pet'} (${review.species || ''})`;
+
+    document.getElementById('comment').textContent =
+      `"${review.comment || 'No comment provided'}"`;
+
+    // Build stars
+    const rating = parseInt(review.rating || 0);
+    const starsContainer = document.getElementById('rate');
+
+    starsContainer.innerHTML = '';
+
+    for (let i = 0; i < rating; i++) {
+      starsContainer.innerHTML += `
+        <img src="../images/icons/rate.svg" alt="star" class="star-sm"/>
+      `;
+    }
+
+  } catch (err) {
+    console.error('Failed to load vet feedback:', err);
+  }
+}
 fectchVets();
+loadRecentHistory();
 
 
 /* ── Page + booking form logic ───────────────── */
@@ -274,11 +607,20 @@ fectchVets();
 
   /* ── Page navigation wiring ─────────────── */
   document.getElementById('btnBook')           .addEventListener('click', () => { showPage(pageBooking); goStep(1); });
-  document.getElementById('btnViewAll')        .addEventListener('click', (e) => { e.preventDefault(); showPage(pageHistory); });
+  document.getElementById('btnViewAll')
+  .addEventListener('click', (e) => {
+    e.preventDefault();
+    showPage(pageHistory);
+    loadAppointmentHistory();
+  });
   document.getElementById('btnBackToVet')      .addEventListener('click', (e) => { e.preventDefault(); showPage(pageVet); });
   document.getElementById('btnBackHome')       .addEventListener('click', () => showPage(pageVet));
-  document.getElementById('btnViewHistory')    .addEventListener('click', () => showPage(pageHistory));
-  document.getElementById('btnHistBack')       .addEventListener('click', () => showPage(pageVet));
+document.getElementById('btnViewHistory')
+  .addEventListener('click', () => {
+    showPage(pageHistory);
+    loadAppointmentHistory();
+  });
+document.getElementById('btnHistBack')       .addEventListener('click', () => showPage(pageVet));
   document.getElementById('btnBookFromHistory').addEventListener('click', () => { showPage(pageBooking); goStep(1); });
 
   /* ── Step navigation wiring ─────────────── */
@@ -303,7 +645,7 @@ fectchVets();
 
   /* ── Submit appointment ──────────────────── */
   async function submitAppointment() {
-    const selectedSlot = document.querySelector('.slot-btn.selected');
+const selectedSlot = document.querySelector('.time-slot.selected');
     const session = JSON.parse(
       sessionStorage.getItem('vbetter_session') ||
       sessionStorage.getItem('bvetter_user')    ||
@@ -327,7 +669,7 @@ fectchVets();
       pet_vaccination_date: document.getElementById('petVaccDate')?.value         || '',
       appointment_type:     document.getElementById('visitType')?.value           || '',
       preferred_date:       document.getElementById('apptDate')?.value            || '',
-      time_slot:            selectedSlot ? selectedSlot.dataset.slot              : '',
+time_slot: selectedSlot ? selectedSlot.textContent.trim() : '',
       notes:                document.getElementById('apptNotes')?.value.trim()    || ''
     };
 
@@ -461,4 +803,16 @@ function escapeHtml(value) {
 
 function escapeAttr(value) {
   return escapeHtml(value).replace(/`/g, '&#96;');
+}
+function capitalize(text) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
 }

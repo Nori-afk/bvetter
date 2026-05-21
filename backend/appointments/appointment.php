@@ -500,6 +500,7 @@ try {
     if ($action === 'vets') listVeterinarians($pdo);
     if ($action === 'booked_slots') getBookedSlots($pdo, $input);
     if ($action === 'submit_review') submitReview($pdo, $input);
+    if ($action === 'vet_reviews') getVetReviews($pdo, $input);
 
     respond(400, [
         'success' => false,
@@ -517,3 +518,32 @@ try {
     ]);
 }
 
+function getVetReviews($pdo, $data)
+{
+    $vetId = (int)($data['veterinarian_id'] ?? 0);
+
+    $stmt = $pdo->prepare("
+        SELECT
+            reviews.rating,
+            reviews.comment,
+            users.full_name AS owner_name,
+            pets.pet_name,
+            pets.species
+        FROM reviews
+        INNER JOIN appointments ON appointments.id = reviews.appointment_id
+        INNER JOIN users ON users.id = reviews.owner_id
+        INNER JOIN pets ON pets.id = appointments.pet_id
+        WHERE reviews.veterinarian_id = :vet_id
+        ORDER BY reviews.created_at DESC
+        LIMIT 1
+    ");
+
+    $stmt->execute([':vet_id' => $vetId]);
+
+    $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    respond(200, [
+        'success' => true,
+        'data' => $reviews
+    ]);
+}

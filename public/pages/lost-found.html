@@ -22,6 +22,8 @@
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
   <link rel="stylesheet" href="../css/lost-found.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 </head>
 <body>
 
@@ -142,9 +144,8 @@
         <div class="filter-section">
           <span class="filter-section-label">Animal Type</span>
           <div class="filter-chips">
-            <button class="filter-chip" onclick="toggleChip(this,'type')">Canine</button>
-            <button class="filter-chip" onclick="toggleChip(this,'type')">Feline</button>
-            <button class="filter-chip" onclick="toggleChip(this,'type')">Bird</button>
+            <button class="filter-chip" onclick="toggleChip(this,'type')">Dog</button>
+            <button class="filter-chip" onclick="toggleChip(this,'type')">Cat</button>
             <button class="filter-chip" onclick="toggleChip(this,'type')">Other</button>
           </div>
         </div>
@@ -534,22 +535,22 @@
           <div class="form-row" id="petNameRow">
             <div class="form-group full">
               <label>Pet Name</label>
-              <input type="text" placeholder="e.g. Max" class="form-input"/>
+              <input type="text" id="petNameInput" placeholder="e.g. Max" class="form-input"/>
             </div>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label>Type</label>
               <div class="select-wrap">
-                <select class="form-select">
-                  <option>Canine</option><option>Feline</option><option>Bird</option><option>Other</option>
+                <select class="form-select" id="speciesInput">
+                  <option>Dog</option><option>Cat</option><option>Other</option>
                 </select>
                 <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img"/>
               </div>
             </div>
             <div class="form-group">
               <label>Breed</label>
-              <input type="text" placeholder="e.g. Golden Retriever" class="form-input"/>
+              <input type="text" id="breedInput" placeholder="e.g. Golden Retriever" class="form-input"/>
             </div>
           </div>
           <div class="form-row">
@@ -563,7 +564,7 @@
             <div class="form-group">
               <label>Size</label>
               <div class="select-wrap">
-                <select class="form-select">
+                <select class="form-select" id="sizeInput">
                   <option>Small (Under 10kg)</option>
                   <option>Medium (10-25kg)</option>
                   <option>Large (25kg+)</option>
@@ -575,7 +576,7 @@
           <div class="form-row">
             <div class="form-group full">
               <label>Color / Markings</label>
-              <input type="text" placeholder="e.g. White with brown patches, black collar" class="form-input"/>
+              <input type="text" id="markingsInput" placeholder="e.g. White with brown patches, black collar" class="form-input"/>
             </div>
           </div>
         </div>
@@ -585,29 +586,25 @@
           <div class="form-row">
             <div class="form-group">
               <label id="dateLostLabel">Date Lost</label>
-              <input type="date" class="form-input"/>
+              <input type="date" id="incidentDateInput" class="form-input"/>
             </div>
             <div class="form-group">
               <label>Barangay Last Seen</label>
               <div class="select-wrap">
-                <select class="form-select">
+                <select class="form-select" id="barangayInput">
                   <option value="">Select Barangay</option>
-                  <option>Bagong Nayon</option><option>Burol</option><option>Calasag</option>
-                  <option>Camalig</option><option>Canalate</option><option>Caniogan</option>
-                  <option>Entablado</option><option>Lote</option><option>Maasim</option>
-                  <option>Pagala</option><option>Paitan</option><option>Poblacion</option>
-                  <option>Sabang</option><option>San Jose</option><option>San Roque</option>
-                  <option>Sta. Barbara</option><option>Subic</option><option>Tangos</option>
-                  <option>Tibag</option><option>Tilapayong</option>
                 </select>
                 <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-arrow-img"/>
               </div>
             </div>
           </div>
-          <a href="#" class="view-map-link">View Map</a>
+          <a href="#" class="view-map-link" onclick="focusReportMap(event)">Set exact location on map</a>
+          <div id="reportMap" style="height:220px; border-radius:14px; overflow:hidden; margin-top:10px;"></div>
+          <input type="hidden" id="reportLatInput" value="14.9577"/>
+          <input type="hidden" id="reportLngInput" value="120.9055"/>
           <div class="form-group" style="margin-top:8px;">
             <label id="notesLabel">Additional Details</label>
-            <textarea class="form-textarea" placeholder="Last behavior, collar color, chip ID if known..."></textarea>
+          <textarea class="form-textarea" id="notesInput" placeholder="Last behavior, collar color, chip ID if known..."></textarea>
           </div>
           <div class="contact-box">
             <div class="contact-box-header">
@@ -776,12 +773,8 @@
           <div class="form-group">
             <label>BARANGAY (LOCATION)</label>
             <div class="select-wrap">
-              <select class="form-select">
+              <select class="form-select" id="sightingBarangayInput">
                 <option value="">Select Barangay</option>
-                <option>Bagong Nayon</option><option>Burol</option><option>Caniogan</option>
-                <option>Entablado</option><option>Pagala</option><option>Poblacion</option>
-                <option>Sabang</option><option>San Jose</option><option>Subic</option>
-                <option>Tangos</option><option>Tibag</option><option>Tilapayong</option>
               </select>
               <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-arrow-img"/>
             </div>
@@ -1060,11 +1053,14 @@
   </footer>
 
   <script src="../../shared/js/auth.js"></script>
-  <script>
+  <!-- <script>
     if (window.VBetterAuth) guardPage && guardPage([ROLES && ROLES.PET_OWNER]);
-  </script>
+  </script> -->
   <script src="../js/nav.js"></script>
   <script src="../js/api.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+          crossorigin=""></script>
   <script src="../js/lost-found.js"></script>
 </body>
 </html>

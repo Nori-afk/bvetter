@@ -43,6 +43,7 @@
    TODO: Change to production URL before deploy   */
 const API_BASE = 'http://localhost:8000/api';
 const API_BASE_REG = 'http://localhost/Final-backend(VBETTER)/Final-Backend/backend';
+const LOST_FOUND_ENDPOINT = `${API_BASE_REG}/Lost%26Found/lost_and_found.php`;
 
 /* ── Auth Header Builder ──────────────────────
    Reads JWT token saved on login.
@@ -60,6 +61,40 @@ function authHeaders() {
 function authHeadersFormData() {
   const token = sessionStorage.getItem('bvetter_token');
   return token ? { 'Authorization': 'Bearer ' + token } : {};
+}
+
+function currentSession() {
+  try {
+    return JSON.parse(sessionStorage.getItem('vbetter_session') || 'null');
+  } catch {
+    return null;
+  }
+}
+
+function lostFoundForm(action, data = {}) {
+  const formData = data instanceof FormData ? data : new FormData();
+  formData.append('action', action);
+
+  if (!(data instanceof FormData)) {
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        formData.append(key, value);
+      }
+    });
+  }
+
+  const session = currentSession();
+  if (session?.userId && !formData.has('user_id')) formData.append('user_id', session.userId);
+  if (session?.userId && !formData.has('owner_id')) formData.append('owner_id', session.userId);
+  if (session?.role && !formData.has('role')) formData.append('role', session.role);
+  return formData;
+}
+
+function lostFoundRequest(action, data = {}) {
+  return fetch(LOST_FOUND_ENDPOINT, {
+    method: 'POST',
+    body: lostFoundForm(action, data)
+  }).then(r => r.json());
 }
 
 const api = {
@@ -126,47 +161,37 @@ const api = {
    * Replaces: const petData = [...] in lost-found.js
    */
   getReports: (filters = {}) =>
-    fetch(`${API_BASE}/reports?${new URLSearchParams(filters)}`, {
-      headers: authHeaders()
-    }).then(r => r.json()),
+    lostFoundRequest('list', filters),
 
   /**
    * Get single report — used in lost-found-detail.html
    * @param {string} id — report ID from URL ?id=
    */
   getReportById: (id) =>
-    fetch(`${API_BASE}/reports/${id}`, {
-      headers: authHeaders()
-    }).then(r => r.json()),
+    lostFoundRequest('get', { report_id: id }),
 
   /**
    * Get current user's own reports — My Reports tab
    */
   getMyReports: () =>
-    fetch(`${API_BASE}/reports/mine`, {
-      headers: authHeaders()
-    }).then(r => r.json()),
+    lostFoundRequest('my_reports'),
 
   /**
    * Get Jaccard Similarity matches for a lost report
    * @param {string} reportId
    */
   getMatchesByReportId: (reportId) =>
-    fetch(`${API_BASE}/reports/${reportId}/matches`, {
-      headers: authHeaders()
-    }).then(r => r.json()),
+    lostFoundRequest('matches', { report_id: reportId, include_resolved: 1 }),
 
   /**
    * Submit lost or found report (includes photo upload)
    * @param {string} type — 'lost' | 'found'
    * @param {FormData} formData — use FormData, NOT JSON (photo upload)
    */
-  submitReport: (type, formData) =>
-    fetch(`${API_BASE}/reports/${type}`, {
-      method: 'POST',
-      headers: authHeadersFormData(),
-      body: formData
-    }).then(r => r.json()),
+  submitReport: (type, formData) => {
+    formData.append('type', type);
+    return lostFoundRequest('create_report', formData);
+  },
 
 
   /* ══════════════════════════════════════════
@@ -178,11 +203,7 @@ const api = {
    * @param {FormData} formData
    */
   submitSighting: (formData) =>
-    fetch(`${API_BASE}/sightings`, {
-      method: 'POST',
-      headers: authHeadersFormData(),
-      body: formData
-    }).then(r => r.json()),
+    lostFoundRequest('submit_sighting', formData),
 
 
   /* ══════════════════════════════════════════
@@ -193,10 +214,8 @@ const api = {
    * Get all claims by current user — My Claims tab
    * Replaces: static rows in my-claims.html
    */
-  getClaims: () =>
-    fetch(`${API_BASE}/claims`, {
-      headers: authHeaders()
-    }).then(r => r.json()),
+  getClaims: (filters = {}) =>
+    lostFoundRequest('list_claims', filters),
 
   /**
    * Submit ownership claim with proof documents
@@ -205,11 +224,7 @@ const api = {
    */
   submitClaim: (reportId, formData) => {
     formData.append('report_id', reportId);
-    return fetch(`${API_BASE}/claims`, {
-      method: 'POST',
-      headers: authHeadersFormData(),
-      body: formData
-    }).then(r => r.json());
+    return lostFoundRequest('submit_claim', formData);
   },
 
   /**
@@ -217,10 +232,46 @@ const api = {
    * @param {string} claimId
    */
   resolveClaim: (claimId) =>
-    fetch(`${API_BASE}/claims/${claimId}/resolve`, {
-      method: 'PATCH',
-      headers: authHeaders()
-    }).then(r => r.json()),
+    lostFoundRequest('resolve_claim', { claim_id: claimId }),
+
+  vetLostFoundReports: (filters = {}) =>
+    lostFoundRequest('management_list', filters),
+
+  approveLostFoundReport: (reportId, reviewNotes = '') =>
+    lostFoundRequest('approve_report', { report_id: reportId, review_notes: reviewNotes }),
+
+  rejectLostFoundReport: (reportId, reviewNotes = '') =>
+    lostFoundRequest('reject_report', { report_id: reportId, review_notes: reviewNotes }),
+
+  resolveLostFoundReport: (reportId, reviewNotes = '') =>
+    lostFoundRequest('resolve_report', { report_id: reportId, review_notes: reviewNotes }),
+
+  lostFoundMatches: (reportId = '') =>
+    lostFoundRequest('matches', reportId ? { report_id: reportId } : {}),
+
+  approveLostFoundMatch: (matchId) =>
+    lostFoundRequest('approve_match', { match_id: matchId }),
+
+  dismissLostFoundMatch: (matchId) =>
+    lostFoundRequest('dismiss_match', { match_id: matchId }),
+
+  vetLostFoundSightings: (filters = {}) =>
+    lostFoundRequest('list_sightings', filters),
+
+  approveLostFoundSighting: (sightingId, reviewNotes = '') =>
+    lostFoundRequest('approve_sighting', { sighting_id: sightingId, review_notes: reviewNotes }),
+
+  rejectLostFoundSighting: (sightingId, reviewNotes = '') =>
+    lostFoundRequest('reject_sighting', { sighting_id: sightingId, review_notes: reviewNotes }),
+
+  vetLostFoundClaims: (filters = {}) =>
+    lostFoundRequest('management_claims', filters),
+
+  approveLostFoundClaim: (claimId, reviewNotes = '') =>
+    lostFoundRequest('approve_claim', { claim_id: claimId, review_notes: reviewNotes }),
+
+  rejectLostFoundClaim: (claimId, reviewNotes = '') =>
+    lostFoundRequest('reject_claim', { claim_id: claimId, review_notes: reviewNotes }),
 
 
   /* ══════════════════════════════════════════

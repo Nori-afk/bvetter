@@ -165,7 +165,7 @@
                 <div class="feedback-name" id="feedback-name">Sarah Jenkins</div>
                 <div class="feedback-pet" id="feedback-pet">Pet: Buster (Golden Retriever)</div>
               </div>
-              <div class="feedback-stars">
+              <div class="feedback-stars" id="rate">
                 <img src="../images/icons/rate.svg" alt="star" class="star-sm"/>
                 <img src="../images/icons/rate.svg" alt="" class="star-sm"/>
                 <img src="../images/icons/rate.svg" alt="" class="star-sm"/>
@@ -173,7 +173,7 @@
                 <img src="../images/icons/rate.svg" alt="" class="star-sm"/>
               </div>
             </div>
-            <div class="feedback-text">"Dr. Clara was amazing with Buster's leg surgery. Extremely professional and communicative throughout the process."</div>
+            <div class="feedback-text" id="comment">"Dr. Clara was amazing with Buster's leg surgery. Extremely professional and communicative throughout the process."</div>
           </div>
         </div>
       </div>
@@ -226,18 +226,9 @@
         <div class="history-title">Recent Appointment History</div>
         <a href="#" class="view-all" id="btnViewAll">View All Records</a>
       </div>
-      <div class="history-card">
-  <div style="display:flex; align-items:center; gap:14px;">  <!-- ← wrap these two -->
-    <div class="history-icon">
-      <img src="../images/icons/syringe.svg" alt="vaccination"/>
-    </div>
-    <div class="history-info">
-      <div class="history-name">Rabies Vaccination</div>
-      <div class="history-meta">Luna &bull; Sep 12, 2023</div>
-    </div>
-  </div>                                                      <!-- ← close wrapper -->
-  <button class="btn-rate">Rate &amp; Review</button>
+  <div id="recentHistoryList"></div>
 </div>
+
     </div>
   </div>
 </div>
@@ -643,7 +634,7 @@
       <div class="hist-sidebar">
         <div class="health-card">
           <div class="health-label">HEALTHY STATUS</div>
-          <div class="health-num">12</div>
+          <div class="health-num" id="complted-visit">12</div>
           <div class="health-desc">Completed Visits</div>
           <div class="health-ontime">
             <img src="../images/icons/icon-check-circle.svg" alt="" class="ontime-icon"/>
