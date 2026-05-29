@@ -1,4 +1,4 @@
-const diseaseAnalyticsData = {
+let diseaseAnalyticsData = {
 	filters: ["All Diseases", "Parvovirus", "Distemper", "Leptospirosis", "Rabies"],
 	selectedDisease: "Parvovirus",
 	kpis: [
@@ -132,11 +132,21 @@ const state = {
 	hotspotMarkers: []
 };
 
-function initDiseaseAnalytics() {
+async function initDiseaseAnalytics() {
+	await loadDiseaseAnalytics();
 	bindEvents();
 	renderOverview();
 	renderInsightPanel();
 	renderMapPanel();
+}
+
+async function loadDiseaseAnalytics(disease = "All Diseases") {
+	if (!window.VetAPI?.getDiseaseAnalytics) return;
+	const response = await window.VetAPI.getDiseaseAnalytics(disease);
+	if (response.ok && response.data && Object.keys(response.data).length) {
+		diseaseAnalyticsData = response.data;
+		state.selectedInsightId = diseaseAnalyticsData.insights?.[0]?.id || "";
+	}
 }
 
 function bindEvents() {
@@ -157,7 +167,44 @@ function bindEvents() {
 	});
 
 	filter.addEventListener("change", (event) => {
-		diseaseAnalyticsData.selectedDisease = event.target.value;
+		loadDiseaseAnalytics(event.target.value).then(() => {
+			state.mapActionMode = false;
+			if (state.map) {
+				state.hotspotMarkers.forEach((marker) => marker.remove());
+				state.hotspotMarkers = [];
+				if (state.heatLayer) state.heatLayer.remove();
+				const heatPoints = diseaseAnalyticsData.map.hotspots.map((spot) => [spot.lat, spot.lng, spot.intensity]);
+				state.heatLayer = L.heatLayer(heatPoints, {
+					radius: 45,
+					blur: 30,
+					minOpacity: 0.5,
+					gradient: {
+						0.3: "#6ec7ff",
+						0.55: "#fff27a",
+						0.75: "#ff9248",
+						1.0: "#e53030"
+					}
+				}).addTo(state.map);
+				diseaseAnalyticsData.map.hotspots.forEach((spot) => {
+					const color = getRiskColor(spot.risk);
+					const marker = L.circleMarker([spot.lat, spot.lng], {
+						radius: 5,
+						color,
+						fillColor: color,
+						fillOpacity: 0.9,
+						weight: 1
+					}).addTo(state.map).bindTooltip(`${spot.barangay} | ${spot.disease}`);
+					marker.on("click", () => {
+						showHotspotAction(spot);
+						toggleMapActionMode(true);
+					});
+					state.hotspotMarkers.push(marker);
+				});
+			}
+			renderOverview();
+			renderInsightPanel();
+			renderMapPanel();
+		});
 	});
 
 	document.getElementById("refreshSourcesBtn").addEventListener("click", () => {

@@ -1,4 +1,6 @@
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
+    const dashboardData = await loadAdminDashboard();
+    applyAdminDashboard(dashboardData);
 
     // ===========================
     // REGISTRATION CHART
@@ -8,18 +10,39 @@ document.addEventListener('DOMContentLoaded', function () {
         new Chart(regCtx, {
             type: 'bar',
             data: {
-                labels: ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'],
+                labels: (dashboardData?.registrationChart?.length ? dashboardData.registrationChart : [
+                    { label: 'Nov', newAccounts: 3, deactivated: 1 },
+                    { label: 'Dec', newAccounts: 5, deactivated: 0 },
+                    { label: 'Jan', newAccounts: 4, deactivated: 1 },
+                    { label: 'Feb', newAccounts: 8, deactivated: 2 },
+                    { label: 'Mar', newAccounts: 6, deactivated: 0 },
+                    { label: 'Apr', newAccounts: 9, deactivated: 1 }
+                ]).map((item) => item.label),
                 datasets: [
                     {
                         label: 'New Accounts',
-                        data: [3, 5, 4, 8, 6, 9],
+                        data: (dashboardData?.registrationChart?.length ? dashboardData.registrationChart : [
+                            { newAccounts: 3 },
+                            { newAccounts: 5 },
+                            { newAccounts: 4 },
+                            { newAccounts: 8 },
+                            { newAccounts: 6 },
+                            { newAccounts: 9 }
+                        ]).map((item) => item.newAccounts),
                         backgroundColor: '#002A58',
                         borderRadius: 6,
                         borderSkipped: false
                     },
                     {
                         label: 'Deactivated',
-                        data: [1, 0, 1, 2, 0, 1],
+                        data: (dashboardData?.registrationChart?.length ? dashboardData.registrationChart : [
+                            { deactivated: 1 },
+                            { deactivated: 0 },
+                            { deactivated: 1 },
+                            { deactivated: 2 },
+                            { deactivated: 0 },
+                            { deactivated: 1 }
+                        ]).map((item) => item.deactivated),
                         backgroundColor: 'rgba(147,0,10,0.25)',
                         borderRadius: 6,
                         borderSkipped: false
@@ -185,6 +208,64 @@ function showToast(message, type = 'info') {
         toast.style.animation = 'slideOut 0.3s ease-in-out';
         setTimeout(() => toast.remove(), 300);
     }, 3000);
+}
+
+async function loadAdminDashboard() {
+    try {
+        const response = await fetch('/Final-backend(VBETTER)/Final-Backend/backend/dashboard/dashboard.php?scope=admin');
+        const result = await response.json();
+        return result.success ? result.data : null;
+    } catch (error) {
+        console.warn('Unable to load admin dashboard backend data:', error);
+        return null;
+    }
+}
+
+function applyAdminDashboard(data) {
+    if (!data?.kpis) return;
+    const greetStats = document.querySelectorAll('.greet-stat-val');
+    if (greetStats[0]) greetStats[0].textContent = String(data.kpis.totalAccounts || 0);
+    if (greetStats[1]) greetStats[1].textContent = String(data.kpis.activeAccounts || 0);
+    if (greetStats[2]) greetStats[2].textContent = String(data.kpis.pendingApprovals || 0).padStart(2, '0');
+
+    const kpis = document.querySelectorAll('.KPI .kpi-value');
+    if (kpis[0]) kpis[0].textContent = String(data.kpis.totalAccounts || 0);
+    if (kpis[1]) kpis[1].textContent = String(data.kpis.pendingApprovals || 0).padStart(2, '0');
+    if (kpis[2]) kpis[2].textContent = String(data.kpis.systemAlerts || 0).padStart(2, '0');
+    if (kpis[3]) kpis[3].textContent = `${data.kpis.clinicVaccinationRate || 0}%`;
+
+    const progress = document.querySelector('.vaccination-progress .progress-fill');
+    if (progress) progress.style.width = `${Math.min(100, data.kpis.clinicVaccinationRate || 0)}%`;
+
+    const tableBody = document.querySelector('.accounts-table tbody');
+    if (tableBody && data.recentAccounts?.length) {
+        tableBody.innerHTML = data.recentAccounts.map((account) => {
+            const initials = (account.name || 'NA').split(/\s+/).slice(0, 2).map((part) => part[0] || '').join('').toUpperCase();
+            const role = account.role || 'User';
+            const status = account.status || 'pending';
+            return `
+                <tr>
+                    <td class="user-cell">
+                        <div class="user-avatar">${escapeHtml(initials)}</div>
+                        <span>${escapeHtml(account.name || 'N/A')}</span>
+                    </td>
+                    <td><span class="role-badge ${role.toLowerCase()}">${escapeHtml(role)}</span></td>
+                    <td class="email-cell">${escapeHtml(account.email || '')}</td>
+                    <td><span class="status-pill ${status.toLowerCase()}">${escapeHtml(status)}</span></td>
+                    <td class="date-cell">${escapeHtml(account.joined || '')}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 // ===========================

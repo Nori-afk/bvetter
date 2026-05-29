@@ -53,16 +53,13 @@ async function apiFetch(endpoint, options = {}) {
 
 /** GET /api/vet/dashboard/summary */
 async function getDashboardSummary() {
-    // [BACKEND] return apiFetch('/vet/dashboard/summary');
-    return {
-        ok: true,
-        data: {
-            pendingAppointments: 5,
-            confirmedToday:      8,
-            activeLostFound:     3,
-            pendingVaccReports:  2
-        }
-    };
+    try {
+        const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?scope=vet`);
+        const result = await response.json();
+        return { ok: result.success, data: result.data || {}, error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, data: {}, error: error.message };
+    }
 }
 
 /* ── Appointments ────────────────────────────────────────── */
@@ -199,16 +196,33 @@ async function updatePatient(id, payload) {
 /** GET /api/vet/reports */
 async function getReports(filters = {}) {
     const params = new URLSearchParams(filters).toString();
-    // [BACKEND] return apiFetch(`/vet/reports?${params}`);
-    return { ok: true, data: [] };
+    try {
+        const response = await fetch(`${BACKEND_URL}/reports/reports.php?${params}`);
+        const result = await response.json();
+        console.log('Report API Response:', result);
+        return { ok: result.success, data: result.data || {}, error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, data: {}, error: error.message };
+    }
+}
+
+function getReportExportUrl(filters = {}, format = 'pdf') {
+    const params = new URLSearchParams({ ...filters, format }).toString();
+    return `${BACKEND_URL}/reports/reports.php?${params}`;
 }
 
 /* ── Disease Analytics ───────────────────────────────────── */
 
 /** GET /api/vet/disease-analytics */
 async function getDiseaseAnalytics(disease = 'all') {
-    // [BACKEND] return apiFetch(`/vet/disease-analytics?disease=${disease}`);
-    return { ok: true, data: window.diseaseAnalyticsData || {} };
+    const params = new URLSearchParams({ scope: 'disease_analytics', disease }).toString();
+    try {
+        const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?${params}`);
+        const result = await response.json();
+        return { ok: result.success, data: result.data || {}, error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, data: {}, error: error.message };
+    }
 }
 
 /* ── Lost and Found ──────────────────────────────────────── */
@@ -339,6 +353,7 @@ window.VetAPI = {
     createPatient,
     updatePatient,
     getReports,
+    getReportExportUrl,
     getDiseaseAnalytics,
     getLostAndFound,
     approveLostFoundReport,

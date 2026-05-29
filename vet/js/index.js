@@ -1,4 +1,9 @@
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
+    const dashboardResponse = window.VetAPI?.getDashboardSummary
+        ? await window.VetAPI.getDashboardSummary()
+        : { ok: false, data: null };
+    const dashboardData = dashboardResponse.ok ? dashboardResponse.data : null;
+    applyDashboardKpis(dashboardData);
 
     const announcementState = {
         items: [
@@ -52,11 +57,27 @@ document.addEventListener('DOMContentLoaded', function () {
         new Chart(patientVolumeCtx, {
             type: 'line',
             data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                labels: (dashboardData?.patientVolume?.length ? dashboardData.patientVolume : [
+                    { label: 'Jan', value: 120 },
+                    { label: 'Feb', value: 190 },
+                    { label: 'Mar', value: 150 },
+                    { label: 'Apr', value: 221 },
+                    { label: 'May', value: 200 },
+                    { label: 'Jun', value: 290 },
+                    { label: 'Jul', value: 250 }
+                ]).map((item) => item.label),
                 datasets: [
                     {
                         label: 'Patient Volume',
-                        data: [120, 190, 150, 221, 200, 290, 250],
+                        data: (dashboardData?.patientVolume?.length ? dashboardData.patientVolume : [
+                            { value: 120 },
+                            { value: 190 },
+                            { value: 150 },
+                            { value: 221 },
+                            { value: 200 },
+                            { value: 290 },
+                            { value: 250 }
+                        ]).map((item) => item.value),
                         borderColor: '#002A58',
                         backgroundColor: 'rgba(0, 42, 88, 0.1)',
                         borderWidth: 3,
@@ -111,11 +132,21 @@ document.addEventListener('DOMContentLoaded', function () {
         new Chart(diseaseCtx, {
             type: 'line',
             data: {
-                labels: ['Poblacion', 'San Jose', 'Tangos', 'Matangtubig', 'Makinabang', 'Virgen delas Flores', 'Tilapayong', 'Tibag', 'Tiaong', 'Santo Niño', 'Santo Cristo', 'Santa Barbara'],
+                labels: (dashboardData?.diseaseCasesByBarangay?.length ? dashboardData.diseaseCasesByBarangay : [
+                    { barangay: 'Poblacion', actual: 5, predicted: 7 },
+                    { barangay: 'San Jose', actual: 2, predicted: 3 },
+                    { barangay: 'Tangos', actual: 4, predicted: 5 },
+                    { barangay: 'Matangtubig', actual: 10, predicted: 8 }
+                ]).map((item) => item.barangay),
                 datasets: [
                     {
                         label: 'Number Of Cases',
-                        data: [5, 2, 4, 10, 5, 3, 7, 2, 4, 3, 2, 2],
+                        data: (dashboardData?.diseaseCasesByBarangay?.length ? dashboardData.diseaseCasesByBarangay : [
+                            { actual: 5 },
+                            { actual: 2 },
+                            { actual: 4 },
+                            { actual: 10 }
+                        ]).map((item) => item.actual),
                         borderColor: '#002A58',
                         backgroundColor: 'rgba(255, 146, 138, 0.15)',
                         borderWidth: 2,
@@ -129,7 +160,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     {
                         label: 'Predictive Cases',
-                        data: [7, 3, 5, 8, 6, 4, 5, 3, 5, 4, 3, 3],
+                        data: (dashboardData?.diseaseCasesByBarangay?.length ? dashboardData.diseaseCasesByBarangay : [
+                            { predicted: 7 },
+                            { predicted: 3 },
+                            { predicted: 5 },
+                            { predicted: 8 }
+                        ]).map((item) => item.predicted),
                         borderColor: '#677BAE',
                         backgroundColor: 'rgba(137.05, 121.10, 255, 0.15)',
                         borderWidth: 2,
@@ -198,7 +234,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 labels: ['Rabies', 'Parvo'],
                 datasets: [
                     {
-                        data: [60, 40],
+                        data: [
+                            dashboardData?.vaccinated?.dogs || 60,
+                            dashboardData?.vaccinated?.cats || 40
+                        ],
                         backgroundColor: [
                             '#1B6D24',
                             '#E2E2E8'
@@ -236,7 +275,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     ctx.textBaseline = 'middle';
                     ctx.textAlign = 'center';
                     ctx.fillStyle = '#002A58';
-                    ctx.fillText('8,402', centerX, centerY - fontSize * 5);
+                    ctx.fillText(formatNumber(dashboardData?.vaccinated?.total || 8402), centerX, centerY - fontSize * 5);
                     
                     // Draw label
                     ctx.font = `${fontSize * 12}px Manrope, sans-serif`;
@@ -659,6 +698,28 @@ document.addEventListener('DOMContentLoaded', function () {
  */
 function formatNumber(num) {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function applyDashboardKpis(data) {
+    if (!data?.kpis) return;
+    const values = document.querySelectorAll('.KPI .kpi-value');
+    if (values[0]) values[0].textContent = formatNumber(data.kpis.totalAppointments || 0);
+    if (values[1]) values[1].textContent = formatNumber(data.kpis.pendingActions || 0);
+    if (values[2]) values[2].textContent = String(data.kpis.activeLostReports || 0).padStart(2, '0');
+    if (values[3]) values[3].textContent = `${data.kpis.vaccinationRate || 0}%`;
+
+    const progress = document.querySelector('.vaccination-progress .progress-fill');
+    if (progress) progress.style.width = `${Math.min(100, data.kpis.vaccinationRate || 0)}%`;
+
+    const demandItems = document.querySelectorAll('.vaccine-item');
+    (data.vaccineDemand || []).forEach((item, index) => {
+        const card = demandItems[index];
+        if (!card) return;
+        const label = card.querySelector('.vaccine-item-label');
+        const value = card.querySelector('.vaccine-item-value');
+        if (label) label.textContent = item.label;
+        if (value) value.textContent = formatNumber(item.units || 0);
+    });
 }
 
 /**
