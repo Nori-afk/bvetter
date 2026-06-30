@@ -321,6 +321,7 @@ function openModal(contentHtml, widthClass) {
 	ui.modalContent.innerHTML = contentHtml;
 	ui.modalOverlay.hidden = false;
 	document.body.style.overflow = 'hidden';
+	if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function closeModal() {
@@ -335,45 +336,77 @@ function closeModal() {
 
 function detailsModalTemplate(appointment) {
 	const dt = formatDateTime(appointment.datetime);
+	const initial = (appointment.patient || '?').charAt(0).toUpperCase();
+	const statusSlug = (appointment.status || 'unknown').toLowerCase().replace(/\s+/g, '-');
+
 	return `
-		<div class="details-header">
-		<img src="/vet/images/appticon.png" alt="Patient photo" class="patient-photo">
-		<h3 class="modal-title" id="modal-title">Appointment Details</h3>
-		</div>
-		<p class="modal-subtitle">Track status and take action for ${appointment.patient}.</p>
-		<div class="details-top">
-			<article class="patient-hero">
-				<span class="badge">${appointment.status}</span>
-				<h3>${appointment.patient}</h3>
-				<p class="muted">${appointment.service} | ${appointment.type}</p>
-			</article>
-			<div class="detail-actions">
-				<button class="btn btn-primary" type="button" data-modal-action="open-complete"><img src="/vet/images/completed.png" alt="Complete">Mark as Completed</button>
-				<button class="btn btn-outline" type="button" data-modal-action="open-reschedule"><img src="/vet/images/reschedule.png" alt="Reschedule">Reschedule</button>
-				<button class="btn btn-soft-danger" type="button" data-modal-action="open-cancel"><img src="/vet/images/cancel.png" alt="Cancel">Cancel Appointment</button>
+		<div class="appt-modal-banner">
+			<div class="appt-modal-avatar">${initial}</div>
+			<div class="appt-modal-identity">
+				<div class="appt-modal-name">${appointment.patient}</div>
+				<div class="appt-modal-meta">${appointment.service} &middot; ${dt.date} at ${dt.time}</div>
 			</div>
+			<span class="appt-status-badge appt-status-${statusSlug}">${appointment.status}</span>
 		</div>
-		<div class="info-grid">
-			<article class="info-panel">
-				<h4>Appointment Information</h4>
-				<p class="muted"><strong>Date:</strong> ${dt.date}</p>
-				<p class="muted"><strong>Time:</strong> ${dt.time}</p>
-				<p class="muted"><strong>Service:</strong> ${appointment.service}</p>
-			</article>
-			<article class="info-panel">
-				<h4>Owner Information</h4>
-				<p class="muted"><strong>Name:</strong> ${appointment.owner}</p>
-				<p class="muted"><strong>Patient:</strong> ${appointment.patient}</p>
-				<p class="muted"><strong>Type:</strong> ${appointment.type}</p>
-			</article>
-		</div>
-		<article class="notes-panel">
-			<h4>Medical Notes</h4>
-			<p class="muted">Owner noted mild lethargy after morning walk. Observe appetite and hydration for 24 hours.</p>
-		</article>
-		<div class="modal-footer">
-			<button class="btn btn-outline" type="button" data-modal-action="close">Close</button>
-			<button class="btn btn-danger" type="button" data-modal-action="open-delete">Delete Record</button>
+
+		<div class="appt-modal-body">
+			<p class="appt-modal-eyebrow">Track status and take action for this appointment.</p>
+
+			<div class="appt-action-row">
+				<button class="appt-action-btn appt-action-complete" type="button" data-modal-action="open-complete">
+					<i data-lucide="check-circle-2"></i>
+					Mark as Completed
+				</button>
+				<button class="appt-action-btn appt-action-reschedule" type="button" data-modal-action="open-reschedule">
+					<i data-lucide="calendar-clock"></i>
+					Reschedule
+				</button>
+				<button class="appt-action-btn appt-action-cancel" type="button" data-modal-action="open-cancel">
+					<i data-lucide="x-circle"></i>
+					Cancel
+				</button>
+			</div>
+
+			<div class="appt-info-grid">
+				<div class="appt-info-card">
+					<div class="appt-info-label">
+						<i data-lucide="calendar-days"></i>
+						Appointment Information
+					</div>
+					<div class="appt-info-rows">
+						<div class="appt-info-row"><span>Date</span><strong>${dt.date}</strong></div>
+						<div class="appt-info-row"><span>Time</span><strong>${dt.time}</strong></div>
+						<div class="appt-info-row"><span>Service</span><strong>${appointment.service}</strong></div>
+					</div>
+				</div>
+				<div class="appt-info-card">
+					<div class="appt-info-label">
+						<i data-lucide="user-round"></i>
+						Owner Information
+					</div>
+					<div class="appt-info-rows">
+						<div class="appt-info-row"><span>Owner</span><strong>${appointment.owner}</strong></div>
+						<div class="appt-info-row"><span>Patient</span><strong>${appointment.patient}</strong></div>
+						<div class="appt-info-row"><span>Type</span><strong>${appointment.type}</strong></div>
+					</div>
+				</div>
+			</div>
+
+			<div class="appt-notes-card">
+				<div class="appt-info-label">
+					<i data-lucide="clipboard-list"></i>
+					Medical Notes
+				</div>
+				<p>${appointment.notes || 'No medical notes recorded for this appointment.'}</p>
+			</div>
+
+			<div class="modal-footer">
+				<button class="btn btn-outline" type="button" data-modal-action="close">Close</button>
+				<button class="btn btn-danger" type="button" data-modal-action="open-delete">
+					<i data-lucide="trash-2"></i>
+					Delete Record
+				</button>
+			</div>
 		</div>
 	`;
 }
@@ -397,10 +430,17 @@ function rescheduleModalTemplate(appointment) {
 			</button>
 		`;
 	}).join('');
+	const initial = (appointment.patient || '?').charAt(0).toUpperCase();
 
 	return `
-		<h3 class="modal-title" id="modal-title">Reschedule Appointment</h3>
-		<p class="modal-subtitle">Select a new date and time for ${appointment.patient}.</p>
+		<div class="appt-modal-banner">
+			<div class="appt-modal-avatar">${initial}</div>
+			<div class="appt-modal-identity">
+				<div class="appt-modal-name">Reschedule Appointment</div>
+				<div class="appt-modal-meta">${appointment.patient} &middot; Pick a new date and time</div>
+			</div>
+		</div>
+		<div class="appt-modal-body appt-modal-body-compact">
 		<div class="reschedule-layout">
 			<section class="reschedule-calendar">
 				<div class="reschedule-cal-head">
@@ -415,7 +455,7 @@ function rescheduleModalTemplate(appointment) {
 				<div class="selected-date-card">
 					<p>Selected date</p>
 					<div class="detailed-header">
-					<img src="/vet/images/appticon.png" alt="Patient photo" class="patient-photo">
+					<i data-lucide="calendar-check"></i>
 					<strong>${selectedDateLabel}</strong>
 					</div>
 				</div>
@@ -435,6 +475,7 @@ function rescheduleModalTemplate(appointment) {
 		<div class="two-actions">
 			<button class="btn btn-outline" type="button" data-modal-action="open-details">Cancel</button>
 			<button class="btn btn-primary" type="button" data-modal-action="confirm-reschedule">Confirm Reschedule</button>
+		</div>
 		</div>
 	`;
 }
@@ -463,18 +504,32 @@ function completeModalTemplate(appointment) {
 
 function cancelModalTemplate(appointment) {
 	const dt = formatDateTime(appointment.datetime);
+	const initial = (appointment.patient || '?').charAt(0).toUpperCase();
 	return `
-		<h3 class="modal-title" id="modal-title">Cancel Appointment</h3>
-		<p class="modal-subtitle">The owner will be notified once this cancellation is confirmed.</p>
-		<article class="danger-card">
-			<p class="muted"><strong>Owner:</strong> ${appointment.owner}</p>
-			<p class="muted"><strong>Pet:</strong> ${appointment.patient}</p>
-			<p class="muted"><strong>Date and Time:</strong> ${dt.date} - ${dt.time}</p>
-			<p class="muted"><strong>Type:</strong> ${appointment.type}</p>
-		</article>
-		<div class="two-actions">
-			<button class="btn btn-outline" type="button" data-modal-action="open-details">Keep appointment</button>
-			<button class="btn btn-danger" type="button" data-modal-action="confirm-cancel">Cancel appointment</button>
+		<div class="appt-modal-banner appt-banner-danger">
+			<div class="appt-modal-avatar appt-avatar-danger">${initial}</div>
+			<div class="appt-modal-identity">
+				<div class="appt-modal-name">Cancel Appointment?</div>
+				<div class="appt-modal-meta">${appointment.patient} &middot; ${appointment.service} &middot; ${dt.date}</div>
+			</div>
+		</div>
+		<div class="appt-modal-body">
+			<p class="appt-modal-eyebrow">The owner will be notified once this cancellation is confirmed.</p>
+			<div class="appt-confirm-card appt-confirm-danger">
+				<div class="appt-info-rows">
+					<div class="appt-info-row"><span>Owner</span><strong>${appointment.owner}</strong></div>
+					<div class="appt-info-row"><span>Pet</span><strong>${appointment.patient}</strong></div>
+					<div class="appt-info-row"><span>Date &amp; Time</span><strong>${dt.date} &middot; ${dt.time}</strong></div>
+					<div class="appt-info-row"><span>Type</span><strong>${appointment.type}</strong></div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-outline" type="button" data-modal-action="open-details">Keep Appointment</button>
+				<button class="btn btn-danger" type="button" data-modal-action="confirm-cancel">
+					<i data-lucide="x-circle"></i>
+					Cancel Appointment
+				</button>
+			</div>
 		</div>
 	`;
 }

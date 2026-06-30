@@ -1,370 +1,305 @@
+# BVETTER — Data-Driven Veterinary Services System
 
-This guide explains how to set up and run the VBetter project on a local XAMPP environment, including the MySQL database, PHP Composer dependencies, and the Python analytics service.
+A web-based veterinary management system for Baliuag City, Bulacan, with ARIMA-based
+disease trend prediction, AI chatbot, lost & found pet image matching, and multi-role
+portals for pet owners, veterinarians, and administrators.
 
-## Project Overview
+---
 
-VBetter is a PHP/MySQL web application with HTML, CSS, and JavaScript pages for public users, veterinarians, and administrators. It also uses a Python Flask service for disease analytics, ARIMA forecasting, and Random Forest prediction features.
+## Tech Stack
 
-Main folders:
+| Layer      | Technology                                      |
+|------------|-------------------------------------------------|
+| Frontend   | HTML, CSS, Vanilla JavaScript                   |
+| Backend    | PHP 8.x (Apache via XAMPP)                      |
+| Database   | MySQL — `database/bvetter.sql`                  |
+| Analytics  | Python 3.13 — ARIMA/SARIMA via statsmodels, Random Forest via scikit-learn |
+| Image      | Python — Pillow (perceptual hashing + color histogram matching) |
+| PDF        | mPDF (via Composer)                             |
+| Email      | PHPMailer (via Composer)                        |
+
+---
+
+## Project Structure
 
 ```text
-Final-Backend/
-  admin/                 Admin pages, scripts, styles, and images
-  backend/               PHP API endpoints and server-side logic
-  public/                Public user pages and scripts
-  shared/                Shared frontend assets
-  vet/                   Veterinarian pages, scripts, styles, and images
-  vendor/                Composer-installed PHP packages
-  bvetter.sql            MySQL database dump
-  BaliwagVet_2023-2025.xlsx
-                         Dataset used by the Python analytics service
-  composer.json          PHP dependency definition
+bvetter/
+├── .env.example              Environment variable template — copy to .env
+├── .gitignore
+├── .htaccess                 Apache security headers + storage block
+├── composer.json
+├── README.md
+│
+├── api/                      PHP API endpoints (all fetch() calls point here)
+│   ├── admin/
+│   ├── analytics/
+│   │   ├── arima_service.py  Python Flask analytics service
+│   │   └── requirements.txt
+│   ├── announcements/
+│   ├── appointments/
+│   ├── auth/
+│   ├── barangays/
+│   ├── chatbot/
+│   ├── dashboard/
+│   ├── includes/
+│   ├── lost-found/
+│   │   ├── image_matcher.py  Python image feature extractor
+│   │   └── requirements.txt
+│   ├── mass-vaccination/
+│   ├── patient-records/
+│   ├── reports/
+│   └── users/
+│
+├── config/
+│   └── connection.php        DB connection — reads from .env via getenv()
+│
+├── database/
+│   ├── bvetter.sql           MySQL schema + seed data
+│   └── BaliwagVet_2023-2025.xlsx  Dataset used by analytics service
+│
+├── storage/                  User-uploaded files (gitignored)
+│   ├── announcements/
+│   ├── lost_found/
+│   ├── lost_found_claims/
+│   ├── lost_found_sightings/
+│   ├── profile/
+│   └── verification/
+│
+├── shared/                   Shared frontend assets across all portals
+│   ├── css/
+│   ├── html/
+│   └── js/
+│
+├── public/                   Pet owner portal
+├── vet/                      Veterinarian portal
+├── admin/                    Administrator portal
+├── tests/                    Diagnostic scripts (not production-facing)
+├── vendor/                   Composer-managed PHP packages (do not edit)
+└── tmp/                      mPDF temp cache (gitignored)
 ```
 
-## Requirements
+---
 
-Install these before running the project:
+## Portals
+
+| Role          | Entry Point                             | URL                                              |
+|---------------|-----------------------------------------|--------------------------------------------------|
+| Public        | `public/pages/landing.html`             | `http://localhost/bvetter/public/pages/landing.html` |
+| Veterinarian  | `vet/html/index.html`                   | `http://localhost/bvetter/vet/html/index.html`   |
+| Admin         | `admin/pages/index.html`                | `http://localhost/bvetter/admin/pages/index.html`|
+
+---
+
+## Local Setup
+
+### Prerequisites
 
 - XAMPP with Apache, MySQL, and PHP 8.x
-- Composer
-- Python 3.10 or newer
-- A browser such as Chrome, Edge, or Firefox
+- Composer (`https://getcomposer.org`)
+- Python 3.13
 
-Recommended PHP extensions:
+Ensure these PHP extensions are enabled in `php.ini`:
+`pdo_mysql`, `curl`, `mbstring`, `gd`, `zip`, `fileinfo`
 
-- `pdo_mysql`
-- `curl`
-- `mbstring`
-- `gd`
-- `zip`
-- `fileinfo`
+---
 
-These are normally included with XAMPP, but some may need to be enabled in `php.ini`.
+### 1. Place the project
 
-## Important Folder Path
+Clone or copy the project into your XAMPP web root so it is accessible at:
 
-Several frontend and backend files use hardcoded local paths such as:
-
-```text
-/Final-Backend
+```
+C:\xampp\htdocs\bvetter\
 ```
 
-For the fewest setup issues, place the project exactly here:
+All frontend paths are relative to `/bvetter/` — placing it anywhere else requires
+updating `BACKEND_URL` in `vet/js/vet-api.js` and `API_BASE_REG` in `public/js/api.js`.
 
-```text
-C:\xampp\htdocs\Final-backend(VBETTER)\Final-Backend
-```
+---
 
-If you rename the folder, search the codebase for these strings and update them:
+### 2. Start XAMPP
 
-```text
-Final-backend(VBETTER)
-FINAL-BACKEND(VBETTER)
-Final-Backend
-```
+Open XAMPP Control Panel and start **Apache** and **MySQL**.
 
-## 1. Start XAMPP
+---
 
-1. Open XAMPP Control Panel.
-2. Start `Apache`.
-3. Start `MySQL`.
+### 3. Import the database
 
-Then confirm Apache works by opening:
+In phpMyAdmin (`http://localhost/phpmyadmin`):
 
-```text
-http://localhost/
-```
+1. Create a database named `bvetter` (charset `utf8mb4`, collation `utf8mb4_unicode_ci`).
+2. Select it, go to **Import**, and import `database/bvetter.sql`.
 
-## 2. Set Up the MySQL Database
-
-The database dump is included as:
-
-```text
-Final-Backend\bvetter.sql
-```
-
-The application expects this database name:
-
-```text
-bvetter
-```
-
-### Option A: Import Using phpMyAdmin
-
-1. Open:
-
-```text
-http://localhost/phpmyadmin
-```
-
-2. Create a new database named:
-
-```text
-bvetter
-```
-
-3. Select the `bvetter` database.
-4. Go to the `Import` tab.
-5. Choose `bvetter.sql`.
-6. Click `Import`.
-
-### Option B: Import Using Command Line
-
-Open PowerShell or Command Prompt and run:
+Or via command line:
 
 ```powershell
 cd C:\xampp\mysql\bin
-.\mysql.exe -u root -p bvetter < "C:\xampp\htdocs\Final-backend(VBETTER)\Final-Backend\bvetter.sql"
-```
-
-If the database does not exist yet, create it first:
-
-```powershell
 .\mysql.exe -u root -p -e "CREATE DATABASE bvetter CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+.\mysql.exe -u root -p bvetter < "C:\xampp\htdocs\bvetter\database\bvetter.sql"
 ```
 
-## 3. Configure the Database Connection
+> **Warning — verify the import completed fully before testing the app.**
+> phpMyAdmin imports can silently stop partway through if `max_execution_time` is too low or the
+> dump is large. The `bvetter.sql` format (generated by phpMyAdmin) defines columns in `CREATE TABLE`
+> and then adds primary keys, indexes, AUTO_INCREMENT, and foreign key constraints in separate
+> `ALTER TABLE` blocks at the end of the file. If those blocks never executed, tables exist but have
+> no primary keys, causing `500` errors on any page that touches the database.
+>
+> After importing, run this in phpMyAdmin or the MySQL CLI:
+>
+> ```sql
+> SHOW KEYS FROM users WHERE Key_name='PRIMARY';
+> ```
+>
+> If the result is **empty**, the import stopped before the `ALTER TABLE` section. Re-run the import,
+> or copy the lines from `-- Indexes for dumped tables` onward in `database/bvetter.sql` and execute
+> them manually.
 
-Database settings are in:
+---
 
-```text
-Final-Backend\backend\config\connection.php
-```
+### 4. Configure environment variables
 
-Current configuration:
-
-```php
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', 'root');
-define('DB_NAME', 'bvetter');
-```
-
-If your local MySQL root user has no password, change this line:
-
-```php
-define('DB_PASS', 'root');
-```
-
-to:
-
-```php
-define('DB_PASS', '');
-```
-
-If you use a different MySQL user, update `DB_USER` and `DB_PASS`.
-
-## 4. Install PHP Dependencies with Composer
-
-From the project folder, run:
+Copy `.env.example` to `.env` and fill in your values:
 
 ```powershell
-cd "C:\xampp\htdocs\Final-backend(VBETTER)\Final-Backend"
+copy .env.example .env
+```
+
+Key variables:
+
+```ini
+DB_HOST=127.0.0.1
+DB_PORT=3307
+DB_NAME=bvetter
+DB_USER=root
+DB_PASS=          # leave empty if XAMPP MySQL has no root password
+```
+
+`config/connection.php` reads these via `getenv()` — never hardcode credentials.
+
+---
+
+### 5. Install PHP dependencies
+
+```powershell
+cd C:\xampp\htdocs\bvetter
 composer install
 ```
 
-This installs the PHP packages listed in `composer.json`.
+This installs mPDF (PDF generation) and PHPMailer (email).
 
-Current Composer dependency:
+---
 
-```json
-{
-  "mpdf/mpdf": "^8.3"
-}
-```
+### 6. Install Python dependencies
 
-If Composer is not installed globally but `composer.phar` is available, run:
+The analytics service and image matcher each have their own `requirements.txt`.
+
+**Recommended: use a virtual environment**
 
 ```powershell
-php composer.phar install
-```
-
-## 5. Install Python Dependencies
-
-The analytics service is located at:
-
-```text
-Final-Backend\backend\analytics\arima_service.py
-```
-
-It uses these Python packages:
-
-- `flask`
-- `numpy`
-- `pandas`
-- `statsmodels`
-- `scikit-learn`
-- `openpyxl`
-
-Recommended setup using a virtual environment:
-
-```powershell
-cd "C:\xampp\htdocs\Final-backend(VBETTER)\Final-Backend"
+cd C:\xampp\htdocs\bvetter
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install flask numpy pandas statsmodels scikit-learn openpyxl
+pip install -r api/analytics/requirements.txt
+pip install -r api/lost-found/requirements.txt
 ```
 
-If PowerShell blocks virtual environment activation, run:
+If PowerShell blocks activation:
 
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
-Then activate the virtual environment again.
+---
 
-## 6. Run the Python Analytics Service
+### 7. Start the Python analytics service
 
-Start the analytics service in a separate terminal:
+In a separate terminal (with the virtual environment active):
 
 ```powershell
-cd "C:\xampp\htdocs\Final-backend(VBETTER)\Final-Backend"
+cd C:\xampp\htdocs\bvetter
 .\.venv\Scripts\Activate.ps1
-python backend\analytics\arima_service.py
+python api/analytics/arima_service.py
 ```
 
-The service runs on:
+The service runs at `http://localhost:5001`. Verify with `http://localhost:5001/health`
+(expected: `{ "status": "ok" }`).
 
-```text
-http://localhost:5001
+Disease analytics and vaccination forecasting require this service. PHP and Apache alone
+are not sufficient for those features.
+
+---
+
+### 8. Open the application
+
+```
+http://localhost/bvetter/public/pages/landing.html
 ```
 
-Test it by opening:
+---
 
-```text
-http://localhost:5001/health
-```
-
-Expected result: JSON response with `status: "ok"`.
-
-Important: disease analytics and vaccination forecasting need this service running. Apache/PHP alone is not enough for those features.
-
-## 7. Open the Web Application
-
-After Apache, MySQL, and the Python analytics service are running, open:
-
-```text
-http://localhost/Final-Backend/public/pages/login.html
-```
-
-Useful pages:
-
-```text
-Public login:
-http://localhost/Final-Backend/public/pages/login.html
-
-Public landing page:
-http://localhost/Final-Backend/public/pages/landing.html
-
-Veterinarian dashboard:
-http://localhost/Final-Backend/vet/html/index.html
-
-Admin dashboard:
-http://localhost/Final-Backend/admin/pages/index.html
-
-Disease analytics:
-http://localhost/Final-Backend/vet/html/disease-analytics.html
-```
-
-## 8. Basic Run Checklist
-
-Before testing the system, make sure all of these are true:
-
-- `Apache` is running in XAMPP.
-- `MySQL` is running in XAMPP.
-- Database `bvetter` exists.
-- `bvetter.sql` has been imported.
-- `backend/config/connection.php` has the correct MySQL username and password.
-- Composer dependencies are installed.
-- Python dependencies are installed.
-- `backend/analytics/arima_service.py` is running on port `5001`.
-- The project folder path matches `/Final-Backend`.
-
-## 9. Common Problems and Fixes
-
-### Database connection failed
-
-Check:
-
-- MySQL is running in XAMPP.
-- Database name is `bvetter`.
-- Username and password in `backend/config/connection.php` are correct.
-- If XAMPP MySQL root has no password, use `DB_PASS` as an empty string.
-
-### Page loads but API requests fail
-
-Check that the project folder is located at:
-
-```text
-C:\xampp\htdocs\Final-backend(VBETTER)\Final-Backend
-```
-
-Some JavaScript files use hardcoded paths. If the folder name is different, API calls may return `404`.
-
-### Disease analytics does not load
-
-Check:
-
-- Python service is running.
-- `http://localhost:5001/health` returns JSON.
-- `BaliwagVet_2023-2025.xlsx` exists in the project root.
-- Required Python packages are installed.
-
-### Composer command not found
-
-Install Composer globally, then reopen the terminal. Or run:
-
-```powershell
-php composer.phar install
-```
-
-from the `Final-Backend` folder.
-
-### Port 5001 already in use
-
-Another program is using the analytics service port. Stop that program or change the port in:
-
-```text
-backend\analytics\arima_service.py
-```
-
-Look for:
-
-```python
-app.run(host="0.0.0.0", port=5001, debug=False)
-```
-
-If you change the port, also update PHP and JavaScript references that call `5001`.
-
-## 10. Development Notes
-
-- Keep `bvetter.sql` updated when database schema changes.
-- Do not delete `BaliwagVet_2023-2025.xlsx`; the analytics service reads this file directly.
-- Uploaded files are stored under `backend/uploads/`.
-- PDF/report generation uses Composer dependencies under `vendor/`.
-- Some frontend files use absolute local URLs. Be careful when moving the project to a different folder or deploying to a server.
-
-## 11. Quick Start Summary
+## Quick Start (summary)
 
 ```powershell
 # 1. Start Apache and MySQL in XAMPP
 
 # 2. Import database
-# Import Final-Backend\bvetter.sql into database bvetter using phpMyAdmin
+# phpMyAdmin → create bvetter → import database/bvetter.sql
 
-# 3. Install PHP dependencies
-cd "C:\xampp\htdocs\Final-backend(VBETTER)\Final-Backend"
+# 3. Configure environment
+copy .env.example .env
+# Edit .env with your DB credentials
+
+# 4. Install PHP dependencies
 composer install
 
-# 4. Install Python dependencies
+# 5. Install Python dependencies
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install flask numpy pandas statsmodels scikit-learn openpyxl
+pip install -r api/analytics/requirements.txt
+pip install -r api/lost-found/requirements.txt
 
-# 5. Start analytics service
-python backend\analytics\arima_service.py
+# 6. Start analytics service (separate terminal)
+python api/analytics/arima_service.py
 
-# 6. Open app
-# http://localhost/Final-Backend/public/pages/login.html
+# 7. Open app
+# http://localhost/bvetter/public/pages/landing.html
 ```
+
+---
+
+## Run Checklist
+
+- [ ] Apache running in XAMPP
+- [ ] MySQL running in XAMPP
+- [ ] Database `bvetter` exists and `database/bvetter.sql` imported
+- [ ] `.env` exists with correct DB credentials
+- [ ] `composer install` completed — `vendor/` folder present
+- [ ] Python virtual environment created and dependencies installed
+- [ ] `api/analytics/arima_service.py` running on port `5001`
+
+---
+
+## Troubleshooting
+
+**Database connection failed**
+Check MySQL is running, `bvetter` database exists, and `.env` has correct credentials.
+`config/connection.php` reads `DB_HOST`, `DB_USER`, `DB_PASS`, `DB_NAME`, `DB_PORT` via `getenv()`.
+
+**API calls return 404**
+The project must be at `C:\xampp\htdocs\bvetter\`. If placed elsewhere, update
+`BACKEND_URL` in `vet/js/vet-api.js` and `API_BASE_REG` in `public/js/api.js`.
+
+**Disease analytics / vaccination forecast does not load**
+Confirm the Python service is running: `http://localhost:5001/health`.
+Check that `database/BaliwagVet_2023-2025.xlsx` exists.
+
+**Image matching returns metadata-only results**
+Pillow is not installed. Run: `pip install -r api/lost-found/requirements.txt`
+
+**Port 5001 already in use**
+Stop the conflicting process or change the port in `api/analytics/arima_service.py`
+(`app.run(..., port=5001, ...)`). Also update any JS references to port `5001`.
+
+**Composer not found**
+Install Composer globally from `https://getcomposer.org`, then reopen the terminal.

@@ -6,10 +6,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 		if (path.includes(jsMarker)) return path.slice(0, path.indexOf(jsMarker));
 		const pageMarker = '/vet/html/';
 		if (path.includes(pageMarker)) return path.slice(0, path.indexOf(pageMarker));
-		return '/Final-Backend';
+		return '/bvetter';
 	}
 
-	const CHATBOT_API = `${appBasePath()}/backend/chatbot/chatbot.php`;
+	const CHATBOT_API = `${appBasePath()}/api/chatbot/chatbot.php`;
 	let inquiryRules = [
 		{
 			id: 1,

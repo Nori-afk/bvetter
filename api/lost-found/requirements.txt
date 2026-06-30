@@ -1,0 +1,2 @@
+# Optional — image_matcher.py falls back to metadata-only mode without Pillow
+Pillow>=10.4.0

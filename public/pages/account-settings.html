@@ -74,19 +74,26 @@
 
     <!-- Profile Information -->
     <div class="settings-card profile-card">
-      <div class="profile-card-header">
-        <div>
-          <div class="card-title">Profile Information</div>
-          <div class="card-desc">Update your personal identification and contact details.</div>
+      <div class="profile-banner">
+        <div class="profile-card-header">
+          <div>
+            <div class="card-title">Profile Information</div>
+            <div class="card-desc">Update your personal identification and contact details.</div>
+          </div>
+          <button class="btn-save" id="btnSaveProfile">Save Changes</button>
         </div>
-        <button class="btn-save" id="btnSaveProfile">Save Changes</button>
       </div>
       <div class="profile-body">
         <div class="avatar-col">
-          <div class="avatar-wrap">
-            <img src="../images/img/account-avatar.png" alt="Profile" class="profile-avatar" id="profileAvatarImg"/>
-            <input type="file" id="avatarFileInput" accept="image/*" style="display:none;"/>
+          <div class="avatar-ring">
+            <div class="avatar-wrap" onclick="document.getElementById('avatarFileInput').click()">
+              <img src="../images/img/account-avatar.png" alt="Profile" class="profile-avatar" id="profileAvatarImg"/>
+              <div class="avatar-edit-overlay">
+                <span class="avatar-edit-text">Edit Photo</span>
+              </div>
+            </div>
           </div>
+          <input type="file" id="avatarFileInput" accept="image/*" style="display:none;"/>
           <button class="avatar-upload-btn" onclick="document.getElementById('avatarFileInput').click()">Upload Photo</button>
           <div class="avatar-hint">PNG or JPG, max 5MB</div>
         </div>

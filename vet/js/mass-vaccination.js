@@ -14,11 +14,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (path.includes(jsMarker)) return path.slice(0, path.indexOf(jsMarker));
         const pageMarker = '/vet/html/';
         if (path.includes(pageMarker)) return path.slice(0, path.indexOf(pageMarker));
-        return '/Final-Backend';
+        return '/bvetter';
     }
 
-    const MASS_VACC_API = `${appBasePath()}/backend/mass-vaccination/events.php`;
-    const DASHBOARD_API = `${appBasePath()}/backend/dashboard/dashboard.php`;
+    const MASS_VACC_API = `${appBasePath()}/api/mass-vaccination/events.php`;
+    const DASHBOARD_API = `${appBasePath()}/api/dashboard/dashboard.php`;
     const charts = {};
 
     // ── State ─────────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // The browser cannot call Python directly (CORS: Flask sends no CORS headers).
     // Correct call chain: JS -> PHP dashboard proxy -> curl -> Python :5001/vaccination-forecast
     // VetAPI wrapper is tried first if loaded; PHP proxy is the guaranteed fallback.
-    const ARIMA_PROXY_API = `${appBasePath()}/backend/dashboard/dashboard.php?scope=vaccination_forecast`;
+    const ARIMA_PROXY_API = `${appBasePath()}/api/dashboard/dashboard.php?scope=vaccination_forecast`;
 
     const loadArimaForecast = async () => {
         // Attempt 1: VetAPI wrapper (if the shared JS file loaded it)

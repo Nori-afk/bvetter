@@ -15,8 +15,8 @@
 'use strict';
 
 const BASE_URL = '/api';   // [BACKEND] e.g. 'https://api.vbetter.ph'
-const BACKEND_URL = '/Final-Backend/backend';
-const LOST_FOUND_URL = `${BACKEND_URL}/Lost%26Found/lost_and_found.php`;
+const BACKEND_URL = '/bvetter/api';
+const LOST_FOUND_URL = `${BACKEND_URL}/lost-found/lost_and_found.php`;
 const MASS_VACCINATION_URL = `${BACKEND_URL}/mass-vaccination/events.php`;
 const CHATBOT_URL = `${BACKEND_URL}/chatbot/chatbot.php`;
 const ANNOUNCEMENTS_URL = `${BACKEND_URL}/announcements/announcements.php`;
@@ -482,7 +482,7 @@ async function getMassVaccinationDataset() {
 async function getVaccinationForecast(steps) {
     steps = steps || 3;
     try {
-        const response = await fetch('http://192.168.1.25:5001/vaccination-forecast', {
+        const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?scope=vaccination_forecast`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ steps: steps })
@@ -496,7 +496,7 @@ async function getVaccinationForecast(steps) {
 
 async function getRFModelInfo() {
     try {
-        const response = await fetch('http://192.168.1.25:5001/rf-model-info');
+        const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?scope=rf_model_info`);
         const result   = await response.json();
         return { ok: result.success, data: result.data || {}, error: result.success ? null : result.error };
     } catch (error) {

@@ -1277,3 +1277,482 @@ body {
     }
 }
 
+
+/* ═══════════════════════════════════════════
+   POLISH: DROPDOWN · TABLE · ACTIONS
+   ═══════════════════════════════════════════ */
+
+/* 1 ── Fix dropdown option text visibility
+        Native <option> inherits the select color which is white on
+        dark panels → browser renders white text on its own light popup.
+        Force a readable background/color pair for both contexts.       */
+.panel-select option {
+    background: #0e2d52;
+    color: #dbeafe;
+}
+
+.light-select,
+.light-select option {
+    background: #ffffff;
+    color: #0f2440;
+}
+
+/* 2 ── Vertically center every table cell
+        Avoids tall cells with content pinned to the top edge.          */
+.rules-table th,
+.rules-table td {
+    vertical-align: middle;
+}
+
+/* 3 ── Action column: single row, no wrapping
+        flex-wrap: wrap caused View/Edit to be on row 1, Delete on row 2 */
+.action-group {
+    flex-wrap: nowrap;
+    align-items: center;
+}
+
+/* 4 ── Compact, consistent text action buttons (inquiry table)          */
+.action-btn {
+    padding: 7px 13px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 10px;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+}
+
+.action-btn.view {
+    background: #f0f5ff;
+    color: #0d3f7a;
+    border: 1px solid rgba(13, 63, 122, 0.15);
+}
+
+.action-btn.view:hover {
+    background: #e0ecff;
+}
+
+.action-btn.edit {
+    background: linear-gradient(135deg, #0d3f7a, #1358a0);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 12px rgba(13, 63, 122, 0.22);
+}
+
+.action-btn.edit:hover {
+    box-shadow: 0 6px 16px rgba(13, 63, 122, 0.32);
+    transform: translateY(-1px);
+}
+
+/* Delete: subtle red rather than confusing gray-blue */
+.action-btn.delete {
+    background: #fff0f0;
+    color: #c0392b;
+    border: 1px solid rgba(192, 57, 43, 0.18);
+}
+
+.action-btn.delete:hover {
+    background: #ffe4e4;
+}
+
+/* 5 ── Consultation table: icon action buttons                          */
+.consultation-actions {
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    padding: 0;
+    font-size: 17px;
+    background: #f0f5ff;
+    color: #0d3f7a;
+    border: 1px solid rgba(13, 63, 122, 0.14);
+    transition: background 0.18s, color 0.18s, transform 0.18s, box-shadow 0.18s;
+}
+
+.action-icon-btn:hover {
+    background: #0d3f7a;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(13, 63, 122, 0.28);
+}
+
+/* Trash icon becomes red on hover */
+.action-icon-btn:last-child:hover {
+    background: #c0392b;
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(192, 57, 43, 0.28);
+}
+
+/* 6 ── Primary action button refinement                                  */
+.primary-action {
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.01em;
+    padding: 12px 18px;
+    border-radius: 12px;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.primary-action:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 26px rgba(9, 44, 82, 0.3);
+}
+
+/* 7 ── Table action column: fixed width, no overflow                     */
+.rules-table th:last-child,
+.rules-table td:last-child {
+    width: 130px;
+    white-space: nowrap;
+}
+
+
+/* ═══════════════════════════════════════════
+   BUILDER REDESIGN — "Add New Rule" form
+   ═══════════════════════════════════════════ */
+
+/* Shell: remove flat padding so the header can bleed edge-to-edge       */
+.builder-shell {
+    padding: 0;
+    overflow: hidden;
+}
+
+/* Back button: subtle pill with hover slide                              */
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 22px 24px 0;
+    padding: 8px 16px;
+    background: rgba(13, 63, 122, 0.07);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--chatbot-blue);
+    transition: background 0.18s, transform 0.18s;
+}
+
+.back-link:hover {
+    background: rgba(13, 63, 122, 0.13);
+    transform: translateX(-2px);
+}
+
+/* Header: gradient banner matching the hero + page language              */
+.builder-header {
+    background: linear-gradient(110deg, #002A58 0%, #00497A 44%, #006B50 100%);
+    margin: 16px 24px 0;
+    border-radius: 16px;
+    padding: 24px 28px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 0;
+}
+
+.builder-header::after {
+    content: '';
+    position: absolute;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+    top: -90px;
+    right: -40px;
+    pointer-events: none;
+}
+
+.builder-header .eyebrow,
+.builder-header .subtle {
+    color: rgba(255, 255, 255, 0.52) !important;
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.builder-header h2 {
+    color: #ffffff !important;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    margin-bottom: 6px;
+}
+
+.builder-header > p {
+    color: rgba(255, 255, 255, 0.6) !important;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* Form: contained padding, no individual step gaps                       */
+.builder-form {
+    padding: 0 24px 28px;
+    gap: 0;
+}
+
+/* Steps: consistent blue-tinted dividers (kill the reddish ones)        */
+.builder-step {
+    padding: 24px 0 26px;
+    border-bottom: 1px solid rgba(13, 63, 122, 0.1);
+}
+
+.builder-step:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.builder-step-divider {
+    border-top: 1px solid rgba(13, 63, 122, 0.1);
+    border-bottom: 1px solid rgba(13, 63, 122, 0.1);
+    padding-top: 24px;
+}
+
+/* Step title: green left-border accent gives strong visual hierarchy    */
+.step-title-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-bottom: 18px;
+}
+
+.step-title-row h3 {
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f2440;
+    padding-left: 13px;
+    border-left: 3px solid #0d7a3d;
+    line-height: 1.3;
+}
+
+.step-hint {
+    font-size: 12px;
+    color: #8096b0;
+    padding-left: 16px;
+}
+
+/* ── Animal type cards ───────────────────── */
+.animal-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.choice-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 100px;
+    padding: 18px 14px;
+    border: 1.5px solid rgba(174, 188, 208, 0.5);
+    border-radius: 16px;
+    background: #fafcff;
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f2440;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.22s, background 0.22s, color 0.22s,
+                box-shadow 0.22s, transform 0.22s;
+}
+
+/* Icon square via pseudo-element — uses existing chatbot-* PNG files    */
+.choice-card[data-animal]::before {
+    content: '';
+    display: block;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background-size: 26px;
+    background-position: center;
+    background-repeat: no-repeat;
+    flex-shrink: 0;
+    transition: background-color 0.22s;
+}
+
+.choice-card[data-animal="Dog"]::before {
+    background-color: #e8f9ee;
+    background-image: url('/bvetter/public/images/icons/chatbot-dogs.png');
+}
+
+.choice-card[data-animal="Cat"]::before {
+    background-color: #eef3ff;
+    background-image: url('/bvetter/public/images/icons/chatbot-cats.png');
+}
+
+.choice-card[data-animal="Other"]::before {
+    background-color: #f4f4f8;
+    background-image: url('/bvetter/public/images/icons/chatbot-others.png');
+}
+
+.choice-card:hover {
+    border-color: #0d7a3d;
+    background: #f5fdf7;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 22px rgba(13, 122, 61, 0.13);
+}
+
+/* Active animal card: gradient fill per species                          */
+.choice-card.active {
+    border-color: transparent;
+    color: #ffffff;
+    transform: translateY(-2px);
+}
+
+.choice-card[data-animal="Dog"].active {
+    background: linear-gradient(135deg, #0d7a3d, #1c964b);
+    box-shadow: 0 8px 24px rgba(13, 122, 61, 0.3);
+}
+
+.choice-card[data-animal="Cat"].active {
+    background: linear-gradient(135deg, #0d3f7a, #135291);
+    box-shadow: 0 8px 24px rgba(13, 63, 122, 0.3);
+}
+
+.choice-card[data-animal="Other"].active {
+    background: linear-gradient(135deg, #44506b, #2d3750);
+    box-shadow: 0 8px 24px rgba(44, 55, 80, 0.3);
+}
+
+.choice-card.active::before {
+    background-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* ── Symptom chips: true pills not big boxes ─ */
+.symptom-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.choice-chip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1.5px solid rgba(174, 188, 208, 0.55);
+    background: #fff;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #0f2440;
+    cursor: pointer;
+    box-shadow: none;
+    transition: border-color 0.18s, background 0.18s, color 0.18s, box-shadow 0.18s;
+}
+
+.choice-chip:hover {
+    border-color: #0d7a3d;
+    background: #f1fbf4;
+    color: #0d7a3d;
+}
+
+.choice-chip.active {
+    background: linear-gradient(135deg, #0d7a3d, #1c964b);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(13, 122, 61, 0.25);
+}
+
+/* Add symptom action: dashed green pill                                  */
+.chip-action {
+    border: 1.5px dashed rgba(13, 122, 61, 0.4);
+    background: #f8fdf9;
+    color: #0d7a3d;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 8px 18px;
+    border-radius: 999px;
+    transition: background 0.18s, border-color 0.18s;
+}
+
+.chip-action:hover {
+    background: #f1fbf4;
+    border-color: #0d7a3d;
+}
+
+/* ── Duration option cards ───────────────── */
+.duration-option {
+    border: 1.5px solid rgba(174, 188, 208, 0.5);
+    border-radius: 14px;
+    padding: 18px 16px;
+    background: #fafcff;
+    transition: border-color 0.22s, background 0.22s, transform 0.22s, box-shadow 0.22s;
+}
+
+.duration-option:hover {
+    border-color: #0d7a3d;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(13, 122, 61, 0.1);
+}
+
+.duration-option small {
+    color: #8096b0;
+}
+
+.duration-option.active {
+    background: linear-gradient(135deg, #002A58, #006B50);
+    border-color: transparent;
+    box-shadow: 0 8px 24px rgba(0, 42, 88, 0.24);
+    transform: translateY(-2px);
+}
+
+.duration-option.active small {
+    color: rgba(255, 255, 255, 0.58);
+}
+
+.duration-option.active strong {
+    color: #ffffff;
+}
+
+/* ── Builder form fields ─────────────────── */
+.builder-select,
+.builder-textarea,
+.field-tight input {
+    border: 1.5px solid rgba(170, 185, 207, 0.7);
+    border-radius: 12px;
+    transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+.builder-select:focus,
+.builder-textarea:focus,
+.field-tight input:focus {
+    outline: none;
+    border-color: #0d7a3d;
+    box-shadow: 0 0 0 3px rgba(13, 122, 61, 0.1);
+}
+
+/* ── Builder actions footer ──────────────── */
+.builder-actions {
+    margin-top: 12px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(13, 63, 122, 0.1);
+}
+
+.btn-soft {
+    background: #f0f5ff;
+    color: #0d3f7a;
+    border: 1.5px solid rgba(13, 63, 122, 0.15);
+}
+
+.btn-soft:hover {
+    background: #e0ecff;
+    border-color: rgba(13, 63, 122, 0.28);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #0d3f7a, #1c6a96);
+    box-shadow: 0 8px 22px rgba(13, 63, 122, 0.25);
+}
+
+.btn-primary:hover {
+    box-shadow: 0 12px 28px rgba(13, 63, 122, 0.35);
+    transform: translateY(-1px);
+}
+

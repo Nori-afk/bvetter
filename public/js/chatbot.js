@@ -15,12 +15,12 @@
     if (path.indexOf(marker) >= 0) return path.slice(0, path.indexOf(marker));
     marker = '/public/pages/';
     if (path.indexOf(marker) >= 0) return path.slice(0, path.indexOf(marker));
-    return '/Final-Backend';
+    return '/bvetter';
   }
 
   var APP_BASE = appBasePath();
-  var CHATBOT_API = APP_BASE + '/backend/chatbot/chatbot.php';
-  var BARANGAY_API = APP_BASE + '/backend/barangays/list.php';
+  var CHATBOT_API = APP_BASE + '/api/chatbot/chatbot.php';
+  var BARANGAY_API = APP_BASE + '/api/barangays/list.php';
 
   function chatbotRequest(action, payload) {
     var controller = new AbortController();

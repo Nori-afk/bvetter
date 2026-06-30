@@ -7,10 +7,12 @@ ServerSignature Off
     Deny from all
 </FilesMatch>
 
-# Block direct access to storage directory (serve through PHP only)
+# Block PHP execution inside storage (prevent uploaded PHP files from running).
+# Static files (images, PDFs) are intentionally served directly — the frontend
+# references them as /bvetter/storage/... URLs in <img> src attributes.
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteRule ^storage/ - [F,L]
+    RewriteRule ^storage/.*\.(php[0-9]?|phtml|phar)$ - [F,L]
 </IfModule>
 
 # Security headers
