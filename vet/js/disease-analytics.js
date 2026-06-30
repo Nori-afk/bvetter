@@ -62,7 +62,7 @@ async function diseaseAnalyticsRequest(disease, period) {
         period:  period  || 'year',
     });
     try {
-        const res    = await fetch(`/FINAL-BACKEND(VBETTER)/Final-Backend/backend/dashboard/dashboard.php?${params}`, { cache: 'no-store' });
+        const res    = await fetch(`/Final-Backend/backend/dashboard/dashboard.php?${params}`, { cache: 'no-store' });
         const result = await res.json();
         return { ok: result.success, data: result.data || {}, error: result.success ? null : result.message };
     } catch (e) {
@@ -73,7 +73,7 @@ async function diseaseAnalyticsRequest(disease, period) {
 async function diseaseRiskRequest(barangays, currentCasesByBarangay, disease, period) {
     try {
         const res = await fetch(
-            '/FINAL-BACKEND(VBETTER)/Final-Backend/backend/dashboard/dashboard.php?scope=disease_risk_prediction',
+            '/Final-Backend/backend/dashboard/dashboard.php?scope=disease_risk_prediction',
             {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },

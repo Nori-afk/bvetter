@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VBetter | Profile</title>
+    <link rel="stylesheet" href="../../shared/css/sidebar.css">
+    <link rel="stylesheet" href="../css/profile.css">
+</head>
+
+<body>
+    <div class="main-holder profile-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><img src="../../shared/images/logo.png" alt="VBetter Logo"></div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="index.html" class="nav-item" title="Dashboard">
+                    <img src="../../shared/images/sidebar/dashboard.svg" class="nav-icon" alt="Dashboard">
+                    <span class="nav-label">Dashboard</span>
+                </a>
+                <a href="../../vet/html/appointment.html" class="nav-item" title="Appointments">
+                    <img src="../../shared/images/sidebar/appointment.svg" class="nav-icon" alt="Appointment Management">
+                    <span class="nav-label">Appointment Management</span>
+                </a>
+                <a href="../../vet/html/patient-records.html" class="nav-item" title="Patient Records">
+                    <img src="../../shared/images/sidebar/patient-records.svg" class="nav-icon" alt="Patient Records">
+                    <span class="nav-label">Patient Records</span>
+                </a>
+                <a href="../../vet/html/report.html" class="nav-item" title="Reports">
+                    <img src="../../shared/images/sidebar/report.svg" class="nav-icon" alt="Report">
+                    <span class="nav-label">Report</span>
+                </a>
+                <a href="../../vet/html/disease-analytics.html" class="nav-item" title="Disease Analytics">
+                    <img src="../../shared/images/sidebar/disease-analytics.svg" class="nav-icon" alt="Disease Analytics">
+                    <span class="nav-label">Disease Analytics</span>
+                </a>
+                <a href="../../vet/html/lost-and-found.html" class="nav-item" title="Lost and Found">
+                    <img src="../../shared/images/sidebar/lost-found.svg" class="nav-icon" alt="Lost and Found">
+                    <span class="nav-label">Lost And Found</span>
+                </a>
+                <a href="../../vet/html/chatbot-management.html" class="nav-item" title="Chatbot Management">
+                    <img src="../../shared/images/sidebar/chatbot.svg" class="nav-icon" alt="Chatbot Management">
+                    <span class="nav-label">Chatbot Management</span>
+                </a>
+                <a href="../../vet/html/mass-vaccination.html" class="nav-item" title="Mass Vaccination">
+                    <img src="../../shared/images/sidebar/mass-vacc.svg" class="nav-icon" alt="Mass Vaccination">
+                    <span class="nav-label">Mass Vaccination</span>
+                </a>
+                <div class="nav-section-label" data-roles="admin">Administration</div>
+                <a href="account-management.html" class="nav-item" title="Account Management" data-roles="admin">
+                    <img src="../../shared/images/sidebar/acc-management.svg" class="nav-icon" alt="Account Management">
+                    <span class="nav-label">Account Management</span>
+                </a>
+                <a href="website-management.html" class="nav-item" title="Website Management" data-roles="admin">
+                    <img src="../../shared/images/sidebar/web-settings.svg" class="nav-icon" alt="Website Management">
+                    <span class="nav-label">Website Management</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer"></div>
+        </aside>
+
+        <main class="profile-main">
+
+            <!-- Hero -->
+            <section class="profile-hero card">
+                <img src="https://i.pravatar.cc/150?img=12" alt="Admin User" class="hero-avatar">
+                <div>
+                    <h1>System Administrator</h1>
+                    <p>Admin since 2022</p>
+                </div>
+            </section>
+
+            <!-- KPIs -->
+            <section class="profile-kpis" aria-label="Profile KPI cards">
+                <article class="kpi-card card">
+                    <p>Total Accounts</p>
+                    <strong>38</strong>
+                    <small>+3 this month</small>
+                </article>
+                <article class="kpi-card card">
+                    <p>Active Users</p>
+                    <strong>31</strong>
+                    <small>82% of total</small>
+                </article>
+                <article class="kpi-card card">
+                    <p>Site Updates</p>
+                    <strong>12</strong>
+                    <small>Last 30 days</small>
+                </article>
+                <article class="kpi-card card">
+                    <p>System Uptime</p>
+                    <strong>99.9%</strong>
+                    <small>All-time average</small>
+                </article>
+            </section>
+
+            <!-- Profile Information -->
+            <section class="profile-panel card">
+                <div class="panel-head">
+                    <h2>Profile Information</h2>
+                    <button class="save-btn" type="button">Save Changes</button>
+                </div>
+                <div class="form-grid">
+                    <label>Full Name
+                        <input type="text" name="fullName" value="Juan dela Cruz">
+                    </label>
+                    <label>Email Address
+                        <input type="email" name="email" value="admin@baliwagvet.gov.ph">
+                    </label>
+                    <label>Contact Number
+                        <input type="tel" name="phone" value="+63 995 921 0640">
+                    </label>
+                    <label>Role
+                        <input type="text" name="role" value="System Administrator" readonly>
+                    </label>
+                </div>
+            </section>
+
+            <!-- Security -->
+            <section class="profile-panel card">
+                <h2>Security</h2>
+                <p>Change password and two-factor settings.</p>
+                <div class="security-actions">
+                    <button class="save-btn" type="button">Update Password</button>
+                    <button class="save-btn alt" type="button">Manage 2FA</button>
+                </div>
+            </section>
+
+            <!-- Notification Preferences -->
+            <section class="profile-panel card">
+                <h2>Notification Preferences</h2>
+                <p>Choose what updates you receive.</p>
+                <div class="checks">
+                    <label><input type="checkbox" checked> New Account Registrations</label>
+                    <label><input type="checkbox" checked> System Alerts</label>
+                    <label><input type="checkbox" checked> Website Content Updates</label>
+                    <label><input type="checkbox"> Weekly Summary Reports</label>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="../../shared/js/auth.js"></script>
+    <script>VBetterAuth.requireAuth(['admin']);</script>
+    <script src="../../shared/js/sidebar.js"></script>
+    <script src="../js/profile.js"></script>
+
+</body>
+
+</html>

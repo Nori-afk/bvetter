@@ -18,12 +18,12 @@
 const SESSION_KEY = 'vbetter_session';
 
 const ROLE_ROUTES = {
-    vet:   '/Final-backend(VBETTER)/Final-Backend/vet/html/index.html',
-    admin: '/Final-backend(VBETTER)/Final-Backend/admin/pages/index.html',
-    owner: '/Final-backend(VBETTER)/Final-Backend/public/pages/landing.html'
+    vet:   '/Final-Backend/vet/html/index.html',
+    admin: '/Final-Backend/admin/pages/index.html',
+    owner: '/Final-Backend/public/pages/landing.html'
 };
 
-const LOGIN_PAGE = '/Final-backend(VBETTER)/Final-Backend/public/pages/login.html';
+const LOGIN_PAGE = '/Final-Backend/public/pages/login.html';
 
 /* ── Session helpers ────────────────────────────────────────── */
 function getSession() {

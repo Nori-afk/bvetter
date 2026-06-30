@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VBetter – Website Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../../shared/css/sidebar.css"/>
+  <link rel="stylesheet" href="../css/website-management.css"/>
+</head>
+<body>
+
+  <!-- ── SIDEBAR — exact same markup as account-management.html ── -->
+  <aside class="sidebar" role="navigation" aria-label="Main navigation">
+    <div class="sidebar-header">
+      <div class="logo">
+        <img src="../../shared/images/logo.png" alt="VBetter" onerror="this.parentElement.textContent='V'">
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-item" title="Dashboard">
+        <img src="../../shared/images/sidebar/dashboard.svg" class="nav-icon" alt="Dashboard">
+        <span class="nav-label">Dashboard</span>
+      </a>
+      <a href="../../vet/html/appointment.html" class="nav-item" title="Appointments">
+        <img src="../../shared/images/sidebar/appointment.svg" class="nav-icon" alt="Appointment Management">
+        <span class="nav-label">Appointment Management</span>
+      </a>
+      <a href="../../vet/html/patient-records.html" class="nav-item" title="Patient Records">
+        <img src="../../shared/images/sidebar/patient-records.svg" class="nav-icon" alt="Patient Records">
+        <span class="nav-label">Patient Records</span>
+      </a>
+      <a href="../../vet/html/report.html" class="nav-item" title="Reports">
+        <img src="../../shared/images/sidebar/report.svg" class="nav-icon" alt="Report">
+        <span class="nav-label">Report</span>
+      </a>
+      <a href="../../vet/html/disease-analytics.html" class="nav-item" title="Disease Analytics">
+        <img src="../../shared/images/sidebar/disease-analytics.svg" class="nav-icon" alt="Disease Analytics">
+        <span class="nav-label">Disease Analytics</span>
+      </a>
+      <a href="../../vet/html/lost-and-found.html" class="nav-item" title="Lost and Found">
+        <img src="../../shared/images/sidebar/lost-found.svg" class="nav-icon" alt="Lost and Found">
+        <span class="nav-label">Lost And Found</span>
+      </a>
+      <a href="../../vet/html/chatbot-management.html" class="nav-item" title="Chatbot Management">
+        <img src="../../shared/images/sidebar/chatbot.svg" class="nav-icon" alt="Chatbot Management">
+        <span class="nav-label">Chatbot Management</span>
+      </a>
+      <a href="../../vet/html/mass-vaccination.html" class="nav-item" title="Mass Vaccination">
+        <img src="../../shared/images/sidebar/mass-vacc.svg" class="nav-icon" alt="Mass Vaccination">
+        <span class="nav-label">Mass Vaccination</span>
+      </a>
+      <div class="nav-section-label" data-roles="admin">Administration</div>
+      <a href="account-management.html" class="nav-item" title="Account Management" data-roles="admin">
+        <img src="../../shared/images/sidebar/acc-management.svg" class="nav-icon" alt="Account Management">
+        <span class="nav-label">Account Management</span>
+      </a>
+      <a href="website-management.html" class="nav-item active" title="Website Management" data-roles="admin">
+        <img src="../../shared/images/sidebar/web-settings.svg" class="nav-icon" alt="Website Management">
+        <span class="nav-label">Website Management</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer"></div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <main class="wm-main">
+
+    <!-- HERO -->
+    <section class="wm-hero">
+      <div class="wm-hero-copy">
+        <h1 class="wm-hero-title">Website Management</h1>
+        <p class="wm-hero-sub">Customize the public landing page — update branding, content, and visuals. Changes save to site config and reflect live on the public site.</p>
+      </div>
+      <div class="wm-hero-actions">
+        <button class="wm-btn-discard" id="btn-discard" type="button">Discard</button>
+        <button class="wm-btn-save" id="btn-save" type="button">
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+          Save Changes
+        </button>
+      </div>
+    </section>
+
+    <!-- All content sections go directly inside wm-main (no wm-layout wrapper) -->
+    <div class="wm-content">
+
+      <!-- ══ BRAND IDENTITY — two separate cards ══ -->
+      <div class="wm-brand-row" id="section-brand-logo">
+
+        <!-- Card 1: Company Logo -->
+        <div class="wm-card">
+          <div class="wm-card-header">
+            <div class="wm-card-title">
+              <div class="wm-card-title-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 15l-5-5L5 21"/></svg>
+              </div>
+              Company Logo
+            </div>
+            <span style="font-size:11px;font-weight:700;color:var(--text-tertiary);letter-spacing:0.4px;text-transform:uppercase;">SVG, PNG, JPG</span>
+          </div>
+          <div class="wm-card-body">
+            <label class="wm-logo-upload-area" for="logo-file-input" id="logo-drop-zone">
+              <div class="wm-logo-thumb">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" id="logo-placeholder-icon">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M21 15l-5-5L5 21"/>
+                </svg>
+                <img id="logo-preview" src="" alt="Logo Preview"/>
+              </div>
+              <div class="wm-logo-text">
+                <span class="wm-logo-format-hint">Upload your company logo.</span>
+                <p>Recommended size 512×512px. Appears in the navbar and browser tab.</p>
+                <label class="wm-btn-upload-logo" for="logo-file-input">
+                  <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                  </svg>
+                  Upload Logo
+                </label>
+              </div>
+            </label>
+            <input type="file" id="logo-file-input" accept="image/svg+xml,image/png,image/jpeg"/>
+          </div>
+        </div>
+
+        <!-- Card 2: Brand Colors -->
+        <div class="wm-card">
+          <div class="wm-card-header">
+            <div class="wm-card-title">
+              <div class="wm-card-title-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3"/></svg>
+              </div>
+              Brand Colors
+            </div>
+          </div>
+          <div class="wm-card-body">
+            <label class="wm-label">Primary Brand Color</label>
+            <div class="wm-color-input-wrap">
+              <input type="color" class="wm-color-swatch-big" id="color-picker" value="#0B7DDA"/>
+              <input type="text" class="wm-color-hex" id="color-hex" value="#0B7DDA" maxlength="7" placeholder="#000000"/>
+            </div>
+            <span class="wm-preset-label">Presets</span>
+            <div class="wm-presets-grid" id="color-presets">
+              <div class="wm-preset-swatch active" style="background:#002A58" data-color="#002A58" title="Navy"></div>
+              <div class="wm-preset-swatch" style="background:#00B928" data-color="#00B928" title="Green"></div>
+              <div class="wm-preset-swatch" style="background:#D97706" data-color="#D97706" title="Amber"></div>
+              <div class="wm-preset-swatch" style="background:#C53030" data-color="#C53030" title="Red"></div>
+              <div class="wm-preset-swatch" style="background:#553C9A" data-color="#553C9A" title="Purple"></div>
+              <div class="wm-preset-swatch" style="background:#EC4899" data-color="#EC4899" title="Pink"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ VISUAL ASSETS ══ -->
+      <section class="wm-card" id="section-assets">
+        <div class="wm-card-header">
+          <div class="wm-card-title">
+            <div class="wm-card-title-icon">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 15l-5-5L5 21"/></svg>
+            </div>
+            Visual Assets
+          </div>
+        </div>
+        <div class="wm-card-body">
+          <div class="wm-assets-grid">
+
+            <!-- Hero Banner -->
+            <div class="wm-asset-card" onclick="triggerAssetUpload('hero-banner-input')">
+              <div class="wm-asset-thumb-placeholder" id="hero-banner-placeholder">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M21 15l-5-5L5 21"/>
+                </svg>
+                <span>No image uploaded</span>
+              </div>
+              <img class="wm-asset-img-preview" id="hero-banner-preview" alt="Hero Banner"/>
+              <div class="wm-asset-info">
+                <span class="wm-asset-name">Hero Banner</span>
+                <span class="wm-asset-desc">Main homepage landing visual (1920×1080)</span>
+                <div class="wm-asset-actions">
+                  <label class="wm-asset-btn wm-asset-btn-primary" for="hero-banner-input">Upload</label>
+                  <button class="wm-asset-btn wm-asset-btn-ghost" type="button" onclick="event.stopPropagation();clearAsset('hero-banner')">Remove</button>
+                </div>
+              </div>
+              <input type="file" id="hero-banner-input" accept="image/*"/>
+            </div>
+
+            <!-- Team Workspace -->
+            <div class="wm-asset-card" onclick="triggerAssetUpload('team-workspace-input')">
+              <div class="wm-asset-thumb-placeholder" id="team-workspace-placeholder">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span>No image uploaded</span>
+              </div>
+              <img class="wm-asset-img-preview" id="team-workspace-preview" alt="Team Workspace"/>
+              <div class="wm-asset-info">
+                <span class="wm-asset-name">Team Workspace</span>
+                <span class="wm-asset-desc">Background for the About section</span>
+                <div class="wm-asset-actions">
+                  <label class="wm-asset-btn wm-asset-btn-primary" for="team-workspace-input">Upload</label>
+                  <button class="wm-asset-btn wm-asset-btn-ghost" type="button" onclick="event.stopPropagation();clearAsset('team-workspace')">Remove</button>
+                </div>
+              </div>
+              <input type="file" id="team-workspace-input" accept="image/*"/>
+            </div>
+
+            <!-- Event 1 -->
+            <div class="wm-asset-card" onclick="triggerAssetUpload('event-1-input')">
+              <div class="wm-asset-thumb-placeholder" id="event-1-placeholder">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <span>No image uploaded</span>
+              </div>
+              <img class="wm-asset-img-preview" id="event-1-preview" alt="Event Image"/>
+              <div class="wm-asset-info">
+                <span class="wm-asset-name">Event 1 Image</span>
+                <span class="wm-asset-desc">Photo for Vaccine Event card</span>
+                <div class="wm-asset-actions">
+                  <label class="wm-asset-btn wm-asset-btn-primary" for="event-1-input">Upload</label>
+                  <button class="wm-asset-btn wm-asset-btn-ghost" type="button" onclick="event.stopPropagation();clearAsset('event-1')">Remove</button>
+                </div>
+              </div>
+              <input type="file" id="event-1-input" accept="image/*"/>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ ANNOUNCEMENTS + COMPANY PROFILE ══ -->
+      <div class="wm-two-col">
+
+        <!-- ANNOUNCEMENTS -->
+        <section class="wm-card" id="section-announcements">
+          <div class="wm-card-header">
+            <div class="wm-card-title">
+              <div class="wm-card-title-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+              </div>
+              Announcements
+            </div>
+          </div>
+          <div class="wm-card-body">
+            <div class="wm-announcements-list" id="announcements-list"></div>
+            <button class="wm-btn-add-ann" id="btn-add-ann" type="button">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Add New Announcement
+            </button>
+          </div>
+        </section>
+
+        <!-- COMPANY PROFILE -->
+        <section class="wm-card" id="section-profile">
+          <div class="wm-card-header">
+            <div class="wm-card-title">
+              <div class="wm-card-title-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+              </div>
+              Company Profile
+            </div>
+          </div>
+          <div class="wm-card-body">
+            <div class="wm-form-group" style="margin-bottom:14px;">
+              <label class="wm-label" for="cp-about">About Us</label>
+              <textarea class="wm-textarea" id="cp-about" placeholder="Tell your customers about your company mission..."></textarea>
+            </div>
+            <div class="wm-two-col" style="margin-bottom:14px;">
+              <div class="wm-form-group">
+                <label class="wm-label" for="cp-email">Contact Email</label>
+                <input class="wm-input" type="email" id="cp-email" placeholder="clinic@gmail.com"/>
+              </div>
+              <div class="wm-form-group">
+                <label class="wm-label" for="cp-phone">Support Phone</label>
+                <input class="wm-input" type="tel" id="cp-phone" placeholder="+63 9XX XXX XXXX"/>
+              </div>
+            </div>
+            <div class="wm-form-group">
+              <label class="wm-label" for="cp-address">Physical Address</label>
+              <div style="position:relative;">
+                <input class="wm-input" type="text" id="cp-address" placeholder="Building, Street, City, Province" style="padding-right:36px;"/>
+                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="position:absolute;right:13px;top:50%;transform:translateY(-50%);color:var(--text-tertiary);pointer-events:none;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- ══ QUICK PREVIEW ══ -->
+      <section class="wm-preview-card" id="section-preview">
+        <div class="wm-preview-topbar">
+          <div class="wm-preview-title">
+            <div class="wm-preview-title-icon">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            </div>
+            Quick Preview
+          </div>
+          <div class="wm-preview-controls">
+            <button class="wm-preview-mode-btn active" id="btn-preview-desktop" type="button">Desktop</button>
+            <button class="wm-preview-mode-btn" id="btn-preview-mobile" type="button">Mobile</button>
+            <a href="../../public/pages/landing.html" target="_blank" class="wm-preview-fullsite">
+              View full site
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- macOS-style browser chrome -->
+        <div class="wm-browser-shell" id="browser-shell">
+          <div class="wm-browser-chrome-bar">
+            <div class="wm-traffic-lights">
+              <div class="wm-tl wm-tl-red"></div>
+              <div class="wm-tl wm-tl-yellow"></div>
+              <div class="wm-tl wm-tl-green"></div>
+            </div>
+            <div class="wm-fake-url">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+              <span class="wm-fake-url-text">adminpanel.com/preview-live</span>
+            </div>
+          </div>
+          <!-- Static landing page mockup -->
+          <div class="wm-browser-content">
+            <div class="wm-preview-mockup">
+              <div class="wm-mock-nav">
+                <div class="wm-mock-nav-logo">
+                  <div class="wm-mock-nav-logo-icon">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                    </svg>
+                  </div>
+                  <span class="wm-mock-nav-wordmark">VBetter</span>
+                </div>
+                <div class="wm-mock-nav-links">
+                  <div class="wm-mock-nav-link"></div>
+                  <div class="wm-mock-nav-link"></div>
+                  <div class="wm-mock-nav-link"></div>
+                </div>
+                <div class="wm-mock-nav-btn"></div>
+              </div>
+              <div class="wm-mock-hero">
+                <div class="wm-mock-hero-text">
+                  <div class="wm-mock-h1"></div>
+                  <div class="wm-mock-h1-sub"></div>
+                  <div class="wm-mock-p"></div>
+                  <div class="wm-mock-p2"></div>
+                  <div class="wm-mock-cta">
+                    <div class="wm-mock-cta-btn"></div>
+                    <div class="wm-mock-cta-btn2"></div>
+                  </div>
+                </div>
+                <div class="wm-mock-hero-img"></div>
+              </div>
+              <div class="wm-mock-services">
+                <div class="wm-mock-service-card"></div>
+                <div class="wm-mock-service-card"></div>
+                <div class="wm-mock-service-card"></div>
+                <div class="wm-mock-service-card"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /wm-content -->
+
+  </main>
+
+  <!-- ══ ANNOUNCEMENT MODAL ══ -->
+  <div class="wm-modal-overlay" id="modal-ann" hidden>
+    <div class="wm-modal" role="dialog" aria-modal="true" aria-labelledby="ann-modal-title">
+      <div class="wm-modal-header">
+        <div>
+          <h3 id="ann-modal-title">New Announcement</h3>
+          <p id="ann-modal-sub">Add an event or notice to the public landing page</p>
+        </div>
+        <button class="wm-modal-close" id="ann-modal-close" type="button">&times;</button>
+      </div>
+      <div class="wm-modal-body">
+        <input type="hidden" id="ann-edit-index" value="-1"/>
+        <div class="wm-form-group">
+          <label class="wm-label" for="ann-title-input">Announcement Title</label>
+          <input class="wm-input" type="text" id="ann-title-input" placeholder="e.g. Vaccination Drive #2"/>
+        </div>
+        <div class="wm-two-col">
+          <div class="wm-form-group">
+            <label class="wm-label" for="ann-date-input">Scheduled Date</label>
+            <input class="wm-input" type="date" id="ann-date-input"/>
+          </div>
+          <div class="wm-form-group">
+            <label class="wm-label" for="ann-type-input">Type</label>
+            <select class="wm-input" id="ann-type-input">
+              <option value="event">Event</option>
+              <option value="notice">Notice</option>
+              <option value="alert">Alert</option>
+            </select>
+          </div>
+        </div>
+        <div class="wm-form-group">
+          <label class="wm-label" for="ann-body-input">Description</label>
+          <textarea class="wm-textarea" id="ann-body-input" placeholder="Brief description shown on the public site..."></textarea>
+        </div>
+      </div>
+      <div class="wm-modal-footer">
+        <button class="wm-btn-cancel" id="ann-modal-cancel" type="button">CANCEL</button>
+        <button class="wm-btn-submit" id="ann-modal-save" type="button">SAVE ANNOUNCEMENT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TOAST ══ -->
+  <div class="wm-toast" id="wm-toast">
+    <div class="wm-toast-dot"></div>
+    <span id="wm-toast-msg">Changes saved successfully</span>
+  </div>
+
+  <script src="../../shared/js/auth.js"></script>
+  <script>VBetterAuth.requireAuth(['admin']);</script>
+  <script src="../../shared/js/sidebar.js"></script>
+  <script src="../js/website-management.js"></script>
+
+</body>
+</html>

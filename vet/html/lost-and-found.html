@@ -5,8 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VBetter | Lost and Found Management</title>
-    <link rel="stylesheet" href="/FINAL-BACKEND(VBETTER)/Final-Backend/shared/css/sidebar.css">
-    <link rel="stylesheet" href="/FINAL-BACKEND(VBETTER)/Final-Backend/vet/css/lost-and-found.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="/Final-Backend/shared/css/sidebar.css">
+    <link rel="stylesheet" href="/Final-Backend/vet/css/lost-and-found.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <!-- <script src="/shared/js/sidebar.js" defer></script>
@@ -20,49 +23,49 @@
     <div class="main-holder lf-page">
         <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="logo"><img src="/FINAL-BACKEND(VBETTER)/Final-Backend/vet/images/logo.png" alt="VBetter Logo"></div>
+                <div class="logo"><img src="/Final-Backend/vet/images/logo.png" alt="VBetter Logo"></div>
             </div>
               <nav class="sidebar-nav">
-                <a href="/FINAL-BACKEND(VBETTER)/Final-Backend/vet/html/index.html" class="nav-item" title="Dashboard">
-                    <img src="/FINAL-BACKEND(VBETTER)/Final-Backend/shared/images/sidebar/dashboard.svg" class="nav-icon" alt="Dashboard">
+                <a href="/Final-Backend/vet/html/index.html" class="nav-item" title="Dashboard">
+                    <img src="/Final-Backend/shared/images/sidebar/dashboard.svg" class="nav-icon" alt="Dashboard">
                     <span class="nav-label">Dashboard</span>
                 </a>
                 <a href="/Final-Backend/vet/html/appointment.html" class="nav-item" title="Appointments">
-                    <img src="/FINAL-BACKEND(VBETTER)/Final-Backend/shared/images/sidebar/appointment.svg" class="nav-icon" alt="Appointment Management">
+                    <img src="/Final-Backend/shared/images/sidebar/appointment.svg" class="nav-icon" alt="Appointment Management">
                     <span class="nav-label">Appointment Management</span>
                 </a>
-                <a href="/FINAL-BACKEND(VBETTER)/Final-Backend/vet/html/patient-records.html" class="nav-item" title="Patient Records">
-                    <img src="/FINAL-BACKEND(VBETTER)/Final-Backend/shared/images/sidebar/patient-records.svg" class="nav-icon" alt="Patient Records">
+                <a href="/Final-Backend/vet/html/patient-records.html" class="nav-item" title="Patient Records">
+                    <img src="/Final-Backend/shared/images/sidebar/patient-records.svg" class="nav-icon" alt="Patient Records">
                     <span class="nav-label">Patient Records</span>
                 </a>
-                <a href="/FINAL-BACKEND(VBETTER)/Final-Backend/vet/html/report.html" class="nav-item" title="Reports">
-                    <img src="/FINAL-BACKEND(VBETTER)/Final-Backend/shared/images/sidebar/report.svg" class="nav-icon" alt="Report">
+                <a href="/Final-Backend/vet/html/report.html" class="nav-item" title="Reports">
+                    <img src="/Final-Backend/shared/images/sidebar/report.svg" class="nav-icon" alt="Report">
                     <span class="nav-label">Report</span>
                 </a>
-                <a href="/FINAL-BACKEND(VBETTER)/Final-Backend/vet/html/disease-analytics.html" class="nav-item" title="Disease Analytics">
-                    <img src="/FINAL-BACKEND(VBETTER)/Final-Backend/shared/images/sidebar/disease-analytics.svg" class="nav-icon" alt="Disease Analytics">
+                <a href="/Final-Backend/vet/html/disease-analytics.html" class="nav-item" title="Disease Analytics">
+                    <img src="/Final-Backend/shared/images/sidebar/disease-analytics.svg" class="nav-icon" alt="Disease Analytics">
                     <span class="nav-label">Disease Analytics</span>
                 </a>
-                <a href="/FINAL-BACKEND(VBETTER)/Final-Backend/vet/html/lost-and-found.html" class="nav-item" title="Lost and Found">
-                    <img src="/FINAL-BACKEND(VBETTER)/Final-Backend/shared/images/sidebar/lost-found.svg" class="nav-icon" alt="Lost and Found">
+                <a href="/Final-Backend/vet/html/lost-and-found.html" class="nav-item" title="Lost and Found">
+                    <img src="/Final-Backend/shared/images/sidebar/lost-found.svg" class="nav-icon" alt="Lost and Found">
                     <span class="nav-label">Lost And Found</span>
                 </a>
-                <a href="/FINAL-BACKEND(VBETTER)/Final-Backend/vet/html/chatbot-management.html" class="nav-item" title="Chatbot Management">
-                    <img src="/FINAL-BACKEND(VBETTER)/Final-Backend/shared/images/sidebar/chatbot.svg" class="nav-icon" alt="Chatbot Management">
+                <a href="/Final-Backend/vet/html/chatbot-management.html" class="nav-item" title="Chatbot Management">
+                    <img src="/Final-Backend/shared/images/sidebar/chatbot.svg" class="nav-icon" alt="Chatbot Management">
                     <span class="nav-label">Chatbot Management</span>
                 </a>
-                <a href="/Final-backend(VBETTER)/Final-Backend/vet/html/mass-vaccination.html" class="nav-item" title="Mass Vaccination">
-                    <img src="/FINAL-BACKEND(VBETTER)/Final-Backend/shared/images/sidebar/mass-vacc.svg" class="nav-icon" alt="Mass Vaccination">
+                <a href="/Final-Backend/vet/html/mass-vaccination.html" class="nav-item" title="Mass Vaccination">
+                    <img src="/Final-Backend/shared/images/sidebar/mass-vacc.svg" class="nav-icon" alt="Mass Vaccination">
                     <span class="nav-label">Mass Vaccination</span>
                 </a>
                 <!-- ADMIN-ONLY section: sidebar.js hides these for vet role -->
                 <div class="nav-section-label" data-roles="admin">Administration</div>
-                <a href="/FINAL-BACKEND(VBETTER)/Final-Backend/admin/pages/account-management.html" class="nav-item" title="Account Management" data-roles="admin">
-                    <img src="/FINAL-BACKEND(VBETTER)/Final-Backend/shared/images/sidebar/acc-management.svg" class="nav-icon" alt="Account Management">
+                <a href="/Final-Backend/admin/pages/account-management.html" class="nav-item" title="Account Management" data-roles="admin">
+                    <img src="/Final-Backend/shared/images/sidebar/acc-management.svg" class="nav-icon" alt="Account Management">
                     <span class="nav-label">Account Management</span>
                 </a>
-                <a href="/FINAL-BACKEND(VBETTER)/Final-Backend/admin/pages/website-settings.html" class="nav-item" title="Website Management" data-roles="admin">
-                    <img src="/FINAL-BACKEND(VBETTER)/Final-Backend/shared/images/sidebar/web-settings.svg" class="nav-icon" alt="Website Management">
+                <a href="/Final-Backend/admin/pages/website-management.html" class="nav-item" title="Website Management" data-roles="admin">
+                    <img src="/Final-Backend/shared/images/sidebar/web-settings.svg" class="nav-icon" alt="Website Management">
                     <span class="nav-label">Website Management</span>
                 </a>
             </nav>
@@ -103,13 +106,13 @@
             <div id="lfModalBody"></div>
         </section>
     </div>
- <script src="/FINAL-BACKEND(VBETTER)/Final-Backend/shared/js/sidebar.js"></script>
+ <script src="/Final-Backend/shared/js/sidebar.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <!-- <script src="/shared/js/auth.js"></script>
     <script>VBetterAuth.requireAuth(['vet']);</script> -->
    
-    <script src="/FINAL-BACKEND(VBETTER)/Final-Backend/vet/js/lost-and-found.js"></script>
+    <script src="/Final-Backend/vet/js/lost-and-found.js"></script>
 
 </body>
 

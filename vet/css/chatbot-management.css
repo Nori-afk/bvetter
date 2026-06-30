@@ -40,34 +40,47 @@ body {
 .main-holder {
     min-height: 100vh;
     display: flex;
-    padding: 16px;
-    gap: 16px;
 }
 
 .content-holder {
-    margin-left: calc(var(--sidebar-width-collapsed) + var(--sidebar-main-gap));
-    width: calc(100% - (var(--sidebar-width-collapsed) + var(--sidebar-main-gap) + var(--shell-gap)));
+    margin-left: calc(var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap));
+    width: calc(100% - (var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap)));
+    padding: 28px 32px 40px;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
+    transition: margin-left 0.28s ease, width 0.28s ease;
 }
 
 .sidebar.expanded ~ .content-holder {
-    margin-left: calc(var(--sidebar-width-expanded) + var(--sidebar-main-gap));
-    width: calc(100% - (var(--sidebar-width-expanded) + var(--sidebar-main-gap) + var(--shell-gap)));
+    margin-left: calc(var(--shell-gap) + var(--sidebar-width-expanded) + var(--sidebar-main-gap));
+    width: calc(100% - (var(--shell-gap) + var(--sidebar-width-expanded) + var(--sidebar-main-gap)));
 }
 
 .hero-shell {
-    background: linear-gradient(120deg, #123d73 0%, #115f8d 46%, #17725f 100%);
-    border-radius: 15px;
-    padding: 24px 26px;
+    background: linear-gradient(110deg, #002A58 0%, #00497A 40%, #006B50 100%);
+    border-radius: 16px;
+    padding: 30px 36px;
     color: #fff;
-    box-shadow: 0 14px 30px rgba(12, 37, 68, 0.16);
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-shell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 60% 80% at 80% 50%, rgba(0,185,40,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 60% at 100% 0%, rgba(255,255,255,0.04) 0%, transparent 60%);
+    pointer-events: none;
 }
 
 .hero-copy {
     max-width: 980px;
+    position: relative;
+    z-index: 1;
 }
 
 .eyebrow {
@@ -79,17 +92,18 @@ body {
 }
 
 .hero-shell h1 {
-    font-size: 36px;
-    line-height: 1.06;
-    margin-bottom: 8px;
-    font-weight: bold
+    font-size: 26px;
+    line-height: 1.1;
+    margin-bottom: 6px;
+    font-weight: 800;
+    letter-spacing: -0.4px;
 }
 
 .hero-shell p {
-    font-size: 14px;
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.86);
-  
+    font-size: 13px;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.72);
+    font-weight: 500;
 }
 
 .Menu-holder {

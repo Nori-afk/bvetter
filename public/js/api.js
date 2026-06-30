@@ -42,7 +42,7 @@
 /* ── Base URL ─────────────────────────────────
    TODO: Change to production URL before deploy   */
 const API_BASE = 'http://localhost:8000/api';
-const API_BASE_REG = 'http://localhost/Final-backend(VBETTER)/Final-Backend/backend';
+const API_BASE_REG = 'http://localhost/Final-Backend/backend';
 const LOST_FOUND_ENDPOINT = `${API_BASE_REG}/Lost%26Found/lost_and_found.php`;
 const PROFILE_ENDPOINT = `${API_BASE_REG}/users/profile.php`;
 const DASHBOARD_ENDPOINT = `${API_BASE_REG}/dashboard/dashboard.php`;

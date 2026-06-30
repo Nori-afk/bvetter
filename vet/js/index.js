@@ -350,7 +350,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     const addAppointmentBtn = document.querySelector('.btn-add-appointment');
     if (addAppointmentBtn) {
         addAppointmentBtn.addEventListener('click', function() {
-            window.location.href = '/Final-backend(VBETTER)/Final-Backend/vet/html/appointment.html';
+            window.location.href = '/Final-Backend/vet/html/appointment.html';
         });
     }
 
@@ -358,13 +358,13 @@ document.addEventListener('DOMContentLoaded', async function () {
     const manageEventBtn = document.querySelector('.btn-manage-event');
     if (manageEventBtn) {
         manageEventBtn.addEventListener('click', function() {
-            window.location.href = '/Final-backend(VBETTER)/Final-Backend/vet/html/mass-vaccination.html';
+            window.location.href = '/Final-Backend/vet/html/mass-vaccination.html';
         });
     }
 
     document.querySelectorAll('.icon-btn[aria-label="Settings"]').forEach((button) => {
         button.addEventListener('click', () => {
-            window.location.href = '/Final-backend(VBETTER)/Final-Backend/public/pages/account-settings.html';
+            window.location.href = '/Final-Backend/public/pages/account-settings.html';
         });
     });
 
@@ -1010,7 +1010,7 @@ function renderRecentPatientAppointment(appointments) {
     const viewLink = document.querySelector('.patient-header .view-link');
     if (!patientCard || !patientItem) return;
 
-    if (viewLink) viewLink.href = '/Final-backend(VBETTER)/Final-Backend/vet/html/appointment.html';
+    if (viewLink) viewLink.href = '/Final-Backend/vet/html/appointment.html';
 
     const sorted = [...appointments].sort((a, b) => {
         const left = new Date(`${a.preferred_date || toDateKey(a.datetime)}T${a.time_slot || '00:00'}`).getTime();

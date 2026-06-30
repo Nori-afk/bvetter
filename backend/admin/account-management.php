@@ -118,7 +118,7 @@ function listUsers($pdo)
             'verificationStatus' => $row['verification_status'],
             'barangay' => $row['barangay_name'],
             'created' => $row['created_at'],
-            'idImage' => $row['proof_path'] ? '/Final-backend(VBETTER)/Final-Backend/' . $row['proof_path'] : '',
+            'idImage' => $row['proof_path'] ? '/Final-Backend/' . $row['proof_path'] : '',
             'proofName' => $row['proof_name'],
         ];
     }, $rows);
@@ -301,7 +301,7 @@ function createUser($pdo)
             ]);
         }
 
-        $profilePhoto = '/Final-backend(VBETTER)/Final-Backend/backend/uploads/profile/' . $fileName;
+        $profilePhoto = '/Final-Backend/backend/uploads/profile/' . $fileName;
     }
 
     $pdo->beginTransaction();

@@ -11,7 +11,7 @@
  */
 
 header('Content-Type: application/json');
-define('APP_URL', 'http://localhost/Final-backend(VBETTER)/Final-Backend');
+define('APP_URL', 'http://localhost/Final-Backend');
 header('Content-Type: application/json');
 ini_set('display_errors', 0);  // ADD THIS
 error_reporting(E_ALL);   

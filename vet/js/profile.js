@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-	const PROFILE_API = "/Final-backend(VBETTER)/Final-Backend/backend/users/profile.php";
+	const PROFILE_API = "/Final-Backend/backend/users/profile.php";
 	const session = window.VBetterAuth?.getSession?.() || JSON.parse(sessionStorage.getItem("vbetter_session") || "null");
 	const userId = session?.userId || session?.id || 0;
 

@@ -250,7 +250,7 @@ function normalizeTimeValue($value)
 
 function publicUploadPath($fileName, $folder)
 {
-    return '/Final-backend(VBETTER)/Final-Backend/backend/uploads/' . $folder . '/' . $fileName;
+    return '/Final-Backend/backend/uploads/' . $folder . '/' . $fileName;
 }
 
 function absoluteUploadPath($publicPath)

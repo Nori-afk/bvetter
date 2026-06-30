@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 		if (path.includes(jsMarker)) return path.slice(0, path.indexOf(jsMarker));
 		const pageMarker = '/vet/html/';
 		if (path.includes(pageMarker)) return path.slice(0, path.indexOf(pageMarker));
-		return '/Final-backend(VBETTER)/Final-Backend';
+		return '/Final-Backend';
 	}
 
 	const CHATBOT_API = `${appBasePath()}/backend/chatbot/chatbot.php`;

@@ -1,13 +1,14 @@
 <?php
 
-define('DB_HOST', 'localhost');
+define('DB_HOST', '127.0.0.1');
+define('DB_PORT', '3307');
 define('DB_USER', 'root');
-define('DB_PASS', 'root');
+define('DB_PASS', '');
 define('DB_NAME', 'bvetter');
 
 try {
     $pdo = new PDO(
-        'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4',
+        'mysql:host=' . DB_HOST . ';port=' . DB_PORT . ';dbname=' . DB_NAME . ';charset=utf8mb4',
         DB_USER,
         DB_PASS,
         [

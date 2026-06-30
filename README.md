@@ -46,7 +46,7 @@ These are normally included with XAMPP, but some may need to be enabled in `php.
 Several frontend and backend files use hardcoded local paths such as:
 
 ```text
-/Final-backend(VBETTER)/Final-Backend
+/Final-Backend
 ```
 
 For the fewest setup issues, place the project exactly here:
@@ -245,26 +245,26 @@ Important: disease analytics and vaccination forecasting need this service runni
 After Apache, MySQL, and the Python analytics service are running, open:
 
 ```text
-http://localhost/Final-backend(VBETTER)/Final-Backend/public/pages/login.html
+http://localhost/Final-Backend/public/pages/login.html
 ```
 
 Useful pages:
 
 ```text
 Public login:
-http://localhost/Final-backend(VBETTER)/Final-Backend/public/pages/login.html
+http://localhost/Final-Backend/public/pages/login.html
 
 Public landing page:
-http://localhost/Final-backend(VBETTER)/Final-Backend/public/pages/landing.html
+http://localhost/Final-Backend/public/pages/landing.html
 
 Veterinarian dashboard:
-http://localhost/Final-backend(VBETTER)/Final-Backend/vet/html/index.html
+http://localhost/Final-Backend/vet/html/index.html
 
 Admin dashboard:
-http://localhost/Final-backend(VBETTER)/Final-Backend/admin/pages/index.html
+http://localhost/Final-Backend/admin/pages/index.html
 
 Disease analytics:
-http://localhost/Final-backend(VBETTER)/Final-Backend/vet/html/disease-analytics.html
+http://localhost/Final-Backend/vet/html/disease-analytics.html
 ```
 
 ## 8. Basic Run Checklist
@@ -279,7 +279,7 @@ Before testing the system, make sure all of these are true:
 - Composer dependencies are installed.
 - Python dependencies are installed.
 - `backend/analytics/arima_service.py` is running on port `5001`.
-- The project folder path matches `/Final-backend(VBETTER)/Final-Backend`.
+- The project folder path matches `/Final-Backend`.
 
 ## 9. Common Problems and Fixes
 
@@ -366,5 +366,5 @@ pip install flask numpy pandas statsmodels scikit-learn openpyxl
 python backend\analytics\arima_service.py
 
 # 6. Open app
-# http://localhost/Final-backend(VBETTER)/Final-Backend/public/pages/login.html
+# http://localhost/Final-Backend/public/pages/login.html
 ```

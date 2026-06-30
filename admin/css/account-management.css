@@ -1,4 +1,3 @@
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
@@ -37,7 +36,13 @@ html, body {
     color: var(--text-primary);
 }
 
-body { display: flex; min-height: 100vh; }
+/* ── CRITICAL FIX: body must NOT be flex with height:100%
+   when content can grow beyond viewport — use min-height instead */
+body {
+    display: flex;
+    min-height: 100vh;
+    align-items: flex-start; /* allow children to grow naturally */
+}
 
 /* ── MAIN SHELL ─────────────────────────────────────────────── */
 .am-main {
@@ -48,6 +53,7 @@ body { display: flex; min-height: 100vh; }
     display: flex;
     flex-direction: column;
     gap: 18px;
+    /* REMOVED: no flex: 1 or height: 100% — let it grow with content */
     transition: margin-left 0.28s ease, width 0.28s ease;
 }
 
@@ -67,9 +73,9 @@ body { display: flex; min-height: 100vh; }
     gap: 24px;
     position: relative;
     overflow: hidden;
+    flex-shrink: 0;
 }
 
-/* subtle mesh texture — no visible circles */
 .am-hero::before {
     content: '';
     position: absolute;
@@ -98,7 +104,6 @@ body { display: flex; min-height: 100vh; }
     max-width: 520px;
 }
 
-/* gradient button */
 .am-btn-create {
     position: relative;
     z-index: 1;
@@ -138,6 +143,7 @@ body { display: flex; min-height: 100vh; }
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 14px;
+    flex-shrink: 0;
 }
 
 .am-kpi-card {
@@ -201,6 +207,7 @@ body { display: flex; min-height: 100vh; }
     align-items: center;
     gap: 14px;
     box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
 }
 
 .am-security-icon-wrap {
@@ -245,6 +252,7 @@ body { display: flex; min-height: 100vh; }
 .am-security-link:hover { opacity: 0.75; }
 
 /* ── TABLE SECTION ──────────────────────────────────────────── */
+/* KEY FIX: remove flex:1 and min-height:0 — let height be driven by content */
 .am-table-section {
     background: var(--bg-white);
     border-radius: var(--radius-lg);
@@ -252,9 +260,8 @@ body { display: flex; min-height: 100vh; }
     box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    overflow: visible;
+    /* No flex:1, no min-height:0 — this was causing clipping */
+    overflow: visible; /* allow shadow to show */
 }
 
 .am-table-topbar {
@@ -346,29 +353,28 @@ body { display: flex; min-height: 100vh; }
 .am-tab:hover { color: var(--text-primary); }
 .am-tab.active { color: var(--primary-dark); border-bottom-color: var(--primary-dark); }
 
-/* ── TABLE WRAPPER — SCROLLABLE ─────────────────────────────── */
+/* ── TABLE WRAPPER — KEY FIX ────────────────────────────────── */
+/* Remove fixed height constraints — let the table grow naturally */
 .am-table-wrap {
     overflow-x: auto;
-    overflow-y: auto;
-    flex: 1;
-    min-height: 360px;
+    /* REMOVED: overflow-y: auto — no clipping */
+    /* REMOVED: flex: 1 and min-height: 360px — these were causing the cutoff */
+    width: 100%;
     border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .am-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 700px;     /* horizontal scroll kicks in below this */
-}
-
-.am-table thead {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--bg-white);
+    min-width: 700px;
 }
 
 .am-table thead tr { border-bottom: 1px solid var(--border); }
+
+/* REMOVED: position:sticky on thead — not needed without scroll container */
+.am-table thead {
+    background: var(--bg-white);
+}
 
 .am-table th {
     padding: 12px 22px;
@@ -563,7 +569,6 @@ body { display: flex; min-height: 100vh; }
     to   { opacity: 1; }
 }
 
-/* ── Generic modal box ── */
 .am-modal {
     background: var(--bg-white);
     border-radius: 20px;
@@ -578,13 +583,7 @@ body { display: flex; min-height: 100vh; }
     to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* modal with photo upload (Add/Edit/Unblock) */
-.am-modal-lg {
-    width: min(520px, 100%);
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-}
+.am-modal-lg { width: min(520px, 100%); }
 
 .am-modal-header-plain {
     padding: 28px 28px 0;
@@ -624,7 +623,6 @@ body { display: flex; min-height: 100vh; }
 
 .am-modal-close:hover { background: rgba(0,0,0,0.12); }
 
-/* Photo upload area */
 .am-photo-upload {
     margin: 22px 28px 0;
     display: flex;
@@ -661,14 +659,11 @@ body { display: flex; min-height: 100vh; }
     line-height: 1.4;
 }
 
-/* Form body */
 .am-modal-body {
     padding: 20px 28px 0;
     display: flex;
     flex-direction: column;
     gap: 14px;
-    overflow-y: auto;
-    min-height: 0;
 }
 
 .am-form-row {
@@ -716,7 +711,6 @@ body { display: flex; min-height: 100vh; }
     pointer-events: none;
 }
 
-/* Unblock alert banner */
 .am-alert-banner {
     margin: 16px 28px 0;
     background: #FFF2F2;
@@ -740,7 +734,6 @@ body { display: flex; min-height: 100vh; }
 
 .am-alert-banner-text span { font-size: 12px; color: #9B2C2C; line-height: 1.4; }
 
-/* Unblock button */
 .am-btn-unblock-lg {
     margin: 14px 28px 0;
     width: calc(100% - 56px);
@@ -759,13 +752,11 @@ body { display: flex; min-height: 100vh; }
 
 .am-btn-unblock-lg:hover { background: #FED7D7; border-color: #FC8181; }
 
-/* Modal footer */
 .am-modal-footer {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
     padding: 20px 28px 24px;
-    flex-shrink: 0;
 }
 
 .am-btn-cancel {
@@ -874,7 +865,7 @@ body { display: flex; min-height: 100vh; }
 
 .am-btn-delete-confirm {
     flex: 1;
-    background: #7B0A14;
+    background: linear-gradient(135deg, #7B0A14, #C53030);
     border: none;
     border-radius: var(--radius-sm);
     padding: 12px;
@@ -910,9 +901,7 @@ body { display: flex; min-height: 100vh; }
 .am-btn-cancel-outline:hover { background: var(--bg-page); }
 
 /* ── RESIDENT VERIFICATION MODAL ───────────────────────────── */
-.am-verify-modal {
-    width: min(560px, 100%);
-}
+.am-verify-modal { width: min(560px, 100%); }
 
 .am-verify-header {
     padding: 24px 28px 0;

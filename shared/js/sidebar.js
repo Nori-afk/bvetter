@@ -17,16 +17,16 @@
 
     /* ── Absolute routes — work from ANY page in ANY folder ─── */
     const ROUTES = {
-        'appointment management': '/Final-backend(VBETTER)/Final-Backend/vet/html/appointment.html',
-        'patient records':        '/Final-backend(VBETTER)/Final-Backend/vet/html/patient-records.html',
-        'report':                 '/Final-backend(VBETTER)/Final-Backend/vet/html/report.html',
-        'disease analytics':      '/Final-backend(VBETTER)/Final-Backend/vet/html/disease-analytics.html',
-        'lost and found':         '/Final-backend(VBETTER)/Final-Backend/vet/html/lost-and-found.html',
-        'chatbot management':     '/Final-backend(VBETTER)/Final-Backend/vet/html/chatbot-management.html',
-        'mass vaccination':       '/Final-backend(VBETTER)/Final-Backend/vet/html/mass-vaccination.html',
+        'appointment management': '/Final-Backend/vet/html/appointment.html',
+        'patient records':        '/Final-Backend/vet/html/patient-records.html',
+        'report':                 '/Final-Backend/vet/html/report.html',
+        'disease analytics':      '/Final-Backend/vet/html/disease-analytics.html',
+        'lost and found':         '/Final-Backend/vet/html/lost-and-found.html',
+        'chatbot management':     '/Final-Backend/vet/html/chatbot-management.html',
+        'mass vaccination':       '/Final-Backend/vet/html/mass-vaccination.html',
         // Admin-only — absolute paths
-        'account management':     '/Final-backend(VBETTER)/Final-Backend/admin/pages/account-management.html',
-        'website management':     '/Final-backend(VBETTER)/Final-Backend/admin/pages/', // input here the directory of the Website management.
+        'account management':     '/Final-Backend/admin/pages/account-management.html',
+        'website management':     '/Final-Backend/admin/pages/website-management.html', // input here the directory of the Website management.
     };
 
     const ACTIVE_ICON_CAPABLE = new Set([
@@ -144,8 +144,8 @@
     if (card) {
         card.addEventListener('click', function () {
             const dest = role === 'admin'
-                ? '/FINAL-BACKEND(VBETTER)/Final-Backend/admin/pages/profile.html'
-                : '/FINAL-BACKEND(VBETTER)/Final-Backend/vet/html/profile.html';
+                ? '/Final-Backend/admin/pages/profile.html'
+                : '/Final-Backend/vet/html/profile.html';
             if (!window.location.pathname.toLowerCase().endsWith('profile.html')) {
                 window.location.href = dest;
             }
@@ -167,8 +167,8 @@
 
         // Dashboard route depends on role — admin gets admin dashboard
         ROUTES['dashboard'] = (role === 'admin')
-            ? '/FINAL-BACKEND(VBETTER)/Final-Backend/admin/pages/index.html'
-            : '/FINAL-BACKEND(VBETTER)/Final-Backend/vet/html/index.html';
+            ? '/Final-Backend/admin/pages/index.html'
+            : '/Final-Backend/vet/html/index.html';
 
         navItems.forEach(function (item) {
             if (item.style.display === 'none') return;

@@ -19,7 +19,7 @@
     --border-light: rgba(195, 198, 210, 0.30);
     --white: #FFFFFF;
     --sidebar-width-collapsed: 80px;
-    --sidebar-width-expanded: 160px;
+    --sidebar-width-expanded: 180px;
     --shell-gap: 16px;
     --sidebar-main-gap: 16px;
     --transition: all 0.3s ease;
@@ -179,10 +179,19 @@ html, body {
     justify-content: center;
     color: var(--text-secondary);
     transition: var(--transition);
+    border-radius: 8px;
+}
+
+.icon-btn img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    display: block;
 }
 
 .icon-btn:hover {
     color: var(--primary-dark);
+    background: var(--background-light);
 }
 
 .icon-btn svg {
@@ -236,16 +245,102 @@ html, body {
 
 /* GREETING SECTION */
 .Greetings {
-    padding: 24px 32px;
-    background: linear-gradient(135deg, #004D40, #006064, #004080, #003366);
-    border-radius: 12px;
-    margin: 20px 32px 20px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 30px 36px;
+    background: linear-gradient(110deg, #002A58 0%, #00497A 40%, #006B50 100%);
+    border-radius: 16px;
+    margin: 20px 32px;
+    color: var(--white);
+    gap: 24px;
+    position: relative;
+    overflow: hidden;
+}
+
+.Greetings::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 60% 80% at 80% 50%, rgba(0,185,40,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 60% at 100% 0%, rgba(255,255,255,0.04) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.greet-left {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 580px;
+}
+
+.vet-badge {
+    background: rgba(0, 185, 40, 0.20);
+    border: 1px solid rgba(0, 185, 40, 0.40);
+    color: #7EE8A2;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 3px 10px;
+    border-radius: 50px;
+    width: fit-content;
+}
+
+.greet-sub {
+    font-size: 13px;
+    color: rgba(255,255,255,0.72);
+    line-height: 1.65;
+    font-weight: 500;
+}
+
+.greet-right {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    flex-shrink: 0;
+}
+
+.greet-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-align: center;
+}
+
+.greet-stat-val {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.5px;
     color: var(--white);
 }
 
+.greet-stat-lbl {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.65);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.greet-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(255,255,255,0.20);
+}
+
 .Greetings h1 {
-    font-size: 32px;
+    font-size: 26px;
     font-weight: 800;
+    letter-spacing: -0.4px;
 }
 
 /* KPI SECTION */
@@ -1505,10 +1600,20 @@ html, body {
     .Greetings {
         padding: 20px 16px;
         margin: 16px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .greet-right {
+        gap: 16px;
+    }
+
+    .greet-stat-val {
+        font-size: 22px;
     }
 
     .Greetings h1 {
-        font-size: 24px;
+        font-size: 22px;
     }
 
     .KPI {
@@ -1609,12 +1714,18 @@ html, body {
     }
 
     .Greetings h1 {
-        font-size: 20px;
+        font-size: 18px;
     }
 
     .Greetings {
         padding: 16px 12px;
         margin: 12px;
+        flex-direction: column;
+    }
+
+    .greet-right {
+        width: 100%;
+        justify-content: space-around;
     }
 
     .topHeader {

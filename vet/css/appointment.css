@@ -17,59 +17,90 @@
     --appt-radius:   14px;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-body {
+html, body {
+    min-height: 100vh;
+    width: 100%;
     font-family: 'Manrope', 'Segoe UI', sans-serif;
-    background: var(--appt-bg);
+    background: #F0F2F5;
     color: var(--appt-navy);
     overflow-x: hidden;
 }
 
+body {
+    display: flex;
+    align-items: flex-start;
+}
+
 /* ── Layout ─────────────────────────────────────────── */
 .main-holder {
+    display: flex;
     min-height: 100vh;
-    display:    flex;
-    padding:    var(--shell-gap);
-    gap:        var(--sidebar-main-gap);
+    width: 100%;
 }
 
 .right-content {
-    margin-left: calc(var(--sidebar-width-collapsed) + var(--sidebar-main-gap));
-    width:       calc(100% - (var(--sidebar-width-collapsed) + var(--sidebar-main-gap) + var(--shell-gap)));
+    margin-left: calc(var(--sidebar-width-collapsed) + var(--sidebar-main-gap) + var(--shell-gap));
+    width:       calc(100% - var(--sidebar-width-collapsed) - var(--sidebar-main-gap) - var(--shell-gap));
     flex: 1;
     min-width: 0;
-    padding: 8px 4px;
+    display: flex;
+    flex-direction: column;
+    padding: 28px 32px 48px;
+    gap: 20px;
+    background: #F0F2F5;
+    transition: margin-left 0.28s ease, width 0.28s ease;
 }
 
 .sidebar.expanded ~ .right-content {
-    margin-left: calc(var(--sidebar-width-expanded) + var(--sidebar-main-gap));
-    width:       calc(100% - (var(--sidebar-width-expanded) + var(--sidebar-main-gap) + var(--shell-gap)));
+    margin-left: calc(var(--sidebar-width-expanded) + var(--sidebar-main-gap) + var(--shell-gap));
+    width:       calc(100% - var(--sidebar-width-expanded) - var(--sidebar-main-gap) - var(--shell-gap));
 }
 
 /* ── Header ─────────────────────────────────────────── */
 .header {
-    margin-bottom: 18px;
+    background: linear-gradient(110deg, #002A58 0%, #00497A 40%, #006B50 100%);
+    border-radius: 16px;
+    padding: 30px 36px;
+    position: relative;
+    overflow: hidden;
+}
+
+.header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 60% 80% at 80% 50%, rgba(0,185,40,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 60% at 100% 0%, rgba(255,255,255,0.04) 0%, transparent 60%);
+    pointer-events: none;
 }
 
 .header h2 {
-    font-size:   1.7rem;
+    position: relative;
+    z-index: 1;
+    font-size:   26px;
     font-weight: 800;
-    color:       var(--appt-navy);
+    letter-spacing: -0.4px;
+    color:       #fff;
 }
 
 .header p {
-    color:     var(--appt-muted);
-    font-size: 0.875rem;
-    margin-top: 4px;
+    position: relative;
+    z-index: 1;
+    color:     rgba(255,255,255,0.72);
+    font-size: 13px;
+    line-height: 1.65;
+    font-weight: 500;
+    margin-top: 6px;
 }
 
 /* ── Summary cards ───────────────────────────────────── */
 .card-holder {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
-    margin-bottom: 20px;
+    gap: 16px;
 }
 
 .pending-request,
@@ -78,11 +109,11 @@ body {
     border-radius: var(--appt-radius);
     border:        1px solid var(--appt-line);
     box-shadow:    var(--appt-shadow);
-    padding:       16px 20px;
+    padding:       24px 28px;
 }
 
 .confirmed-request {
-    background: linear-gradient(130deg, #002A58 0%, #004080 100%);
+    background: linear-gradient(110deg, #002A58 0%, #00497A 40%, #006B50 100%);
     color: #eef4ff;
 }
 
@@ -251,14 +282,15 @@ body {
     border-radius: var(--appt-radius);
     border:        1px solid var(--appt-line);
     box-shadow:    var(--appt-shadow);
-    padding:       18px;
+    padding:       20px 24px;
     display:       flex;
     flex-direction: column;
     min-width:     0;
 }
 
-.table-header h2 { font-size: 1rem; font-weight: 700; }
-.table-header p  { font-size: 0.8rem; color: var(--appt-muted); margin-top: 2px; margin-bottom: 14px; }
+.table-header { margin-bottom: 16px; }
+.table-header h2 { font-size: 1.05rem; font-weight: 800; color: var(--appt-navy); }
+.table-header p  { font-size: 0.82rem; color: var(--appt-muted); margin-top: 3px; }
 
 /* ── Search / Filter bar ─────────────────────────────── */
 .search {
@@ -273,25 +305,38 @@ body {
 .search input[type="date"] {
     flex:          1;
     min-width:     120px;
-    padding:       8px 10px;
-    border:        1px solid #d0d8ea;
+    padding:       9px 12px;
+    border:        1px solid #E2E8F0;
     border-radius: 8px;
     font:          inherit;
-    font-size:     0.82rem;
+    font-size:     0.84rem;
     color:         var(--appt-navy);
-    background:    #f8faff;
+    background:    #F0F2F5;
+    transition:    border-color 0.18s ease;
+}
+
+.search input[type="text"]:focus,
+.search select:focus,
+.search input[type="date"]:focus {
+    outline: none;
+    border-color: var(--appt-blue);
+    box-shadow: 0 0 0 3px rgba(0,64,128,0.10);
 }
 
 #clear-filters {
-    padding:       8px 14px;
+    padding:       9px 16px;
     border-radius: 8px;
-    border:        1px solid #d0d8ea;
+    border:        1px solid #E2E8F0;
     background:    #fff;
     color:         var(--appt-muted);
-    font-size:     0.82rem;
+    font-size:     0.84rem;
     font-weight:   600;
+    font-family:   inherit;
     cursor:        pointer;
+    transition:    border-color 0.18s ease;
 }
+
+#clear-filters:hover { border-color: var(--appt-blue); color: var(--appt-blue); }
 
 /* ── Table ───────────────────────────────────────────── */
 .appointment-table-wrap {
@@ -307,8 +352,7 @@ body {
 }
 
 .appointment-table thead {
-    background: var(--appt-navy);
-    color:      #fff;
+    background: #F0F2F5;
 }
 
 .appointment-table th {
@@ -316,9 +360,13 @@ body {
     padding:        12px 14px;
     font-size:      0.72rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     font-weight:    700;
+    color:          #4A5568;
 }
+
+.appointment-table th:first-child { border-radius: 8px 0 0 8px; }
+.appointment-table th:last-child  { border-radius: 0 8px 8px 0; }
 
 .appointment-table td {
     padding:       12px 14px;

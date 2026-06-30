@@ -7,7 +7,7 @@ function appBasePath() {
 	if (path.includes(jsMarker)) return path.slice(0, path.indexOf(jsMarker));
 	const pageMarker = '/vet/html/';
 	if (path.includes(pageMarker)) return path.slice(0, path.indexOf(pageMarker));
-	return '/Final-backend(VBETTER)/Final-Backend';
+	return '/Final-Backend';
 }
 
 const PATIENT_API = `${appBasePath()}/backend/patient-records/patient_records.php`;
@@ -354,7 +354,7 @@ function renderPatientInfoTab(record) {
 			<div class="detail-two-column">
 				<article class="info-card detail-info-card">
 					<div class="detail-header">
-						<img src="/vet/images/info.svg" alt="Physical information">
+						<img src="/Final-Backend/vet/images/info.svg" alt="Physical information">
 						<h3>Physical Characteristics</h3>
 					</div>
 					<div class="informs">
@@ -537,7 +537,7 @@ function renderList() {
 						<p>Manage patient profiles, clinical notes, follow-ups, and record actions from one place.</p>
 					</div>
 					<div class="hero-actions">
-						<button type="button" class="btn btn-accent" data-nav="add"><img src="/vet/images/add.svg" alt="icon"> Add New Patient</button>
+						<button type="button" class="btn btn-accent" data-nav="add"><img src="/Final-Backend/vet/images/add.svg" alt="icon"> Add New Patient</button>
 					</div>
 				</div>
 			</header>
@@ -692,7 +692,7 @@ function renderAdd(record) {
 		<section class="records-shell">
 			<div class="section-head">
 				<div>
-					<button type="button" class="btn btn-soft" data-nav="list"><img src="/vet/images/back.svg" alt="Back">Back to records</button>
+					<button type="button" class="btn btn-soft" data-nav="list"><img src="/Final-Backend/vet/images/back.svg" alt="Back">Back to records</button>
 					<h2>${pageTitle}</h2>
 					<p>${hasContext ? `Create a new clinical entry for ${escapeHtml(data.petName)}.` : 'Register a new patient record and capture the first clinical note.'}</p>
 				</div>
@@ -702,7 +702,7 @@ function renderAdd(record) {
 			<form id="record-form" class="form-layout">
 				<article class="form-card">
 					<div class="detailed-header">
-					<img src="/vet/images/paw-green.svg" alt="Pet-icon">
+					<img src="/Final-Backend/vet/images/paw-green.svg" alt="Pet-icon">
 					
 					<h3>Pet Information</h3>
 					</div>
@@ -748,7 +748,7 @@ function renderAdd(record) {
 
 				<article class="form-card">
 				<div class="detailed-header">
-					<img src="/vet/images/owner.svg" alt="Owner-icon">
+					<img src="/Final-Backend/vet/images/owner.svg" alt="Owner-icon">
 					<h3>Owner Information</h3>
 					</div>
 					<div class="form-grid">
@@ -773,7 +773,7 @@ function renderAdd(record) {
 
 				<article class="form-card span-2">
 				<div class="detailed-header">
-					<img src="/vet/images/medicine.svg" alt="Visit-icon">
+					<img src="/Final-Backend/vet/images/medicine.svg" alt="Visit-icon">
 					<h3>Visit Details</h3>
 					</div>
 					<div class="form-grid">
@@ -834,7 +834,7 @@ function renderAdd(record) {
 					</div>
 					<div class="form-footer">
 						<button type="button" class="btn btn-soft" data-nav="list">Cancel</button>
-						<button type="submit" class="btn btn-primary">${submitLabel} <img src="/vet/images/plus.svg" alt="add"></button>
+						<button type="submit" class="btn btn-primary">${submitLabel} <img src="/Final-Backend/vet/images/plus.svg" alt="add"></button>
 					</div>
 				</article>
 			</form>
@@ -862,7 +862,7 @@ function renderDetail(record) {
 	return `
 		<section class="records-shell">
 			<div class="profile-topbar">
-				<button type="button" class="back-link" data-nav="list"><img src="/vet/images/back.svg" alt="Back"> Back to Patient Records</button>
+				<button type="button" class="back-link" data-nav="list"><img src="/Final-Backend/vet/images/back.svg" alt="Back"> Back to Patient Records</button>
 			</div>
 
 			<section class="detail-shell">
@@ -883,7 +883,7 @@ function renderDetail(record) {
 							</div>
 						</div>
 						<div class="detail-actions">
-							<button type="button" class="btn btn-primary" data-nav="add" data-id="${record.id}"><img src="/vet/images/addView.svg" alt="Add New Record"> Add New Record</button>
+							<button type="button" class="btn btn-primary" data-nav="add" data-id="${record.id}"><img src="/Final-Backend/vet/images/addView.svg" alt="Add New Record"> Add New Record</button>
 							<button type="button" class="more-btn" aria-label="More actions">&#8230;</button>
 						</div>
 					</div>

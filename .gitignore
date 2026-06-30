@@ -1,0 +1,32 @@
+# Environment & secrets
+.env
+config/connection.php
+reset-links.log
+*.log
+
+# Composer binaries (install via: php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');")
+composer.phar
+composer-setup.php
+
+# Vendor (regenerated via: composer install)
+# Uncomment the line below ONLY if you cannot run composer on the server
+# vendor/
+
+# Python cache
+**/__pycache__/
+*.pyc
+*.pyo
+
+# mPDF temp cache
+tmp/
+
+# User uploads (never commit real user data)
+storage/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

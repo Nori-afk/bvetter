@@ -15,7 +15,7 @@
     if (path.indexOf(marker) >= 0) return path.slice(0, path.indexOf(marker));
     marker = '/public/pages/';
     if (path.indexOf(marker) >= 0) return path.slice(0, path.indexOf(marker));
-    return '/Final-backend(VBETTER)/Final-Backend';
+    return '/Final-Backend';
   }
 
   var APP_BASE = appBasePath();

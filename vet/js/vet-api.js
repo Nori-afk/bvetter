@@ -15,7 +15,7 @@
 'use strict';
 
 const BASE_URL = '/api';   // [BACKEND] e.g. 'https://api.vbetter.ph'
-const BACKEND_URL = '/FINAL-BACKEND(VBETTER)/Final-Backend/backend';
+const BACKEND_URL = '/Final-Backend/backend';
 const LOST_FOUND_URL = `${BACKEND_URL}/Lost%26Found/lost_and_found.php`;
 const MASS_VACCINATION_URL = `${BACKEND_URL}/mass-vaccination/events.php`;
 const CHATBOT_URL = `${BACKEND_URL}/chatbot/chatbot.php`;

@@ -108,7 +108,7 @@ function saveImage()
         ]);
     }
 
-    return '/Final-backend(VBETTER)/Final-Backend/backend/uploads/announcements/' . $fileName;
+    return '/Final-Backend/backend/uploads/announcements/' . $fileName;
 }
 
 function formatAnnouncement($row)

@@ -123,7 +123,7 @@ async function fetchAndBuildSlots() {
   console.log('[slots] fetching for vet:', selectedVetId, 'date:', selectedCalDate);
 
   try {
-    const res  = await fetch('/FINAL-BACKEND(VBETTER)/Final-Backend/backend/appointments/appointment.php', {
+    const res  = await fetch('/Final-Backend/backend/appointments/appointment.php', {
       method : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body   : JSON.stringify({
@@ -257,7 +257,7 @@ async function loadRecentHistory() {
       'null'
     );
 
-    const res = await fetch('/FINAL-BACKEND(VBETTER)/Final-Backend/backend/appointments/appointment.php', {
+    const res = await fetch('/Final-Backend/backend/appointments/appointment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -371,7 +371,7 @@ async function loadRecentHistory() {
 }
 async function submitReview(appointmentId, rating, comment) {
   try {
-    const res = await fetch('/FINAL-BACKEND(VBETTER)/Final-Backend/backend/appointments/appointment.php', {
+    const res = await fetch('/Final-Backend/backend/appointments/appointment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -417,7 +417,7 @@ function openReviewForm(appointmentId, currentRating = '', currentComment = '') 
       'null'
     );
 
-    const res = await fetch('/FINAL-BACKEND(VBETTER)/Final-Backend/backend/appointments/appointment.php', {
+    const res = await fetch('/Final-Backend/backend/appointments/appointment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -530,7 +530,7 @@ function openReviewForm(appointmentId, currentRating = '', currentComment = '') 
 }
 async function loadVetFeedback(vetId) {
   try {
-    const res = await fetch('/FINAL-BACKEND(VBETTER)/Final-Backend/backend/appointments/appointment.php', {
+    const res = await fetch('/Final-Backend/backend/appointments/appointment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -774,7 +774,7 @@ time_slot: selectedSlot ? selectedSlot.textContent.trim() : '',
  * Converts whatever the DB returns for avatar into a browser-accessible URL.
  *
  * DB returns full filesystem paths like:
- *   /Final-backend(VBETTER)/Final-Backend/backend/uploads/profile/profile_xxx.png
+ *   /Final-Backend/backend/uploads/profile/profile_xxx.png
  *
  * The backend serves those files from:
  *   http://localhost:3000/uploads/profile/profile_xxx.png
@@ -787,7 +787,7 @@ function getAvatarUrl(avatarPath) {
   if (!avatarPath) return '';
   if (avatarPath.startsWith('http')) return avatarPath;  // already a full URL
   // DB returns the full web-accessible path e.g.
-  // /Final-backend(VBETTER)/Final-Backend/backend/uploads/profile/xxx.png
+  // /Final-Backend/backend/uploads/profile/xxx.png
   // so just prepend the host — no stripping needed
   return `${BASE_URL}${avatarPath.startsWith('/') ? '' : '/'}${avatarPath}`;
 }

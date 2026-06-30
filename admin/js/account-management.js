@@ -1,76 +1,83 @@
 /**
- * VBetter - Account Management
- * Loads users from PHP and lets admin approve/reject pet owner verification.
+ * VBetter – Account Management JS
+ * [BACKEND] Replace MOCK_USERS with real API calls.
  */
 
-// 'use strict';
+'use strict';
 
-let allUsers = [];
-let filteredUsers = [];
-let currentTab = 'all';
-let currentPage = 1;
-let pendingVerifyId = null;
-let pendingDeleteId = null;
+/* ── Mock data ──────────────────────────────────────────────── */
+const MOCK_USERS = [
+    { id: 'U-001', name: 'Dr. Sarah Smith',      email: 'sarah.s@vetclinic.com',        role: 'vet',   roleLabel: 'Veterinarian I',   status: 'active',   created: '2023-01-15', phone: '09171234567', barangay: 'Poblacion', avatar: '' },
+    { id: 'U-002', name: 'Mark Johnson',          email: 'm.johnson@vetclinic.com',      role: 'vet',   roleLabel: 'Veterinarian II',  status: 'blocked',  created: '2023-03-10', phone: '09991234567', barangay: 'Tangos',    avatar: '' },
+    { id: 'U-003', name: 'Dr. Alan Grant',        email: 'a.grant@vetclinic.com',        role: 'vet',   roleLabel: 'Veterinarian III', status: 'active',   created: '2023-05-01', phone: '09181234567', barangay: 'San Jose',  avatar: '' },
+    { id: 'U-004', name: 'Mark Ivan Villaster',   email: 'Markivanvillaster@gmail.com',  role: 'owner', roleLabel: 'Pet Owner',        status: 'pending',  created: '2023-05-01', phone: '09271234567', barangay: 'Tangos',    avatar: '', idImage: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Sport_template_blank.svg/320px-Sport_template_blank.svg.png' },
+    { id: 'U-005', name: 'Maria Santos',          email: 'maria@mail.com',               role: 'owner', roleLabel: 'Pet Owner',        status: 'active',   created: '2024-04-02', phone: '09361234567', barangay: 'San Roque', avatar: '' },
+    { id: 'U-006', name: 'Juan dela Cruz',        email: 'juan@mail.com',                role: 'owner', roleLabel: 'Pet Owner',        status: 'inactive', created: '2024-05-20', phone: '09051234567', barangay: 'Wawa',      avatar: '' },
+    { id: 'U-007', name: 'Admin User',            email: 'admin@vbetter.ph',             role: 'admin', roleLabel: 'Administrator',    status: 'active',   created: '2024-01-01', phone: '09201234567', barangay: 'Poblacion', avatar: '' },
+    { id: 'U-008', name: 'Dr. Kizea Bien Igaya',  email: 'vet@vbetter.ph',               role: 'vet',   roleLabel: 'Veterinarian III', status: 'active',   created: '2024-01-10', phone: '09991010101', barangay: 'San Jose',  avatar: '' },
+];
+
 const PAGE_SIZE = 5;
+let allUsers      = [...MOCK_USERS];
+let filteredUsers = [...allUsers];
+let currentTab    = 'all';
+let currentPage   = 1;
+let pendingDeleteId = null;
+let pendingVerifyId = null;
 
-document.addEventListener('DOMContentLoaded', async () => {
-    const searchInput = document.getElementById('search-users');
-    if (searchInput) searchInput.value = '';
-
+/* ── Init ───────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+    updateKPIs();
+    renderTable();
     wireTabs();
     wireSearch();
-    wireVerifyModal();
-    wireCloseButtons();
-    wirePagination();
-    wireCreateModal();
+    wireAddModal();
+    wireEditModal();
+    wireUnblockModal();
     wireDeleteModal();
-    wireTableActions();
-    await loadRoles();
-    await loadUsers();
+    wireVerifyModal();
+    wirePagination();
+    wireCloseButtons();
 });
 
-async function loadUsers() {
-    const tbody = document.getElementById('user-table-body');
-    if (tbody) {
-        tbody.innerHTML = '<tr><td colspan="5" class="am-loading-cell">Loading users...</td></tr>';
-    }
-
-    try {
-        const result = await api.allUsers();
-        if (!result.success) {
-            alert(result.message || 'Failed to load users.');
-            allUsers = [];
-        } else {
-            allUsers = Array.isArray(result.data) ? result.data : [];
+/* ── Generic close buttons ─────────────────────────────────── */
+function wireCloseButtons() {
+    document.querySelectorAll('[data-close]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-close');
+            const el = document.getElementById(id);
+            if (el) el.hidden = true;
+        });
+    });
+    // close on overlay click
+    document.querySelectorAll('.am-modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', e => {
+            if (e.target === overlay) overlay.hidden = true;
+        });
+    });
+    // ESC
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.am-modal-overlay:not([hidden])').forEach(o => o.hidden = true);
         }
-    } catch (error) {
-        alert('Error loading users. Please try again.');
-        allUsers = [];
-    }
-
-    applyFilters();
-    updateKPIs();
+    });
 }
 
+/* ── KPIs ───────────────────────────────────────────────────── */
 function updateKPIs() {
-    setEl('kpi-total', allUsers.length);
-    setEl('kpi-vet', allUsers.filter(u => u.role === 'vet' && u.status === 'active').length);
+    setEl('kpi-total',   allUsers.length);
+    setEl('kpi-vet',     allUsers.filter(u => u.role === 'vet' && u.status === 'active').length);
     setEl('kpi-blocked', allUsers.filter(u => u.status === 'blocked').length);
-    setEl('kpi-new-label', `${allUsers.filter(u => u.status === 'pending').length} Pending Accounts`);
 }
 
+/* ── Table ──────────────────────────────────────────────────── */
 function applyFilters() {
     const search = (document.getElementById('search-users')?.value || '').toLowerCase();
-
-    filteredUsers = allUsers.filter(user => {
-        const matchTab = currentTab === 'all' || user.role === currentTab;
-        const matchSearch = !search ||
-            (user.name || '').toLowerCase().includes(search) ||
-            (user.email || '').toLowerCase().includes(search);
-
+    filteredUsers = allUsers.filter(u => {
+        const matchTab    = currentTab === 'all' || u.role === currentTab;
+        const matchSearch = !search || u.name.toLowerCase().includes(search) || u.email.toLowerCase().includes(search);
         return matchTab && matchSearch;
     });
-    
     currentPage = 1;
     renderTable();
 }
@@ -81,432 +88,347 @@ function renderTable() {
 
     const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
     currentPage = Math.min(currentPage, totalPages);
-
-    const start = (currentPage - 1) * PAGE_SIZE;
+    const start     = (currentPage - 1) * PAGE_SIZE;
     const pageUsers = filteredUsers.slice(start, start + PAGE_SIZE);
 
-    setEl('showing-label', `Showing ${pageUsers.length} of ${filteredUsers.length} members`);
+    setEl('showing-label', `Showing ${filteredUsers.length} of ${allUsers.length} members`);
 
     if (!pageUsers.length) {
         tbody.innerHTML = '<tr><td colspan="5" class="am-loading-cell">No users found.</td></tr>';
-        setPaginationButtons(totalPages);
         return;
     }
 
-    tbody.innerHTML = pageUsers.map(user => {
-        const name = escapeHtml(user.name || 'Unknown User');
-        const email = escapeHtml(user.email || '');
-        const initials = name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
-        const avatarEl = user.avatar
-            ? `<img class="am-avatar" src="${escapeAttr(user.avatar)}" alt="${name}">`
-            : `<div class="am-avatar-placeholder">${initials || '?'}</div>`;
+    tbody.innerHTML = pageUsers.map(u => {
+        const initials = u.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
+        const avatarEl = u.avatar
+            ? `<img class="am-avatar" src="${u.avatar}" alt="${u.name}">`
+            : `<div class="am-avatar-placeholder">${initials}</div>`;
+
+        const roleCss = roleClass(u.roleLabel || u.role);
+
+        const statusEl = `<span class="am-status ${u.status}"><span class="am-status-dot"></span>${capitalize(u.status)}</span>`;
+
+        // Action buttons
+        let actionsEl = `
+            <button class="am-btn-edit" onclick="openEditModal('${u.id}')" title="Edit user">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </button>
+            <button class="am-btn-delete" onclick="openDeleteModal('${u.id}')" title="Delete user">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#E53E3E" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m5 0V4a1 1 0 011-1h2a1 1 0 011 1v2"/></svg>
+            </button>`;
+
+        if (u.status === 'blocked') {
+            actionsEl = `<button class="am-btn-unblock" onclick="openUnblockModal('${u.id}')">Unblock</button>${actionsEl}`;
+        }
+
+        if (u.status === 'pending') {
+            actionsEl = `
+                <button class="am-btn-approve" onclick="openVerifyModal('${u.id}')">Approve</button>
+                <button class="am-btn-reject"  onclick="handleReject('${u.id}')">Reject</button>
+                ${actionsEl}`;
+        }
 
         return `
-            <tr data-id="${escapeAttr(user.id)}">
+            <tr data-id="${u.id}">
                 <td>
                     <div class="am-user-cell">
                         ${avatarEl}
                         <div>
-                            <span class="am-user-name">${name}</span>
-                            <span class="am-user-email">${email}</span>
+                            <span class="am-user-name">${u.name}</span>
+                            <span class="am-user-email">${u.email}</span>
                         </div>
                     </div>
                 </td>
-                <td><span class="am-role-badge ${roleClass(user.role)}">${escapeHtml(user.roleLabel || user.role)}</span></td>
-                <td><span class="am-status ${escapeAttr(user.status)}"><span class="am-status-dot"></span>${capitalize(user.status)}</span></td>
-                <td>${formatDate(user.created)}</td>
-                <td><div class="am-actions-cell">${renderActions(user)}</div></td>
+                <td><span class="am-role-badge ${roleCss}">${u.roleLabel || capitalize(u.role)}</span></td>
+                <td>${statusEl}</td>
+                <td>${formatDate(u.created)}</td>
+                <td><div class="am-actions-cell">${actionsEl}</div></td>
             </tr>`;
     }).join('');
 
-    setPaginationButtons(totalPages);
-}
-
-function renderActions(user) {
-    const id = escapeAttr(user.id);
-    const buttons = [];
-
-    if (user.status === 'pending') {
-        buttons.push(`<button class="am-btn-approve" onclick="openVerifyModal('${id}')">Review</button>`);
-    }
-
-    buttons.push(`
-        <button class="am-btn-delete" onclick="openDeleteModal('${id}')" data-delete-user="${id}" title="Delete account" aria-label="Delete account" type="button">
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#E53E3E" stroke-width="2">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8 6V4h8v2"></path>
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14H6L5 6"></path>
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6"></path>
-                <path stroke-linecap="round" stroke-linejoin="round" d="M14 11v6"></path>
-            </svg>
-        </button>`);
-
-    return buttons.join('');
-}
-
-function openDeleteModal(id) {
-    const user = allUsers.find(item => String(item.id) === String(id));
-    if (!user) return;
-
-    pendingDeleteId = user.id;
-
-    setEl('delete-user-name', user.name || 'User');
-
-    const avatar = document.getElementById('delete-avatar');
-    if (avatar) {
-        const profilePhoto = user.avatar || user.profile_photo || '';
-        console.log('User avatar for delete modal:', profilePhoto);
-
-        if (profilePhoto) {
-            avatar.outerHTML = `<img id="delete-avatar" src="${escapeAttr(profilePhoto)}" alt="${escapeAttr(user.name || 'User')}" />`;
-        } else {
-            const initials = (user.name || 'U')
-                .split(' ')
-                .map(part => part.charAt(0))
-                .join('')
-                .slice(0, 2)
-                .toUpperCase();
-            avatar.outerHTML = `<div class="am-avatar-placeholder-lg" id="delete-avatar">${escapeHtml(initials || '?')}</div>`;
-        }
-    }
-
-    const modal = document.getElementById('modal-delete');
-    if (modal) modal.hidden = false;
-}
-
-async function confirmDeleteAccount() {
-    if (!pendingDeleteId) return;
-
-    try {
-        const result = await api.deleteUser(pendingDeleteId);
-        if (!result.success) {
-            alert(result.message || 'Failed to delete account.');
-            return;
-        }
-
-        pendingDeleteId = null;
-        closeModal('modal-delete');
-        await loadUsers();
-    } catch (error) {
-        alert('Failed to delete account. Please try again.');
-    }
-}
-
-function wireTabs() {
-    document.querySelectorAll('.am-tab').forEach(button => {
-        button.addEventListener('click', () => {
-            document.querySelectorAll('.am-tab').forEach(tab => tab.classList.remove('active'));
-            button.classList.add('active');
-            currentTab = button.dataset.tab;
-            applyFilters();
-        });
-    });
-}
-
-function wireSearch() {
-    document.getElementById('search-users')?.addEventListener('input', applyFilters);
-}
-
-function wirePagination() {
-    document.getElementById('prev-page')?.addEventListener('click', () => {
-        if (currentPage > 1) {
-            currentPage--;
-            renderTable();
-        }
-    });
-
-    document.getElementById('next-page')?.addEventListener('click', () => {
-        const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
-        if (currentPage < totalPages) {
-            currentPage++;
-            renderTable();
-        }
-    });
-}
-
-function wireTableActions() {
-    document.getElementById('user-table-body')?.addEventListener('click', event => {
-        const deleteButton = event.target.closest('[data-delete-user]');
-        if (deleteButton) {
-            openDeleteModal(deleteButton.getAttribute('data-delete-user'));
-        }
-    });
-}
-
-function wireDeleteModal() {
-    document.getElementById('delete-confirm-btn')?.addEventListener('click', confirmDeleteAccount);
-}
-
-function setPaginationButtons(totalPages) {
     const prevBtn = document.getElementById('prev-page');
     const nextBtn = document.getElementById('next-page');
     if (prevBtn) prevBtn.disabled = currentPage <= 1;
     if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
 }
 
-function wireVerifyModal() {
-    document.getElementById('verify-approve-btn')?.addEventListener('click', async () => {
-        if (!pendingVerifyId) return;
+/* ── Tabs ───────────────────────────────────────────────────── */
+function wireTabs() {
+    document.querySelectorAll('.am-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.am-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentTab = btn.dataset.tab;
+            applyFilters();
+        });
+    });
+}
 
-        const result = await api.approveUser(pendingVerifyId);
-        if (!result.success) {
-            alert(result.message || 'Failed to approve account.');
-            return;
-        }
+/* ── Search ─────────────────────────────────────────────────── */
+function wireSearch() {
+    document.getElementById('search-users')?.addEventListener('input', applyFilters);
+}
 
-        pendingVerifyId = null;
-        closeModal('modal-verify');
-        await loadUsers();
+/* ── Pagination ─────────────────────────────────────────────── */
+function wirePagination() {
+    document.getElementById('prev-page')?.addEventListener('click', () => {
+        if (currentPage > 1) { currentPage--; renderTable(); }
+    });
+    document.getElementById('next-page')?.addEventListener('click', () => {
+        const totalPages = Math.ceil(filteredUsers.length / PAGE_SIZE);
+        if (currentPage < totalPages) { currentPage++; renderTable(); }
+    });
+}
+
+/* ── ADD USER MODAL ─────────────────────────────────────────── */
+function wireAddModal() {
+    document.getElementById('btn-add-user')?.addEventListener('click', () => {
+        document.getElementById('modal-add').hidden = false;
     });
 
-    document.getElementById('verify-reject-btn')?.addEventListener('click', async () => {
-        if (!pendingVerifyId) return;
+    document.getElementById('add-submit')?.addEventListener('click', () => {
+        const name   = document.getElementById('add-name')?.value.trim();
+        const email  = document.getElementById('add-email')?.value.trim();
+        const role   = document.getElementById('add-role')?.value;
+        const status = document.getElementById('add-status')?.value;
+        const phone  = document.getElementById('add-phone')?.value.trim();
 
-        const reason = prompt('Reason for rejection:') || '';
-        const result = await api.rejectUser(pendingVerifyId, reason);
-        if (!result.success) {
-            alert(result.message || 'Failed to reject account.');
+        if (!name || !email || !role) {
+            alert('Please fill in all required fields.');
             return;
         }
 
+        const roleLabels = { admin: 'Administrator', vet: 'Veterinarian I', owner: 'Pet Owner' };
+
+        allUsers.unshift({
+            id:        `U-${String(Date.now()).slice(-5)}`,
+            name, email, role, phone: phone || '—',
+            roleLabel: roleLabels[role] || capitalize(role),
+            status:    status || 'active',
+            created:   new Date().toISOString().slice(0, 10),
+            barangay:  '—',
+            avatar:    ''
+        });
+
+        document.getElementById('modal-add').hidden = true;
+        clearFormById(['add-name','add-email','add-phone'], ['add-role','add-status']);
+        updateKPIs();
+        applyFilters();
+    });
+
+    wirePhotoPreview('add-photo-input', 'add-photo-preview');
+}
+
+/* ── EDIT USER MODAL ────────────────────────────────────────── */
+function wireEditModal() {
+    document.getElementById('edit-submit')?.addEventListener('click', () => {
+        const id = document.getElementById('edit-user-id')?.value;
+        const user = allUsers.find(u => u.id === id);
+        if (!user) return;
+
+        user.name   = document.getElementById('edit-name')?.value.trim() || user.name;
+        user.email  = document.getElementById('edit-email')?.value.trim() || user.email;
+        user.phone  = document.getElementById('edit-phone')?.value.trim() || user.phone;
+        user.role   = document.getElementById('edit-role')?.value || user.role;
+        user.status = document.getElementById('edit-status')?.value || user.status;
+
+        const roleLabels = { admin: 'Administrator', vet: 'Veterinarian I', owner: 'Pet Owner' };
+        user.roleLabel = roleLabels[user.role];
+
+        document.getElementById('modal-edit').hidden = true;
+        updateKPIs();
+        applyFilters();
+    });
+
+    wirePhotoPreview('edit-photo-input', 'edit-photo-preview');
+}
+
+function openEditModal(id) {
+    const user = allUsers.find(u => u.id === id);
+    if (!user) return;
+
+    document.getElementById('edit-user-id').value = id;
+    document.getElementById('edit-name').value    = user.name;
+    document.getElementById('edit-email').value   = user.email;
+    document.getElementById('edit-phone').value   = user.phone || '';
+    setSelectValue('edit-role',   user.role);
+    setSelectValue('edit-status', user.status);
+
+    document.getElementById('modal-edit').hidden = false;
+}
+
+/* ── UNBLOCK MODAL ──────────────────────────────────────────── */
+function wireUnblockModal() {
+    document.getElementById('unblock-confirm-btn')?.addEventListener('click', () => {
+        const id = document.getElementById('unblock-user-id')?.value;
+        const user = allUsers.find(u => u.id === id);
+        if (!user) return;
+        user.status = 'active';
+        document.getElementById('modal-unblock').hidden = true;
+        updateKPIs();
+        applyFilters();
+    });
+
+    document.getElementById('unblock-save-btn')?.addEventListener('click', () => {
+        const id = document.getElementById('unblock-user-id')?.value;
+        const user = allUsers.find(u => u.id === id);
+        if (!user) return;
+        user.phone  = document.getElementById('unblock-phone')?.value.trim() || user.phone;
+        user.status = document.getElementById('unblock-status')?.value || user.status;
+        document.getElementById('modal-unblock').hidden = true;
+        updateKPIs();
+        applyFilters();
+    });
+
+    wirePhotoPreview('unblock-photo-input', 'unblock-photo-preview');
+}
+
+function openUnblockModal(id) {
+    const user = allUsers.find(u => u.id === id);
+    if (!user) return;
+
+    document.getElementById('unblock-user-id').value = id;
+    document.getElementById('unblock-name').value    = user.name;
+    document.getElementById('unblock-email').value   = user.email;
+    document.getElementById('unblock-phone').value   = user.phone || '';
+    setSelectValue('unblock-role',   user.role);
+    setSelectValue('unblock-status', user.status);
+
+    document.getElementById('modal-unblock').hidden = false;
+}
+
+/* ── DELETE MODAL ───────────────────────────────────────────── */
+function wireDeleteModal() {
+    document.getElementById('delete-confirm-btn')?.addEventListener('click', () => {
+        if (!pendingDeleteId) return;
+        allUsers = allUsers.filter(u => u.id !== pendingDeleteId);
+        pendingDeleteId = null;
+        document.getElementById('modal-delete').hidden = true;
+        updateKPIs();
+        applyFilters();
+    });
+}
+
+function openDeleteModal(id) {
+    const user = allUsers.find(u => u.id === id);
+    if (!user) return;
+    pendingDeleteId = id;
+
+    const initials = user.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
+    setEl('delete-avatar', initials);
+    setEl('delete-user-name', user.name);
+
+    document.getElementById('modal-delete').hidden = false;
+}
+
+/* ── VERIFY MODAL ───────────────────────────────────────────── */
+function wireVerifyModal() {
+    document.getElementById('verify-approve-btn')?.addEventListener('click', () => {
+        if (!pendingVerifyId) return;
+        const user = allUsers.find(u => u.id === pendingVerifyId);
+        if (user) user.status = 'active';
         pendingVerifyId = null;
-        closeModal('modal-verify');
-        await loadUsers();
+        document.getElementById('modal-verify').hidden = true;
+        updateKPIs();
+        applyFilters();
+    });
+
+    document.getElementById('verify-reject-btn')?.addEventListener('click', () => {
+        if (!pendingVerifyId) return;
+        const user = allUsers.find(u => u.id === pendingVerifyId);
+        if (user) user.status = 'inactive';
+        pendingVerifyId = null;
+        document.getElementById('modal-verify').hidden = true;
+        updateKPIs();
+        applyFilters();
     });
 }
 
 function openVerifyModal(id) {
-    const user = allUsers.find(item => String(item.id) === String(id));
+    const user = allUsers.find(u => u.id === id);
     if (!user) return;
+    pendingVerifyId = id;
 
-    pendingVerifyId = user.id;
+    setEl('verify-name',     user.name);
+    setEl('verify-email',    user.email);
+    setEl('verify-barangay', user.barangay || '—');
 
-    setEl('verify-name', user.name || '-');
-    setEl('verify-email', user.email || '-');
-    setEl('verify-barangay', user.barangay || '-');
-
-    const image = document.getElementById('verify-id-img');
-    if (image) {
-        image.src = user.idImage || 'https://placehold.co/500x300?text=No+Document+Uploaded';
-    }
-
-    const fullSizeLink = document.querySelector('.am-verify-fullsize');
-    if (fullSizeLink) {
-        fullSizeLink.href = user.idImage || '#';
-        fullSizeLink.target = user.idImage ? '_blank' : '';
+    const idImg = document.getElementById('verify-id-img');
+    if (idImg) {
+        idImg.src = user.idImage || 'https://placehold.co/500x300?text=No+ID+Uploaded';
     }
 
     document.getElementById('modal-verify').hidden = false;
 }
 
-function wireCloseButtons() {
-    document.querySelectorAll('[data-close]').forEach(button => {
-        button.addEventListener('click', () => closeModal(button.getAttribute('data-close')));
+/* ── Actions ────────────────────────────────────────────────── */
+function handleReject(id) {
+    const user = allUsers.find(u => u.id === id);
+    if (!user) return;
+    if (!confirm(`Reject application for ${user.name}?`)) return;
+    allUsers = allUsers.filter(u => u.id !== id);
+    updateKPIs();
+    applyFilters();
+}
+
+/* ── Photo preview helper ───────────────────────────────────── */
+function wirePhotoPreview(inputId, previewId) {
+    const input   = document.getElementById(inputId);
+    const preview = document.getElementById(previewId);
+    if (!input || !preview) return;
+
+    input.addEventListener('change', () => {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="Preview">`;
+        };
+        reader.readAsDataURL(file);
     });
-
-    document.querySelectorAll('.am-modal-overlay').forEach(overlay => {
-        overlay.addEventListener('click', event => {
-            if (event.target === overlay) overlay.hidden = true;
-        });
-    });
-
-    document.addEventListener('keydown', event => {
-        if (event.key === 'Escape') {
-            document.querySelectorAll('.am-modal-overlay:not([hidden])').forEach(modal => modal.hidden = true);
-        }
-    });
 }
 
-async function loadRoles() {
-    const select = document.getElementById('add-role');
-    if (!select) return;
-
-    try {
-        const result = await api.accountRoles();
-
-        if (!result.success) {
-            select.innerHTML = '<option value="">Failed to load roles</option>';
-            return;
-        }
-
-        select.innerHTML = '<option value="">Select Role</option>';
-        result.data.forEach(role => {
-            const option = document.createElement('option');
-            option.value = role.id;
-            option.dataset.roleName = role.name;
-            option.dataset.frontendRole = role.frontendRole;
-            option.textContent = role.label;
-            select.appendChild(option);
-        });
-
-        toggleVetFields();
-    } catch (error) {
-        select.innerHTML = '<option value="">Failed to load roles</option>';
-    }
-}
-
-function wireCreateModal() {
-    document.getElementById('btn-add-user')?.addEventListener('click', () => {
-        const modal = document.getElementById('modal-add');
-        if (modal) modal.hidden = false;
-    });
-
-    document.getElementById('add-role')?.addEventListener('change', toggleVetFields);
-    document.getElementById('add-submit')?.addEventListener('click', createAccount);
-    document.getElementById('add-photo-input')?.addEventListener('change', previewAddPhoto);
-}
-
-function toggleVetFields() {
-    const roleSelect = document.getElementById('add-role');
-    const selected = roleSelect?.selectedOptions[0];
-    const isVet = selected?.dataset.roleName === 'veterinarian';
-
-    const vetFields = document.getElementById('vet-additional-fields');
-    if (vetFields) vetFields.style.display = isVet ? 'block' : 'none';
-
-    const positionWrap = document.getElementById('add-position-wrap');
-    if (positionWrap) positionWrap.style.display = isVet ? 'block' : 'none';
-}
-
-async function createAccount() {
-    const roleSelect = document.getElementById('add-role');
-    const selected = roleSelect?.selectedOptions[0];
-    const isVet = selected?.dataset.roleName === 'veterinarian';
-
-    const fullName = document.getElementById('add-name')?.value.trim() || '';
-    const email = document.getElementById('add-email')?.value.trim() || '';
-    const password = document.getElementById('add-password')?.value || '';
-    const roleId = roleSelect?.value || '';
-
-    if (!fullName || !email || !password || !roleId) {
-        alert('Full name, email, password, and role are required.');
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('full_name', fullName);
-    formData.append('email', email);
-    formData.append('password', password);
-    formData.append('role_id', roleId);
-    formData.append('phone_number', document.getElementById('add-phone')?.value.trim() || '');
-    formData.append('account_status', document.getElementById('add-status')?.value || 'active');
-
-    const photo = document.getElementById('add-photo-input')?.files[0];
-    if (photo) formData.append('profile_photo', photo);
-
-    if (isVet) {
-        formData.append('position_title', document.getElementById('add-position-title')?.value.trim() || 'Veterinarian');
-        formData.append('education', document.getElementById('add-education')?.value.trim() || '');
-        formData.append('specialization', document.getElementById('add-specialization')?.value.trim() || '');
-        formData.append('license_number', document.getElementById('add-license')?.value.trim() || '');
-        formData.append('clinic_location', document.getElementById('add-clinic-location')?.value.trim() || '');
-    }
-
-    try {
-        const result = await api.createAccountUser(formData);
-        if (!result.success) {
-            alert(result.message || 'Failed to create account.');
-            return;
-        }
-
-        closeModal('modal-add');
-        clearCreateForm();
-        await loadUsers();
-        alert('Account created successfully.');
-    } catch (error) {
-        alert('Failed to create account. Please try again.');
-    }
-}
-
-function previewAddPhoto() {
-    const input = document.getElementById('add-photo-input');
-    const preview = document.getElementById('add-photo-preview');
-    if (!input?.files[0] || !preview) return;
-
-    const reader = new FileReader();
-    reader.onload = event => {
-        preview.innerHTML = `<img src="${event.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="Preview">`;
-    };
-    reader.readAsDataURL(input.files[0]);
-}
-
-function clearCreateForm() {
-    [
-        'add-name',
-        'add-phone',
-        'add-email',
-        'add-password',
-        'add-position-title',
-        'add-education',
-        'add-specialization',
-        'add-license',
-        'add-clinic-location',
-    ].forEach(id => {
-        const input = document.getElementById(id);
-        if (input) input.value = '';
-    });
-
-    const role = document.getElementById('add-role');
-    if (role) role.selectedIndex = 0;
-
-    const status = document.getElementById('add-status');
-    if (status) status.value = 'active';
-
-    const photo = document.getElementById('add-photo-input');
-    if (photo) photo.value = '';
-
-    const preview = document.getElementById('add-photo-preview');
-    if (preview) {
-        preview.innerHTML = '<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>';
-    }
-
-    toggleVetFields();
-}
-
-function closeModal(id) {
-    const modal = document.getElementById(id);
-    if (modal) modal.hidden = true;
-
-    if (id === 'modal-delete') {
-        pendingDeleteId = null;
-    }
-}
-
-function roleClass(role) {
+/* ── Helpers ─────────────────────────────────────────────────── */
+function roleClass(label) {
     const map = {
-        vet: 'am-role-vet',
-        owner: 'am-role-owner',
-        admin: 'am-role-admin',
+        'Veterinarian I':   'am-role-vet-i',
+        'Veterinarian II':  'am-role-vet-ii',
+        'Veterinarian III': 'am-role-vet-iii',
+        'Pet Owner':        'am-role-owner',
+        'Administrator':    'am-role-admin',
+        'vet':              'am-role-vet',
+        'owner':            'am-role-owner',
+        'admin':            'am-role-admin',
     };
-    return map[role] || 'am-role-owner';
+    return map[label] || 'am-role-vet';
 }
 
-function capitalize(value) {
-    if (!value) return '';
-    return value.charAt(0).toUpperCase() + value.slice(1);
-}
+function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
 
-function formatDate(value) {
-    if (!value) return '-';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+function formatDate(dateStr) {
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 }
 
 function setEl(id, value) {
-    const element = document.getElementById(id);
-    if (element) element.textContent = value;
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
 }
 
-function escapeHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+function setSelectValue(selectId, value) {
+    const el = document.getElementById(selectId);
+    if (!el) return;
+    for (let opt of el.options) {
+        if (opt.value === value) { opt.selected = true; break; }
+    }
 }
 
-function escapeAttr(value) {
-    return escapeHtml(value).replace(/`/g, '&#96;');
+function clearFormById(textIds = [], selectIds = []) {
+    textIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    selectIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.selectedIndex = 0;
+    });
 }

@@ -1,7 +1,7 @@
 body {
 	margin: 0;
-	font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-	background: #eef2f8;
+	font-family: 'Manrope', 'Segoe UI', sans-serif;
+	background: #F0F2F5;
 }
 
 * {
@@ -10,18 +10,18 @@ body {
 	box-sizing: border-box;
 }
 
-.profile-layout {
+.main-holder {
 	min-height: 100vh;
 	display: flex;
-	padding: var(--shell-gap);
-	gap: var(--sidebar-main-gap);
 }
 
 .profile-main {
 	margin-left: calc(var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap));
 	width: calc(100% - (var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap)));
+	padding: 28px 32px 40px;
 	display: grid;
-	gap: 14px;
+	gap: 20px;
+	align-content: start;
 	transition: margin-left 0.28s ease, width 0.28s ease;
 }
 
@@ -32,94 +32,98 @@ body {
 
 .card {
 	background: #ffffff;
-	border-radius: 14px;
-	border: 1px solid #d8e4f1;
-	box-shadow: 0 8px 24px rgba(13, 45, 90, 0.07);
+	border-radius: 16px;
+	border: 1px solid rgba(195, 198, 210, 0.30);
+	box-shadow: 0 4px 16px rgba(0, 42, 88, 0.06);
 }
 
 .profile-hero {
 	display: flex;
 	align-items: center;
-	gap: 14px;
-	padding: 18px;
-	background: linear-gradient(98deg, #0a4f8e 0%, #0f8f67 100%);
-	color: #eef6ff;
+	gap: 16px;
+	padding: 30px 36px;
+	background: linear-gradient(110deg, #002A58 0%, #00497A 40%, #006B50 100%);
+	color: #fff;
+	border-radius: 16px;
+	position: relative;
+	overflow: hidden;
 }
 
+.profile-hero::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background-image:
+		radial-gradient(ellipse 60% 80% at 80% 50%, rgba(0,185,40,0.12) 0%, transparent 70%),
+		radial-gradient(ellipse 40% 60% at 100% 0%, rgba(255,255,255,0.04) 0%, transparent 60%);
+	pointer-events: none;
+}
+
+.profile-hero > * { position: relative; z-index: 1; }
+
 .hero-avatar {
-	width: 60px;
-	height: 60px;
+	width: 72px;
+	height: 72px;
 	border-radius: 50%;
-	border: 2px solid rgba(255, 255, 255, 0.45);
+	border: 3px solid rgba(255, 255, 255, 0.45);
 	object-fit: cover;
+	flex-shrink: 0;
 }
 
 .profile-hero h1 {
 	margin: 0;
-	font-size: 1.5rem;
+	font-size: 26px;
+	font-weight: 800;
+	letter-spacing: -0.4px;
+	line-height: 1.1;
 }
 
 .profile-hero p {
-	margin: 4px 0 0;
-	font-size: 0.9rem;
-	opacity: 0.92;
-}
-
-.profile-tabs {
-	display: flex;
-	gap: 8px;
-	padding: 8px;
-}
-
-.profile-tab {
-	border: 0;
-	background: transparent;
-	padding: 10px 14px;
-	border-radius: 10px;
-	font-weight: 600;
-	color: #375272;
-	cursor: pointer;
-}
-
-.profile-tab.active {
-	background: #0f4d95;
-	color: #ffffff;
+	margin: 6px 0 0;
+	font-size: 13px;
+	color: rgba(255, 255, 255, 0.72);
+	font-weight: 500;
 }
 
 .profile-kpis {
 	display: grid;
-	grid-template-columns: repeat(4, minmax(140px, 1fr));
-	gap: 10px;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 16px;
 }
 
 .kpi-card {
-	padding: 12px;
-	display: grid;
-	gap: 4px;
+	padding: 24px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
 }
 
 .kpi-card p {
 	margin: 0;
-	font-size: 0.78rem;
-	color: #6f8299;
+	font-size: 11px;
+	font-weight: 700;
+	color: #737781;
 	text-transform: uppercase;
-	letter-spacing: 0.05em;
+	letter-spacing: 1px;
 }
 
 .kpi-card strong {
-	font-size: 1.65rem;
-	color: #133f74;
+	font-size: 32px;
+	font-weight: 800;
+	color: #002A58;
+	line-height: 1;
 }
 
 .kpi-card small {
-	color: #16803a;
-	font-size: 0.76rem;
+	color: #1B6D24;
+	font-size: 12px;
+	font-weight: 600;
 }
 
 .profile-panel {
-	padding: 16px;
+	padding: 24px;
 	display: grid;
-	gap: 12px;
+	gap: 16px;
 }
 
 .panel-head {
@@ -131,70 +135,117 @@ body {
 .panel-head h2,
 .profile-panel h2 {
 	margin: 0;
-	color: #133d6f;
+	font-size: 18px;
+	font-weight: 800;
+	color: #002A58;
+}
+
+.profile-panel > p {
+	font-size: 13px;
+	color: #737781;
+	margin: -8px 0 0;
 }
 
 .form-grid {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
-	gap: 10px;
+	gap: 16px;
 }
 
 .form-grid label {
 	display: grid;
 	gap: 6px;
-	font-size: 0.82rem;
-	color: #4a607a;
+	font-size: 11px;
+	font-weight: 700;
+	color: #737781;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
 }
 
 .form-grid input {
-	border: 1px solid #d4deec;
-	border-radius: 8px;
-	padding: 10px;
+	border: 1px solid rgba(195, 198, 210, 0.60);
+	border-radius: 10px;
+	padding: 11px 14px;
 	font: inherit;
-	color: #12345c;
+	font-size: 13px;
+	color: #1A1C20;
+	background: #F3F3F9;
+	transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-grid input:focus {
+	outline: none;
+	border-color: #004080;
+	box-shadow: 0 0 0 3px rgba(0, 64, 128, 0.10);
+	background: #fff;
 }
 
 .save-btn {
 	border: 0;
 	border-radius: 10px;
-	padding: 9px 12px;
-	background: #17833a;
+	padding: 10px 18px;
+	background: #1B6D24;
 	color: #ffffff;
-	font-weight: 600;
+	font-family: inherit;
+	font-size: 13px;
+	font-weight: 700;
 	cursor: pointer;
+	transition: opacity 0.2s ease, transform 0.15s ease;
+}
+
+.save-btn:hover {
+	opacity: 0.9;
+	transform: translateY(-1px);
 }
 
 .save-btn.alt {
-	background: #134f93;
+	background: #004080;
 }
 
 .security-actions {
 	display: flex;
-	gap: 8px;
+	gap: 10px;
+	flex-wrap: wrap;
 }
 
 .checks {
 	display: grid;
+	gap: 12px;
+}
+
+.checks label {
+	display: flex;
+	align-items: center;
 	gap: 10px;
+	font-size: 14px;
+	color: #424750;
+	cursor: pointer;
+	font-weight: 500;
+}
+
+.checks input[type="checkbox"] {
+	width: 16px;
+	height: 16px;
+	accent-color: #004080;
+	cursor: pointer;
 }
 
 .checks .save-btn {
 	justify-self: start;
+	margin-top: 4px;
 }
 
 .profile-message {
 	min-height: 18px;
-	font-size: 0.84rem;
-	color: #4a607a;
+	font-size: 13px;
+	color: #737781;
 }
 
-.profile-message[data-type="success"] {
-	color: #16803a;
-}
+.profile-message[data-type="success"] { color: #1B6D24; font-weight: 700; }
+.profile-message[data-type="error"]   { color: #93000A; font-weight: 700; }
 
-.profile-message[data-type="error"] {
-	color: #b42334;
+@media (max-width: 1100px) {
+	.profile-kpis { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 900px) {
@@ -202,13 +253,12 @@ body {
 	.sidebar.expanded ~ .profile-main {
 		margin-left: 0;
 		width: 100%;
+		padding: 16px;
 	}
+	.form-grid { grid-template-columns: 1fr; }
+	.profile-kpis { grid-template-columns: repeat(2, 1fr); }
+}
 
-	.form-grid {
-		grid-template-columns: 1fr;
-	}
-
-	.profile-kpis {
-		grid-template-columns: 1fr 1fr;
-	}
+@media (max-width: 600px) {
+	.profile-kpis { grid-template-columns: 1fr; }
 }

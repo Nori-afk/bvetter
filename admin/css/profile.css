@@ -1,0 +1,181 @@
+body {
+    margin: 0;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background: #eef2f8;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.profile-layout {
+    min-height: 100vh;
+    display: flex;
+    padding: var(--shell-gap);
+    gap: var(--sidebar-main-gap);
+}
+
+.profile-main {
+    margin-left: calc(var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap));
+    width: calc(100% - (var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap)));
+    display: grid;
+    gap: 14px;
+    transition: margin-left 0.28s ease, width 0.28s ease;
+}
+
+.sidebar.expanded ~ .profile-main {
+    margin-left: calc(var(--shell-gap) + var(--sidebar-width-expanded) + var(--sidebar-main-gap));
+    width: calc(100% - (var(--shell-gap) + var(--sidebar-width-expanded) + var(--sidebar-main-gap)));
+}
+
+.card {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #d8e4f1;
+    box-shadow: 0 8px 24px rgba(13, 45, 90, 0.07);
+}
+
+.profile-hero {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px;
+    background: linear-gradient(98deg, #0a4f8e 0%, #0f8f67 100%);
+    color: #eef6ff;
+}
+
+.hero-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.45);
+    object-fit: cover;
+}
+
+.profile-hero h1 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.profile-hero p {
+    margin: 4px 0 0;
+    font-size: 0.9rem;
+    opacity: 0.92;
+}
+
+.profile-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.kpi-card {
+    padding: 12px;
+    display: grid;
+    gap: 4px;
+}
+
+.kpi-card p {
+    margin: 0;
+    font-size: 0.78rem;
+    color: #6f8299;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.kpi-card strong {
+    font-size: 1.65rem;
+    color: #133f74;
+}
+
+.kpi-card small {
+    color: #16803a;
+    font-size: 0.76rem;
+}
+
+.profile-panel {
+    padding: 16px;
+    display: grid;
+    gap: 12px;
+}
+
+.panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.panel-head h2,
+.profile-panel h2 {
+    margin: 0;
+    color: #133d6f;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.form-grid label {
+    display: grid;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: #4a607a;
+}
+
+.form-grid input {
+    border: 1px solid #d4deec;
+    border-radius: 8px;
+    padding: 10px;
+    font: inherit;
+    color: #12345c;
+}
+
+.form-grid input[readonly] {
+    background: #f4f7fb;
+    color: #8a94a6;
+    cursor: not-allowed;
+}
+
+.save-btn {
+    border: 0;
+    border-radius: 10px;
+    padding: 9px 12px;
+    background: #17833a;
+    color: #ffffff;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.save-btn.alt {
+    background: #134f93;
+}
+
+.security-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.checks {
+    display: grid;
+    gap: 10px;
+}
+
+@media (max-width: 900px) {
+    .profile-main,
+    .sidebar.expanded ~ .profile-main {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-kpis {
+        grid-template-columns: 1fr 1fr;
+    }
+}

@@ -19,10 +19,20 @@
     --border-light: rgba(195, 198, 210, 0.30);
     --white: #FFFFFF;
     --sidebar-width-collapsed: 80px;
-    --sidebar-width-expanded: 160px;
+    --sidebar-width-expanded: 220px;
     --shell-gap: 16px;
     --sidebar-main-gap: 16px;
     --transition: all 0.3s ease;
+
+    /* Shared design tokens — matched to account-management.css / website-management.css
+       so cards, radii, and shadows look identical across every admin page */
+    --bg-white: #FFFFFF;
+    --border: #E2E8F0;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
 
     /* Admin accent — amber/gold to distinguish from vet green */
     --admin-accent: #7A4F00;
@@ -150,16 +160,28 @@ html, body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 28px 36px;
-    /* Admin gradient — warmer, darker navy to distinguish from vet teal-green */
-    background: linear-gradient(135deg, #001830, #002A58, #003580, #001f42);
-    border-radius: 12px;
+    padding: 30px 36px;
+    /* Matched to am-hero / wm-hero so every admin page shares the same banner */
+    background: linear-gradient(110deg, #002A58 0%, #00497A 40%, #006B50 100%);
+    border-radius: var(--radius-lg);
     margin: 20px 32px;
     color: var(--white);
     gap: 24px;
+    position: relative;
+    overflow: hidden;
 }
 
-.greet-left { display: flex; flex-direction: column; gap: 8px; }
+.Greetings::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(ellipse 60% 80% at 80% 50%, rgba(0,185,40,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 60% at 100% 0%, rgba(255,255,255,0.04) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.greet-left { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 8px; max-width: 680px; }
 
 .admin-badge {
     background: rgba(196, 124, 0, 0.25);
@@ -174,10 +196,12 @@ html, body {
     width: fit-content;
 }
 
-.Greetings h1 { font-size: 32px; font-weight: 800; }
-.greet-sub { font-size: 13px; color: #83AEF5; opacity: 0.85; }
+.Greetings h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.4px; }
+.greet-sub { font-size: 13px; color: rgba(255,255,255,0.72); line-height: 1.65; font-weight: 500; }
 
 .greet-right {
+    position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
     gap: 24px;
@@ -212,13 +236,18 @@ html, body {
 }
 
 .kpi-card {
-    background: var(--background-light);
+    background: var(--bg-white);
     padding: 24px;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
     gap: 12px;
+    transition: box-shadow var(--transition);
 }
+
+.kpi-card:hover { box-shadow: var(--shadow-md); }
 
 .kpi-label {
     font-size: 12px;
@@ -278,8 +307,10 @@ html, body {
 /* ============================= */
 
 .card {
-    background: var(--white);
-    border-radius: 12px;
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    border-radius: var(--radius-md);
     padding: 24px;
     margin-bottom: 20px;
 }
@@ -434,18 +465,6 @@ html, body {
 }
 
 .status-pill.inactive {
-    background: var(--accent-light-red);
-    color: var(--accent-red);
-}
-
-.status-pill.pending,
-.status-pill.for_review {
-    background: var(--admin-accent-light);
-    color: var(--admin-accent);
-}
-
-.status-pill.rejected,
-.status-pill.blocked {
     background: var(--accent-light-red);
     color: var(--accent-red);
 }

@@ -23,8 +23,8 @@
 
 body {
 	min-height: 100vh;
-	font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-	background: radial-gradient(circle at 15% 20%, #dce8fb 0, #eef2fd 38%, #f7f9ff 100%);
+	font-family: 'Manrope', 'Segoe UI', sans-serif;
+	background: #F0F2F5;
 	color: var(--lf-ink);
 	overflow-x: hidden;
 }
@@ -32,28 +32,22 @@ body {
 .main-holder.lf-page {
 	min-height: 100vh;
 	display: flex;
-	padding: var(--shell-gap);
-	gap: var(--sidebar-main-gap);
-}
-.profile-initial{
-	background: linear-gradient(96deg, #0f3f77 0%, #17788d 100%);
-	padding: 10px;
-	border-radius: 50%;
-	color: #edf4ff;
 }
 
 .lf-main {
-	margin-left: calc(var(--sidebar-width-collapsed) + var(--sidebar-main-gap));
-	width: calc(100% - (var(--sidebar-width-collapsed) + var(--sidebar-main-gap) + var(--shell-gap)));
-	flex: 1;
+	margin-left: calc(var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap));
+	width: calc(100% - (var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap)));
+	padding: 28px 32px 40px;
 	min-width: 0;
 	display: grid;
 	gap: 14px;
+	align-content: start;
+	transition: margin-left 0.28s ease, width 0.28s ease;
 }
 
 .sidebar.expanded ~ .lf-main {
-	margin-left: calc(var(--sidebar-width-expanded) + var(--sidebar-main-gap));
-	width: calc(100% - (var(--sidebar-width-expanded) + var(--sidebar-main-gap) + var(--shell-gap)));
+	margin-left: calc(var(--shell-gap) + var(--sidebar-width-expanded) + var(--sidebar-main-gap));
+	width: calc(100% - (var(--shell-gap) + var(--sidebar-width-expanded) + var(--sidebar-main-gap)));
 }
 
 .card {
@@ -63,22 +57,40 @@ body {
 }
 
 .lf-hero {
-	padding: 20px;
+	padding: 30px 36px;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
 	color: #edf4ff;
-	background: linear-gradient(96deg, #0f3f77 0%, #17788d 100%);
+	background: linear-gradient(110deg, #002A58 0%, #00497A 40%, #006B50 100%);
+	position: relative;
+	overflow: hidden;
 }
 
+.lf-hero::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background-image:
+		radial-gradient(ellipse 60% 80% at 80% 50%, rgba(0,185,40,0.12) 0%, transparent 70%),
+		radial-gradient(ellipse 40% 60% at 100% 0%, rgba(255,255,255,0.04) 0%, transparent 60%);
+	pointer-events: none;
+}
+
+.lf-hero > * { position: relative; z-index: 1; }
+
 .lf-hero h1 {
-	font-size: 2rem;
+	font-size: 26px;
+	font-weight: 800;
+	letter-spacing: -0.4px;
 	margin-bottom: 6px;
 }
 
 .lf-hero p {
-	color: #d8e9ff;
-	font-size: 0.94rem;
+	color: rgba(255, 255, 255, 0.72);
+	font-size: 13px;
+	line-height: 1.65;
+	font-weight: 500;
 }
 
 .btn {
@@ -103,10 +115,6 @@ body {
 	background: #168a3d;
 	color: #ffffff;
 }
-.btn-success1 {
-	background: linear-gradient(180deg, rgba(0, 110, 44, 1) 0%, rgba(30, 176, 79, 1) 100%);
-	color: #ffffff;
-}
 
 .btn-success:hover {
 	background: #1b9f47;
@@ -127,44 +135,62 @@ body {
 .lf-stats {
 	display: grid;
 	grid-template-columns: repeat(5, minmax(110px, 1fr));
-	gap: 10px;
+	gap: 14px;
 }
 
 .stat-card {
-	background: var(--lf-surface);
-	border-radius: 12px;
-	border: 1px solid var(--lf-border);
-	padding: 14px;
+	background: #ffffff;
+	border-radius: 14px;
+	border: 1px solid rgba(195, 210, 235, 0.60);
+	box-shadow: 0 4px 16px rgba(0, 42, 88, 0.07);
+	padding: 20px;
+	border-top: 3px solid #1463aa;
+	transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.stat-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 10px 28px rgba(13, 39, 81, 0.13);
 }
 
 .stat-card.featured {
-	background: #043f7f;
+	background: linear-gradient(135deg, #002A58 0%, #00497A 60%, #006B50 100%);
 	color: #eaf3ff;
-	border-color: #073873;
+	border-color: transparent;
+	border-top-color: rgba(255,255,255,0.25);
 }
 
 .stat-card h5 {
 	font-size: 0.64rem;
 	text-transform: uppercase;
-	letter-spacing: 0.08em;
-	margin-bottom: 8px;
+	letter-spacing: 0.09em;
+	margin-bottom: 10px;
 	color: var(--lf-muted);
+	font-weight: 700;
 }
 
 .stat-card.featured h5,
 .stat-card.featured small {
-	color: #b8d5ff;
+	color: rgba(255,255,255,0.70);
 }
 
 .stat-card strong {
 	display: block;
-	font-size: 2rem;
-	line-height: 1.05;
-	margin-bottom: 4px;
+	font-size: 2.2rem;
+	font-weight: 800;
+	line-height: 1;
+	margin-bottom: 6px;
+	color: var(--lf-ink);
+}
+
+.stat-card.featured strong {
+	color: #ffffff;
 }
 
 .stat-card small {
-	color: #2b9950;
+	font-size: 0.76rem;
+	font-weight: 600;
+	color: #1463aa;
 }
 
 .lf-tabbar {
@@ -1056,13 +1082,11 @@ body {
 }
 
 @media (max-width: 860px) {
-	.main-holder.lf-page {
-		padding: 12px;
-	}
-
-	.lf-main {
+	.lf-main,
+	.sidebar.expanded ~ .lf-main {
 		margin-left: 0;
 		width: 100%;
+		padding: 16px;
 	}
 
 	.lf-hero {

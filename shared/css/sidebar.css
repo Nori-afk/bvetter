@@ -34,25 +34,29 @@
 
 /* ── Sibling content panels ──────────────────────────────── */
 .sidebar.expanded ~ .main-content,
+.sidebar.expanded ~ .mainContent,
 .sidebar.expanded ~ .right-content,
 .sidebar.expanded ~ .right-side,
 .sidebar.expanded ~ .lf-main,
 .sidebar.expanded ~ .da-main,
 .sidebar.expanded ~ .mass-vacc-main,
 .sidebar.expanded ~ .profile-main,
-.sidebar.expanded ~ .admin-main {
-    margin-left: calc(var(--sidebar-width-expanded) + var(--sidebar-main-gap));
-    width: calc(100% - (var(--sidebar-width-expanded) + var(--sidebar-main-gap) + var(--shell-gap)));
+.sidebar.expanded ~ .admin-main,
+.sidebar.expanded ~ .content-holder {
+    margin-left: calc(var(--shell-gap) + var(--sidebar-width-expanded) + var(--sidebar-main-gap));
+    width: calc(100% - (var(--shell-gap) + var(--sidebar-width-expanded) + var(--sidebar-main-gap)));
 }
 
 .main-content,
+.mainContent,
 .right-content,
 .right-side,
 .lf-main,
 .da-main,
 .mass-vacc-main,
 .profile-main,
-.admin-main {
+.admin-main,
+.content-holder {
     transition: margin-left 0.28s ease, width 0.28s ease;
 }
 
