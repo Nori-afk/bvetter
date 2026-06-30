@@ -802,6 +802,61 @@ body {
     transform:  translateY(-1px);
 }
 
+/* Delete confirm field */
+.delete-confirm-field {
+    margin-bottom: 20px;
+}
+
+.delete-confirm-label {
+    display:        flex;
+    align-items:    center;
+    gap:            6px;
+    font-size:      12px;
+    font-weight:    600;
+    color:          #b91c1c;
+    margin-bottom:  8px;
+}
+
+.delete-confirm-label i,
+.delete-confirm-label svg {
+    width:        14px;
+    height:       14px;
+    stroke-width: 2;
+    flex-shrink:  0;
+}
+
+.delete-confirm-label strong {
+    font-weight: 800;
+    font-family: monospace;
+    letter-spacing: 0.06em;
+}
+
+.delete-confirm-input {
+    width:         100%;
+    padding:       11px 14px;
+    border:        1.5px solid rgba(192, 57, 43, 0.3);
+    border-radius: 10px;
+    font-family:   monospace;
+    font-size:     14px;
+    font-weight:   700;
+    letter-spacing: 0.08em;
+    color:         #7f1d1d;
+    background:    #fff5f5;
+    outline:       none;
+    transition:    border-color 0.18s, box-shadow 0.18s;
+}
+
+.delete-confirm-input:focus {
+    border-color: #b91c1c;
+    box-shadow:   0 0 0 3px rgba(185, 28, 28, 0.12);
+    background:   #fff;
+}
+
+.delete-confirm-input::placeholder {
+    color:       rgba(127, 29, 29, 0.35);
+    font-weight: 400;
+}
+
 /* Reschedule modal — fix the appticon replacement */
 .detailed-header {
     display:     flex;

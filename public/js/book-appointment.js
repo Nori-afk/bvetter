@@ -201,7 +201,7 @@ function updateVetProfile(vet) {
 
 
 /* ── Vet list fetch & click wiring ───────────── */
-async function fectchVets() {
+async function fetchVets() {
   const VetAccounts = await api.getVets();
   const temp        = await api.allUsers();
 
@@ -212,6 +212,11 @@ async function fectchVets() {
   });
 
   const container = document.getElementById('vetContainer');
+
+  if (!Array.isArray(VetAccounts.data)) {
+    console.error('fetchVets: expected VetAccounts.data to be an array, got:', VetAccounts.data);
+    return;
+  }
 
   VetAccounts.data.forEach((vet, index) => {
     // Merge avatar onto vet object by matching email
@@ -579,7 +584,7 @@ async function loadVetFeedback(vetId) {
     console.error('Failed to load vet feedback:', err);
   }
 }
-fectchVets();
+fetchVets();
 loadRecentHistory();
 
 

@@ -536,20 +536,39 @@ function cancelModalTemplate(appointment) {
 
 function deleteModalTemplate(appointment) {
 	const dt = formatDateTime(appointment.datetime);
+	const initial = (appointment.patient || '?').charAt(0).toUpperCase();
 	return `
-		<h3 class="modal-title" id="modal-title">Delete Appointment Record?</h3>
-		<p class="modal-subtitle">This action is permanent and cannot be undone.</p>
-		<article class="danger-card">
-			<p class="muted"><strong>Owner:</strong> ${appointment.owner}</p>
-			<p class="muted"><strong>Pet:</strong> ${appointment.patient}</p>
-			<p class="muted"><strong>Date and Time:</strong> ${dt.date} - ${dt.time}</p>
-			<p class="muted"><strong>Type:</strong> ${appointment.type}</p>
-		</article>
-		<label class="muted" for="delete-confirm">Type DELETE to confirm</label>
-		<input id="delete-confirm" class="textarea" style="min-height:38px" type="text" placeholder="DELETE">
-		<div class="two-actions">
-			<button class="btn btn-outline" type="button" data-modal-action="open-details">Keep</button>
-			<button class="btn btn-danger" type="button" data-modal-action="confirm-delete">Confirm Delete</button>
+		<div class="appt-modal-banner appt-banner-danger">
+			<div class="appt-modal-avatar appt-avatar-danger">${initial}</div>
+			<div class="appt-modal-identity">
+				<div class="appt-modal-name">Delete Record?</div>
+				<div class="appt-modal-meta">${appointment.patient} &middot; ${appointment.service} &middot; ${dt.date}</div>
+			</div>
+		</div>
+		<div class="appt-modal-body">
+			<p class="appt-modal-eyebrow">This action is permanent and cannot be undone. All data for this appointment will be lost.</p>
+			<div class="appt-confirm-card appt-confirm-danger">
+				<div class="appt-info-rows">
+					<div class="appt-info-row"><span>Owner</span><strong>${appointment.owner}</strong></div>
+					<div class="appt-info-row"><span>Pet</span><strong>${appointment.patient}</strong></div>
+					<div class="appt-info-row"><span>Date &amp; Time</span><strong>${dt.date} &middot; ${dt.time}</strong></div>
+					<div class="appt-info-row"><span>Type</span><strong>${appointment.type}</strong></div>
+				</div>
+			</div>
+			<div class="delete-confirm-field">
+				<label class="delete-confirm-label" for="delete-confirm">
+					<i data-lucide="triangle-alert"></i>
+					Type <strong>DELETE</strong> to confirm
+				</label>
+				<input id="delete-confirm" class="delete-confirm-input" type="text" placeholder="DELETE" autocomplete="off">
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-outline" type="button" data-modal-action="open-details">Keep Record</button>
+				<button class="btn btn-danger" type="button" data-modal-action="confirm-delete">
+					<i data-lucide="trash-2"></i>
+					Confirm Delete
+				</button>
+			</div>
 		</div>
 	`;
 }
