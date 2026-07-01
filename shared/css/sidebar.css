@@ -26,7 +26,7 @@
 
     /* Layout tokens */
     --sidebar-width-collapsed: 80px;
-    --sidebar-width-expanded:  180px;
+    --sidebar-width-expanded:  220px;
     --shell-gap:               16px;
     --sidebar-main-gap:        16px;
     --transition:              all 0.3s ease;
@@ -239,7 +239,7 @@
 
 .sidebar.expanded .nav-label {
     opacity:   1;
-    max-width: 160px;
+    max-width: 200px;
 }
 
 /* ── Footer / Profile card ───────────────────────────────── */
@@ -317,7 +317,7 @@
     display:        flex;
     flex-direction: column;
     width:          auto;
-    max-width:      130px;
+    max-width:      160px;
     opacity:        1;
     visibility:     visible;
     overflow:       hidden;

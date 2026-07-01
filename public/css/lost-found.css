@@ -35,11 +35,11 @@ body {
 
 .lf-hero {
   background: var(--gradient-hero);
-  padding: 36px 44px 40px;
+  padding: 24px 36px 26px;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  min-height: 240px;
+  min-height: 0;
   position: relative;
   overflow: hidden;
   border-radius: 18px;
@@ -2108,6 +2108,8 @@ body {
   width: 300px;
   z-index: 200;
   padding: 16px;
+  max-height: min(400px, 70vh);
+  overflow-y: auto;
 }
 
 .filter-dropdown.open { display: block; }

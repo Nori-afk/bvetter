@@ -55,10 +55,10 @@ function wireCloseButtons() {
             if (e.target === overlay) overlay.hidden = true;
         });
     });
-    // ESC
+    // ESC — covers both am-modal-overlay and dash-overlay
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
-            document.querySelectorAll('.am-modal-overlay:not([hidden])').forEach(o => o.hidden = true);
+            document.querySelectorAll('.am-modal-overlay:not([hidden]), .dash-overlay:not([hidden])').forEach(o => o.hidden = true);
         }
     });
 }
@@ -180,23 +180,109 @@ function wirePagination() {
     });
 }
 
-/* ── ADD USER MODAL ─────────────────────────────────────────── */
+/* ── ADD USER MODAL (dash-* form) ──────────────────────────── */
 function wireAddModal() {
-    document.getElementById('btn-add-user')?.addEventListener('click', () => {
-        document.getElementById('modal-add').hidden = false;
+    const overlay    = document.getElementById('modal-add-account');
+    const closeBtn   = document.getElementById('modal-add-close');
+    const cancelBtn  = document.getElementById('modal-add-cancel');
+    const submitBtn  = document.getElementById('add-submit');
+    const pwInput    = document.getElementById('add-acc-password');
+    const pwToggle   = overlay?.querySelector('.dash-pw-toggle');
+    const photoInput = document.getElementById('add-acc-photo');
+    const photoCircle= document.getElementById('add-acc-preview');
+
+    const CAMERA_SVG = '<svg width="26" height="26" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>';
+
+    function openModal() {
+        if (overlay) overlay.hidden = false;
+        document.getElementById('add-acc-name')?.focus();
+    }
+
+    function closeModal() {
+        if (overlay) overlay.hidden = true;
+        resetForm();
+    }
+
+    function resetForm() {
+        ['add-acc-name','add-acc-phone','add-acc-email','add-acc-password'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.value = ''; el.classList.remove('dash-error'); }
+        });
+        const roleEl = document.getElementById('add-acc-role');
+        const statusEl = document.getElementById('add-acc-status');
+        if (roleEl)   roleEl.value = '';
+        if (statusEl) statusEl.value = 'active';
+        overlay?.querySelectorAll('.dash-field-error').forEach(e => e.remove());
+        if (photoCircle) photoCircle.innerHTML = CAMERA_SVG;
+        if (photoInput)  photoInput.value = '';
+        if (pwInput)     pwInput.type = 'password';
+    }
+
+    document.getElementById('btn-add-user')?.addEventListener('click', openModal);
+    closeBtn?.addEventListener('click', closeModal);
+    cancelBtn?.addEventListener('click', closeModal);
+
+    overlay?.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+    // Password toggle
+    pwToggle?.addEventListener('click', () => {
+        if (!pwInput) return;
+        const show = pwInput.type === 'password';
+        pwInput.type = show ? 'text' : 'password';
+        if (pwToggle.querySelector('svg')) pwToggle.querySelector('svg').style.opacity = show ? '1' : '0.4';
     });
 
-    document.getElementById('add-submit')?.addEventListener('click', () => {
-        const name   = document.getElementById('add-name')?.value.trim();
-        const email  = document.getElementById('add-email')?.value.trim();
-        const role   = document.getElementById('add-role')?.value;
-        const status = document.getElementById('add-status')?.value;
-        const phone  = document.getElementById('add-phone')?.value.trim();
+    // Photo preview
+    photoInput?.addEventListener('change', () => {
+        const file = photoInput.files[0];
+        if (!file || !photoCircle) return;
+        const reader = new FileReader();
+        reader.onload = e => { photoCircle.innerHTML = `<img src="${e.target.result}" alt="Preview">`; };
+        reader.readAsDataURL(file);
+    });
 
-        if (!name || !email || !role) {
-            alert('Please fill in all required fields.');
-            return;
+    // Validation
+    function validate() {
+        overlay?.querySelectorAll('.dash-field-error').forEach(e => e.remove());
+        overlay?.querySelectorAll('.dash-input.dash-error').forEach(e => e.classList.remove('dash-error'));
+        let ok = true;
+
+        function err(id, msg) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add('dash-error');
+            const span = document.createElement('span');
+            span.className = 'dash-field-error';
+            span.textContent = msg;
+            el.closest('.dash-form-group').appendChild(span);
+            ok = false;
         }
+
+        const name  = document.getElementById('add-acc-name')?.value.trim();
+        const role  = document.getElementById('add-acc-role')?.value;
+        const email = document.getElementById('add-acc-email')?.value.trim();
+        const pw    = document.getElementById('add-acc-password')?.value;
+
+        if (!name)  err('add-acc-name',     'Full name is required.');
+        if (!role)  err('add-acc-role',     'Please select a role.');
+        if (!email) err('add-acc-email',    'Email address is required.');
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+                    err('add-acc-email',    'Enter a valid email address.');
+        if (!pw)    err('add-acc-password', 'Password is required.');
+        else if (pw.length < 8)
+                    err('add-acc-password', 'Minimum 8 characters.');
+
+        return ok;
+    }
+
+    submitBtn?.addEventListener('click', () => {
+        if (!validate()) return;
+
+        const name   = document.getElementById('add-acc-name').value.trim();
+        const email  = document.getElementById('add-acc-email').value.trim();
+        const role   = document.getElementById('add-acc-role').value;
+        const status = document.getElementById('add-acc-status').value;
+        const phone  = document.getElementById('add-acc-phone')?.value.trim();
 
         const roleLabels = { admin: 'Administrator', vet: 'Veterinarian I', owner: 'Pet Owner' };
 
@@ -210,13 +296,10 @@ function wireAddModal() {
             avatar:    ''
         });
 
-        document.getElementById('modal-add').hidden = true;
-        clearFormById(['add-name','add-email','add-phone'], ['add-role','add-status']);
+        closeModal();
         updateKPIs();
         applyFilters();
     });
-
-    wirePhotoPreview('add-photo-input', 'add-photo-preview');
 }
 
 /* ── EDIT USER MODAL ────────────────────────────────────────── */

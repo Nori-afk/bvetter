@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
 
 :root {
 	--mv-bg: #eff2f8;
@@ -20,7 +20,7 @@
 
 body {
 	margin: 0;
-	font-family: 'Manrope', sans-serif;
+	font-family: 'Inter', 'Manrope', sans-serif;
 	background: linear-gradient(180deg, #f9fbff 0%, var(--mv-bg) 100%);
 	color: var(--mv-navy);
 }
@@ -90,15 +90,28 @@ body {
 .btn {
 	border: 0;
 	border-radius: 10px;
-	padding: 12px 18px;
+	padding: 10px 18px;
 	font-weight: 700;
-	font-size: 15px;
+	font-size: 13px;
+	font-family: 'Inter', sans-serif;
 	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	letter-spacing: -0.01em;
+	transition: all 0.18s;
 }
 
 .btn-primary {
-	background: #003a88;
-	color: #fff;
+	background: #ffffff;
+	color: #002A58;
+	border: 1px solid rgba(255,255,255,0.35);
+	box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.btn-primary:hover {
+	background: #f0f4ff;
+	box-shadow: 0 4px 14px rgba(0,0,0,0.18);
 }
 
 .btn-success {
@@ -115,45 +128,69 @@ body {
 .metric-grid {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 16px;
+	gap: 14px;
 	margin-bottom: 18px;
 }
 
 .metric-card {
-	background: transparent;
-	padding: 4px;
+	background: #ffffff;
+	border-radius: 14px;
+	padding: 16px 18px;
+	border: 1px solid #E8EEF6;
+	border-left: 3px solid #CBD5E1;
+	box-shadow: 0 2px 10px rgba(12, 35, 64, 0.05);
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	transition: box-shadow 0.18s;
 }
+
+.metric-card:hover {
+	box-shadow: 0 6px 20px rgba(12, 35, 64, 0.10);
+}
+
+.metric-card:nth-child(1) { border-left-color: #002A58; }
+.metric-card:nth-child(2) { border-left-color: #3B82F6; }
+.metric-card:nth-child(3) { border-left-color: #059669; }
+.metric-card:nth-child(4) { border-left-color: #EF4444; }
 
 .metric-card h2 {
 	margin: 0;
-	color: rgba(111, 137, 174, 0.505);
-	font-size: 16px;
-    font-weight: normal;
-	
+	font-size: 10px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: #94A3B8;
 }
 
 .metric-value {
-	margin: 2px 0;
-	font-size: 32px;
+	margin: 4px 0 2px;
+	font-size: 30px;
 	font-weight: 800;
-	color: var(--mv-navy);
+	color: #0F172A;
 	line-height: 1;
+	letter-spacing: -1px;
 }
 
 .metric-note {
-	color: var(--mv-muted);
-	font-size: 12px;
-	font-weight: 600;
+	color: #64748B;
+	font-size: 11px;
+	font-weight: 500;
 }
 
 .metric-note.success,
 .success-note {
-	color: #159f2f;
-	font-weight: 700;
+	color: #059669;
+	font-weight: 600;
 }
 
 .metric-value.danger {
-	color: var(--mv-danger);
+	color: #EF4444;
+}
+
+.metric-value.danger ~ .metric-note {
+	color: #EF4444;
+	font-weight: 600;
 }
 
 .chart-grid {
@@ -165,9 +202,10 @@ body {
 
 .card {
 	background: var(--mv-surface);
-	border-radius: 10px;
-	border: 1px solid #e4ebf5;
-	padding: 16px;
+	border-radius: 14px;
+	border: 1px solid #E8EEF6;
+	padding: 20px;
+	box-shadow: 0 2px 10px rgba(12, 35, 64, 0.04);
 }
 
 .chart-card {
@@ -199,18 +237,24 @@ body {
 	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
-	margin-bottom: 10px;
+	margin-bottom: 14px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid #F1F5F9;
 }
 
-.card-head h3 {
+.card-head h3, .card-head h2 {
 	margin: 0;
-	font-size: 24px;
-	font-weight: normal;
-	color: rgba(127, 152, 188, 0.752);
+	font-size: 13px;
+	font-weight: 700;
+	color: #0F172A;
+	letter-spacing: -0.2px;
+	font-family: 'Inter', sans-serif;
 }
 
 .card-head small {
-	color: #7b89a0;
+	font-size: 11px;
+	color: #94A3B8;
+	font-weight: 500;
 }
 
 select,
@@ -604,3 +648,171 @@ tr[data-event-id]:hover {
 .trend-rising       { background: #fee2e2; color: #c31d1d; }
 .trend-falling      { background: #dcfce7; color: #166534; }
 .trend-stable       { background: #e0e7ff; color: #3730a3; }
+
+/* ── Premium ARIMA Forecast Card ─────────────────────────────── */
+.mv-arima-card {
+    padding: 22px 24px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.mv-arima-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #002A58 0%, #5B8DB8 60%, #94BCD4 100%);
+    border-radius: 14px 14px 0 0;
+}
+
+.mv-arima-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.mv-arima-badge {
+    display: inline-block;
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 3px 9px;
+    border-radius: 4px;
+    background: #EFF6FF;
+    color: #1D4ED8;
+    margin-bottom: 7px;
+}
+
+.mv-arima-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #0F172A;
+    letter-spacing: -0.3px;
+    margin: 0 0 5px;
+}
+
+.mv-arima-desc {
+    font-size: 12px;
+    color: #64748B;
+    font-weight: 500;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.mv-trend-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.mv-trend-pill.mv-trend-rising  { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+.mv-trend-pill.mv-trend-falling { background: #F0FDF4; color: #166534; border: 1px solid #BBF7D0; }
+.mv-trend-pill.mv-trend-stable  { background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; }
+
+.mv-section-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94A3B8;
+    margin-bottom: 10px;
+}
+
+.mv-forecast-section { margin-bottom: 18px; }
+
+.mv-fc-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.mv-fc-card {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    padding: 12px 10px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.mv-fc-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94A3B8;
+}
+
+.mv-fc-val {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #0F172A;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+}
+
+.mv-fc-range {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.mv-fc-ci { font-size: 9px; color: #94A3B8; }
+
+.mv-breakdown-section { padding-top: 16px; border-top: 1px solid #F1F5F9; }
+
+.mv-breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.mv-breakdown-card {
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    padding: 12px 10px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mv-bk-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94A3B8;
+}
+
+.mv-bk-val {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #0F172A;
+    letter-spacing: -0.04em;
+    line-height: 1;
+}
+
+.mv-bk-trend {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.mv-bk-trend.mv-trend-rising  { color: #B91C1C; }
+.mv-bk-trend.mv-trend-falling { color: #166534; }
+.mv-bk-trend.mv-trend-stable  { color: #475569; }

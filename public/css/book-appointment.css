@@ -1267,10 +1267,19 @@ body {
   grid-template-columns: 1.2fr 1.4fr 1fr auto;
   align-items: center;
   gap: 16px;
+  background: #ffffff;
+  border: 1px solid #E2E8F0;
+  border-left: 3px solid #CBD5E1;
+  transition: box-shadow 0.15s;
 }
 
-.appt-pending   { background: #fdfdf0; border: 1.5px solid #ede9a0; }
-.appt-completed { background: #f4fbf4; border: 1.5px solid #c4e8c4; }
+.appt-row:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+}
+
+.appt-pending   { border-left-color: #FBBF24; }
+.appt-completed { border-left-color: #10B981; }
+.appt-cancelled { border-left-color: #F87171; }
 
 .appt-col-label {
   font-size: 9px;
@@ -1315,16 +1324,22 @@ body {
   background: currentColor;
 }
 
-.s-pending  {
-  background: #fef9e0;
-  color: #a07800;
-  border: 1px solid #e8d870;
+.s-pending {
+  background: #FFFBEB;
+  color: #92400E;
+  border: 1px solid #FDE68A;
 }
 
 .s-completed {
-  background: var(--color-green-light);
-  color: var(--color-green-dark);
-  border: 1px solid #b8e8b8;
+  background: #ECFDF5;
+  color: #065F46;
+  border: 1px solid #6EE7B7;
+}
+
+.s-cancelled {
+  background: #FEF2F2;
+  color: #991B1B;
+  border: 1px solid #FECACA;
 }
 
 /* ── Rate & Review button — navy, matches Figma ── */
@@ -1364,22 +1379,25 @@ body {
   object-fit: contain;
 }
 
-/* ── Health stat card — green, RIGHT sidebar ── */
+/* ── Health stat card — white with green accent ── */
 .health-card {
-  background: var(--color-green-light);
+  background: #ffffff;
   border-radius: 16px;
   padding: 28px 24px;
-  border: 1px solid #b8e8b8;
+  border: 1px solid #E2E8F0;
+  border-top: 3px solid #10B981;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   display: flex;
   flex-direction: column;
   gap: 6px;
+  align-self: start;
 }
 
 .health-label {
   font-size: 10px;
-  font-weight: 800;
-  color: var(--color-green-dark);
-  letter-spacing: 1.2px;
+  font-weight: 700;
+  color: #64748B;
+  letter-spacing: 1px;
   text-transform: uppercase;
   margin-bottom: 4px;
 }
@@ -1387,15 +1405,16 @@ body {
 .health-num {
   font-size: 56px;
   font-weight: 900;
-  color: var(--text-primary);
+  color: #0F172A;
   line-height: 1;
   margin: 4px 0;
+  letter-spacing: -2px;
 }
 
 .health-desc {
   font-size: 15px;
   font-weight: 700;
-  color: var(--text-primary);
+  color: #1E293B;
 }
 
 .health-ontime {
@@ -1403,15 +1422,18 @@ body {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  font-weight: 700;
-  color: var(--color-green-dark);
-  margin-top: 10px;
+  font-weight: 600;
+  color: #047857;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #F1F5F9;
 }
 
 .ontime-icon {
   width: 16px;
   height: 16px;
-  object-fit: contain;
+  flex-shrink: 0;
+  color: #047857;
 }
 
 /* ── Back button ── */

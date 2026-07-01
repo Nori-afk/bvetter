@@ -226,7 +226,8 @@ async function fetchVets() {
     const item = document.createElement('div');
     item.className = 'vet-item' + (index === 0 ? ' active' : '');
     item.innerHTML = `
-      <img src="${escapeAttr(avatarSrc)}" alt="${escapeAttr(vet.full_name)}" class="vet-thumb"/>
+      <img src="${escapeAttr(avatarSrc)}" alt="${escapeAttr(vet.full_name)}" class="vet-thumb"
+           onerror="this.onerror=null;this.src='../images/img/vet-profile.png';"/>
       <div>
         <div class="vet-item-name">${escapeHtml(vet.full_name)}</div>
         <div class="vet-item-role">${escapeHtml(vet.position_title)}</div>

@@ -609,12 +609,18 @@ function listReports($pdo, $data, $management = false)
         $params[':species'] = normalizeSpecies($species);
     }
 
-    $ownerId = (int) ($data['owner_id'] ?? $data['user_id'] ?? 0);
-    if ($ownerId > 0) {
+    // $ownerId = (int) ($data['owner_id'] ?? $data['user_id'] ?? 0);
+    // if ($ownerId > 0) {
+    //     $where[] = 'lost_found_reports.owner_id = :owner_id';
+    //     $params[':owner_id'] = $ownerId;
+    // }
+
+     $ownerId = (int) ($data['owner_id'] ?? $data['user_id'] ?? 0);
+    if (!$management && $ownerId > 0) {
         $where[] = 'lost_found_reports.owner_id = :owner_id';
         $params[':owner_id'] = $ownerId;
     }
-
+    
     $barangay = clean($data['barangay'] ?? $data['barangay_name'] ?? '');
     if ($barangay !== '' && strtolower($barangay) !== 'select barangay') {
         $where[] = 'lost_found_reports.barangay_name = :barangay';
@@ -658,6 +664,11 @@ function getReport($pdo, $data)
 
 function createReport($pdo, $data)
 {
+    $ownerId = (int) ($data['owner_id'] ?? $data['user_id'] ?? 0);
+    if ($ownerId <= 0) {
+        respond(401, ['success' => false, 'message' => 'You must be logged in to submit a report.']);
+    }
+
     [$photoPath, $absolutePhoto] = saveUpload('photo', 'lost_found', false);
     [$barangayId, $barangayName] = findBarangay($pdo, $data);
 
@@ -1034,6 +1045,11 @@ function updateMatchStatus($pdo, $data, $status)
 
 function createSighting($pdo, $data)
 {
+    $submittedBy = (int) ($data['user_id'] ?? $data['owner_id'] ?? 0);
+    if ($submittedBy <= 0) {
+        respond(401, ['success' => false, 'message' => 'You must be logged in to submit a sighting.']);
+    }
+
     [$photoPath, $absolutePhoto] = saveUpload('photo', 'lost_found_sightings', false);
     [$barangayId, $barangayName] = findBarangay($pdo, $data);
     if (!$barangayName && clean($data['location_text'] ?? '') === '') {
@@ -1113,6 +1129,11 @@ function updateSightingStatus($pdo, $data, $status)
 
 function createClaim($pdo, $data)
 {
+    $claimantId = (int) ($data['user_id'] ?? $data['owner_id'] ?? 0);
+    if ($claimantId <= 0) {
+        respond(401, ['success' => false, 'message' => 'You must be logged in to submit a claim.']);
+    }
+
     $reportId = (int) ($data['report_id'] ?? 0);
     if ($reportId <= 0) respond(422, ['success' => false, 'message' => 'Report id is required for claims.']);
 

@@ -120,12 +120,127 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ===========================
-    // HEADER BUTTONS (stubs)
+    // ADD ACCOUNT MODAL
     // ===========================
-    const addAccountBtn = document.getElementById('add-account-btn');
-    if (addAccountBtn) {
-        addAccountBtn.addEventListener('click', function () {
-            showToast('Add Account: functionality coming soon.', 'info');
+    const addAccountModal  = document.getElementById('modal-add-account');
+    const addAccountBtn    = document.getElementById('add-account-btn');
+    const modalCloseBtn    = document.getElementById('modal-add-close');
+    const modalCancelBtn   = document.getElementById('modal-add-cancel');
+    const modalSubmitBtn   = document.getElementById('modal-add-submit');
+    const photoInput       = document.getElementById('add-acc-photo');
+    const photoPreview     = document.getElementById('add-acc-preview');
+    const pwInput          = document.getElementById('add-acc-password');
+    const pwToggle         = document.querySelector('.dash-pw-toggle');
+
+    function openAddModal() {
+        addAccountModal.hidden = false;
+        document.getElementById('add-acc-name').focus();
+    }
+
+    function closeAddModal() {
+        addAccountModal.hidden = true;
+        resetAddForm();
+    }
+
+    function resetAddForm() {
+        ['add-acc-name','add-acc-phone','add-acc-email','add-acc-password'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.value = ''; el.classList.remove('dash-error'); }
+        });
+        document.getElementById('add-acc-role').value = '';
+        document.getElementById('add-acc-status').value = 'active';
+        document.querySelectorAll('.dash-field-error').forEach(el => el.remove());
+        if (photoPreview) {
+            photoPreview.innerHTML = '<svg width="26" height="26" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>';
+        }
+        if (photoInput) photoInput.value = '';
+        if (pwInput) pwInput.type = 'password';
+    }
+
+    if (addAccountBtn)  addAccountBtn.addEventListener('click', openAddModal);
+    if (modalCloseBtn)  modalCloseBtn.addEventListener('click', closeAddModal);
+    if (modalCancelBtn) modalCancelBtn.addEventListener('click', closeAddModal);
+
+    // Close on overlay click
+    if (addAccountModal) {
+        addAccountModal.addEventListener('click', function (e) {
+            if (e.target === addAccountModal) closeAddModal();
+        });
+    }
+
+    // Close on Escape
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && addAccountModal && !addAccountModal.hidden) closeAddModal();
+    });
+
+    // Photo preview
+    if (photoInput) {
+        photoInput.addEventListener('change', function () {
+            const file = photoInput.files[0];
+            if (!file || !photoPreview) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                photoPreview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Password toggle
+    if (pwToggle && pwInput) {
+        pwToggle.addEventListener('click', function () {
+            const isHidden = pwInput.type === 'password';
+            pwInput.type = isHidden ? 'text' : 'password';
+            pwToggle.querySelector('svg').style.opacity = isHidden ? '1' : '0.45';
+        });
+    }
+
+    // Validation + submit
+    function validateAddForm() {
+        let valid = true;
+        document.querySelectorAll('.dash-field-error').forEach(el => el.remove());
+        document.querySelectorAll('.dash-input.dash-error').forEach(el => el.classList.remove('dash-error'));
+
+        function markError(id, msg) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add('dash-error');
+            const err = document.createElement('span');
+            err.className = 'dash-field-error';
+            err.textContent = msg;
+            el.closest('.dash-form-group').appendChild(err);
+            valid = false;
+        }
+
+        const name  = document.getElementById('add-acc-name')?.value.trim();
+        const role  = document.getElementById('add-acc-role')?.value;
+        const email = document.getElementById('add-acc-email')?.value.trim();
+        const pw    = document.getElementById('add-acc-password')?.value;
+
+        if (!name)  markError('add-acc-name',     'Full name is required.');
+        if (!role)  markError('add-acc-role',     'Please select a role.');
+        if (!email) markError('add-acc-email',    'Email address is required.');
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+                    markError('add-acc-email',    'Enter a valid email address.');
+        if (!pw)    markError('add-acc-password', 'Password is required.');
+        else if (pw.length < 8)
+                    markError('add-acc-password', 'Password must be at least 8 characters.');
+
+        return valid;
+    }
+
+    if (modalSubmitBtn) {
+        modalSubmitBtn.addEventListener('click', function () {
+            if (!validateAddForm()) return;
+            const name = document.getElementById('add-acc-name').value.trim();
+            modalSubmitBtn.disabled = true;
+            modalSubmitBtn.textContent = 'Creating…';
+            setTimeout(function () {
+                closeAddModal();
+                modalSubmitBtn.disabled = false;
+                modalSubmitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg> Create Account';
+                showToast(`Account for "${name}" created successfully.`, 'success');
+            }, 600);
         });
     }
 

@@ -380,6 +380,11 @@ function requiredValue(id, label) {
 
 async function submitReport() {
   try {
+    const session = sessionUser();
+    if (!session?.userId) {
+      throw new Error('Your session has expired. Please log in again before submitting a report.');
+    }
+
     const formData = new FormData();
     const petName = document.getElementById('petNameInput')?.value.trim() || '';
     if (currentReportType === 'lost' && !petName) throw new Error('Pet name is required for lost pet reports.');
@@ -655,6 +660,12 @@ function openSightingModal() {
 }
 
 async function submitSighting() {
+  const session = sessionUser();
+  if (!session?.userId) {
+    alert('Your session has expired. Please log in again before submitting a sighting.');
+    return;
+  }
+
   const formData = new FormData();
   if (currentReportId) formData.append('report_id', currentReportId);
   const modal = document.getElementById('sightingModal');
@@ -842,6 +853,12 @@ function openClaimModal(reportId = null) {
 }
 
 async function submitClaim() {
+  const session = sessionUser();
+  if (!session?.userId) {
+    alert('Your session has expired. Please log in again before submitting a claim.');
+    return;
+  }
+
   if (!currentClaimReportId) {
     alert('Please select a found report first.');
     return;

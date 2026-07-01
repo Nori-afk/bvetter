@@ -250,8 +250,12 @@ function renderTable() {
 					<td><span class="status-pill ${statusClass(item.status)}">${item.status}</span></td>
 					<td>
 						<div class="action-buttons">
-							<button type="button" title="View" data-action="view" data-id="${item.id}"><img src="/vet/images/eye.png" alt="View"></button>
-							<button type="button" title="Delete" data-action="delete" data-id="${item.id}"><img src="/vet/images/trash.png" alt="Delete"></button>
+							<button type="button" title="View" data-action="view" data-id="${item.id}">
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+							</button>
+							<button type="button" title="Delete" data-action="delete" data-id="${item.id}">
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+							</button>
 						</div>
 					</td>
 				</tr>
@@ -340,13 +344,13 @@ function detailsModalTemplate(appointment) {
 	const statusSlug = (appointment.status || 'unknown').toLowerCase().replace(/\s+/g, '-');
 
 	return `
-		<div class="appt-modal-banner">
-			<div class="appt-modal-avatar">${initial}</div>
+		<div class="appt-modal-header appt-accent-${statusSlug}">
+			<div class="appt-header-avatar appt-avatar-${statusSlug}">${initial}</div>
 			<div class="appt-modal-identity">
-				<div class="appt-modal-name">${appointment.patient}</div>
-				<div class="appt-modal-meta">${appointment.service} &middot; ${dt.date} at ${dt.time}</div>
+				<div class="appt-header-name">${appointment.patient}</div>
+				<div class="appt-header-meta">${appointment.service} &middot; ${dt.date} at ${dt.time}</div>
 			</div>
-			<span class="appt-status-badge appt-status-${statusSlug}">${appointment.status}</span>
+			<span class="appt-header-badge appt-badge-${statusSlug}">${appointment.status}</span>
 		</div>
 
 		<div class="appt-modal-body">
@@ -426,56 +430,72 @@ function rescheduleModalTemplate(appointment) {
 		return `
 			<button type="button" class="slot-btn${active}" data-slot="${slot.value}">
 				<span class="slot-label">${slot.label}</span>
-				<h1>${slot.display}</h1>
+				<span class="slot-time">${slot.display}</span>
 			</button>
 		`;
 	}).join('');
 	const initial = (appointment.patient || '?').charAt(0).toUpperCase();
 
 	return `
-		<div class="appt-modal-banner">
-			<div class="appt-modal-avatar">${initial}</div>
+		<div class="appt-modal-header appt-accent-reschedule">
+			<div class="appt-header-avatar appt-avatar-reschedule">${initial}</div>
 			<div class="appt-modal-identity">
-				<div class="appt-modal-name">Reschedule Appointment</div>
-				<div class="appt-modal-meta">${appointment.patient} &middot; Pick a new date and time</div>
+				<div class="appt-header-name">Reschedule Appointment</div>
+				<div class="appt-header-meta">${appointment.patient} &middot; Pick a new date and time</div>
 			</div>
 		</div>
-		<div class="appt-modal-body appt-modal-body-compact">
-		<div class="reschedule-layout">
-			<section class="reschedule-calendar">
-				<div class="reschedule-cal-head">
-					<span class="reschedule-month">${monthLabel(monthDate)}</span>
-					<div class="reschedule-nav">
-						<button type="button" aria-label="Previous month" data-resched-nav="prev">&#8249;</button>
-						<button type="button" aria-label="Next month" data-resched-nav="next">&#8250;</button>
+		<div class="appt-modal-body rsch-body">
+			<div class="reschedule-layout">
+				<section class="reschedule-calendar">
+					<div class="reschedule-cal-head">
+						<span class="reschedule-month">${monthLabel(monthDate)}</span>
+						<div class="reschedule-nav">
+							<button type="button" aria-label="Previous month" data-resched-nav="prev">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+							</button>
+							<button type="button" aria-label="Next month" data-resched-nav="next">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+							</button>
+						</div>
 					</div>
-				</div>
-				<div class="reschedule-weekdays">${RESCHEDULE_WEEK_DAYS.map((day) => `<span>${day}</span>`).join('')}</div>
-				<div class="reschedule-days">${buildRescheduleCalendar(monthDate, selectedDate)}</div>
-				<div class="selected-date-card">
-					<p>Selected date</p>
-					<div class="detailed-header">
-					<i data-lucide="calendar-check"></i>
-					<strong>${selectedDateLabel}</strong>
+					<div class="reschedule-weekdays">${RESCHEDULE_WEEK_DAYS.map((day) => `<span>${day}</span>`).join('')}</div>
+					<div class="reschedule-days">${buildRescheduleCalendar(monthDate, selectedDate)}</div>
+					<div class="selected-date-card">
+						<p>Selected date</p>
+						<div class="detailed-header">
+							<i data-lucide="calendar-check"></i>
+							<strong>${selectedDateLabel}</strong>
+						</div>
 					</div>
-				</div>
-			</section>
-			<section class="reschedule-slots">
-				<div class="reschedule-slots-head">
-					<h4>Available slots</h4>
-					<span>${slotsOpenCount} Slots Open</span>
-				</div>
-				<div class="slot-grid">
-					${slotCards}
-				</div>
-				<p class="muted"><strong>Current slot:</strong> ${dt.date} - ${dt.time}</p>
-				<p class="muted"><strong>New slot:</strong> <span data-new-slot-line>${selectedDateLabel} at ${selectedSlotLabel}</span></p>
-			</section>
-		</div>
-		<div class="two-actions">
-			<button class="btn btn-outline" type="button" data-modal-action="open-details">Cancel</button>
-			<button class="btn btn-primary" type="button" data-modal-action="confirm-reschedule">Confirm Reschedule</button>
-		</div>
+				</section>
+				<section class="reschedule-slots">
+					<div class="reschedule-slots-head">
+						<h4>Available Slots</h4>
+						<span class="rsch-slots-badge">${slotsOpenCount} Open</span>
+					</div>
+					<div class="slot-grid">${slotCards}</div>
+					<div class="rsch-summary-card">
+						<div class="rsch-summary-row">
+							<span>Current</span>
+							<strong>${dt.date} &middot; ${dt.time}</strong>
+						</div>
+						<div class="rsch-summary-row rsch-summary-new">
+							<span>New</span>
+							<strong data-new-slot-line>${selectedDateLabel} at ${selectedSlotLabel}</strong>
+						</div>
+					</div>
+				</section>
+			</div>
+			<div class="rsch-actions">
+				<button class="btn btn-outline rsch-btn" type="button" data-modal-action="open-details">
+					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+					Back
+				</button>
+				<button class="btn btn-primary rsch-btn" type="button" data-modal-action="confirm-reschedule">
+					<i data-lucide="calendar-check-2"></i>
+					Confirm Reschedule
+				</button>
+			</div>
 		</div>
 	`;
 }
@@ -506,11 +526,11 @@ function cancelModalTemplate(appointment) {
 	const dt = formatDateTime(appointment.datetime);
 	const initial = (appointment.patient || '?').charAt(0).toUpperCase();
 	return `
-		<div class="appt-modal-banner appt-banner-danger">
-			<div class="appt-modal-avatar appt-avatar-danger">${initial}</div>
+		<div class="appt-modal-header appt-accent-danger">
+			<div class="appt-header-avatar appt-avatar-danger">${initial}</div>
 			<div class="appt-modal-identity">
-				<div class="appt-modal-name">Cancel Appointment?</div>
-				<div class="appt-modal-meta">${appointment.patient} &middot; ${appointment.service} &middot; ${dt.date}</div>
+				<div class="appt-header-name">Cancel Appointment?</div>
+				<div class="appt-header-meta">${appointment.patient} &middot; ${appointment.service} &middot; ${dt.date}</div>
 			</div>
 		</div>
 		<div class="appt-modal-body">
@@ -538,11 +558,11 @@ function deleteModalTemplate(appointment) {
 	const dt = formatDateTime(appointment.datetime);
 	const initial = (appointment.patient || '?').charAt(0).toUpperCase();
 	return `
-		<div class="appt-modal-banner appt-banner-danger">
-			<div class="appt-modal-avatar appt-avatar-danger">${initial}</div>
+		<div class="appt-modal-header appt-accent-danger">
+			<div class="appt-header-avatar appt-avatar-danger">${initial}</div>
 			<div class="appt-modal-identity">
-				<div class="appt-modal-name">Delete Record?</div>
-				<div class="appt-modal-meta">${appointment.patient} &middot; ${appointment.service} &middot; ${dt.date}</div>
+				<div class="appt-header-name">Delete Record?</div>
+				<div class="appt-header-meta">${appointment.patient} &middot; ${appointment.service} &middot; ${dt.date}</div>
 			</div>
 		</div>
 		<div class="appt-modal-body">

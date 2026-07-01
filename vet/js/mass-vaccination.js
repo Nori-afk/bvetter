@@ -4,6 +4,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (Chart.defaults.transitions?.active?.animation) {
             Chart.defaults.transitions.active.animation.duration = 0;
         }
+        // Premium chart styling
+        Chart.defaults.font.family = "'Inter', 'Manrope', 'Segoe UI', sans-serif";
+        Chart.defaults.font.size = 12;
+        Chart.defaults.color = '#64748B';
+        if (Chart.defaults.scale) {
+            Chart.defaults.scale.grid = { ...Chart.defaults.scale.grid, color: '#F1F5F9', drawBorder: false };
+            Chart.defaults.scale.ticks = { ...Chart.defaults.scale.ticks, color: '#94A3B8', padding: 8 };
+        }
+        if (Chart.defaults.plugins?.tooltip) {
+            Chart.defaults.plugins.tooltip.backgroundColor = '#0F172A';
+            Chart.defaults.plugins.tooltip.titleColor = '#F8FAFC';
+            Chart.defaults.plugins.tooltip.bodyColor = '#94A3B8';
+            Chart.defaults.plugins.tooltip.padding = 12;
+            Chart.defaults.plugins.tooltip.cornerRadius = 8;
+            Chart.defaults.plugins.tooltip.boxPadding = 4;
+        }
+        if (Chart.defaults.plugins?.legend?.labels) {
+            Chart.defaults.plugins.legend.labels.usePointStyle = true;
+            Chart.defaults.plugins.legend.labels.pointStyleWidth = 10;
+            Chart.defaults.plugins.legend.labels.padding = 18;
+            Chart.defaults.plugins.legend.labels.font = { size: 11, weight: '600' };
+            Chart.defaults.plugins.legend.labels.color = '#475569';
+        }
     }
 
     function appBasePath() {
@@ -332,45 +355,58 @@ document.addEventListener('DOMContentLoaded', async () => {
         var dogs = state.arimaData.dogs_vaccinated  || {};
         var cats = state.arimaData.cats_vaccinated  || {};
 
+        const trend    = (tv.trend || 'stable').toLowerCase();
+        const trendCls = trend === 'rising' ? 'mv-trend-rising' : trend === 'falling' ? 'mv-trend-falling' : 'mv-trend-stable';
+
+        const months = tv.months || ['Next Month', 'Month 2', 'Month 3'];
+
         var card = document.createElement('section');
         card.id        = 'arima-vacc-card';
-        card.className = 'card arima-forecast';
-        card.innerHTML =
-            `<h3>ARIMA(${(tv.arima_order||[]).join(',')}) — Vaccine Demand Forecast</h3>`
-            + `<p style="font-size:0.8rem;color:#6b7a99;margin-bottom:12px;">${tv.action || ''}</p>`
-            + '<div class="forecast-band">'
-            + (tv.months || ['Next Month','Month 2','Month 3']).map((m, i) =>
-                `<div class="forecast-col">
-                    <span class="fc-label">${m}</span>
-                    <span class="fc-val">${tv.forecast?.[i] || 0}</span>
-                    <span class="fc-range">${tv.lower_ci?.[i]||0} – ${tv.upper_ci?.[i]||0}</span>
-                    <span class="fc-sub">80% CI</span>
-                </div>`
-            ).join('')
-            + '</div>'
-            + `<div style="margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
-                <div class="forecast-col">
-                    <span class="fc-label">Dogs Forecast</span>
-                    <span class="fc-val">${dogs.forecast?.[0]||0}</span>
-                    <span class="fc-sub">${dogs.trend||'stable'}</span>
+        card.className = 'card mv-arima-card';
+        card.innerHTML = `
+            <div class="mv-arima-header">
+                <div>
+                    <span class="mv-arima-badge">ARIMA(${(tv.arima_order||[]).join(',')})</span>
+                    <h3 class="mv-arima-title">Vaccine Demand Forecast</h3>
+                    <p class="mv-arima-desc">${sanitize(tv.action || 'Demand forecast based on historical vaccination data.')}</p>
                 </div>
-                <div class="forecast-col">
-                    <span class="fc-label">Cats Forecast</span>
-                    <span class="fc-val">${cats.forecast?.[0]||0}</span>
-                    <span class="fc-sub">${cats.trend||'stable'}</span>
+                <div class="mv-trend-pill ${trendCls}">Overall Trend: ${trend.toUpperCase()}</div>
+            </div>
+            <div class="mv-forecast-section">
+                <p class="mv-section-label">3-Month Total Forecast</p>
+                <div class="mv-fc-grid">
+                    ${months.map((m, i) => `
+                        <div class="mv-fc-card">
+                            <span class="mv-fc-label">${sanitize(m)}</span>
+                            <span class="mv-fc-val">${tv.forecast?.[i] || 0}</span>
+                            <span class="mv-fc-range">${tv.lower_ci?.[i]||0} – ${tv.upper_ci?.[i]||0}</span>
+                            <span class="mv-fc-ci">80% CI</span>
+                        </div>
+                    `).join('')}
                 </div>
-                <div class="forecast-col">
-                    <span class="fc-label">Clients Forecast</span>
-                    <span class="fc-val">${cs.forecast?.[0]||0}</span>
-                    <span class="fc-sub">${cs.trend||'stable'}</span>
+            </div>
+            <div class="mv-breakdown-section">
+                <p class="mv-section-label">Species &amp; Client Breakdown (Next Month)</p>
+                <div class="mv-breakdown-grid">
+                    <div class="mv-breakdown-card">
+                        <span class="mv-bk-label">Dogs</span>
+                        <span class="mv-bk-val">${dogs.forecast?.[0]||0}</span>
+                        <span class="mv-bk-trend mv-trend-${(dogs.trend||'stable').toLowerCase()}">${dogs.trend||'stable'}</span>
+                    </div>
+                    <div class="mv-breakdown-card">
+                        <span class="mv-bk-label">Cats</span>
+                        <span class="mv-bk-val">${cats.forecast?.[0]||0}</span>
+                        <span class="mv-bk-trend mv-trend-${(cats.trend||'stable').toLowerCase()}">${cats.trend||'stable'}</span>
+                    </div>
+                    <div class="mv-breakdown-card">
+                        <span class="mv-bk-label">Clients</span>
+                        <span class="mv-bk-val">${cs.forecast?.[0]||0}</span>
+                        <span class="mv-bk-trend mv-trend-${(cs.trend||'stable').toLowerCase()}">${cs.trend||'stable'}</span>
+                    </div>
                 </div>
-            </div>`
-            + `<p class="trend-badge trend-${tv.trend||'stable'}" style="margin-top:10px;">
-                ▶ Overall Trend: ${(tv.trend||'stable').toUpperCase()}
-               </p>`;
+            </div>
+        `;
 
-        // Target the dedicated placeholder in the HTML first (most reliable).
-        // Falls back to inserting before the first .chart-grid if placeholder absent.
         var placeholder = document.getElementById('arima-card-placeholder');
         if (placeholder) {
             placeholder.innerHTML = '';
@@ -474,16 +510,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                               || dbOtherD.some(v => v > 0) || hasUnspecified;
 
             var datasets = [
-                { label: 'Dogs',   data: mergedDogs,  backgroundColor: '#0f2a6d' },
-                { label: 'Cats',   data: mergedCats,  backgroundColor: '#2f9df0' },
-                { label: 'Others', data: mergedOther, backgroundColor: '#1728d9' },
+                { label: 'Dogs',   data: mergedDogs,  backgroundColor: '#002A58', borderRadius: 5 },
+                { label: 'Cats',   data: mergedCats,  backgroundColor: '#3B82F6', borderRadius: 5 },
+                { label: 'Others', data: mergedOther, backgroundColor: '#7C3AED', borderRadius: 5 },
             ];
             // Only add Unspecified dataset when there are events without species breakdown
             if (hasUnspecified) {
                 datasets.push({
                     label: 'Unspecified (no breakdown entered)',
                     data: dbTotalsArr,
-                    backgroundColor: '#94a3b8'
+                    backgroundColor: '#94A3B8', borderRadius: 5
                 });
             }
 
@@ -529,8 +565,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     {
                         label: 'Predicted Total (ARIMA)',
                         data: tv.forecast || [],
-                        backgroundColor: '#0f2a6d',
-                        borderRadius: 4
+                        backgroundColor: '#002A58',
+                        borderRadius: 5
                     }
                 ];
 
@@ -539,8 +575,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     c2datasets.push({
                         label: `Actual Vaccinated (${range})`,
                         data: arimaMonths.map((_, i) => i === 0 ? dbGrandTotal : null),
-                        backgroundColor: '#22c55e',
-                        borderRadius: 4
+                        backgroundColor: '#059669',
+                        borderRadius: 5
                     });
                 }
 
@@ -625,14 +661,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
                 var c2FallbackDatasets = [
-                    { label: 'Monthly Total (Excel)', data: excelData, backgroundColor: '#0f2a6d' },
-                    { label: 'Projected Next Month (+12%)', data: projData, backgroundColor: '#93c5fd' },
+                    { label: 'Monthly Total (Excel)', data: excelData, backgroundColor: '#002A58', borderRadius: 5 },
+                    { label: 'Projected Next Month (+12%)', data: projData, backgroundColor: '#60A5FA', borderRadius: 5 },
                 ];
                 if (dbGrandTotal > 0) {
                     c2FallbackDatasets.push({
                         label: `Actual Vaccinated (Live DB)`,
                         data: dbData,
-                        backgroundColor: '#22c55e'
+                        backgroundColor: '#059669'
                     });
                 }
 
@@ -698,7 +734,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     {
                         label: 'Doses Injected (Live DB)',
                         data: dbVaccineValues,
-                        backgroundColor: '#0f2a6d',
+                        backgroundColor: '#002A58',
                         borderRadius: 6
                     }
                 ];
@@ -711,7 +747,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         c3Datasets.push({
                             label: 'Historical Demand (Excel)',
                             data: excelValues,
-                            backgroundColor: '#93c5fd',
+                            backgroundColor: '#60A5FA',
                             borderRadius: 6
                         });
                     }
@@ -870,13 +906,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 data: allBarangays.map(b =>
                                     Math.round(((barangayBaseMap[b].actual || 0) / totalActual) * adjustedTotal)
                                 ),
-                                backgroundColor: '#3137d8',
+                                backgroundColor: '#002A58',
                                 stack: 'need'
                             },
                             ...(hasDbData ? [{
                                 label: 'Already Vaccinated (Live DB)',
                                 data: allBarangays.map(b => (dbBarangayTotals[b] || {}).total || 0),
-                                backgroundColor: '#22c55e',
+                                backgroundColor: '#059669',
                                 stack: 'done'
                             }] : [])
                         ]
@@ -900,14 +936,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     {
                         label: 'Vaccines Needed (RF Predicted)',
                         data: allBarangays.map(b => Math.round((barangayBaseMap[b].predicted || 0) * multi)),
-                        backgroundColor: '#3137d8'
+                        backgroundColor: '#002A58'
                     }
                 ];
                 if (hasDbData) {
                     c4FallbackDatasets.push({
                         label: 'Already Vaccinated (Live DB)',
                         data: allBarangays.map(b => (dbBarangayTotals[b] || {}).total || 0),
-                        backgroundColor: '#22c55e'
+                        backgroundColor: '#059669'
                     });
                 }
 

@@ -171,6 +171,8 @@ const state = {
 	query: '',
 	filterType: 'all',
 	filterStatus: 'all',
+	page: 1,
+	pageSize: 8,
 	modal: null,
 	pendingDeleteId: null
 };
@@ -319,7 +321,7 @@ function filteredRecords() {
 }
 
 function statusTag(record) {
-	return `<span class="status-chip ${getStatusClass(record.statusType)}"><span class="status-dot"></span>${escapeHtml(record.status)}</span>`;
+	return `<span class="status-badge ${getStatusClass(record.statusType)}"><span class="status-dot"></span>${escapeHtml(record.status)}</span>`;
 }
 
 function detailTabButton(label, tabKey, activeTab) {
@@ -328,103 +330,207 @@ function detailTabButton(label, tabKey, activeTab) {
 }
 
 function renderPatientInfoTab(record) {
+	const medications = Array.isArray(record.medications) ? record.medications : [];
+	const isEmergency = String(record.category || '').toLowerCase().includes('emergency');
+
 	return `
 		<div class="detail-panel-grid">
-			<article class="detail-summary-card">
-				<div class="summary-heading-row">
-					<div class="KPI-normal">
-						<p class="summary-label">TOTAL VISITS</p>
-						<h3>${escapeHtml(record.recordCount)}</h3>
-					</div>
-					<div class="KPI-normal">
-						<p class="summary-label">LAST VISIT</p>
-						<h3>${escapeHtml(record.lastVisit)}</h3>
-					</div>
-					<div class="KPI-green">
-						<p class="summary-label">HEALTH STATUS</p>
-						<div class="summary-inline status-ok"><span class="status-dot"></span>${escapeHtml(record.healthStatus)}</div>
-					</div>
-					<div class="KPI-red">
-						<p class="summary-label">ALERTS</p>
-						<div class="summary-inline status-alert">${escapeHtml(record.alert)}</div>
-					</div>
-				</div>
-			</article>
 
-			<div class="detail-two-column">
-				<article class="info-card detail-info-card">
-					<div class="detail-header">
-						<img src="/bvetter/vet/images/info.svg" alt="Physical information">
-						<h3>Physical Characteristics</h3>
+			<!-- KPI tiles -->
+			<div class="kpi-row">
+				<div class="kpi-tile kpi-tile-navy">
+					<div class="kpi-tile-head">
+						<span class="kpi-tile-label">Total Visits</span>
+						<div class="kpi-tile-icon">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+						</div>
 					</div>
-					<div class="informs">
-					<div class="top">
-						<div class="info-row"><strong>Date of Birth</strong>
-							<span>${escapeHtml(record.dateOfBirth || record.visitDate)}
-							</span></div>
-						<div class="info-row"><strong>Age</strong>
-							<span>${escapeHtml(record.age)}
-							</span></div>
+					<p class="kpi-tile-value">${escapeHtml(record.recordCount)}</p>
+					<p class="kpi-tile-sub">Clinic visits on record</p>
+				</div>
+
+				<div class="kpi-tile kpi-tile-blue">
+					<div class="kpi-tile-head">
+						<span class="kpi-tile-label">Last Visit</span>
+						<div class="kpi-tile-icon">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
 						</div>
-						<div class="bottom">
-						<div class="info-row"><strong>Color / Markings</strong>
-							<span>${escapeHtml(record.colorMarkings)}
-							</span></div>
-						<div class="info-row"><strong>Weight</strong>
-							<span>${escapeHtml(record.weight)}
-							</span></div>
+					</div>
+					<p class="kpi-tile-value kpi-tile-value-md">${escapeHtml(record.lastVisit)}</p>
+					<p class="kpi-tile-sub">Most recent appointment</p>
+				</div>
+
+				<div class="kpi-tile kpi-tile-green">
+					<div class="kpi-tile-head">
+						<span class="kpi-tile-label">Health Status</span>
+						<div class="kpi-tile-icon">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
 						</div>
+					</div>
+					<p class="kpi-tile-value kpi-tile-value-status kpi-status-ok">
+						<span class="status-dot"></span>${escapeHtml(record.healthStatus)}
+					</p>
+					<p class="kpi-tile-sub">Current health standing</p>
+				</div>
+
+				<div class="kpi-tile kpi-tile-amber">
+					<div class="kpi-tile-head">
+						<span class="kpi-tile-label">Active Alerts</span>
+						<div class="kpi-tile-icon">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
 						</div>
+					</div>
+					<p class="kpi-tile-value ${Number(record.alert) > 0 ? 'kpi-status-alert' : ''}">${escapeHtml(record.alert)}</p>
+					<p class="kpi-tile-sub">Flagged items</p>
+				</div>
+			</div>
+
+			<!-- Physical + Ownership -->
+			<div class="detail-two-column">
+				<article class="detail-info-card pi-card">
+					<div class="pi-card-head">
+						<div class="pi-card-icon">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+						</div>
+						<h4>Physical Characteristics</h4>
+					</div>
+					<div class="pi-fields">
+						<div class="pi-row">
+							<div class="pi-field">
+								<span class="pi-label">DATE OF BIRTH</span>
+								<span class="pi-value">${escapeHtml(record.dateOfBirth || record.visitDate || '—')}</span>
+							</div>
+							<div class="pi-field">
+								<span class="pi-label">AGE</span>
+								<span class="pi-value">${escapeHtml(record.age)}</span>
+							</div>
+						</div>
+						<div class="pi-row">
+							<div class="pi-field pi-field-full">
+								<span class="pi-label">COLOR / MARKINGS</span>
+								<span class="pi-value">${escapeHtml(record.colorMarkings)}</span>
+							</div>
+						</div>
+						<div class="pi-row">
+							<div class="pi-field">
+								<span class="pi-label">WEIGHT</span>
+								<span class="pi-value">${escapeHtml(record.weight)}</span>
+							</div>
+							<div class="pi-field">
+								<span class="pi-label">SEX</span>
+								<span class="pi-value">${escapeHtml(record.sex || '—')}</span>
+							</div>
+						</div>
+					</div>
 				</article>
 
-				<article class="info-card detail-info-card">
-					<h3>Ownership Information</h3>
-					<div class="owner-header-mini">
+				<article class="detail-info-card pi-card">
+					<div class="pi-card-head">
+						<div class="pi-card-icon">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+						</div>
+						<h4>Ownership Information</h4>
+					</div>
+					<div class="pi-owner-strip">
 						<div class="owner-avatar">${escapeHtml(record.ownerName.slice(0, 1).toUpperCase())}</div>
 						<div>
 							<strong>${escapeHtml(record.ownerName)}</strong>
-							<p class="muted">Primary Owner • Member since 2019</p>
+							<p>Primary Owner &middot; Member since 2019</p>
 						</div>
 					</div>
-					<div class="info-list">
-						<div class="info-row"><strong>Phone Number</strong><span>${escapeHtml(record.phone)}</span></div>
-						<div class="info-row"><strong>Email Address</strong><span>${escapeHtml(record.email)}</span></div>
-						<div class="info-row full-row"><strong>Residential Address</strong><span>${escapeHtml(record.address)}</span></div>
+					<div class="pi-fields pi-fields-stack">
+						<div class="pi-field pi-field-full">
+							<span class="pi-label">PHONE NUMBER</span>
+							<span class="pi-value">${escapeHtml(record.phone)}</span>
+						</div>
+						<div class="pi-field pi-field-full">
+							<span class="pi-label">EMAIL ADDRESS</span>
+							<span class="pi-value">${escapeHtml(record.email)}</span>
+						</div>
+						<div class="pi-field pi-field-full">
+							<span class="pi-label">RESIDENTIAL ADDRESS</span>
+							<span class="pi-value">${escapeHtml(record.address)}</span>
+						</div>
 					</div>
 				</article>
 			</div>
 
-			<article class="info-card attending-card detail-info-card full-width-card">
-				<div class="attending-banner">
-					<p class="summary-label accent">ATTENDING VET</p>
-					<h3>${escapeHtml(record.attendingVet)}</h3>
+			<!-- Latest Clinical Visit -->
+			<article class="detail-info-card lv-card">
+				<div class="lv-card-head">
+					<div class="lv-head-left">
+						<div class="lv-head-icon">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+						</div>
+						<div>
+							<h4>Latest Clinical Visit</h4>
+							<p class="lv-head-sub">
+								${formatDate(record.visitDate) || 'No visit date recorded'}
+								${record.attendingVet ? ` &middot; <span class="lv-attending">Dr. ${escapeHtml(record.attendingVet)}</span>` : ''}
+							</p>
+						</div>
+					</div>
+					${isEmergency
+						? '<span class="emergency-pill">Emergency</span>'
+						: `<span class="lv-category-tag">${escapeHtml(record.category || 'General')}</span>`
+					}
 				</div>
-				<div class="visit-details-grid">
-					<div>
-						<p class="summary-label">VISIT DETAILS</p>
-						<div class="info-list">
-							<div class="info-row"><strong>Visit Date</strong><span>${formatDate(record.visitDate)}</span></div>
-							<div class="info-row"><strong>Last Visit Date</strong><span>${escapeHtml(record.lastVisit)}</span></div>
-							<div class="info-row"><strong>Case Category</strong><span>${escapeHtml(record.category)}</span></div>
-							<div class="info-row"><strong>Diagnosis</strong><span>${escapeHtml(record.diagnosis)}</span></div>
+
+				<div class="lv-columns">
+					<div class="lv-col">
+						<p class="lv-col-label">VISIT DETAILS</p>
+						<div class="lv-data-list">
+							<div class="lv-data-row">
+								<span class="lv-data-key">Visit Date</span>
+								<span class="lv-data-val">${formatDate(record.visitDate) || '—'}</span>
+							</div>
+							<div class="lv-data-row">
+								<span class="lv-data-key">Last Visit</span>
+								<span class="lv-data-val">${escapeHtml(record.lastVisit) || '—'}</span>
+							</div>
+							<div class="lv-data-row">
+								<span class="lv-data-key">Case Category</span>
+								<span class="lv-data-val">${escapeHtml(record.category) || '—'}</span>
+							</div>
+							<div class="lv-data-row">
+								<span class="lv-data-key">Diagnosis</span>
+								<span class="lv-data-val">${escapeHtml(record.diagnosis) || '—'}</span>
+							</div>
 						</div>
 					</div>
-					<div>
-						<p class="summary-label">SYMPTOMS</p>
-						<p class="detail-paragraph">${escapeHtml(record.symptoms)}</p>
-						<p class="summary-label">TREATMENT</p>
-						<p class="detail-paragraph">${escapeHtml(record.treatment)}</p>
-						<span class="emergency-pill">Emergency</span>
+
+					<div class="lv-col lv-col-border">
+						<p class="lv-col-label">CLINICAL OBSERVATIONS</p>
+						<p class="lv-sub-label">Symptoms</p>
+						<p class="lv-text">${escapeHtml(record.symptoms) || '—'}</p>
+						<p class="lv-sub-label">Treatment Plan</p>
+						<p class="lv-text">${escapeHtml(record.treatment) || '—'}</p>
 					</div>
-					<div>
-						<p class="summary-label">PRESCRIBED MEDICATIONS</p>
-						<div class="medication-list stacked medication-list-panel">
-							${(Array.isArray(record.medications) ? record.medications : []).map((medication) => `<span class="med-pill med-pill-row"><span>${escapeHtml(medication)}</span><span class="med-status">ACTIVE</span></span>`).join('') || '<span class="muted">No medications listed.</span>'}
+
+					<div class="lv-col lv-col-border">
+						<p class="lv-col-label">PRESCRIPTIONS</p>
+						<div class="lv-med-list">
+							${medications.length
+								? medications.map((m) => `
+									<div class="lv-med-item">
+										<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+										<span class="lv-med-name">${escapeHtml(m)}</span>
+										<span class="lv-med-badge">ACTIVE</span>
+									</div>`).join('')
+								: '<p class="lv-empty-note">No medications listed.</p>'
+							}
 						</div>
-						<p class="followup-note">Follow up date: ${formatDate(record.followUpDate)}</p>
+						${record.followUpDate
+							? `<div class="lv-followup-row">
+									<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+									Follow-up: ${formatDate(record.followUpDate)}
+								</div>`
+							: ''
+						}
 					</div>
 				</div>
 			</article>
+
 		</div>
 	`;
 }
@@ -476,38 +582,64 @@ function renderVisitHistoryTab(record) {
 
 function renderVaccinationHistoryTab(record) {
 	const vaccinationHistory = getVaccinationHistory(record);
+	const syringeIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 2 4 4"/><path d="m17 7 3-3"/><path d="M19 9 8.7 19.3c-1 1-2.5 1-3.4 0l-.6-.6c-1-1-1-2.5 0-3.4L15 5"/><path d="m9 11 4 4"/><path d="m5 19-3 3"/><path d="m14 4 6 6"/></svg>`;
+	const statusSlugMap = { 'current': 'success', 'completed': 'success', 'overdue': 'danger', 'pending': 'warning', 'up to date': 'success' };
+	function vaccStatusClass(status) {
+		return statusSlugMap[(status || '').toLowerCase()] || 'neutral';
+	}
 	return `
-		<div class="vaccination-section">
-			<div class="vaccination-header">
-				<h3>Vaccination History</h3>
-				<p>Clinical immunization record for ${escapeHtml(record.species.toLowerCase())} patients.</p>
+		<div class="vacc-shell">
+			<div class="vacc-section-header">
+				<div class="vacc-section-icon">
+					${syringeIcon}
+				</div>
+				<div>
+					<h3 class="vacc-section-title">Vaccination History</h3>
+					<p class="vacc-section-sub">Immunization records for ${escapeHtml(record.petName)} · ${escapeHtml(record.species)}</p>
+				</div>
+				<span class="vacc-count-badge">${vaccinationHistory.length} record${vaccinationHistory.length !== 1 ? 's' : ''}</span>
 			</div>
-			${vaccinationHistory.map((vaccination) => `
-				<article class="vaccination-card">
-					<div class="vaccination-icon">+</div>
-					<div class="vaccination-main">
-						<h4>${escapeHtml(vaccination.name)}</h4>
-						<p class="muted">${escapeHtml(vaccination.description || 'Vaccination record')}</p>
-					</div>
-					<div class="vaccination-meta">
-						<div>
-							<p class="history-label">Administered</p>
-							<strong>${formatDate(vaccination.date)}</strong>
+
+			<div class="vacc-list">
+				${vaccinationHistory.length ? vaccinationHistory.map((vaccination) => `
+					<article class="vacc-card">
+						<div class="vacc-card-icon">
+							${syringeIcon}
 						</div>
-						<div>
-							<p class="history-label">Provider</p>
-							<strong>${escapeHtml(vaccination.provider || record.attendingVet)}</strong>
+						<div class="vacc-card-main">
+							<span class="vacc-name">${escapeHtml(vaccination.name)}</span>
+							<span class="vacc-desc">${escapeHtml(vaccination.description || 'Vaccination record')}</span>
 						</div>
-						<div>
-							<p class="history-label">Next Due</p>
-							<strong>${escapeHtml(vaccination.nextDue || 'TBD')}</strong>
+						<div class="vacc-meta-row">
+							<div class="vacc-meta-item">
+								<span class="vacc-meta-label">Administered</span>
+								<span class="vacc-meta-value">${formatDate(vaccination.date) || '—'}</span>
+							</div>
+							<div class="vacc-meta-divider"></div>
+							<div class="vacc-meta-item">
+								<span class="vacc-meta-label">Provider</span>
+								<span class="vacc-meta-value">${escapeHtml(vaccination.provider || record.attendingVet || '—')}</span>
+							</div>
+							<div class="vacc-meta-divider"></div>
+							<div class="vacc-meta-item">
+								<span class="vacc-meta-label">Next Due</span>
+								<span class="vacc-meta-value vacc-next-due">${escapeHtml(vaccination.nextDue || 'TBD')}</span>
+							</div>
 						</div>
+						<div class="vacc-status-wrap">
+							<span class="vacc-status-badge vacc-status-${vaccStatusClass(vaccination.status)}">
+								<span class="vacc-status-dot"></span>
+								${escapeHtml(vaccination.status || 'Completed')}
+							</span>
+						</div>
+					</article>
+				`).join('') : `
+					<div class="vacc-empty">
+						<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 2 4 4"/><path d="m17 7 3-3"/><path d="M19 9 8.7 19.3c-1 1-2.5 1-3.4 0l-.6-.6c-1-1-1-2.5 0-3.4L15 5"/><path d="m9 11 4 4"/><path d="m5 19-3 3"/><path d="m14 4 6 6"/></svg>
+						<p>No vaccination records found for this patient.</p>
 					</div>
-					<div class="vaccination-status">
-						<span class="tag success">${escapeHtml(vaccination.status || 'Completed')}</span>
-					</div>
-				</article>
-			`).join('')}
+				`}
+			</div>
 		</div>
 	`;
 }
@@ -537,7 +669,7 @@ function renderList() {
 						<p>Manage patient profiles, clinical notes, follow-ups, and record actions from one place.</p>
 					</div>
 					<div class="hero-actions">
-						<button type="button" class="btn btn-accent" data-nav="add"><img src="/bvetter/vet/images/add.svg" alt="icon"> Add New Patient</button>
+						<button type="button" class="btn btn-accent" data-nav="add"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add New Patient</button>
 					</div>
 				</div>
 			</header>
@@ -552,22 +684,20 @@ function renderList() {
 				</div>
 
 			<section class="records-card">
-				<div class="section-head">
-					<div class="search-row">
-						<div class="search-box">
-							<svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
-							<input class="search-input" id="search-input" type="search" placeholder="Search by patient name, breed, or owner..." value="${escapeHtml(state.query)}">
-						</div>
+				<div class="table-toolbar">
+					<div class="search-box">
+						<svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+						<input class="search-input" id="search-input" type="search" placeholder="Search patients, breeds, owners..." value="${escapeHtml(state.query)}">
 					</div>
-					<div class="filter-strip" aria-label="Patient filters">
-						<span class="filter-label">FILTERS:</span>
-						<button type="button" class="filter-pill ${state.filterType === 'all' ? 'active' : ''}" data-filter-type="all">All Pets</button>
-						<button type="button" class="filter-pill ${state.filterType === 'canine' ? 'active' : ''}" data-filter-type="canine">Canine</button>
-						<button type="button" class="filter-pill ${state.filterType === 'feline' ? 'active' : ''}" data-filter-type="feline">Feline</button>
-						<button type="button" class="filter-pill ${state.filterType === 'avian' ? 'active' : ''}" data-filter-type="avian">Avian</button>
-						<button type="button" class="filter-pill ${state.filterType === 'exotic' ? 'active' : ''}" data-filter-type="exotic">Exotic</button>
-						<button type="button" class="filter-pill ${state.filterType === 'active' ? 'active' : ''}" data-filter-type="active">Active</button>
-					</div>
+				</div>
+				<div class="filter-strip" aria-label="Patient filters">
+					<span class="filter-label">FILTER:</span>
+					<button type="button" class="filter-pill ${state.filterType === 'all' ? 'active' : ''}" data-filter-type="all">All Pets</button>
+					<button type="button" class="filter-pill ${state.filterType === 'canine' ? 'active' : ''}" data-filter-type="canine">Canine</button>
+					<button type="button" class="filter-pill ${state.filterType === 'feline' ? 'active' : ''}" data-filter-type="feline">Feline</button>
+					<button type="button" class="filter-pill ${state.filterType === 'avian' ? 'active' : ''}" data-filter-type="avian">Avian</button>
+					<button type="button" class="filter-pill ${state.filterType === 'exotic' ? 'active' : ''}" data-filter-type="exotic">Exotic</button>
+					<button type="button" class="filter-pill ${state.filterType === 'active' ? 'active' : ''}" data-filter-type="active">Active Only</button>
 				</div>
 
 				<div class="table-wrap">
@@ -579,7 +709,7 @@ function renderList() {
 								<th>Last Visit</th>
 								<th>Location</th>
 								<th>Status</th>
-								<th>Pet Type</th>
+								<th>Type</th>
 								<th>Actions</th>
 							</tr>
 						</thead>
@@ -588,22 +718,27 @@ function renderList() {
 								<tr>
 									<td>
 										<div class="patient-mini">
-											<div>
+											<div class="patient-avatar">${escapeHtml((record.petName || '?')[0].toUpperCase())}</div>
+											<div class="patient-mini-info">
 												<strong>${escapeHtml(record.petName)}</strong>
-												<span>${escapeHtml(record.breed)} · ${escapeHtml(record.species)}</span>
 											</div>
 										</div>
 									</td>
 									<td>
-										<strong>${escapeHtml(record.ownerName)}</strong><br>
-										<span>${escapeHtml(record.phone)}</span>
+										<div class="owner-cell">
+											<span class="owner-name">${escapeHtml(record.ownerName)}</span>
+											<span class="owner-contact">${escapeHtml(record.phone)}</span>
+										</div>
 									</td>
 									<td>
-										<strong>${escapeHtml(record.lastVisit)}</strong>
+										<div class="visit-cell">
+											<svg class="visit-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+											<span>${escapeHtml(record.lastVisit)}</span>
+										</div>
 									</td>
 									<td><span class="location-text">${escapeHtml(record.location || record.address)}</span></td>
 									<td>${statusTag(record)}</td>
-									<td><span class="pet-pill">${escapeHtml(record.species)}</span></td>
+									<td><span class="pet-pill pet-pill-${escapeHtml((record.species || 'other').toLowerCase())}">${escapeHtml(record.species)}</span></td>
 									<td>
 										<div class="row-actions">
 											${actionButton('Add Record', 'add-record', 'add-record', record.id, 'primary')}
@@ -614,7 +749,7 @@ function renderList() {
 								</tr>
 							`).join('') : `
 								<tr>
-									<td colspan="7"><div class="empty-state">No patient records match the current search.</div></td>
+									<td colspan="7"><div class="empty-state">No patient records match the current filters.</div></td>
 								</tr>
 							`}
 						</tbody>
@@ -622,8 +757,8 @@ function renderList() {
 				</div>
 
 				<div class="page-footer">
-						<p>Showing ${records.length} of ${total} patients</p>
-						<p>${records.length ? 'Click view to inspect the patient, or add record to start a new clinical entry.' : 'Clear filters to see the full directory.'}</p>
+					<p>Showing <strong>${records.length}</strong> of <strong>${total}</strong> patients</p>
+					<p>${records.length ? 'Click <strong>View</strong> to inspect a patient profile, or <strong>Add Record</strong> to log a visit.' : 'Try clearing the search or changing the filter.'}</p>
 				</div>
 			</section>
 		</section>
@@ -690,29 +825,44 @@ function renderAdd(record) {
 	const submitLabel = hasContext ? 'Add Record' : 'Add Patient';
 	return `
 		<section class="records-shell">
-			<div class="section-head">
-				<div>
-					<button type="button" class="btn btn-soft" data-nav="list"><img src="/bvetter/vet/images/back.svg" alt="Back">Back to records</button>
-					<h2>${pageTitle}</h2>
-					<p>${hasContext ? `Create a new clinical entry for ${escapeHtml(data.petName)}.` : 'Register a new patient record and capture the first clinical note.'}</p>
+			<div class="add-page-header">
+				<button type="button" class="back-link" data-nav="list">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+					Back to Patient Records
+				</button>
+				<div class="add-page-title-row">
+					<div class="add-page-icon">
+						${hasContext
+							? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>`
+							: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>`
+						}
+					</div>
+					<div>
+						<h2 class="add-page-title">${pageTitle}</h2>
+						<p class="add-page-sub">${hasContext ? `Create a new clinical visit entry for <strong>${escapeHtml(data.petName)}</strong>.` : 'Register a new patient and capture the first clinical note.'}</p>
+					</div>
 				</div>
-				<div class="hero-actions"></div>
 			</div>
 
 			<form id="record-form" class="form-layout">
+				<!-- Pet Information -->
 				<article class="form-card">
-					<div class="detailed-header">
-					<img src="/bvetter/vet/images/paw-green.svg" alt="Pet-icon">
-					
-					<h3>Pet Information</h3>
+					<div class="form-card-head">
+						<div class="form-card-icon fci-green">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="15" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/></svg>
+						</div>
+						<div>
+							<h3 class="form-card-title">Pet Information</h3>
+							<p class="form-card-sub">Physical and identification details</p>
+						</div>
 					</div>
 					<div class="form-grid">
 						<div class="field span-2">
-							<label for="pet-name">Pet name</label>
-							<input class="form-input" id="pet-name" name="petName" required value="${escapeHtml(data.petName)}">
+							<label class="field-label" for="pet-name">PET NAME</label>
+							<input class="form-input" id="pet-name" name="petName" required placeholder="e.g. Buddy" value="${escapeHtml(data.petName)}">
 						</div>
 						<div class="field">
-							<label for="species">Species</label>
+							<label class="field-label" for="species">SPECIES</label>
 							<select class="form-input" id="species" name="species">
 								<option ${data.species === 'Canine' ? 'selected' : ''}>Canine</option>
 								<option ${data.species === 'Feline' ? 'selected' : ''}>Feline</option>
@@ -721,110 +871,122 @@ function renderAdd(record) {
 							</select>
 						</div>
 						<div class="field">
-							<label for="breed">Breed</label>
-							<input class="form-input" id="breed" name="breed" value="${escapeHtml(data.breed)}">
+							<label class="field-label" for="breed">BREED</label>
+							<input class="form-input" id="breed" name="breed" placeholder="e.g. Golden Retriever" value="${escapeHtml(data.breed)}">
 						</div>
 						<div class="field">
-							<label for="age">Age</label>
-							<input class="form-input" id="age" name="age" value="${escapeHtml(data.age)}">
+							<label class="field-label" for="age">AGE</label>
+							<input class="form-input" id="age" name="age" placeholder="e.g. 2 years old" value="${escapeHtml(data.age)}">
 						</div>
 						<div class="field">
-							<label for="sex">Sex</label>
+							<label class="field-label" for="sex">SEX</label>
 							<select class="form-input" id="sex" name="sex">
 								<option ${data.sex === 'Male' ? 'selected' : ''}>Male</option>
 								<option ${data.sex === 'Female' ? 'selected' : ''}>Female</option>
 							</select>
 						</div>
-						<div class="field span-2">
-							<label for="weight">Weight</label>
-							<input class="form-input" id="weight" name="weight" value="${escapeHtml(data.weight)}">
+						<div class="field">
+							<label class="field-label" for="weight">WEIGHT</label>
+							<input class="form-input" id="weight" name="weight" placeholder="e.g. 12.5 kg" value="${escapeHtml(data.weight)}">
 						</div>
-						<div class="field span-2">
-							<label for="color-markings">Color / Markings</label>
-							<input class="form-input" id="color-markings" name="colorMarkings" value="${escapeHtml(data.colorMarkings)}">
+						<div class="field">
+							<label class="field-label" for="color-markings">COLOR / MARKINGS</label>
+							<input class="form-input" id="color-markings" name="colorMarkings" placeholder="e.g. Golden coat, white chest" value="${escapeHtml(data.colorMarkings)}">
 						</div>
 					</div>
 				</article>
 
+				<!-- Owner Information -->
 				<article class="form-card">
-				<div class="detailed-header">
-					<img src="/bvetter/vet/images/owner.svg" alt="Owner-icon">
-					<h3>Owner Information</h3>
+					<div class="form-card-head">
+						<div class="form-card-icon fci-blue">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+						</div>
+						<div>
+							<h3 class="form-card-title">Owner Information</h3>
+							<p class="form-card-sub">Contact and address details</p>
+						</div>
 					</div>
 					<div class="form-grid">
 						<div class="field span-2">
-							<label for="owner-name">Owner name</label>
-							<input class="form-input" id="owner-name" name="ownerName" required value="${escapeHtml(data.ownerName)}">
+							<label class="field-label" for="owner-name">OWNER NAME</label>
+							<input class="form-input" id="owner-name" name="ownerName" required placeholder="Full name" value="${escapeHtml(data.ownerName)}">
 						</div>
 						<div class="field">
-							<label for="phone">Phone number</label>
-							<input class="form-input" id="phone" name="phone" value="${escapeHtml(data.phone)}">
+							<label class="field-label" for="phone">PHONE NUMBER</label>
+							<input class="form-input" id="phone" name="phone" placeholder="09xxxxxxxxx" value="${escapeHtml(data.phone)}">
 						</div>
 						<div class="field">
-							<label for="email">Email address</label>
-							<input class="form-input" id="email" name="email" type="email" value="${escapeHtml(data.email)}">
+							<label class="field-label" for="email">EMAIL ADDRESS</label>
+							<input class="form-input" id="email" name="email" type="email" placeholder="owner@email.com" value="${escapeHtml(data.email)}">
 						</div>
 						<div class="field span-2">
-							<label for="address">Complete address</label>
-							<input class="form-input" id="address" name="address" value="${escapeHtml(data.address)}">
+							<label class="field-label" for="address">COMPLETE ADDRESS</label>
+							<input class="form-input" id="address" name="address" placeholder="Barangay, Municipality, Province" value="${escapeHtml(data.address)}">
 						</div>
 					</div>
 				</article>
 
+				<!-- Visit Details — full width -->
 				<article class="form-card span-2">
-				<div class="detailed-header">
-					<img src="/bvetter/vet/images/medicine.svg" alt="Visit-icon">
-					<h3>Visit Details</h3>
+					<div class="form-card-head">
+						<div class="form-card-icon fci-navy">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+						</div>
+						<div>
+							<h3 class="form-card-title">Visit Details</h3>
+							<p class="form-card-sub">Clinical notes for this visit</p>
+						</div>
 					</div>
-					<div class="form-grid">
-						<div class="field span-2">
-							<label for="visit-title">Visit title</label>
-							<input class="form-input" id="visit-title" name="visitTitle" placeholder="e.g. Annual Checkup" value="${escapeHtml(data.visitTitle)}">
+					<div class="form-grid form-grid-3">
+						<div class="field span-3">
+							<label class="field-label" for="visit-title">VISIT TITLE</label>
+							<input class="form-input" id="visit-title" name="visitTitle" placeholder="e.g. Annual Checkup, Vaccination Drive" value="${escapeHtml(data.visitTitle)}">
 						</div>
 						<div class="field">
-							<label for="visit-date">Visit date</label>
+							<label class="field-label" for="visit-date">VISIT DATE</label>
 							<input class="form-input" id="visit-date" name="visitDate" type="date" value="${escapeHtml(data.visitDate)}">
 						</div>
 						<div class="field">
-							<label for="follow-up-date">Follow-up date</label>
+							<label class="field-label" for="follow-up-date">FOLLOW-UP DATE</label>
 							<input class="form-input" id="follow-up-date" name="followUpDate" type="date" value="${escapeHtml(data.followUpDate)}">
 						</div>
-						<div class="field span-2">
-							<label for="symptoms">Symptoms / chief complaint</label>
-							<textarea class="form-textarea" id="symptoms" name="symptoms" placeholder="Describe clinical signs">${escapeHtml(data.symptoms)}</textarea>
+						<div class="field">
+							<label class="field-label" for="attending-vet">ATTENDING VETERINARIAN</label>
+							<input class="form-input" id="attending-vet" name="attendingVet" placeholder="Dr. Full Name" value="${escapeHtml(data.attendingVet)}">
+						</div>
+						<div class="field span-3">
+							<label class="field-label" for="symptoms">SYMPTOMS / CHIEF COMPLAINT</label>
+							<textarea class="form-textarea" id="symptoms" name="symptoms" placeholder="Describe observed clinical signs and symptoms...">${escapeHtml(data.symptoms)}</textarea>
+						</div>
+						<div class="field span-3">
+							<label class="field-label" for="diagnosis">DIAGNOSIS</label>
+							<textarea class="form-textarea" id="diagnosis" name="diagnosis" placeholder="Final or differential diagnosis...">${escapeHtml(data.diagnosis)}</textarea>
+						</div>
+						<div class="field span-3">
+							<label class="field-label" for="treatment">TREATMENT PROVIDED</label>
+							<textarea class="form-textarea" id="treatment" name="treatment" placeholder="Procedures performed, medications administered...">${escapeHtml(data.treatment)}</textarea>
 						</div>
 						<div class="field span-2">
-							<label for="diagnosis">Diagnosis</label>
-							<textarea class="form-textarea" id="diagnosis" name="diagnosis" placeholder="Final or differential diagnosis">${escapeHtml(data.diagnosis)}</textarea>
-						</div>
-						<div class="field span-2">
-							<label for="treatment">Treatment provided</label>
-							<textarea class="form-textarea" id="treatment" name="treatment" placeholder="Procedures performed">${escapeHtml(data.treatment)}</textarea>
-						</div>
-						<div class="field span-2">
-							<label for="medications">Prescribed medications</label>
-							<input class="form-input" id="medications" name="medications" placeholder="Comma-separated medication names" value="${escapeHtml(Array.isArray(data.medications) ? data.medications.join(', ') : data.medications)}">
+							<label class="field-label" for="medications">PRESCRIBED MEDICATIONS</label>
+							<input class="form-input" id="medications" name="medications" placeholder="Comma-separated: Amoxicillin, Meloxicam" value="${escapeHtml(Array.isArray(data.medications) ? data.medications.join(', ') : data.medications)}">
 						</div>
 						<div class="field">
-							<label for="category">Case category</label>
+							<label class="field-label" for="category">CASE CATEGORY</label>
 							<select class="form-input" id="category" name="category">
 								${['Routine Checkup', 'Vaccination', 'Dermatology', 'Emergency', 'Surgery Follow-up'].map((item) => `<option ${data.category === item ? 'selected' : ''}>${item}</option>`).join('')}
 							</select>
 						</div>
 						<div class="field">
-							<label for="attending-vet">Attending veterinarian</label>
-							<input class="form-input" id="attending-vet" name="attendingVet" value="${escapeHtml(data.attendingVet)}">
+							<label class="field-label" for="vaccination-status">VACCINATION STATUS</label>
+							<input class="form-input" id="vaccination-status" name="vaccinationStatus" placeholder="e.g. Up to date" value="${escapeHtml(data.vaccinationStatus)}">
 						</div>
 						<div class="field">
-							<label for="vaccination-status">Vaccination status</label>
-							<input class="form-input" id="vaccination-status" name="vaccinationStatus" value="${escapeHtml(data.vaccinationStatus)}">
+							<label class="field-label" for="vaccine-brand">VACCINE BRAND</label>
+							<input class="form-input" id="vaccine-brand" name="vaccineBrand" placeholder="e.g. Nobivac" value="${escapeHtml(data.vaccineBrand)}">
 						</div>
 						<div class="field">
-							<label for="vaccine-brand">Vaccine brand</label>
-							<input class="form-input" id="vaccine-brand" name="vaccineBrand" value="${escapeHtml(data.vaccineBrand)}">
-						</div>
-						<div class="field">
-							<label for="status">Record status</label>
+							<label class="field-label" for="status">RECORD STATUS</label>
 							<select class="form-input" id="status" name="status">
 								<option value="Active Patient" ${data.status === 'Active Patient' ? 'selected' : ''}>Active Patient</option>
 								<option value="Monitoring" ${data.status === 'Monitoring' ? 'selected' : ''}>Monitoring</option>
@@ -834,7 +996,10 @@ function renderAdd(record) {
 					</div>
 					<div class="form-footer">
 						<button type="button" class="btn btn-soft" data-nav="list">Cancel</button>
-						<button type="submit" class="btn btn-primary">${submitLabel} <img src="/bvetter/vet/images/plus.svg" alt="add"></button>
+						<button type="submit" class="btn btn-primary">
+							<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+							${submitLabel}
+						</button>
 					</div>
 				</article>
 			</form>
@@ -883,8 +1048,7 @@ function renderDetail(record) {
 							</div>
 						</div>
 						<div class="detail-actions">
-							<button type="button" class="btn btn-primary" data-nav="add" data-id="${record.id}"><img src="/bvetter/vet/images/addView.svg" alt="Add New Record"> Add New Record</button>
-							<button type="button" class="more-btn" aria-label="More actions">&#8230;</button>
+							<button type="button" class="btn btn-primary" data-nav="add" data-id="${record.id}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add New Record</button>
 						</div>
 					</div>
 
@@ -920,59 +1084,105 @@ function renderSuccessModal(record) {
 function renderEditModal(record) {
 	if (!record) return '<div class="empty-state">Record not found.</div>';
 	return `
-		<form id="edit-record-form">
-			<h2 id="records-modal-title">Edit Patient Information</h2>
-			<p class="muted">Update the patient profile and save the changes to the record.</p>
+		<form id="edit-record-form" class="em-form">
+			<div class="em-header">
+				<div class="em-header-icon">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+				</div>
+				<div>
+					<h2 id="records-modal-title" class="em-title">Edit Patient Information</h2>
+					<p class="em-subtitle">Update the patient profile and save the changes.</p>
+				</div>
+			</div>
+			<div class="em-divider"></div>
 
-			<div class="form-grid" style="margin-top: 14px;">
-				<div class="field span-2">
-					<label for="edit-pet-name">Pet name</label>
-					<input class="form-input" id="edit-pet-name" name="petName" required value="${escapeHtml(record.petName)}">
+			<div class="em-body">
+				<!-- Pet Information -->
+				<div class="em-section">
+					<p class="em-section-label">Pet Information</p>
+					<div class="em-grid">
+						<div class="em-field em-span-2">
+							<label class="em-label" for="edit-pet-name">PET NAME</label>
+							<input class="em-input" id="edit-pet-name" name="petName" required placeholder="e.g. Copper" value="${escapeHtml(record.petName)}">
+						</div>
+						<div class="em-field">
+							<label class="em-label" for="edit-species">SPECIES</label>
+							<select class="em-input" id="edit-species" name="species">
+								${['Canine', 'Feline', 'Avian', 'Exotic'].map((item) => `<option ${record.species === item ? 'selected' : ''}>${item}</option>`).join('')}
+							</select>
+						</div>
+						<div class="em-field">
+							<label class="em-label" for="edit-breed">BREED</label>
+							<input class="em-input" id="edit-breed" name="breed" placeholder="e.g. Golden Retriever" value="${escapeHtml(record.breed)}">
+						</div>
+						<div class="em-field">
+							<label class="em-label" for="edit-dob">DATE OF BIRTH</label>
+							<input class="em-input" id="edit-dob" name="dateOfBirth" type="date" value="${escapeHtml(record.dateOfBirth || '')}">
+						</div>
+						<div class="em-field">
+							<label class="em-label" for="edit-age">AGE</label>
+							<input class="em-input" id="edit-age" name="age" placeholder="e.g. 2 years old" value="${escapeHtml(record.age)}">
+						</div>
+						<div class="em-field">
+							<label class="em-label" for="edit-sex">SEX</label>
+							<select class="em-input" id="edit-sex" name="sex">
+								<option ${record.sex === 'Male' ? 'selected' : ''}>Male</option>
+								<option ${record.sex === 'Female' ? 'selected' : ''}>Female</option>
+							</select>
+						</div>
+						<div class="em-field">
+							<label class="em-label" for="edit-weight">WEIGHT</label>
+							<input class="em-input" id="edit-weight" name="weight" placeholder="e.g. 12 kg" value="${escapeHtml(record.weight || '')}">
+						</div>
+					</div>
 				</div>
-				<div class="field">
-					<label for="edit-species">Species</label>
-					<select class="form-input" id="edit-species" name="species">
-						${['Canine', 'Feline', 'Avian', 'Exotic'].map((item) => `<option ${record.species === item ? 'selected' : ''}>${item}</option>`).join('')}
-					</select>
+
+				<!-- Owner Information -->
+				<div class="em-section">
+					<p class="em-section-label">Owner Information</p>
+					<div class="em-grid">
+						<div class="em-field em-span-2">
+							<label class="em-label" for="edit-owner-name">OWNER NAME</label>
+							<input class="em-input" id="edit-owner-name" name="ownerName" placeholder="Full name" value="${escapeHtml(record.ownerName)}">
+						</div>
+						<div class="em-field">
+							<label class="em-label" for="edit-phone">PHONE NUMBER</label>
+							<input class="em-input" id="edit-phone" name="phone" placeholder="e.g. 09xxxxxxxxx" value="${escapeHtml(record.phone)}">
+						</div>
+						<div class="em-field">
+							<label class="em-label" for="edit-email">EMAIL ADDRESS <span class="em-optional">optional</span></label>
+							<input class="em-input" id="edit-email" name="email" type="email" placeholder="owner@email.com" value="${escapeHtml(record.email || '')}">
+						</div>
+					</div>
 				</div>
-				<div class="field">
-					<label for="edit-breed">Breed</label>
-					<input class="form-input" id="edit-breed" name="breed" value="${escapeHtml(record.breed)}">
-				</div>
-				<div class="field">
-					<label for="edit-age">Age</label>
-					<input class="form-input" id="edit-age" name="age" value="${escapeHtml(record.age)}">
-				</div>
-				<div class="field">
-					<label for="edit-sex">Sex</label>
-					<select class="form-input" id="edit-sex" name="sex">
-						<option ${record.sex === 'Male' ? 'selected' : ''}>Male</option>
-						<option ${record.sex === 'Female' ? 'selected' : ''}>Female</option>
-					</select>
-				</div>
-				<div class="field span-2">
-					<label for="edit-owner-name">Owner name</label>
-					<input class="form-input" id="edit-owner-name" name="ownerName" value="${escapeHtml(record.ownerName)}">
-				</div>
-				<div class="field span-2">
-					<label for="edit-phone">Phone number</label>
-					<input class="form-input" id="edit-phone" name="phone" value="${escapeHtml(record.phone)}">
-				</div>
-				<div class="field span-2">
-					<label for="edit-status">Record status</label>
-					<select class="form-input" id="edit-status" name="status">
-						<option value="Active Patient" ${record.status === 'Active Patient' ? 'selected' : ''}>Active Patient</option>
-						<option value="Monitoring" ${record.status === 'Monitoring' ? 'selected' : ''}>Monitoring</option>
-						<option value="Critical" ${record.status === 'Critical' ? 'selected' : ''}>Critical</option>
-					</select>
+
+				<!-- Record Status -->
+				<div class="em-section">
+					<p class="em-section-label">Record Status</p>
+					<div class="em-grid">
+						<div class="em-field em-span-2">
+							<label class="em-label" for="edit-status">CURRENT STATUS</label>
+							<select class="em-input" id="edit-status" name="status">
+								<option value="Active Patient" ${record.status === 'Active Patient' ? 'selected' : ''}>Active Patient</option>
+								<option value="Monitoring" ${record.status === 'Monitoring' ? 'selected' : ''}>Monitoring</option>
+								<option value="Critical" ${record.status === 'Critical' ? 'selected' : ''}>Critical</option>
+							</select>
+						</div>
+					</div>
 				</div>
 			</div>
 
-			<div class="modal-footer" style="justify-content: space-between;">
-				<button type="button" class="btn btn-danger" data-modal-action="open-delete" data-id="${record.id}">${ICONS.trash} Delete Record</button>
-				<div style="display:flex; gap:10px; flex-wrap:wrap;">
+			<div class="em-footer">
+				<button type="button" class="em-delete-btn" data-modal-action="open-delete" data-id="${record.id}">
+					<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+					Delete Record
+				</button>
+				<div class="em-footer-right">
 					<button type="button" class="btn btn-soft" data-modal-action="close-modal">Cancel</button>
-					<button type="submit" class="btn btn-primary">Save Changes</button>
+					<button type="submit" class="btn btn-primary">
+						<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+						Save Changes
+					</button>
 				</div>
 			</div>
 		</form>
@@ -982,20 +1192,31 @@ function renderEditModal(record) {
 function renderDeleteModal(record) {
 	if (!record) return '<div class="empty-state">Record not found.</div>';
 	return `
-		<div>
-			<h2 id="records-modal-title">Delete Patient Record?</h2>
-			<p class="muted">This action removes the record permanently. Type DELETE to confirm.</p>
-			<div class="delete-warning">
-				<strong>${escapeHtml(record.petName)}</strong><br>
-				<span class="muted">Owner: ${escapeHtml(record.ownerName)}</span>
+		<div class="delete-modal-wrap">
+			<div class="delete-modal-icon">
+				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
 			</div>
-			<div class="field">
-				<label for="delete-confirm">Type DELETE to confirm</label>
-				<input class="form-input" id="delete-confirm" type="text" placeholder="DELETE" autocomplete="off">
+			<h2 id="records-modal-title" class="delete-modal-title">Delete Patient Record?</h2>
+			<p class="delete-modal-sub">This action is permanent and cannot be undone.</p>
+			<div class="delete-warning">
+				<div class="delete-warning-inner">
+					<div class="delete-pet-avatar">${escapeHtml(record.petName.slice(0,1))}</div>
+					<div>
+						<strong>${escapeHtml(record.petName)}</strong>
+						<p>Owner: ${escapeHtml(record.ownerName)}</p>
+					</div>
+				</div>
+			</div>
+			<div class="field delete-confirm-field">
+				<label for="delete-confirm" class="delete-confirm-label">Type <strong>DELETE</strong> to confirm</label>
+				<input class="form-input delete-confirm-input" id="delete-confirm" type="text" placeholder="DELETE" autocomplete="off">
 			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-soft" data-modal-action="close-modal">Cancel</button>
-				<button type="button" class="btn btn-danger" data-modal-action="confirm-delete" data-id="${record.id}">Delete Record</button>
+				<button type="button" class="btn btn-danger delete-submit-btn" data-modal-action="confirm-delete" data-id="${record.id}">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+					Delete Record
+				</button>
 			</div>
 		</div>
 	`;
@@ -1107,7 +1328,8 @@ function bindModeSpecificHandlers() {
 
 	filterButtons.forEach((button) => {
 		button.addEventListener('click', () => {
-			navigate('list', { q: state.query, type: button.dataset.filterType, status: state.filterStatus }, true);
+			const newType = button.dataset.filterType === state.filterType ? 'all' : button.dataset.filterType;
+			navigate('list', { q: state.query, type: newType, status: state.filterStatus }, true);
 		});
 	});
 

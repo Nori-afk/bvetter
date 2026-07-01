@@ -95,7 +95,9 @@
       <!-- Vet Profile -->
       <div class="vet-profile-card">
         <div class="vet-profile-header">
-          <img alt="Dr. Kizea" class="vet-profile-img" id="profile-heads"/>
+          <img alt="Dr. Kizea" class="vet-profile-img" id="profile-heads"
+               src="../images/img/vet-profile.png"
+               onerror="this.onerror=null;this.src='../images/img/vet-profile.png';"/>
           <div class="vet-profile-info">
             <div class="vet-profile-name" id="profile-name">Dr. Kizea Bien Igaya</div>
             <div class="vet-profile-title" id="profile-title">Senior Veterinary Surgeon</div>
@@ -518,7 +520,18 @@
         <p>Review past visits, medical summaries, and help us improve with your feedback.</p>
       </div>
       <div class="hist-hero-art">
-        <img src="../images/icons/icon-history-lg.svg" alt="" class="hist-hero-img"/>
+        <svg class="hist-hero-img" viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect x="8" y="18" width="94" height="80" rx="10" stroke="rgba(255,255,255,0.18)" stroke-width="3"/>
+          <rect x="8" y="18" width="94" height="24" rx="10" fill="rgba(255,255,255,0.10)"/>
+          <line x1="8" y1="42" x2="102" y2="42" stroke="rgba(255,255,255,0.18)" stroke-width="2"/>
+          <rect x="22" y="54" width="28" height="6" rx="3" fill="rgba(255,255,255,0.25)"/>
+          <rect x="22" y="66" width="40" height="6" rx="3" fill="rgba(255,255,255,0.18)"/>
+          <rect x="22" y="78" width="22" height="6" rx="3" fill="rgba(255,255,255,0.18)"/>
+          <circle cx="82" cy="72" r="14" fill="rgba(16,185,129,0.28)" stroke="rgba(16,185,129,0.6)" stroke-width="2"/>
+          <polyline points="74,72 80,78 90,66" stroke="rgba(255,255,255,0.85)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="30" y1="18" x2="30" y2="10" stroke="rgba(255,255,255,0.3)" stroke-width="3" stroke-linecap="round"/>
+          <line x1="80" y1="18" x2="80" y2="10" stroke="rgba(255,255,255,0.3)" stroke-width="3" stroke-linecap="round"/>
+        </svg>
       </div>
     </div>
   </div>
@@ -536,16 +549,14 @@
           </div>
         </div>
 
-        <!-- EMPTY STATE — shown by default for new users
-             TODO backend: hide when api.getAppointments() returns records -->
         <div class="empty-state" id="histEmpty">
           <div class="empty-icon-wrap">
-            <img src="../images/icons/icon-calendar-empty.svg" alt="no records" class="empty-icon-img"/>
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.35;" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           </div>
           <div class="empty-title">No Records Yet</div>
           <div class="empty-desc">You haven't made any appointments yet.<br/>Book your first visit with one of our veterinarians to get started.</div>
           <button class="btn-next-step" id="btnBookFromHistory">
-            <img src="../images/icons/icon-calendar.svg" alt="" class="btn-icon-sm"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             Book an Appointment
           </button>
         </div>
@@ -621,7 +632,7 @@
                 <span class="status-dot"></span>Completed
               </span>
               <span class="rated-badge">
-                <img src="../images/icons/icon-star.svg" alt="" class="star-xs"/>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="#CA8A04" stroke="none" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 4.8 Rated
               </span>
             </div>
@@ -633,11 +644,11 @@
       <!-- Sidebar: Health stats -->
       <div class="hist-sidebar">
         <div class="health-card">
-          <div class="health-label">HEALTHY STATUS</div>
-          <div class="health-num" id="complted-visit">12</div>
+          <div class="health-label">Care Summary</div>
+          <div class="health-num" id="complted-visit">0</div>
           <div class="health-desc">Completed Visits</div>
           <div class="health-ontime">
-            <img src="../images/icons/icon-check-circle.svg" alt="" class="ontime-icon"/>
+            <svg class="ontime-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             100% On-time
           </div>
         </div>
@@ -647,7 +658,7 @@
 
     <div class="hist-back-wrap">
       <button class="btn-back-step" id="btnHistBack">
-        <img src="../images/icons/icon-arrow-left.svg" alt="" class="btn-icon-sm"/>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         Back
       </button>
     </div>
