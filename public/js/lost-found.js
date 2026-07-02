@@ -18,28 +18,34 @@ let detailMap = null;
 let sightingMap = null;
 let sightingMarker = null;
 const barangayCoordinates = {
-  Tangos: [14.9599, 120.9083],
-  Poblacion: [14.9621, 120.9017],
-  'Sta. Cruz': [14.9578, 120.9066],
-  'Santa Cruz': [14.9578, 120.9066],
-  'San Jose': [14.9542, 120.9099],
-  Tibig: [14.9518, 120.8992],
-  Tibag: [14.9518, 120.8992],
-  'Sto. Cristo': [14.9498, 120.9038],
-  'Santa Cristo': [14.9498, 120.9038],
-  'Sta. Barbara': [14.9548, 120.9057],
-  'Santa Barbara': [14.9548, 120.9057],
-  Sabang: [14.9654, 120.9050],
-  Caniogan: [14.9680, 120.8952],
-  Pagala: [14.9562, 120.8980],
-  Subic: [14.9477, 120.9090],
-  Tilapayong: [14.9447, 120.9002],
-  Makinabang: [14.9584, 120.9001],
-  Matangtubig: [14.9516, 120.8979],
-  'Virgen delas Flores': [14.9568, 120.8947],
-  Tiaong: [14.9488, 120.8958],
-  'Santo Nino': [14.9630, 120.8940],
-  'Santo Niño': [14.9630, 120.8940]
+  Tiaong: [14.942488, 120.896141],
+  Poblacion: [14.952325, 120.902748],
+  'San Jose': [14.949194, 120.897469],
+  Tangos: [14.97498, 120.897369],
+  'Bagong Nayon': [14.96041, 120.898087],
+  Sulivan: [14.979081, 120.885002],
+  Pagala: [14.962781, 120.889984],
+  'Virgen Delas Flores': [14.946227, 120.88604],
+  Matangtubig: [14.954293, 120.861511],
+  Makinabang: [14.919284, 120.883728],
+  Tilapayong: [14.977394, 120.873024],
+  Tibag: [14.956218, 120.904831],
+  Hinukay: [15.001118, 120.891594],
+  Pinagbarilan: [14.952386, 120.878044],
+  Concepcion: [14.952222, 120.888626],
+  Tarcan: [14.935418, 120.866425],
+  'San Roque': [15.000359, 120.889992],
+  Calantipay: [14.970637, 120.863106],
+  Subic: [14.96235, 120.902748],
+  Barangca: [14.986587, 120.900276],
+  Paitan: [15.01128, 120.894753],
+  Sabang: [14.968414, 120.908592],
+  Piel: [14.986943, 120.88723],
+  'Sta. Barbara': [14.938139, 120.889046],
+  'Sto. Nino': [14.983848, 120.893478],
+  'Sto. Niño': [14.983848, 120.893478],
+  'Sto. Cristo': [14.956154, 120.893936],
+  Catulinan: [14.968497, 120.877312]
 };
 
 function sessionUser() {
@@ -371,38 +377,94 @@ fileInput.addEventListener("change", function () {
   setTimeout(initReportMap, 150);
 }
 
-function requiredValue(id, label) {
+function requiredValue(id, label, minLength = 2) {
   const el = document.getElementById(id);
   const value = el ? el.value.trim() : '';
   if (!value) throw new Error(`${label} is required.`);
+  if (value.length < minLength) throw new Error(`${label} must be at least ${minLength} characters.`);
   return value;
+}
+
+function todayISODate() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset();
+  return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 10);
+}
+
+/* Caps every date input at "today" so users can't pick a date that hasn't
+   happened yet (an incident/sighting can't be reported before it occurs). */
+function setDateInputLimits() {
+  const today = todayISODate();
+  ['incidentDateInput', 'sightingDateInput'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.max = today;
+  });
+}
+
+function assertDateNotFuture(value, label) {
+  if (value && value > todayISODate()) {
+    throw new Error(`${label} cannot be a future date.`);
+  }
+}
+
+function assertValidPhone(value, label) {
+  const digits = value.replace(/[\s-]/g, '');
+  if (!/^(\+63|0)9\d{9}$/.test(digits)) {
+    throw new Error(`${label} must be a valid PH mobile number (e.g. 0917 123 4567).`);
+  }
+}
+
+function assertValidEmail(value, label) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    throw new Error(`${label} must be a valid email address.`);
+  }
+}
+
+function assertValidPhoto(file, label, allowedTypes, maxSizeMB = 8) {
+  if (!file) return;
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error(`${label} must be a JPG, PNG${allowedTypes.includes('image/webp') ? ', or WEBP' : allowedTypes.includes('application/pdf') ? ', or PDF' : ''} file.`);
+  }
+  if (file.size > maxSizeMB * 1024 * 1024) {
+    throw new Error(`${label} must not exceed ${maxSizeMB}MB.`);
+  }
 }
 
 async function submitReport() {
   try {
     const formData = new FormData();
     const petName = document.getElementById('petNameInput')?.value.trim() || '';
-    if (currentReportType === 'lost' && !petName) throw new Error('Pet name is required for lost pet reports.');
+    if (currentReportType === 'lost' && petName.length < 2) throw new Error('Pet name is required for lost pet reports (min. 2 characters).');
+
+    const incidentDate = requiredValue('incidentDateInput', 'Date');
+    assertDateNotFuture(incidentDate, 'Date');
+
+    const contactPhone = requiredValue('contactPhone', 'Contact phone');
+    assertValidPhone(contactPhone, 'Contact phone');
+
+    const email = document.getElementById('contactEmail')?.value.trim();
+    if (email) assertValidEmail(email, 'Contact email');
+
+    const photo = document.getElementById('petPhoto')?.files?.[0];
+    assertValidPhoto(photo, 'Pet photo', ['image/jpeg', 'image/png', 'image/webp']);
 
     formData.append('pet_name', petName);
     formData.append('species', requiredValue('speciesInput', 'Type'));
     formData.append('breed', requiredValue('breedInput', 'Breed'));
     formData.append('sex', document.querySelector('#reportModal .sex-btn.active')?.textContent.trim() || 'Male');
     formData.append('size', requiredValue('sizeInput', 'Size'));
-    formData.append('color_markings', requiredValue('markingsInput', 'Color / markings'));
-    formData.append('incident_date', requiredValue('incidentDateInput', 'Date'));
+    formData.append('color_markings', requiredValue('markingsInput', 'Color / markings', 5));
+    formData.append('incident_date', incidentDate);
     formData.append('barangay', requiredValue('barangayInput', 'Barangay'));
     formData.append('lat', document.getElementById('reportLatInput')?.value || '');
     formData.append('lng', document.getElementById('reportLngInput')?.value || '');
-    formData.append('notes', requiredValue('notesInput', 'Additional details'));
+    formData.append('notes', requiredValue('notesInput', 'Additional details', 5));
     formData.append('contact_name', requiredValue('contactName', 'Contact name'));
-    formData.append('contact_phone', requiredValue('contactPhone', 'Contact phone'));
+    formData.append('contact_phone', contactPhone);
 
-    const email = document.getElementById('contactEmail')?.value.trim();
     if (email) formData.append('contact_email', email);
-    const photo = document.getElementById('petPhoto')?.files?.[0];
     if (photo) formData.append('photo', photo);
-    
+
 
     const submitBtn = document.querySelector('#reportModal .btn-submit');
     if (submitBtn) submitBtn.disabled = true;
@@ -657,15 +719,18 @@ function openSightingModal() {
 async function submitSighting() {
   const formData = new FormData();
   if (currentReportId) formData.append('report_id', currentReportId);
-  const modal = document.getElementById('sightingModal');
-  const date = modal.querySelector('input[type="date"]')?.value || '';
-  const barangay = modal.querySelector('select')?.value || '';
-  const location = modal.querySelector('input[type="text"]')?.value || '';
-  const notes = modal.querySelector('textarea')?.value || '';
-  const photo = document.getElementById('sightingPhoto')?.files?.[0];
 
-  if (!date || !barangay || !notes) {
-    alert('Date, barangay, and details are required.');
+  let date, barangay, location, notes, photo;
+  try {
+    date = requiredValue('sightingDateInput', 'Date spotted', 1);
+    assertDateNotFuture(date, 'Date spotted');
+    barangay = requiredValue('sightingBarangayInput', 'Barangay');
+    location = requiredValue('sightingLocationInput', 'Specific landmark', 5);
+    notes = requiredValue('sightingNotesInput', 'Additional details', 5);
+    photo = document.getElementById('sightingPhoto')?.files?.[0];
+    assertValidPhoto(photo, 'Sighting photo', ['image/jpeg', 'image/png', 'image/webp']);
+  } catch (error) {
+    alert(error.message);
     return;
   }
 
@@ -846,19 +911,26 @@ async function submitClaim() {
     alert('Please select a found report first.');
     return;
   }
-  const modal = document.getElementById('claimModal');
-  const inputs = modal.querySelectorAll('.form-input');
-  const formData = new FormData();
-  formData.append('claimant_name', inputs[0]?.value.trim() || '');
-  formData.append('claimant_phone', inputs[1]?.value.trim() || '');
-  formData.append('proof_type', modal.querySelector('.proof-option.active')?.textContent.trim() || 'Photo Evidence');
-  const file = document.getElementById('claimDoc')?.files?.[0];
-  if (file) formData.append('proof_file', file);
 
-  if (!formData.get('claimant_name') || !formData.get('claimant_phone')) {
-    alert('Full name and phone number are required.');
+  const modal = document.getElementById('claimModal');
+  const formData = new FormData();
+  let claimantName, claimantPhone, file;
+  try {
+    claimantName = requiredValue('claimNameInput', 'Full name');
+    claimantPhone = requiredValue('claimPhoneInput', 'Phone number', 1);
+    assertValidPhone(claimantPhone, 'Phone number');
+    file = document.getElementById('claimDoc')?.files?.[0];
+    if (!file) throw new Error('Please upload a proof of ownership document.');
+    assertValidPhoto(file, 'Proof document', ['image/jpeg', 'image/png', 'application/pdf']);
+  } catch (error) {
+    alert(error.message);
     return;
   }
+
+  formData.append('claimant_name', claimantName);
+  formData.append('claimant_phone', claimantPhone);
+  formData.append('proof_type', modal.querySelector('.proof-option.active')?.textContent.trim() || 'Photo Evidence');
+  formData.append('proof_file', file);
 
   const result = await api.submitClaim(currentClaimReportId, formData);
   if (!result.success) {
@@ -919,6 +991,7 @@ function applyFilters() {
 
 document.addEventListener('DOMContentLoaded', function () {
   loadBarangays();
+  setDateInputLimits();
   const params = new URLSearchParams(window.location.search);
   if (params.get('tab') === 'myreports') {
     showMyReports(document.getElementById('tab-myreports'));

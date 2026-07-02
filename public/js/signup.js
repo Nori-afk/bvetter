@@ -1,4 +1,4 @@
-/* =============================================
+﻿/* =============================================
    BVETTER — Create Account JS
    File: js/signup.js
 ============================================= */
@@ -9,7 +9,7 @@ const otpState = {
     email: { verified: false, timer: null },
 };
 
-const VERIFY_API = 'http://localhost/bvetter/api/admin/verify-contact.php';
+const VERIFY_API = 'http://localhost/final-VBETTER/bvetter/api/admin/verify-contact.php';
 
 /* ══════════════════════════════════════════════
    STEP NAVIGATION

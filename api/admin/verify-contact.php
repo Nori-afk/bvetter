@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * VBetter – Contact Verification & Forgot Password
  *
@@ -11,7 +11,7 @@
  */
 
 header('Content-Type: application/json');
-define('APP_URL', getenv('APP_BASE_URL') ?: 'http://localhost/bvetter');
+define('APP_URL', getenv('APP_BASE_URL') ?: 'http://localhost/final-VBETTER/bvetter');
 header('Content-Type: application/json');
 ini_set('display_errors', 0);  // ADD THIS
 error_reporting(E_ALL);   
@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-require_once __DIR__ . '/../../config/connection.php';
+require_once __DIR__ . '/../config/connection.php';
 
 // PHPMailer
 use PHPMailer\PHPMailer\PHPMailer;

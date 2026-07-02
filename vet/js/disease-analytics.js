@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // disease-analytics.js  v3.1 — Speed + Scaling fixes
 // ============================================================
 // Changes from v3 (everything else identical):
@@ -62,7 +62,7 @@ async function diseaseAnalyticsRequest(disease, period) {
         period:  period  || 'year',
     });
     try {
-        const res    = await fetch(`/bvetter/api/dashboard/dashboard.php?${params}`, { cache: 'no-store' });
+        const res    = await fetch(`/final-VBETTER/bvetter/api/dashboard/dashboard.php?${params}`, { cache: 'no-store' });
         const result = await res.json();
         return { ok: result.success, data: result.data || {}, error: result.success ? null : result.message };
     } catch (e) {
@@ -73,7 +73,7 @@ async function diseaseAnalyticsRequest(disease, period) {
 async function diseaseRiskRequest(barangays, currentCasesByBarangay, disease, period) {
     try {
         const res = await fetch(
-            '/bvetter/api/dashboard/dashboard.php?scope=disease_risk_prediction',
+            '/final-VBETTER/bvetter/api/dashboard/dashboard.php?scope=disease_risk_prediction',
             {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -360,7 +360,7 @@ function renderOverview() {
     document.getElementById('predictionBanner').innerHTML = `
         <div class="prediction">
             <span>Predicted</span>
-            <img src="/vet/images/shares.svg" alt="">
+            <img src="/final-VBETTER/bvetter/vet/images/shares.svg" alt="">
         </div>
         <strong>${pred.total}</strong>
         <span>${pred.label}</span>

@@ -1,4 +1,4 @@
-<!--
+﻿<!--
   ╔══════════════════════════════════════════════════════════════╗
   ║  VBetter — Shared Sidebar Component                         ║
   ║  File: shared/components/sidebar.html                       ║
@@ -6,8 +6,8 @@
   ║  HOW TO USE                                                  ║
   ║  1. Copy the <aside class="sidebar"> block into your page.  ║
   ║  2. Load scripts in this order (bottom of <body>):          ║
-  ║       <script src="/shared/js/auth.js"></script>            ║
-  ║       <script src="/shared/js/sidebar.js"></script>         ║
+  ║       <script src="/final-VBETTER/bvetter/shared/js/auth.js"></script>            ║
+  ║       <script src="/final-VBETTER/bvetter/shared/js/sidebar.js"></script>         ║
   ║  3. sidebar.js reads the session role and auto-hides items  ║
   ║     marked data-roles="admin" from non-admin users.         ║
   ║                                                              ║
@@ -22,7 +22,7 @@
     <!-- Logo -->
     <div class="sidebar-header">
         <div class="logo">
-            <img src="/shared/images/logo.png" alt="VBetter logo"
+            <img src="/final-VBETTER/bvetter/shared/images/logo.png" alt="VBetter logo"
                  onerror="this.parentElement.textContent='V'">
         </div>
     </div>
@@ -32,42 +32,42 @@
 
         <!-- ── VET SECTION (vet + admin both see these) ── -->
         <a class="nav-item" href="#" data-roles="vet admin">
-            <img class="nav-icon" src="/vet/images/home.svg" alt="">
+            <img class="nav-icon" src="/final-VBETTER/bvetter/shared/images/sidebar/dashboard.svg" alt="">
             <span class="nav-label">Dashboard</span>
         </a>
 
         <a class="nav-item" href="#" data-roles="vet admin">
-            <img class="nav-icon" src="/vet/images/calendar.svg" alt="">
+            <img class="nav-icon" src="/final-VBETTER/bvetter/shared/images/sidebar/appointment.svg" alt="">
             <span class="nav-label">Appointment Management</span>
         </a>
 
         <a class="nav-item" href="#" data-roles="vet admin">
-            <img class="nav-icon" src="/vet/images/paw.svg" alt="">
+            <img class="nav-icon" src="/final-VBETTER/bvetter/shared/images/sidebar/patient-records.svg" alt="">
             <span class="nav-label">Patient Records</span>
         </a>
 
         <a class="nav-item" href="#" data-roles="vet admin">
-            <img class="nav-icon" src="/vet/images/n.svg" alt="">
+            <img class="nav-icon" src="/final-VBETTER/bvetter/shared/images/sidebar/report.svg" alt="">
             <span class="nav-label">Report</span>
         </a>
 
         <a class="nav-item" href="#" data-roles="vet admin">
-            <img class="nav-icon" src="/vet/images/graph.svg" alt="">
+            <img class="nav-icon" src="/final-VBETTER/bvetter/shared/images/sidebar/disease-analytics.svg" alt="">
             <span class="nav-label">Disease Analytics</span>
         </a>
 
         <a class="nav-item" href="#" data-roles="vet admin">
-            <img class="nav-icon" src="/vet/images/lost-and-found.svg" alt="">
+            <img class="nav-icon" src="/final-VBETTER/bvetter/shared/images/sidebar/lost-found.svg" alt="">
             <span class="nav-label">Lost and Found</span>
         </a>
 
         <a class="nav-item" href="#" data-roles="vet admin">
-            <img class="nav-icon" src="/vet/images/chatbot.svg" alt="">
+            <img class="nav-icon" src="/final-VBETTER/bvetter/shared/images/sidebar/chatbot.svg" alt="">
             <span class="nav-label">Chatbot Management</span>
         </a>
 
         <a class="nav-item" href="#" data-roles="vet admin">
-            <img class="nav-icon" src="/vet/images/vaccine.svg" alt="">
+            <img class="nav-icon" src="/final-VBETTER/bvetter/shared/images/sidebar/mass-vacc.svg" alt="">
             <span class="nav-label">Mass Vaccination</span>
         </a>
 
@@ -76,12 +76,12 @@
         <p class="nav-section-label" data-roles="admin">Administration</p>
 
         <a class="nav-item admin-item" href="#" data-roles="admin">
-            <img class="nav-icon" src="/shared/images/icons/user-manage.svg" alt="">
+            <img class="nav-icon" src="/final-VBETTER/bvetter/shared/images/sidebar/acc-management.svg" alt="">
             <span class="nav-label">Account Management</span>
         </a>
 
         <a class="nav-item admin-item" href="#" data-roles="admin">
-            <img class="nav-icon" src="/shared/images/icons/settings.svg" alt="">
+            <img class="nav-icon" src="/final-VBETTER/bvetter/shared/images/sidebar/web-settings.svg" alt="">
             <span class="nav-label">Website Management</span>
         </a>
 

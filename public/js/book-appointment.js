@@ -1,4 +1,4 @@
-/* =============================================
+﻿/* =============================================
    BVETTER — Book Appointment Page JS
    File: js/book-appointment.js
    Depends: nav.js, api.js
@@ -123,7 +123,7 @@ async function fetchAndBuildSlots() {
   console.log('[slots] fetching for vet:', selectedVetId, 'date:', selectedCalDate);
 
   try {
-    const res  = await fetch('/bvetter/api/appointments/appointment.php', {
+    const res  = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
       method : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body   : JSON.stringify({
@@ -257,7 +257,7 @@ async function loadRecentHistory() {
       'null'
     );
 
-    const res = await fetch('/bvetter/api/appointments/appointment.php', {
+    const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -312,11 +312,11 @@ async function loadRecentHistory() {
         `;
       }
 //  const icons = {
-//   Consultation: "../images/icons/consultation.svg",
+//   Consultation: "../images/icons/chatbot-consultation.png",
 //   Vaccination: "../images/icons/syringe.svg",
-//   Surgery: "../images/icons/surgery.svg",
-//   Grooming: "../images/icons/grooming.svg",
-//   "Check-up": "../images/icons/checkup.svg"
+//   Surgery: "../images/icons/icon-surgeon.svg",
+//   Grooming: "../images/icons/icon-vitality.svg",
+//   "Check-up": "../images/icons/icon-doctor.svg"
 // };
 
 // json.data.slice(0, 5).forEach(appt => {
@@ -371,7 +371,7 @@ async function loadRecentHistory() {
 }
 async function submitReview(appointmentId, rating, comment) {
   try {
-    const res = await fetch('/bvetter/api/appointments/appointment.php', {
+    const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -417,7 +417,7 @@ function openReviewForm(appointmentId, currentRating = '', currentComment = '') 
       'null'
     );
 
-    const res = await fetch('/bvetter/api/appointments/appointment.php', {
+    const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -480,7 +480,7 @@ function openReviewForm(appointmentId, currentRating = '', currentComment = '') 
               '${(appt.review_comment || '').replace(/'/g, "\\'")}'
             )"
             style="cursor:pointer;">
-            <img src="../images/icons/icon-star.svg" alt="" class="star-xs"/>
+            <img src="../images/icons/rating.svg" alt="" class="star-xs"/>
             ${appt.owner_rating} Rated
           </span>
         `;
@@ -530,7 +530,7 @@ function openReviewForm(appointmentId, currentRating = '', currentComment = '') 
 }
 async function loadVetFeedback(vetId) {
   try {
-    const res = await fetch('/bvetter/api/appointments/appointment.php', {
+    const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -774,7 +774,7 @@ time_slot: selectedSlot ? selectedSlot.textContent.trim() : '',
  * Converts whatever the DB returns for avatar into a browser-accessible URL.
  *
  * DB returns full filesystem paths like:
- *   /bvetter/api/uploads/profile/profile_xxx.png
+ *   /final-VBETTER/bvetter/api/uploads/profile/profile_xxx.png
  *
  * The backend serves those files from:
  *   http://localhost:3000/uploads/profile/profile_xxx.png
@@ -788,7 +788,7 @@ function getAvatarUrl(avatarPath) {
   if (!avatarPath) return FALLBACK;
   if (avatarPath.startsWith('http')) return avatarPath;  // already a full URL
   // DB returns the full web-accessible path e.g.
-  // /bvetter/api/uploads/profile/xxx.png
+  // /final-VBETTER/bvetter/api/uploads/profile/xxx.png
   // so just prepend the host — no stripping needed
   return `${BASE_URL}${avatarPath.startsWith('/') ? '' : '/'}${avatarPath}`;
 }

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 header('Content-Type: application/json');
 
@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-require_once __DIR__ . '/../../config/connection.php';
+require_once __DIR__ . '/../config/connection.php';
 
 function respond($statusCode, $payload)
 {
@@ -371,6 +371,89 @@ function updateAppointmentStatus($pdo, $data)
     ]);
 }
 
+function rescheduleAppointment($pdo, $data)
+{
+    $appointmentId = (int) ($data['appointment_id'] ?? $data['id'] ?? 0);
+    $date = clean($data['preferred_date'] ?? $data['date'] ?? '');
+    $timeSlot = clean($data['time_slot'] ?? '');
+
+    if ($appointmentId <= 0) {
+        respond(422, ['success' => false, 'message' => 'Invalid appointment id.']);
+    }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || strtotime($date) === false) {
+        respond(422, ['success' => false, 'message' => 'A valid date is required.']);
+    }
+    if (strtotime($date) < strtotime(date('Y-m-d'))) {
+        respond(422, ['success' => false, 'message' => 'Cannot reschedule to a past date.']);
+    }
+    if (!preg_match('/^\d{2}:\d{2}$/', $timeSlot)) {
+        respond(422, ['success' => false, 'message' => 'A valid time slot is required.']);
+    }
+
+    $stmt = $pdo->prepare('SELECT id, veterinarian_id FROM appointments WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => $appointmentId]);
+    $appointment = $stmt->fetch();
+    if (!$appointment) {
+        respond(404, ['success' => false, 'message' => 'Appointment not found.']);
+    }
+
+    $vetId = (int) ($appointment['veterinarian_id'] ?? 0);
+    if ($vetId > 0) {
+        $conflict = $pdo->prepare("
+            SELECT id FROM appointments
+            WHERE preferred_date = :date
+              AND time_slot = :time_slot
+              AND status IN ('confirmed', 'completed')
+              AND id <> :id
+              AND (veterinarian_id = :vet_id OR veterinarian_id IS NULL)
+            LIMIT 1
+        ");
+        $conflict->execute([
+            ':date' => $date,
+            ':time_slot' => $timeSlot,
+            ':id' => $appointmentId,
+            ':vet_id' => $vetId,
+        ]);
+    } else {
+        $conflict = $pdo->prepare("
+            SELECT id FROM appointments
+            WHERE preferred_date = :date
+              AND time_slot = :time_slot
+              AND status IN ('confirmed', 'completed')
+              AND id <> :id
+            LIMIT 1
+        ");
+        $conflict->execute([
+            ':date' => $date,
+            ':time_slot' => $timeSlot,
+            ':id' => $appointmentId,
+        ]);
+    }
+
+    if ($conflict->fetchColumn()) {
+        respond(409, ['success' => false, 'message' => 'That time slot is already booked.']);
+    }
+
+    $update = $pdo->prepare("
+        UPDATE appointments
+        SET preferred_date = :date,
+            time_slot = :time_slot,
+            status = 'confirmed',
+            confirmed_at = NOW()
+        WHERE id = :id
+    ");
+    $update->execute([
+        ':date' => $date,
+        ':time_slot' => $timeSlot,
+        ':id' => $appointmentId,
+    ]);
+
+    respond(200, [
+        'success' => true,
+        'message' => 'Appointment rescheduled.'
+    ]);
+}
+
 function deleteAppointment($pdo, $data)
 {
     $appointmentId = (int) ($data['appointment_id'] ?? $data['id'] ?? 0);
@@ -496,6 +579,7 @@ try {
     if ($action === 'list') listAppointments($pdo, $input);
     if ($action === 'create') createAppointment($pdo, $input);
     if ($action === 'update_status') updateAppointmentStatus($pdo, $input);
+    if ($action === 'reschedule') rescheduleAppointment($pdo, $input);
     if ($action === 'delete') deleteAppointment($pdo, $input);
     if ($action === 'vets') listVeterinarians($pdo);
     if ($action === 'booked_slots') getBookedSlots($pdo, $input);

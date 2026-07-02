@@ -28,6 +28,9 @@ from statsmodels.tsa.stattools import adfuller
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import mean_absolute_error, accuracy_score
+from sklearn.model_selection import train_test_split
+from imblearn.over_sampling import SMOTE
+from collections import Counter
 
 warnings.filterwarnings("ignore")
 app = Flask(__name__)
@@ -140,22 +143,210 @@ def run_arima(series: pd.Series, steps: int = 3) -> dict:
 # VACCINATION FORECAST  (unchanged)
 # ════════════════════════════════════════════════════════════════════════
 
-def load_vaccination_series():
-    df = read_excel_sheet("Combined_Rabies_3Years")
+def _year_totals(series: pd.Series) -> dict:
+    if not isinstance(series.index, pd.PeriodIndex):
+        return {}
+    yearly = series.groupby(series.index.year).sum()
+    return {str(int(year)): round(float(total), 1) for year, total in yearly.items()}
+
+
+def _vaccination_regime_diagnostics(series: pd.Series) -> dict:
+    totals = _year_totals(series)
+    if len(totals) < 3:
+        return {"regime_shift": False, "year_totals": totals}
+
+    years = sorted(int(year) for year in totals.keys())
+    latest_year = years[-1]
+    previous_totals = [float(totals[str(year)]) for year in years[:-1]]
+    previous_median = float(np.median(previous_totals)) if previous_totals else 0.0
+    latest_total = float(totals[str(latest_year)])
+    ratio = latest_total / previous_median if previous_median > 0 else 1.0
+    regime_shift = previous_median > 0 and ratio < 0.45
+
+    return {
+        "regime_shift": regime_shift,
+        "year_totals": totals,
+        "latest_year": latest_year,
+        "latest_year_total": round(latest_total, 1),
+        "previous_year_median": round(previous_median, 1),
+        "latest_vs_previous_ratio": round(ratio, 3),
+    }
+
+
+def _seasonal_vaccination_baseline(series: pd.Series, steps: int, diagnostics: dict) -> list:
+    clean = series.dropna().astype(float)
+    clean = clean[clean > 0]
+    if clean.empty:
+        return [0.0] * steps
+
+    baseline_source = clean
+    latest_year = diagnostics.get("latest_year")
+    if diagnostics.get("regime_shift") and latest_year and isinstance(clean.index, pd.PeriodIndex):
+        previous_years = clean[clean.index.year < int(latest_year)]
+        if not previous_years.empty:
+            baseline_source = previous_years
+
+    overall_floor = float(baseline_source.quantile(0.25))
+    overall_median = float(baseline_source.median())
+    fallback = max(1.0, overall_floor, overall_median * 0.35)
+
+    last_period = series.index[-1] if len(series) else pd.Period(pd.Timestamp.today(), freq="M")
+    baseline = []
+    for step in range(1, steps + 1):
+        future_month = (last_period + step).month
+        month_values = baseline_source[baseline_source.index.month == future_month]
+        value = float(month_values.median()) if not month_values.empty else fallback
+        baseline.append(round(max(value, fallback), 1))
+    return baseline
+
+
+def run_vaccination_arima(series: pd.Series, steps: int = 3) -> dict:
+    ar = run_arima(series, steps=steps)
+    diagnostics = _vaccination_regime_diagnostics(series)
+    baseline = _seasonal_vaccination_baseline(series, steps, diagnostics)
+    raw_forecast = [round(float(v), 1) for v in ar.get("forecast", [])]
+    baseline_floor = [max(1.0, value * 0.25) for value in baseline]
+    forecast_collapse = any(
+        (raw_forecast[i] if i < len(raw_forecast) else 0.0) < baseline_floor[i]
+        for i in range(steps)
+    )
+
+    if diagnostics.get("regime_shift") or forecast_collapse:
+        adjusted = [round(max(raw_forecast[i] if i < len(raw_forecast) else 0.0, baseline[i]), 1)
+                    for i in range(steps)]
+        ar["raw_forecast"] = raw_forecast
+        ar["forecast"] = adjusted
+        ar["lower_ci"] = [round(max(0.0, value * 0.8), 1) for value in adjusted]
+        ar["upper_ci"] = [round(value * 1.2, 1) for value in adjusted]
+        ar["trend"] = "rising" if adjusted[-1] - adjusted[0] > 0.5 else (
+            "falling" if adjusted[-1] - adjusted[0] < -0.5 else "stable"
+        )
+        ar["model_type"] = "ARIMARegimeAdjusted" if diagnostics.get("regime_shift") else "ARIMABaselineGuard"
+        ar["regime_shift"] = bool(diagnostics.get("regime_shift"))
+        ar["forecast_collapse"] = bool(forecast_collapse)
+        ar["seasonal_baseline"] = baseline
+        if diagnostics.get("regime_shift"):
+            ar["data_quality_note"] = (
+                f"Latest year total ({diagnostics['latest_year_total']}) is only "
+                f"{round(diagnostics['latest_vs_previous_ratio'] * 100)}% of the "
+                f"previous-year median ({diagnostics['previous_year_median']}). "
+                "Forecast is floored to a seasonal demand baseline; verify the latest-year records."
+            )
+        else:
+            ar["data_quality_note"] = (
+                "Raw ARIMA forecast collapsed below the seasonal vaccination baseline. "
+                "Forecast is floored for operational stock planning."
+            )
+    else:
+        ar["regime_shift"] = False
+        ar["forecast_collapse"] = False
+        ar["seasonal_baseline"] = baseline
+        ar["data_quality_note"] = ""
+
+    ar["year_totals"] = diagnostics.get("year_totals", {})
+    return ar
+
+
+def _load_forecast_input_metric(sheet_name: str, metric_col_name: str) -> pd.Series:
+    """Reads one Forecast_Input_* sheet (long format: period/year/month_no/metric/value)."""
+    df = read_excel_sheet(sheet_name)
     df = df[pd.to_numeric(df["year"], errors="coerce").notna()].copy()
     df["year"]     = df["year"].astype(int)
     df["month_no"] = pd.to_numeric(df["month_no"], errors="coerce").fillna(1).astype(int)
+    df["value"]    = pd.to_numeric(df["value"], errors="coerce").fillna(0)
     df["period"]   = pd.to_datetime(
         df["year"].astype(str) + "-" + df["month_no"].astype(str).str.zfill(2)
     ).dt.to_period("M")
     df = df.sort_values("period")
-    series_dict = {}
-    for metric in ["total_vaccinated", "dogs_vaccinated", "cats_vaccinated", "clients_served"]:
-        if metric not in df.columns:
-            continue
-        s = df.set_index("period")[metric].astype(float)
-        series_dict[metric] = s[~s.index.duplicated(keep="last")].asfreq("M", fill_value=0)
+    s = df.set_index("period")["value"].astype(float).rename(metric_col_name)
+    return s[~s.index.duplicated(keep="last")].asfreq("M", fill_value=0)
+
+
+def load_vaccination_series():
+    """
+    Reads the README-designated Forecast_Input_Dogs_3Y / Forecast_Input_Cats_3Y /
+    Forecast_Input_Clients_3Y sheets ("Model connection: Forecast_Input sheets can
+    be used for vaccination demand forecasting" — README row 8). total_vaccinated
+    is computed as dogs + cats, matching how the source workbook itself derives it
+    (verified: dogs_vaccinated + cats_vaccinated == total_vaccinated in every row).
+    """
+    dogs    = _load_forecast_input_metric("Forecast_Input_Dogs_3Y", "dogs_vaccinated")
+    cats    = _load_forecast_input_metric("Forecast_Input_Cats_3Y", "cats_vaccinated")
+    clients = _load_forecast_input_metric("Forecast_Input_Clients_3Y", "clients_served")
+    total   = (dogs + cats).rename("total_vaccinated")
+
+    series_dict = {
+        "total_vaccinated": total, "dogs_vaccinated": dogs,
+        "cats_vaccinated": cats, "clients_served": clients,
+    }
+    df = pd.concat([total, dogs, cats, clients], axis=1).reset_index()
+    df.columns = ["period", "total_vaccinated", "dogs_vaccinated", "cats_vaccinated", "clients_served"]
     return series_dict, df
+
+
+def load_barangay_allocation_weights() -> dict:
+    """
+    Real, dataset-native per-barangay weighting for vaccination demand — from
+    Barangay_Masterlist's allocation_weight column, itself derived from each
+    barangay's estimated_dog_population_2025 (documented in the sheet's own
+    header: "dog population allocation uses uploaded 2025 total of 16,847").
+    Used to split the one real municipality-wide vaccination series into
+    per-barangay estimates, since no barangay-level vaccination event data
+    exists anywhere in the workbook.
+    """
+    df_raw = pd.read_excel(EXCEL_PATH, sheet_name="Barangay_Masterlist", header=None)
+    header_row = None
+    for i, row in df_raw.iterrows():
+        if "barangay_id" in [str(v).strip().lower() for v in row.values if pd.notna(v)]:
+            header_row = i
+            break
+    if header_row is None:
+        raise ValueError("No header row with 'barangay_id' found in sheet: Barangay_Masterlist")
+    df = pd.read_excel(EXCEL_PATH, sheet_name="Barangay_Masterlist", header=header_row)
+    df.columns = [str(c).strip().lower() for c in df.columns]
+    df = df[pd.to_numeric(df.get("allocation_weight"), errors="coerce").notna()].copy()
+    df["allocation_weight"] = pd.to_numeric(df["allocation_weight"], errors="coerce")
+    return dict(zip(df["barangay"].astype(str).str.strip(), df["allocation_weight"]))
+
+
+_barangay_vacc_cache = {}
+
+
+def forecast_vaccination_by_barangay(barangay_name: str, metric: str = "total_vaccinated",
+                                      steps: int = 3) -> dict:
+    """
+    Per-barangay vaccination forecast = the single fitted municipal ARIMA model
+    (run_vaccination_arima, with its regime-shift/seasonal-baseline handling)
+    scaled by that barangay's real dog-population allocation weight. This is
+    NOT an independently-fit per-barangay model (no per-barangay history exists
+    to fit one) — it is the real aggregate trend distributed by a real,
+    documented per-barangay weighting, and is reported as such.
+    """
+    ck = f"{metric}_{steps}"
+    if ck not in _barangay_vacc_cache:
+        series_dict, _ = load_vaccination_series()
+        series = series_dict.get(metric)
+        if series is None:
+            return {"error": f"Unknown metric: {metric}"}
+        _barangay_vacc_cache[ck] = run_vaccination_arima(series, steps=steps)
+    muni_ar = _barangay_vacc_cache[ck]
+
+    weights = load_barangay_allocation_weights()
+    km = next((k for k in weights if k.strip().lower() == barangay_name.strip().lower()), None)
+    weight = weights.get(km, 0.0) if km else 0.0
+
+    return {
+        "barangay": barangay_name, "metric": metric, "allocation_weight": weight,
+        "forecast":  [round(v * weight, 1) for v in muni_ar["forecast"]],
+        "lower_ci":  [round(v * weight, 1) for v in muni_ar["lower_ci"]],
+        "upper_ci":  [round(v * weight, 1) for v in muni_ar["upper_ci"]],
+        "trend": muni_ar["trend"], "model_type": muni_ar.get("model_type", "ARIMA"),
+        "regime_shift": muni_ar.get("regime_shift", False),
+        "data_quality_note": muni_ar.get("data_quality_note", ""),
+        "basis": "municipal ARIMA forecast scaled by Barangay_Masterlist allocation_weight "
+                 "(2025 estimated dog population share) — no per-barangay vaccination "
+                 "history exists in the source data.",
+    }
 
 
 @app.route("/vaccination-forecast", methods=["POST"])
@@ -173,12 +364,18 @@ def vaccination_forecast():
     month_labels = ["Next Month", "Month 2", "Month 3"]
     results = {}
     for metric, series in series_dict.items():
-        ar      = run_arima(series, steps=steps)
+        ar      = run_vaccination_arima(series, steps=steps)
         current = float(series.iloc[-1]) if len(series) > 0 else 0
         forecast= ar["forecast"][0]
         diff_pct= round(((forecast - current) / max(1, current)) * 100)
         trend   = ar["trend"]
-        if trend == "rising" and diff_pct > 10:
+        if ar.get("regime_shift") or ar.get("forecast_collapse"):
+            action, urgency = (
+                "Vaccination records or raw ARIMA output need baseline adjustment. "
+                "Use the adjusted seasonal forecast for stock planning and verify the source data.",
+                "normal",
+            )
+        elif trend == "rising" and diff_pct > 10:
             action, urgency = f"Demand projected to increase by {abs(diff_pct)}%. Increase vaccine stock.", "high"
         elif trend == "falling" and diff_pct < -10:
             action, urgency = f"Demand projected to drop by {abs(diff_pct)}%. Adjust procurement.", "low"
@@ -190,7 +387,35 @@ def vaccination_forecast():
             "trend": trend, "arima_order": ar["order"],
             "diff_pct": diff_pct, "action": action, "urgency": urgency,
             "months": month_labels[:steps],
+            "model_type": ar.get("model_type", "ARIMA"),
+            "raw_forecast": ar.get("raw_forecast"),
+            "seasonal_baseline": ar.get("seasonal_baseline"),
+            "regime_shift": ar.get("regime_shift", False),
+            "forecast_collapse": ar.get("forecast_collapse", False),
+            "year_totals": ar.get("year_totals", {}),
+            "data_quality_note": ar.get("data_quality_note", ""),
         }
+    cache_set(ck, results)
+    return jsonify({"success": True, "data": results})
+
+
+@app.route("/vaccination-forecast-barangay", methods=["POST"])
+def vaccination_forecast_barangay():
+    data       = request.json or {}
+    steps      = int(data.get("steps", 3))
+    metric     = str(data.get("metric", "total_vaccinated"))
+    requested  = data.get("barangays", [])
+    ck = f"vacc_barangay_{metric}_{steps}_" + "_".join(sorted(requested))
+    cached = cache_get(ck)
+    if cached:
+        return jsonify({"success": True, "data": cached, "cached": True})
+    try:
+        weights = load_barangay_allocation_weights()
+        targets = requested if requested else list(weights.keys())
+        results = [forecast_vaccination_by_barangay(b, metric=metric, steps=steps) for b in targets]
+        results.sort(key=lambda r: r.get("allocation_weight", 0), reverse=True)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
     cache_set(ck, results)
     return jsonify({"success": True, "data": results})
 
@@ -202,6 +427,17 @@ def vaccination_forecast():
 FEATURE_COLS = [
     "lag_1", "lag_2", "lag_3",
     "rolling_mean_3", "rolling_max_3", "rolling_std_3",
+    "month_sin", "month_cos", "month_no", "year",
+    "skin_ratio", "para_ratio", "resp_ratio", "gastro_ratio",
+]
+
+# Risk classifier excludes lag_1/lag_2/lag_3/rolling_* on purpose: risk_class is a
+# threshold on total_cases, and total_cases is nearly constant month-to-month per
+# barangay, so those history features let the RF trivially echo the threshold
+# (lag_1 alone carried 85% of feature importance, producing a misleading 100%
+# accuracy). The regressor keeps the full feature set since forecasting case counts
+# from past case counts is a legitimate task.
+CLASSIFIER_FEATURE_COLS = [
     "month_sin", "month_cos", "month_no", "year",
     "skin_ratio", "para_ratio", "resp_ratio", "gastro_ratio",
 ]
@@ -250,37 +486,79 @@ def get_all_disease_models():
     if _all_disease_models:
         return _all_disease_models
     print("Training All-Disease Hybrid (ARIMA + RF)…")
-    df    = load_all_disease_dataframe()
-    X     = df[FEATURE_COLS].values
-    y_reg = df["total_cases"].values
-    le    = LabelEncoder()
-    y_cls = le.fit_transform(df["risk_class"].fillna("Low").astype(str))
-    split = int(len(X) * 0.8)   # time-based split
+    df     = load_all_disease_dataframe()
+    X      = df[FEATURE_COLS].values
+    X_cls  = df[CLASSIFIER_FEATURE_COLS].values
+    y_reg  = df["total_cases"].values
+    le     = LabelEncoder()
+    y_cls  = le.fit_transform(df["risk_class"].fillna("Low").astype(str))
+
+    # Stratified split (not a plain chronological cut): "Low" risk is only 6 of 891
+    # rows, all from one barangay clustered early in the sort order, so a chronological
+    # 80/20 cut placed every "Low" row in train and none in test — the class was
+    # invisible in evaluation. Stratifying on risk_class guarantees every class is
+    # represented proportionally in both splits without altering any real data.
+    idx = np.arange(len(df))
+    train_idx, test_idx = train_test_split(
+        idx, test_size=0.2, random_state=42, stratify=y_cls)
+
     rf_reg = RandomForestRegressor(n_estimators=200, max_depth=10,
         min_samples_split=4, min_samples_leaf=2, random_state=42, n_jobs=-1)
-    rf_reg.fit(X[:split], y_reg[:split])
+    rf_reg.fit(X[train_idx], y_reg[train_idx])
+
+    # SMOTE (training data only — never touches the held-out test set) generates
+    # synthetic minority-class ("Low") samples so the classifier sees a balanced
+    # class distribution during training. "Low" has ~5 examples in the training
+    # split, so k_neighbors must be capped below that count or SMOTE raises.
+    X_cls_train, y_cls_train = X_cls[train_idx], y_cls[train_idx]
+    train_counts   = Counter(y_cls_train)
+    minority_count = min(train_counts.values())
+    smote_note      = None
+    if minority_count >= 2:
+        k = min(5, minority_count - 1)
+        X_cls_train, y_cls_train = SMOTE(random_state=42, k_neighbors=k).fit_resample(
+            X_cls_train, y_cls_train)
+        smote_note = (f"SMOTE(k_neighbors={k}) applied to training data only — "
+                       f"class counts before: {dict(train_counts)}, "
+                       f"after: {dict(Counter(y_cls_train))}.")
+    else:
+        smote_note = "SMOTE skipped — fewer than 2 minority-class training samples."
+    print(f"  {smote_note}")
+
     rf_cls = RandomForestClassifier(n_estimators=200, max_depth=10,
         min_samples_split=4, min_samples_leaf=2, random_state=42, n_jobs=-1)
-    rf_cls.fit(X[:split], y_cls[:split])
-    preds_test = rf_reg.predict(X[split:])
-    mae_val  = round(float(mean_absolute_error(y_reg[split:], preds_test)), 2)
-    rmse_val = rmse(y_reg[split:], preds_test)
-    mape_val = mape(y_reg[split:], preds_test)
-    acc      = round(float(accuracy_score(y_cls[split:], rf_cls.predict(X[split:]))) * 100, 1)
+    rf_cls.fit(X_cls_train, y_cls_train)
+    preds_test = rf_reg.predict(X[test_idx])
+    mae_val  = round(float(mean_absolute_error(y_reg[test_idx], preds_test)), 2)
+    rmse_val = rmse(y_reg[test_idx], preds_test)
+    mape_val = mape(y_reg[test_idx], preds_test)
+    acc      = round(float(accuracy_score(y_cls[test_idx], rf_cls.predict(X_cls[test_idx]))) * 100, 1)
     importance = dict(sorted(
         {FEATURE_COLS[i]: round(float(v), 4) for i, v in enumerate(rf_reg.feature_importances_)}.items(),
+        key=lambda x: x[1], reverse=True))
+    cls_importance = dict(sorted(
+        {CLASSIFIER_FEATURE_COLS[i]: round(float(v), 4) for i, v in enumerate(rf_cls.feature_importances_)}.items(),
         key=lambda x: x[1], reverse=True))
     _all_disease_models = {
         "df": df, "regressor": rf_reg, "classifier": rf_cls, "label_encoder": le,
         "mae": mae_val, "rmse": rmse_val, "mape": mape_val, "accuracy": acc,
-        "importance": importance, "trained_on": len(df),
-        "split_method": "time_based_chronological_80_20",
+        "importance": importance, "clf_importance": cls_importance,
+        "clf_features": CLASSIFIER_FEATURE_COLS, "trained_on": len(df),
+        "train_idx": train_idx, "test_idx": test_idx,
+        "split_method": "stratified_80_20_by_risk_class",
+        "smote_note": smote_note,
         "classes": list(le.classes_), "arima_series": _build_arima_series_for_df(df),
         "arima_cache": {}, "rf_model_type": "RandomForestClassifier",
         "risk_note": (
-            "RF risk classifier trained on risk_class labels from Barangay_Disease_Monthly. "
-            "Labels are threshold-derived from total_cases; RF learns that threshold pattern. "
-            "Accuracy reflects how well RF reproduces the threshold, not independent epidemiological risk."
+            "RF risk classifier trained on risk_class labels from Barangay_Disease_Monthly, "
+            "using only seasonal (month_sin/cos, month_no, year) and disease-mix-ratio "
+            "features — lag_1/lag_2/lag_3 and rolling total_cases stats are deliberately "
+            "excluded from the classifier because total_cases barely changes month-to-month "
+            "per barangay, which let those features trivially reconstruct the risk_class "
+            "threshold and inflate accuracy to 100%. Accuracy now reflects whether seasonality "
+            "and disease composition predict risk, independent of raw case-count history. "
+            "Test set uses a stratified 80/20 split (no synthetic rows). Training data only "
+            f"was rebalanced with SMOTE to address 'Low' class scarcity: {smote_note}"
         ),
     }
     print(f"All-Disease model ready — MAE {mae_val}, RMSE {rmse_val}, Risk Acc {acc}%")
@@ -322,21 +600,17 @@ def _hybrid_predict_one_alldisease(
 
     arima_next = arima_result["forecast"][0]   # next-month for RF fusion
 
-    # RF on current features
-    cur_f = latest_row[FEATURE_COLS].values.reshape(1, -1)
+    clf_features = models.get("clf_features", CLASSIFIER_FEATURE_COLS)
+
+    # RF on current features (seasonal + disease-mix ratios only — no case-count history)
+    cur_f = latest_row[clf_features].values.reshape(1, -1)
     current_risk_label = le.inverse_transform(rf_cls.predict(cur_f))[0]
 
-    # RF on synthetic future features
-    fut_f = latest_row[FEATURE_COLS].values.copy().astype(float)
-    l1 = FEATURE_COLS.index("lag_1");   l2 = FEATURE_COLS.index("lag_2")
-    l3 = FEATURE_COLS.index("lag_3");   rm = FEATURE_COLS.index("rolling_mean_3")
-    rx = FEATURE_COLS.index("rolling_max_3"); rs = FEATURE_COLS.index("rolling_std_3")
-    ms = FEATURE_COLS.index("month_sin"); mc = FEATURE_COLS.index("month_cos")
-    mn = FEATURE_COLS.index("month_no")
-    old1, old2 = fut_f[l1], fut_f[l2]
-    fut_f[l3] = old2; fut_f[l2] = old1; fut_f[l1] = arima_next
-    w = [arima_next, old1, old2]
-    fut_f[rm] = np.mean(w); fut_f[rx] = np.max(w); fut_f[rs] = float(np.std(w, ddof=0))
+    # RF on synthetic future features — only the month rolls forward; ratios are
+    # held at their latest known values since next month's disease mix is unknown.
+    fut_f = latest_row[clf_features].values.copy().astype(float)
+    ms = clf_features.index("month_sin"); mc = clf_features.index("month_cos")
+    mn = clf_features.index("month_no")
     nm = int(latest_row["month_no"] % 12) + 1
     fut_f[mn] = nm; fut_f[ms] = np.sin(2 * np.pi * nm / 12); fut_f[mc] = np.cos(2 * np.pi * nm / 12)
     fut_f = fut_f.reshape(1, -1)
@@ -898,8 +1172,11 @@ def model_info():
                     "regressor_mae": models["mae"], "regressor_rmse": models.get("rmse"),
                     "regressor_mape": models.get("mape"), "classifier_accuracy": models["accuracy"],
                     "trained_on_rows": models["trained_on"], "split_method": models.get("split_method"),
-                    "classes": models["classes"], "features": FEATURE_COLS,
+                    "classes": models["classes"],
+                    "regressor_features": FEATURE_COLS,
+                    "classifier_features": models.get("clf_features", CLASSIFIER_FEATURE_COLS),
                     "top_features": dict(list(models["importance"].items())[:5]),
+                    "classifier_top_features": dict(list(models.get("clf_importance", {}).items())[:5]),
                     "risk_note": models.get("risk_note", ""),
                 },
             },

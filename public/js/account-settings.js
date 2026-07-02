@@ -1,4 +1,4 @@
-/* =============================================
+﻿/* =============================================
    BVETTER — Account Settings JS
    File: js/account-settings.js
    Depends: nav.js, api.js
@@ -16,7 +16,7 @@
    - btnSaveProfile: replace with api.updateProfile(data)
    - btnConfirmPw: replace with api.changePassword(data)
    - btnManage2FA: call real 2FA toggle endpoint
-   - btnDeactivate confirm: call DELETE /api/user
+   - btnDeactivate confirm: call DELETE /final-VBETTER/bvetter/api/user
    ============================================= */
 
 (function () {
@@ -89,7 +89,7 @@
   });
 
   /* ── 2FA Toggle ───────────────────────────── 
-     TODO backend: call PATCH /api/user/2fa       */
+     TODO backend: call PATCH /final-VBETTER/bvetter/api/user/2fa       */
   const btnManage  = document.getElementById('btnManage2FA');
   const twofaBadge = document.getElementById('twofaBadge');
   if (btnManage && twofaBadge) {

@@ -1,12 +1,12 @@
-/**
+﻿/**
  * VBetter – auth.js  (shared/js/auth.js)
  * ─────────────────────────────────────────────────────────────
  * Single source of truth for authentication + role routing.
  *
  * ROLES
- *   'vet'   → /vet/html/index.html
+ *   'vet'   → /final-VBETTER/bvetter/vet/html/index.html
  *   'admin' → /admin/pages/index.html
- *   'owner' → /public/pages/landing.html
+ *   'owner' → /final-VBETTER/bvetter/public/pages/landing.html
  *
  * [BACKEND] markers = replace with real fetch() calls later.
  * ─────────────────────────────────────────────────────────────
@@ -18,12 +18,12 @@
 const SESSION_KEY = 'vbetter_session';
 
 const ROLE_ROUTES = {
-    vet:   '/bvetter/vet/html/index.html',
-    admin: '/bvetter/admin/pages/index.html',
-    owner: '/bvetter/public/pages/landing.html'
+    vet:   '/final-VBETTER/bvetter/vet/html/index.html',
+    admin: '/final-VBETTER/bvetter/admin/pages/index.html',
+    owner: '/final-VBETTER/bvetter/public/pages/landing.html'
 };
 
-const LOGIN_PAGE = '/bvetter/public/pages/login.html';
+const LOGIN_PAGE = '/final-VBETTER/bvetter/public/pages/login.html';
 
 /* ── Session helpers ────────────────────────────────────────── */
 function getSession() {
@@ -52,7 +52,7 @@ function getCurrentUser() {
 /** Logs out and redirects to login */
 function logout() {
     clearSession();
-    // [BACKEND] POST /api/auth/logout
+    // [BACKEND] POST /final-VBETTER/bvetter/api/auth/logout
     window.location.href = LOGIN_PAGE;
 }
 
@@ -84,7 +84,7 @@ function requireAuth(allowedRoles = []) {
 /**
  * Login attempt.
  * [BACKEND] Replace mock with:
- *   const res = await fetch('/api/auth/login', { method:'POST', ... });
+ *   const res = await fetch('/final-VBETTER/bvetter/api/auth/login', { method:'POST', ... });
  *   const data = await res.json(); // { userId, role, name, token }
  */
 async function login(email, password) {

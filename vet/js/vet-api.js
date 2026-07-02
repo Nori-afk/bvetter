@@ -1,6 +1,6 @@
-/**
+﻿/**
  * VBetter – Vet API Layer
- * /vet/js/vet-api.js
+ * /final-VBETTER/bvetter/vet/js/vet-api.js
  * ─────────────────────────────────────────────────────────────
  * Centralises every fetch() call used by the vet-side pages.
  * All functions are async and return { ok, data, error }.
@@ -14,8 +14,8 @@
 
 'use strict';
 
-const BASE_URL = '/api';   // [BACKEND] e.g. 'https://api.vbetter.ph'
-const BACKEND_URL = '/bvetter/api';
+const BASE_URL = '/final-VBETTER/bvetter/api';   // [BACKEND] e.g. 'https://api.vbetter.ph'
+const BACKEND_URL = '/final-VBETTER/bvetter/api';
 const LOST_FOUND_URL = `${BACKEND_URL}/lost-found/lost_and_found.php`;
 const MASS_VACCINATION_URL = `${BACKEND_URL}/mass-vaccination/events.php`;
 const CHATBOT_URL = `${BACKEND_URL}/chatbot/chatbot.php`;
@@ -41,7 +41,7 @@ async function apiFetch(endpoint, options = {}) {
         if (response.status === 401) {
             // Token expired → log out
             sessionStorage.removeItem('vbetter_session');
-            window.location.href = '/public/pages/login.html';
+            window.location.href = '/final-VBETTER/bvetter/public/pages/login.html';
             return { ok: false, error: 'Unauthorised' };
         }
 
@@ -54,7 +54,7 @@ async function apiFetch(endpoint, options = {}) {
 
 /* ── Dashboard ───────────────────────────────────────────── */
 
-/** GET /api/vet/dashboard/summary */
+/** GET /final-VBETTER/bvetter/api/vet/dashboard/summary */
 async function getDashboardSummary(filters = {}) {
     try {
         const params = new URLSearchParams({ scope: 'vet', ...filters }).toString();
@@ -68,7 +68,7 @@ async function getDashboardSummary(filters = {}) {
 
 /* ── Appointments ────────────────────────────────────────── */
 
-/** GET /api/vet/appointments */
+/** GET /final-VBETTER/bvetter/api/vet/appointments */
 async function getAppointments(filters = {}) {
     const formData = new FormData();
     formData.append('action', 'list');
@@ -129,7 +129,7 @@ async function lostFoundFetch(action, data = {}) {
     }
 }
 
-/** PATCH /api/vet/appointments/:id/status */
+/** PATCH /final-VBETTER/bvetter/api/vet/appointments/:id/status */
 async function updateAppointmentStatus(id, status) {
     const formData = new FormData();
     formData.append('action', 'update_status');
@@ -148,7 +148,27 @@ async function updateAppointmentStatus(id, status) {
     }
 }
 
-/** DELETE /api/vet/appointments/:id */
+/** PATCH /final-VBETTER/bvetter/api/vet/appointments/:id/reschedule */
+async function rescheduleAppointment(id, preferredDate, timeSlot) {
+    const formData = new FormData();
+    formData.append('action', 'reschedule');
+    formData.append('appointment_id', id);
+    formData.append('preferred_date', preferredDate);
+    formData.append('time_slot', timeSlot);
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        return { ok: result.success, data: { id, preferredDate, timeSlot }, error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, data: null, error: error.message };
+    }
+}
+
+/** DELETE /final-VBETTER/bvetter/api/vet/appointments/:id */
 async function deleteAppointment(id) {
     const formData = new FormData();
     formData.append('action', 'delete');
@@ -168,27 +188,27 @@ async function deleteAppointment(id) {
 
 /* ── Patient Records ─────────────────────────────────────── */
 
-/** GET /api/vet/patients */
+/** GET /final-VBETTER/bvetter/api/vet/patients */
 async function getPatients(filters = {}) {
     const params = new URLSearchParams(filters).toString();
     // [BACKEND] return apiFetch(`/vet/patients?${params}`);
     return { ok: true, data: [] };
 }
 
-/** GET /api/vet/patients/:id */
+/** GET /final-VBETTER/bvetter/api/vet/patients/:id */
 async function getPatientById(id) {
     // [BACKEND] return apiFetch(`/vet/patients/${id}`);
     return { ok: true, data: null };
 }
 
-/** POST /api/vet/patients */
+/** POST /final-VBETTER/bvetter/api/vet/patients */
 async function createPatient(payload) {
     // [BACKEND]
-    // return apiFetch('/vet/patients', { method: 'POST', body: JSON.stringify(payload) });
+    // return apiFetch('/final-VBETTER/bvetter/vet/patients', { method: 'POST', body: JSON.stringify(payload) });
     return { ok: true, data: { ...payload, id: `P-${Date.now()}` } };
 }
 
-/** PATCH /api/vet/patients/:id */
+/** PATCH /final-VBETTER/bvetter/api/vet/patients/:id */
 async function updatePatient(id, payload) {
     // [BACKEND]
     // return apiFetch(`/vet/patients/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
@@ -197,7 +217,7 @@ async function updatePatient(id, payload) {
 
 /* ── Reports ─────────────────────────────────────────────── */
 
-/** GET /api/vet/reports */
+/** GET /final-VBETTER/bvetter/api/vet/reports */
 async function getReports(filters = {}) {
     const params = new URLSearchParams(filters).toString();
     try {
@@ -217,7 +237,7 @@ function getReportExportUrl(filters = {}, format = 'pdf') {
 
 /* ── Disease Analytics ───────────────────────────────────── */
 
-/** GET /api/vet/disease-analytics */
+/** GET /final-VBETTER/bvetter/api/vet/disease-analytics */
 async function getDiseaseAnalytics(disease = 'all', period = 'year') {
     const params = new URLSearchParams({ scope: 'disease_analytics', disease, period }).toString();
     try {
@@ -231,7 +251,7 @@ async function getDiseaseAnalytics(disease = 'all', period = 'year') {
 
 /* ── Lost and Found ──────────────────────────────────────── */
 
-/** GET /api/vet/lost-and-found */
+/** GET /final-VBETTER/bvetter/api/vet/lost-and-found */
 async function getLostAndFound(tab = 'pending', filters = {}) {
     if (tab === 'claims') return lostFoundFetch('management_claims', { status: 'pending', ...filters });
     if (tab === 'sighting') return lostFoundFetch('list_sightings', { status: 'pending', ...filters });
@@ -241,12 +261,12 @@ async function getLostAndFound(tab = 'pending', filters = {}) {
     return lostFoundFetch('management_list', { ...filters, status: 'pending' });
 }
 
-/** PATCH /api/vet/lost-and-found/:id/approve */
+/** PATCH /final-VBETTER/bvetter/api/vet/lost-and-found/:id/approve */
 async function approveLostFoundReport(id, reviewNotes = '') {
     return lostFoundFetch('approve_report', { report_id: id, review_notes: reviewNotes });
 }
 
-/** PATCH /api/vet/lost-and-found/:id/resolve */
+/** PATCH /final-VBETTER/bvetter/api/vet/lost-and-found/:id/resolve */
 async function resolveLostFoundCase(id, reviewNotes = '') {
     return lostFoundFetch('resolve_report', { report_id: id, review_notes: reviewNotes });
 }
@@ -281,49 +301,49 @@ async function rejectLostFoundSighting(id, reviewNotes = '') {
 
 /* ── Chatbot Management ──────────────────────────────────── */
 
-/** GET /api/vet/chatbot/inquiry-rules */
+/** GET /final-VBETTER/bvetter/api/vet/chatbot/inquiry-rules */
 async function getInquiryRules() {
-    // [BACKEND] return apiFetch('/vet/chatbot/inquiry-rules');
+    // [BACKEND] return apiFetch('/final-VBETTER/bvetter/vet/chatbot/inquiry-rules');
     return { ok: true, data: [] };
 }
 
-/** POST /api/vet/chatbot/inquiry-rules */
+/** POST /final-VBETTER/bvetter/api/vet/chatbot/inquiry-rules */
 async function createInquiryRule(payload) {
     // [BACKEND]
-    // return apiFetch('/vet/chatbot/inquiry-rules', { method: 'POST', body: JSON.stringify(payload) });
+    // return apiFetch('/final-VBETTER/bvetter/vet/chatbot/inquiry-rules', { method: 'POST', body: JSON.stringify(payload) });
     return { ok: true, data: { ...payload, id: Date.now() } };
 }
 
-/** PATCH /api/vet/chatbot/inquiry-rules/:id */
+/** PATCH /final-VBETTER/bvetter/api/vet/chatbot/inquiry-rules/:id */
 async function updateInquiryRule(id, payload) {
     // [BACKEND]
     // return apiFetch(`/vet/chatbot/inquiry-rules/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
     return { ok: true, data: { id, ...payload } };
 }
 
-/** DELETE /api/vet/chatbot/inquiry-rules/:id */
+/** DELETE /final-VBETTER/bvetter/api/vet/chatbot/inquiry-rules/:id */
 async function deleteInquiryRule(id) {
     // [BACKEND]
     // return apiFetch(`/vet/chatbot/inquiry-rules/${id}`, { method: 'DELETE' });
     return { ok: true, data: { deleted: id } };
 }
 
-/** GET /api/vet/chatbot/consultation-rules */
+/** GET /final-VBETTER/bvetter/api/vet/chatbot/consultation-rules */
 async function getConsultationRules() {
-    // [BACKEND] return apiFetch('/vet/chatbot/consultation-rules');
+    // [BACKEND] return apiFetch('/final-VBETTER/bvetter/vet/chatbot/consultation-rules');
     return { ok: true, data: [] };
 }
 
-/** POST /api/vet/chatbot/consultation-rules */
+/** POST /final-VBETTER/bvetter/api/vet/chatbot/consultation-rules */
 async function createConsultationRule(payload) {
     // [BACKEND]
-    // return apiFetch('/vet/chatbot/consultation-rules', { method: 'POST', body: JSON.stringify(payload) });
+    // return apiFetch('/final-VBETTER/bvetter/vet/chatbot/consultation-rules', { method: 'POST', body: JSON.stringify(payload) });
     return { ok: true, data: { ...payload, id: Date.now() } };
 }
 
 /* ── Mass Vaccination ────────────────────────────────────── */
 
-/** GET /api/vet/mass-vaccination/events */
+/** GET /final-VBETTER/bvetter/api/vet/mass-vaccination/events */
 async function getVaccinationEvents() {
     try {
         const response = await fetch(MASS_VACCINATION_URL, {
@@ -412,7 +432,7 @@ async function deleteAnnouncement(id) {
     }
 }
 
-/** POST /api/vet/mass-vaccination/events */
+/** POST /final-VBETTER/bvetter/api/vet/mass-vaccination/events */
 async function createVaccinationEvent(payload) {
     try {
         const response = await fetch(MASS_VACCINATION_URL, {
@@ -427,7 +447,7 @@ async function createVaccinationEvent(payload) {
     }
 }
 
-/** PATCH /api/vet/mass-vaccination/events/:id/report */
+/** PATCH /final-VBETTER/bvetter/api/vet/mass-vaccination/events/:id/report */
 async function submitVaccinationReport(id, payload) {
     try {
         const response = await fetch(MASS_VACCINATION_URL, {
@@ -513,6 +533,7 @@ window.VetAPI = {
     deleteAnnouncement,
     getAppointments,
     updateAppointmentStatus,
+    rescheduleAppointment,
     deleteAppointment,
     getPatients,
     getPatientById,

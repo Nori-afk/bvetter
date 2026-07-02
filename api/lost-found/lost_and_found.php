@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 header('Content-Type: application/json');
 
@@ -12,7 +12,7 @@ if ($method !== 'POST') {
     exit;
 }
 
-require_once __DIR__ . '/../../config/connection.php';
+require_once __DIR__ . '/../config/connection.php';
 
 function respond($statusCode, $payload)
 {
@@ -250,7 +250,7 @@ function normalizeTimeValue($value)
 
 function publicUploadPath($fileName, $folder)
 {
-    return '/bvetter/storage/' . $folder . '/' . $fileName;
+    return '/final-VBETTER/bvetter/storage/' . $folder . '/' . $fileName;
 }
 
 function absoluteUploadPath($publicPath)
@@ -610,7 +610,7 @@ function listReports($pdo, $data, $management = false)
     }
 
     $ownerId = (int) ($data['owner_id'] ?? $data['user_id'] ?? 0);
-    if ($ownerId > 0) {
+    if (!$management && $ownerId > 0) {
         $where[] = 'lost_found_reports.owner_id = :owner_id';
         $params[':owner_id'] = $ownerId;
     }

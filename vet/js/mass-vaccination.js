@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', async () => {
+﻿document.addEventListener('DOMContentLoaded', async () => {
     if (window.Chart && Chart.defaults) {
         Chart.defaults.animation = false;
         if (Chart.defaults.transitions?.active?.animation) {
@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (path.includes(jsMarker)) return path.slice(0, path.indexOf(jsMarker));
         const pageMarker = '/vet/html/';
         if (path.includes(pageMarker)) return path.slice(0, path.indexOf(pageMarker));
-        return '/bvetter';
+        return '/final-VBETTER/bvetter';
     }
 
     const MASS_VACC_API = `${appBasePath()}/api/mass-vaccination/events.php`;
@@ -335,9 +335,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         var card = document.createElement('section');
         card.id        = 'arima-vacc-card';
         card.className = 'card arima-forecast';
+        var modelLabel = tv.model_type || 'ARIMA';
+        var qualityNote = tv.data_quality_note
+            ? `<p style="font-size:0.78rem;color:#8a5a00;margin-bottom:12px;">${sanitize(tv.data_quality_note)}</p>`
+            : '';
         card.innerHTML =
-            `<h3>ARIMA(${(tv.arima_order||[]).join(',')}) — Vaccine Demand Forecast</h3>`
-            + `<p style="font-size:0.8rem;color:#6b7a99;margin-bottom:12px;">${tv.action || ''}</p>`
+            `<h3>${sanitize(modelLabel)}(${(tv.arima_order||[]).join(',')}) — Vaccine Demand Forecast</h3>`
+            + `<p style="font-size:0.8rem;color:#6b7a99;margin-bottom:12px;">${sanitize(tv.action || '')}</p>`
+            + qualityNote
             + '<div class="forecast-band">'
             + (tv.months || ['Next Month','Month 2','Month 3']).map((m, i) =>
                 `<div class="forecast-col">
@@ -546,9 +551,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 var arimaOrderStr = (tv.arima_order || []).join(',');
                 var ciStr = `CI: ${tv.lower_ci?.[0] || 0}–${tv.upper_ci?.[0] || 0}`;
+                var c2Model = tv.model_type || 'ARIMA';
                 var c2Title = dbGrandTotal > 0
-                    ? `ARIMA(${arimaOrderStr}) Forecast — ${ciStr} | Actual this period: ${dbGrandTotal.toLocaleString()}`
-                    : `ARIMA(${arimaOrderStr}) Forecast — ${ciStr}`;
+                    ? `${c2Model}(${arimaOrderStr}) Forecast — ${ciStr} | Actual this period: ${dbGrandTotal.toLocaleString()}`
+                    : `${c2Model}(${arimaOrderStr}) Forecast — ${ciStr}`;
 
                 charts['predictedAnimals'] = new Chart(
                     document.getElementById('predictedAnimalsChart'), {

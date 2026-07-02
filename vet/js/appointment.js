@@ -1,4 +1,4 @@
-const FALLBACK_APPOINTMENTS = [
+﻿const FALLBACK_APPOINTMENTS = [
 	{ id: 1, datetime: '2026-04-21T09:00:00', patient: 'Luna', owner: 'Eleanor Rigby', service: 'Annual Vaccination', status: 'confirmed', type: 'Follow-up' },
 	{ id: 2, datetime: '2026-04-21T10:45:00', patient: 'Oliver', owner: 'Marcus Sterling', service: 'Dental Cleaning', status: 'pending', type: 'Consultation' },
 	{ id: 3, datetime: '2026-04-21T14:15:00', patient: 'Bella', owner: 'Sarah Connor', service: 'Skin Consultation', status: 'completed', type: 'Treatment' },
@@ -149,11 +149,15 @@ function buildRescheduleCalendar(monthDate, selectedIsoDate) {
 		dayCells.push(`<span class="day-filler">${prevDate.getDate()}</span>`);
 	}
 
+	const todayIso = toIsoDate(new Date());
 	for (let day = 1; day <= daysInMonth; day += 1) {
 		const dayDate = new Date(year, month, day);
 		const iso = toIsoDate(dayDate);
 		const isActive = iso === selectedIsoDate ? ' active' : '';
-		dayCells.push(`<button type="button" class="day-btn${isActive}" data-resched-date="${iso}">${day}</button>`);
+		const isPast = iso < todayIso;
+		const disabledAttr = isPast ? ' disabled' : '';
+		const pastClass = isPast ? ' disabled' : '';
+		dayCells.push(`<button type="button" class="day-btn${isActive}${pastClass}" data-resched-date="${iso}"${disabledAttr}>${day}</button>`);
 	}
 
 	return dayCells.join('');
@@ -250,8 +254,8 @@ function renderTable() {
 					<td><span class="status-pill ${statusClass(item.status)}">${item.status}</span></td>
 					<td>
 						<div class="action-buttons">
-							<button type="button" title="View" data-action="view" data-id="${item.id}"><img src="/vet/images/eye.png" alt="View"></button>
-							<button type="button" title="Delete" data-action="delete" data-id="${item.id}"><img src="/vet/images/trash.png" alt="Delete"></button>
+							<button type="button" title="View" data-action="view" data-id="${item.id}"><img src="/final-VBETTER/bvetter/vet/images/eye.png" alt="View"></button>
+							<button type="button" title="Delete" data-action="delete" data-id="${item.id}"><img src="/final-VBETTER/bvetter/vet/images/trash.png" alt="Delete"></button>
 						</div>
 					</td>
 				</tr>
@@ -493,7 +497,7 @@ function completeModalTemplate(appointment) {
 				<p class="muted"><strong>Date and Time:</strong> ${dt.date} - ${dt.time}</p>
 				<p class="muted"><strong>Service:</strong> ${appointment.service}</p>
 			</article>
-			<textarea class="textarea" id="completion-notes" placeholder="Completion notes (optional)"></textarea>
+			<textarea class="textarea" id="completion-notes" maxlength="1000" placeholder="Completion notes (optional)"></textarea>
 			<div class="two-actions">
 				<button class="btn btn-outline" type="button" data-modal-action="open-details">Cancel</button>
 				<button class="btn btn-primary" type="button" data-modal-action="confirm-complete">Mark as Completed</button>
@@ -596,9 +600,30 @@ function openDeleteModal() {
 	openModal(deleteModalTemplate(selected), 'modal-sm');
 }
 
-function applyReschedule() {
+async function applyReschedule() {
 	const selected = getAppointmentById(state.selectedAppointmentId);
-	if (!selected || !state.selectedSlot || !state.selectedDate) return;
+	if (!selected) return;
+
+	if (!state.selectedDate) {
+		alert('Please select a new date on the calendar.');
+		return;
+	}
+	if (state.selectedDate < toIsoDate(new Date())) {
+		alert('Cannot reschedule to a past date.');
+		return;
+	}
+	if (!state.selectedSlot) {
+		alert('Please select an available time slot.');
+		return;
+	}
+
+	if (window.VetAPI?.rescheduleAppointment) {
+		const result = await window.VetAPI.rescheduleAppointment(selected.id, state.selectedDate, state.selectedSlot);
+		if (!result.ok) {
+			alert(result.error || 'Failed to reschedule appointment.');
+			return;
+		}
+	}
 
 	const nextDate = new Date(`${state.selectedDate}T00:00:00`);
 	const [hours, minutes] = state.selectedSlot.split(':').map(Number);
@@ -621,7 +646,10 @@ function applyCancel() {
 
 async function applyDelete() {
 	const input = document.getElementById('delete-confirm');
-	if (!input || input.value !== 'DELETE') return;
+	if (!input || input.value.trim() !== 'DELETE') {
+		alert('Please type DELETE exactly to confirm this permanent action.');
+		return;
+	}
 	if (window.VetAPI?.deleteAppointment) {
 		const result = await window.VetAPI.deleteAppointment(state.selectedAppointmentId);
 		if (!result.ok) {

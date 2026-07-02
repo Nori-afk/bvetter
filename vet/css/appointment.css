@@ -1,6 +1,6 @@
 /* ============================================================
    VBetter – Appointment Management
-   /vet/css/appointment.css
+   /bvetter/vet/css/appointment.css
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
@@ -955,6 +955,14 @@ body {
 
 .day-btn:hover  { background: #e8f0ff; }
 .day-btn.active { background: var(--appt-navy); color: #fff; }
+.day-btn.disabled,
+.day-btn:disabled {
+    color: #ccc;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+.day-btn.disabled:hover,
+.day-btn:disabled:hover { background: transparent; }
 .day-filler     { color: #ccc; cursor: default; }
 
 .selected-date-card {

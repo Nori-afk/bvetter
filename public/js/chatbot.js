@@ -1,4 +1,4 @@
-/* =============================================
+﻿/* =============================================
    BVETTER — Chatbot Widget v4.0
    No stepper · Doctor + Heart avatar
    Smooth intro on landing page load
@@ -15,7 +15,7 @@
     if (path.indexOf(marker) >= 0) return path.slice(0, path.indexOf(marker));
     marker = '/public/pages/';
     if (path.indexOf(marker) >= 0) return path.slice(0, path.indexOf(marker));
-    return '/bvetter';
+    return '/final-VBETTER/bvetter';
   }
 
   var APP_BASE = appBasePath();

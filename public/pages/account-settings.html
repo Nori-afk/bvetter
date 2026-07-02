@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <!--
   Page:    account-settings.html
   Feature: Profile editing, password, 2FA, deactivation
@@ -9,7 +9,7 @@
   - Load profile: api.getProfile() on page load
   - Save profile: api.updateProfile(data)
   - Change password: api.changePassword(data)
-  - Toggle 2FA: PATCH /api/user/2fa
+  - Toggle 2FA: PATCH /final-VBETTER/bvetter/api/user/2fa
 -->
 <html lang="en">
 <head>
@@ -37,7 +37,7 @@
     </ul>
   </div>
   <div class="nav-right nav-right-auth">
-    <button class="nav-notif-btn" onclick="window.location.href='notification-settings.html'">
+    <button class="nav-notif-btn" id="notification-icon-btn">
       <img src="../images/icons/icon-bell.svg" alt="Notifications" class="nav-notif-icon"/>
       <span class="nav-notif-dot"></span>
     </button>
@@ -117,7 +117,7 @@
                     <option>+44</option>
                     <option>+81</option>
                   </select>
-                  <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-icon"/>
+                  <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
                 </div>
                 <input type="tel" class="form-input phone-num" placeholder="0000-000-0000" id="inputPhone"/>
               </div>
@@ -137,7 +137,7 @@
         <div class="sec-desc">It's a good idea to use a strong password that you don't use elsewhere.</div>
         <button class="btn-sec" id="btnUpdatePw">
           Update Security Credentials
-          <img src="../images/icons/icon-arrow-right.svg" alt="" class="btn-arrow"/>
+          <img src="../images/icons/icon-right-arrow.svg" alt="" class="btn-arrow"/>
         </button>
       </div>
 
@@ -152,7 +152,7 @@
         <div class="sec-desc">Add an extra layer of security to your clinical records and billing data.</div>
         <button class="btn-sec twofa-sec" id="btnManage2FA">
           Manage Authentication
-          <img src="../images/icons/icon-fingerprint.svg" alt="" class="btn-arrow"/>
+          <img src="../images/icons/settings-2fa.svg" alt="" class="btn-arrow"/>
         </button>
       </div>
     </div>
@@ -160,7 +160,7 @@
     <div class="danger-row">
       <button class="btn-deactivate" id="btnDeactivate">
         Deactivate My Account
-        <img src="../images/icons/icon-warning.svg" alt="" class="danger-icon"/>
+        <img src="../images/icons/icon-close.svg" alt="" class="danger-icon"/>
       </button>
     </div>
 
@@ -207,7 +207,7 @@
 <div class="modal-overlay" id="deactivateModal">
   <div class="modal-box narrow">
     <div class="modal-icon-wrap danger-wrap">
-      <img src="../images/icons/icon-warning.svg" alt="" class="modal-icon-lg"/>
+      <img src="../images/icons/icon-close.svg" alt="" class="modal-icon-lg"/>
     </div>
     <div class="modal-title center">Deactivate Account?</div>
     <div class="modal-desc center">This will suspend access to all services. Your data will be retained for 30 days before permanent deletion.</div>

@@ -27,3 +27,185 @@ document.addEventListener('click', function (e) {
     dd.classList.remove('open');
   }
 });
+
+/* =============================================
+   NOTIFICATION BELL — live dropdown modal
+   Pulls the pet owner's own appointments, claims,
+   and lost & found reports to summarize status
+   changes, instead of redirecting to settings.
+   ============================================= */
+
+function escapeHtmlNav(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  }[char]));
+}
+
+function formatNotifDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function ensureNotifModalRoot() {
+  let root = document.getElementById('owner-modal-root');
+  if (!root) {
+    root = document.createElement('div');
+    root.id = 'owner-modal-root';
+    root.hidden = true;
+    document.body.appendChild(root);
+  }
+  return root;
+}
+
+function closeNotifModal() {
+  const root = document.getElementById('owner-modal-root');
+  if (root) {
+    root.hidden = true;
+    root.innerHTML = '';
+  }
+}
+
+async function buildOwnerNotifications() {
+  const session = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  const ownerId = session?.userId || session?.id || 0;
+  const notifications = [];
+
+  try {
+    const formData = new FormData();
+    formData.append('action', 'list');
+    formData.append('owner_id', ownerId);
+    const apptRes = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
+      method: 'POST',
+      body: formData
+    }).then((r) => r.json());
+
+    (apptRes?.data || [])
+      .filter((appt) => ['pending', 'confirmed'].includes(appt.status))
+      .slice(0, 3)
+      .forEach((appt) => {
+        notifications.push({
+          id: `appt-${appt.id}`,
+          title: appt.status === 'pending' ? 'Appointment Awaiting Confirmation' : 'Upcoming Appointment',
+          detail: `${appt.pet?.name || appt.patient || 'Your pet'} — ${formatNotifDate(appt.preferred_date)}${appt.time_slot ? ` at ${appt.time_slot}` : ''}`,
+          time: 'Live from appointments',
+          read: false
+        });
+      });
+  } catch (error) {
+    /* appointment lookup failed — skip silently */
+  }
+
+  try {
+    const claimsRes = await lostFoundRequest('list_claims', {});
+    (claimsRes?.data || [])
+      .filter((claim) => claim.status !== 'pending')
+      .slice(0, 3)
+      .forEach((claim) => {
+        const label = claim.status === 'approved' ? 'Claim Approved' : claim.status === 'rejected' ? 'Claim Rejected' : 'Claim Resolved';
+        notifications.push({
+          id: `claim-${claim.id}`,
+          title: label,
+          detail: `Your claim for ${claim.pet_name || 'a pet'}${claim.report_case ? ` (${claim.report_case})` : ''} was ${claim.status}.`,
+          time: 'Live from claims',
+          read: false
+        });
+      });
+  } catch (error) {
+    /* claims lookup failed — skip silently */
+  }
+
+  try {
+    const reportsRes = await lostFoundRequest('list', { status: 'all', owner_id: ownerId });
+    (reportsRes?.data || [])
+      .filter((report) => ['active', 'rejected', 'resolved'].includes(report.status))
+      .slice(0, 3)
+      .forEach((report) => {
+        const label = report.status === 'active' ? 'Report Approved' : report.status === 'rejected' ? 'Report Rejected' : 'Report Resolved';
+        notifications.push({
+          id: `report-${report.id}`,
+          title: label,
+          detail: `Your ${(report.type || '').toLowerCase()} report for ${report.petName || 'a pet'} is now ${report.status}.`,
+          time: 'Live from lost & found',
+          read: false
+        });
+      });
+  } catch (error) {
+    /* report lookup failed — skip silently */
+  }
+
+  if (!notifications.length) {
+    notifications.push({
+      id: 'empty',
+      title: 'No New Notifications',
+      detail: 'You are all caught up. Check back later for updates.',
+      time: 'Just checked',
+      read: true
+    });
+  }
+
+  return notifications;
+}
+
+function renderNotificationItems(root, items) {
+  const list = root.querySelector('.dash-notification-list');
+  if (!list) return;
+  list.innerHTML = items
+    .map(
+      (item) => `
+        <article class="dash-notification-item ${item.read ? 'read' : 'unread'}">
+          <h4>${escapeHtmlNav(item.title)}</h4>
+          <p>${escapeHtmlNav(item.detail)}</p>
+          <small>${escapeHtmlNav(item.time)}</small>
+        </article>
+      `
+    )
+    .join('');
+}
+
+async function openNotificationModal() {
+  const root = ensureNotifModalRoot();
+  root.innerHTML = `
+    <div class="dash-modal-overlay" role="dialog" aria-modal="true">
+      <section class="dash-modal-shell dash-modal-mini">
+        <header class="dash-modal-header">
+          <h2>Notifications</h2>
+          <div class="dash-modal-header-actions">
+            <button type="button" class="dash-close-btn" data-modal-close>&times;</button>
+          </div>
+        </header>
+        <div class="dash-modal-content">
+          <div class="dash-notification-list"><p>Loading notifications&hellip;</p></div>
+        </div>
+      </section>
+    </div>
+  `;
+  root.hidden = false;
+
+  const overlay = root.querySelector('.dash-modal-overlay');
+  if (overlay) {
+    overlay.addEventListener('click', function (event) {
+      if (event.target === overlay) closeNotifModal();
+    });
+  }
+  root.querySelectorAll('[data-modal-close]').forEach((button) => {
+    button.addEventListener('click', closeNotifModal);
+  });
+
+  const items = await buildOwnerNotifications();
+  if (!root.hidden) renderNotificationItems(root, items);
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  const notifBtn = document.getElementById('notification-icon-btn');
+  if (notifBtn) {
+    notifBtn.addEventListener('click', function (event) {
+      event.preventDefault();
+      openNotificationModal();
+    });
+  }
+});

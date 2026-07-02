@@ -39,7 +39,7 @@
       </ul>
     </div>
     <div class="nav-right nav-right-auth">
-      <button class="nav-notif-btn" onclick="window.location.href='notification-settings.html'">
+      <button class="nav-notif-btn" id="notification-icon-btn">
         <img src="../images/icons/icon-bell.svg" alt="Notifications" class="nav-notif-icon"/>
         <span class="nav-notif-dot"></span>
       </button>
@@ -315,7 +315,7 @@
                 <option>Sta. Barbara</option><option>Subic</option><option>Tangos</option>
                 <option>Tibag</option><option>Tilapayong</option>
               </select>
-              <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-icon"/>
+              <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
           </div>
           <div class="form-group full">
@@ -348,7 +348,7 @@
               <select class="form-select" id="petType">
                 <option>Dog</option><option>Cat</option><option>Bird</option><option>Other</option>
               </select>
-              <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-icon"/>
+              <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
           </div>
           <div class="form-group">
@@ -365,7 +365,7 @@
               <select class="form-select" id="petSex">
                 <option>Male</option><option>Female</option>
               </select>
-              <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-icon"/>
+              <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
           </div>
           <div class="form-group">
@@ -398,7 +398,7 @@
                 <option>Consultation</option><option>Vaccination</option>
                 <option>Surgery</option><option>Grooming</option><option>Check-up</option>
               </select>
-              <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-icon"/>
+              <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
           </div>
           <div class="form-group">
@@ -518,7 +518,7 @@
         <p>Review past visits, medical summaries, and help us improve with your feedback.</p>
       </div>
       <div class="hist-hero-art">
-        <img src="../images/icons/icon-history-lg.svg" alt="" class="hist-hero-img"/>
+        <img src="../images/icons/book-edit.svg" alt="" class="hist-hero-img"/>
       </div>
     </div>
   </div>
@@ -540,7 +540,7 @@
              TODO backend: hide when api.getAppointments() returns records -->
         <div class="empty-state" id="histEmpty">
           <div class="empty-icon-wrap">
-            <img src="../images/icons/icon-calendar-empty.svg" alt="no records" class="empty-icon-img"/>
+            <img src="../images/icons/icon-calendar.svg" alt="no records" class="empty-icon-img"/>
           </div>
           <div class="empty-title">No Records Yet</div>
           <div class="empty-desc">You haven't made any appointments yet.<br/>Book your first visit with one of our veterinarians to get started.</div>
@@ -621,7 +621,7 @@
                 <span class="status-dot"></span>Completed
               </span>
               <span class="rated-badge">
-                <img src="../images/icons/icon-star.svg" alt="" class="star-xs"/>
+                <img src="../images/icons/rating.svg" alt="" class="star-xs"/>
                 4.8 Rated
               </span>
             </div>
@@ -637,7 +637,7 @@
           <div class="health-num" id="complted-visit">12</div>
           <div class="health-desc">Completed Visits</div>
           <div class="health-ontime">
-            <img src="../images/icons/icon-check-circle.svg" alt="" class="ontime-icon"/>
+            <img src="../images/icons/icon-success.svg" alt="" class="ontime-icon"/>
             100% On-time
           </div>
         </div>
@@ -647,7 +647,7 @@
 
     <div class="hist-back-wrap">
       <button class="btn-back-step" id="btnHistBack">
-        <img src="../images/icons/icon-arrow-left.svg" alt="" class="btn-icon-sm"/>
+        <img src="../images/icons/icon-left-arrow.svg" alt="" class="btn-icon-sm"/>
         Back
       </button>
     </div>

@@ -1,14 +1,14 @@
-/**
+﻿/**
  * VBetter – Shared Sidebar Controller  (shared/js/sidebar.js)
  * ─────────────────────────────────────────────────────────────
  * FIXES:
- *  1. All nav routes are ABSOLUTE so they work from /vet/html/
+ *  1. All nav routes are ABSOLUTE so they work from /final-VBETTER/bvetter/vet/html/
  *     AND /admin/pages/ — no more "Cannot GET" errors.
  *  2. Profile card is always built from sessionStorage, so the
  *     real name (Dr. Kizea) always shows — never "Guest".
  *  3. data-roles hides admin-only items from vet users.
  *  4. Dashboard route is role-aware — admin goes to
- *     /admin/pages/index.html, vet goes to /vet/html/index.html.
+ *     /admin/pages/index.html, vet goes to /final-VBETTER/bvetter/vet/html/index.html.
  * ─────────────────────────────────────────────────────────────
  */
 
@@ -17,16 +17,16 @@
 
     /* ── Absolute routes — work from ANY page in ANY folder ─── */
     const ROUTES = {
-        'appointment management': '/bvetter/vet/html/appointment.html',
-        'patient records':        '/bvetter/vet/html/patient-records.html',
-        'report':                 '/bvetter/vet/html/report.html',
-        'disease analytics':      '/bvetter/vet/html/disease-analytics.html',
-        'lost and found':         '/bvetter/vet/html/lost-and-found.html',
-        'chatbot management':     '/bvetter/vet/html/chatbot-management.html',
-        'mass vaccination':       '/bvetter/vet/html/mass-vaccination.html',
+        'appointment management': '/final-VBETTER/bvetter/vet/html/appointment.html',
+        'patient records':        '/final-VBETTER/bvetter/vet/html/patient-records.html',
+        'report':                 '/final-VBETTER/bvetter/vet/html/report.html',
+        'disease analytics':      '/final-VBETTER/bvetter/vet/html/disease-analytics.html',
+        'lost and found':         '/final-VBETTER/bvetter/vet/html/lost-and-found.html',
+        'chatbot management':     '/final-VBETTER/bvetter/vet/html/chatbot-management.html',
+        'mass vaccination':       '/final-VBETTER/bvetter/vet/html/mass-vaccination.html',
         // Admin-only — absolute paths
-        'account management':     '/bvetter/admin/pages/account-management.html',
-        'website management':     '/bvetter/admin/pages/website-management.html', // input here the directory of the Website management.
+        'account management':     '/final-VBETTER/bvetter/admin/pages/account-management.html',
+        'website management':     '/final-VBETTER/bvetter/admin/pages/website-management.html', // input here the directory of the Website management.
     };
 
     const ACTIVE_ICON_CAPABLE = new Set([
@@ -144,8 +144,8 @@
     if (card) {
         card.addEventListener('click', function () {
             const dest = role === 'admin'
-                ? '/bvetter/admin/pages/profile.html'
-                : '/bvetter/vet/html/profile.html';
+                ? '/final-VBETTER/bvetter/admin/pages/profile.html'
+                : '/final-VBETTER/bvetter/vet/html/profile.html';
             if (!window.location.pathname.toLowerCase().endsWith('profile.html')) {
                 window.location.href = dest;
             }
@@ -167,8 +167,8 @@
 
         // Dashboard route depends on role — admin gets admin dashboard
         ROUTES['dashboard'] = (role === 'admin')
-            ? '/bvetter/admin/pages/index.html'
-            : '/bvetter/vet/html/index.html';
+            ? '/final-VBETTER/bvetter/admin/pages/index.html'
+            : '/final-VBETTER/bvetter/vet/html/index.html';
 
         navItems.forEach(function (item) {
             if (item.style.display === 'none') return;

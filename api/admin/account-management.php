@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 header('Content-Type: application/json');
 
@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-require_once __DIR__ . '/../../config/connection.php';
+require_once __DIR__ . '/../config/connection.php';
 
 function respond($statusCode, $payload)
 {
@@ -118,7 +118,7 @@ function listUsers($pdo)
             'verificationStatus' => $row['verification_status'],
             'barangay' => $row['barangay_name'],
             'created' => $row['created_at'],
-            'idImage' => $row['proof_path'] ? '/bvetter/' . $row['proof_path'] : '',
+            'idImage' => $row['proof_path'] ? '/final-VBETTER/bvetter/' . $row['proof_path'] : '',
             'proofName' => $row['proof_name'],
         ];
     }, $rows);
@@ -301,7 +301,7 @@ function createUser($pdo)
             ]);
         }
 
-        $profilePhoto = '/bvetter/storage/profile/' . $fileName;
+        $profilePhoto = '/final-VBETTER/bvetter/storage/profile/' . $fileName;
     }
 
     $pdo->beginTransaction();

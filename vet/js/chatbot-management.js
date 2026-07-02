@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', async () => {
+﻿document.addEventListener('DOMContentLoaded', async () => {
 	function appBasePath() {
 		const script = document.currentScript || Array.from(document.scripts).find((item) => item.src && item.src.includes('/vet/js/chatbot-management.js'));
 		const path = script?.src ? new URL(script.src).pathname : window.location.pathname;
@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 		if (path.includes(jsMarker)) return path.slice(0, path.indexOf(jsMarker));
 		const pageMarker = '/vet/html/';
 		if (path.includes(pageMarker)) return path.slice(0, path.indexOf(pageMarker));
-		return '/bvetter';
+		return '/final-VBETTER/bvetter';
 	}
 
 	const CHATBOT_API = `${appBasePath()}/api/chatbot/chatbot.php`;

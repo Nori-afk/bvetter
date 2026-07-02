@@ -1,4 +1,4 @@
-/* =============================================
+﻿/* =============================================
    BVETTER — Notification Settings JS
    File: js/notification-settings.js
    Depends: nav.js, api.js
@@ -18,7 +18,7 @@
   'use strict';
 
   /* ── Clear notification history ─────────────
-     TODO backend: DELETE /api/notifications/history */
+     TODO backend: DELETE /final-VBETTER/bvetter/api/notifications/history */
   const btnClear = document.querySelector('.btn-clear-all');
   if (btnClear) {
     btnClear.addEventListener('click', () => {
@@ -30,7 +30,7 @@
   }
 
   /* ── Configure schedule (placeholder) ───────
-     TODO backend: open modal → PATCH /api/notifications/quiet-hours */
+     TODO backend: open modal → PATCH /final-VBETTER/bvetter/api/notifications/quiet-hours */
   const btnConfigure = document.querySelector('.btn-configure');
   if (btnConfigure) {
     btnConfigure.addEventListener('click', () => {

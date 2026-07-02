@@ -38,7 +38,7 @@
       </ul>
     </div>
     <div class="nav-right nav-right-auth">
-      <button type="button" class="nav-notif-btn" onclick="window.location.href='notification-settings.html'">
+      <button type="button" class="nav-notif-btn" id="notification-icon-btn">
         <img src="../images/icons/icon-bell.svg" alt="Notifications" class="nav-notif-icon"/>
         <span class="nav-notif-dot"></span>
       </button>
@@ -120,9 +120,9 @@
     </div>
     <div class="filter-panel-wrap">
       <div class="filter-location" onclick="toggleFilterPanel()" id="filterBtn">
-        <img src="../images/icons/icon-filter.svg" alt="" class="filter-icon-img"/>
+        <img src="../../shared/images/filter.svg" alt="" class="filter-icon-img"/>
         Filter
-        <img src="../images/icons/icon-chevron-down.svg" alt="" class="filter-chevron-img"/>
+        <img src="../images/icons/icon-dropwdown.svg" alt="" class="filter-chevron-img"/>
       </div>
       <div class="filter-dropdown" id="filterDropdown">
         <p class="filter-dropdown-title">Filter Reports</p>
@@ -339,7 +339,7 @@
           <span class="history-date">Oct 24, 2023</span>
           <span class="history-pet"><img src="../images/img/pet-1.jpg" alt="" class="history-pet-img"/> Bella</span>
           <span><span class="type-tag lost-tag">LOST</span></span>
-          <span><span class="final-status reunited"><img src="../images/icons/icon-check-circle.svg" alt="" class="status-icon"/> Reunited</span></span>
+          <span><span class="final-status reunited"><img src="../images/icons/icon-success.svg" alt="" class="status-icon"/> Reunited</span></span>
           <span><button type="button" class="btn-view-case">View Case</button></span>
         </div>
         <div class="history-row">
@@ -353,7 +353,7 @@
           <span class="history-date">Aug 05, 2023</span>
           <span class="history-pet"><img src="../images/img/pet-5.jpg" alt="" class="history-pet-img"/> Max</span>
           <span><span class="type-tag lost-tag">LOST</span></span>
-          <span><span class="final-status reunited"><img src="../images/icons/icon-check-circle.svg" alt="" class="status-icon"/> Reunited</span></span>
+          <span><span class="final-status reunited"><img src="../images/icons/icon-success.svg" alt="" class="status-icon"/> Reunited</span></span>
           <span><button type="button" class="btn-view-case">View Case</button></span>
         </div>
       </div>
@@ -569,7 +569,7 @@
                   <option>Medium (10-25kg)</option>
                   <option>Large (25kg+)</option>
                 </select>
-                <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-arrow-img"/>
+                <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img"/>
               </div>
             </div>
           </div>
@@ -594,7 +594,7 @@
                 <select class="form-select" id="barangayInput">
                   <option value="">Select Barangay</option>
                 </select>
-                <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-arrow-img"/>
+                <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img"/>
               </div>
             </div>
           </div>
@@ -718,15 +718,15 @@
             <div><span class="found-detail-label">DATE FOUND</span><span class="found-detail-value" id="dDateFound">—</span></div>
           </div>
           <div class="found-detail-item">
-            <img src="../images/icons/icon-size.svg" alt="" class="found-detail-icon-img"/>
+            <img src="../images/icons/icon-pawprint.svg" alt="" class="found-detail-icon-img"/>
             <div><span class="found-detail-label">SIZE</span><span class="found-detail-value" id="dFoundSize">—</span></div>
           </div>
           <div class="found-detail-item">
-            <img src="../images/icons/icon-sex.svg" alt="" class="found-detail-icon-img"/>
+            <img src="../images/icons/icon-user.svg" alt="" class="found-detail-icon-img"/>
             <div><span class="found-detail-label">SEX</span><span class="found-detail-value" id="dFoundSex">—</span></div>
           </div>
           <div class="found-detail-item full-span">
-            <img src="../images/icons/icon-color.svg" alt="" class="found-detail-icon-img"/>
+            <img src="../images/icons/report-photo.svg" alt="" class="found-detail-icon-img"/>
             <div><span class="found-detail-label">COLOR/MARKING</span><span class="found-detail-value" id="dFoundColor">—</span></div>
           </div>
         </div>
@@ -770,7 +770,7 @@
         <div class="form-row" style="margin-top:16px;">
           <div class="form-group">
             <label>DATE SPOTTED</label>
-            <input type="date" class="form-input"/>
+            <input type="date" id="sightingDateInput" class="form-input"/>
           </div>
           <div class="form-group">
             <label>BARANGAY (LOCATION)</label>
@@ -778,7 +778,7 @@
               <select class="form-select" id="sightingBarangayInput">
                 <option value="">Select Barangay</option>
               </select>
-              <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-arrow-img"/>
+              <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img"/>
             </div>
           </div>
         </div>
@@ -792,7 +792,7 @@
           <label>SPECIFIC LANDMARKS</label>
           <div class="input-icon-wrap-full">
             <img src="../images/icons/report-landmark.svg" alt="" class="inp-icon-left-img"/>
-            <input type="text" placeholder="e.g. Near the blue gate, beside the convenience store..." class="form-input with-left-icon"/>
+            <input type="text" id="sightingLocationInput" placeholder="e.g. Near the blue gate, beside the convenience store..." class="form-input with-left-icon"/>
           </div>
         </div>
         <div class="form-group" style="margin-bottom:14px;">
@@ -806,7 +806,7 @@
         </div>
         <div class="form-group" style="margin-bottom:20px;">
           <label>ADDITIONAL DETAILS</label>
-          <textarea class="form-textarea" placeholder="Was the pet wearing a collar? What was its temperament?"></textarea>
+          <textarea class="form-textarea" id="sightingNotesInput" placeholder="Was the pet wearing a collar? What was its temperament?"></textarea>
         </div>
         <div class="sighting-footer">
           <button type="button" class="btn-cancel" onclick="closeModal('sightingModal')">Cancel</button>
@@ -862,11 +862,11 @@
         <div class="form-row" style="margin-top:20px;">
           <div class="form-group">
             <label>FULL NAME</label>
-            <input type="text" placeholder="Owner's Legal Name" class="form-input"/>
+            <input type="text" id="claimNameInput" placeholder="Owner's Legal Name" class="form-input"/>
           </div>
           <div class="form-group">
             <label>PHONE NUMBER</label>
-            <input type="tel" placeholder="+63 9XX XXX XXXX" class="form-input"/>
+            <input type="tel" id="claimPhoneInput" placeholder="+63 9XX XXX XXXX" class="form-input"/>
           </div>
         </div>
       </div>
@@ -947,7 +947,7 @@
         <div class="step-num">1</div>
         <div class="step-content">
           <div class="step-icon-wrap">
-            <img src="../images/icons/icon-clipboard.svg" alt="" class="step-icon-img"/>
+            <img src="../images/icons/report-records.svg" alt="" class="step-icon-img"/>
           </div>
           <div>
             <h4 class="step-title">Admin Review</h4>
@@ -986,7 +986,7 @@
         <div class="step-num navy-num">1</div>
         <div class="step-content">
           <div class="step-icon-wrap navy-icon">
-            <img src="../images/icons/icon-paw.svg" alt="" class="step-icon-img"/>
+            <img src="../images/icons/icon-pawprint.svg" alt="" class="step-icon-img"/>
           </div>
           <div>
             <span class="step-label-sm">STEP 1</span>
@@ -1012,7 +1012,7 @@
         <div class="step-num navy-num">3</div>
         <div class="step-content">
           <div class="step-icon-wrap gray-icon">
-            <img src="../images/icons/icon-paw.svg" alt="" class="step-icon-img"/>
+            <img src="../images/icons/icon-pawprint.svg" alt="" class="step-icon-img"/>
           </div>
           <div>
             <span class="step-label-sm">STEP 3</span>

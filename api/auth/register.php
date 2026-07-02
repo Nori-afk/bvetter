@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 //LOCATION OR TYPE NG FILE NATO
 header('Content-Type: application/json');
 
@@ -14,7 +14,7 @@ if ($requestMethod !== 'POST') {
     exit;
 }
 // IMPORTANT TO KASI ITO UNG CONNECTIO NA GINAWA NATEN
-require_once __DIR__ . '/../../config/connection.php';
+require_once __DIR__ . '/../config/connection.php';
 
 function respond($statusCode, $payload)
 {

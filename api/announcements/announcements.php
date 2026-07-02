@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -6,7 +6,7 @@ error_reporting(E_ALL);
 
 header('Content-Type: application/json');
 
-require_once __DIR__ . '/../../config/connection.php';
+require_once __DIR__ . '/../config/connection.php';
 
 function respond($statusCode, $payload)
 {
@@ -108,7 +108,7 @@ function saveImage()
         ]);
     }
 
-    return '/bvetter/storage/announcements/' . $fileName;
+    return '/final-VBETTER/bvetter/storage/announcements/' . $fileName;
 }
 
 function formatAnnouncement($row)

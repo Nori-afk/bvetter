@@ -1,4 +1,4 @@
-/* =============================================
+﻿/* =============================================
    BVETTER — Auth & Role Guard
    File: shared/js/auth.js
 
@@ -42,12 +42,12 @@ const ROLES = {
 /* ── Home page per role ───────────────────────
    Update these paths if folder names change.    */
 const HOME_URLS = {
-  [ROLES.PET_OWNER]: '/public/pages/landing.html',
-  [ROLES.VET_STAFF]: '/vet/html/index.html',
-  [ROLES.ADMIN]:     '/admin/pages/index.html'
+  [ROLES.PET_OWNER]: '/final-VBETTER/bvetter/public/pages/landing.html',
+  [ROLES.VET_STAFF]: '/final-VBETTER/bvetter/vet/html/index.html',
+  [ROLES.ADMIN]:     '/final-VBETTER/bvetter/admin/pages/index.html'
 };
 
-const LOGIN_URL = '/public/pages/login.html';
+const LOGIN_URL = '/final-VBETTER/bvetter/public/pages/login.html';
 
 /* ── Get current user ─────────────────────────
    TODO backend: decode from JWT instead of
