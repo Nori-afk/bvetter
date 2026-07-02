@@ -1695,3 +1695,132 @@ body {
 .booking-page {
   padding: 0 40px 0;
 }
+
+/* =============================================
+   RESPONSIVE — see public/css/variables.css for
+   the shared breakpoint scale used across all pages.
+   ============================================= */
+
+/* ── Tablet: 481px – 1024px ─────────────────── */
+@media (max-width: 1024px) {
+  .hero-wrap { padding: 20px 24px 16px; }
+
+  .hero { padding: 28px 28px 32px; }
+
+  .vet-wrap { padding: 16px 24px 32px; }
+
+  .vet-layout { grid-template-columns: 1fr; }
+
+  .hist-hero { grid-template-columns: 1fr; min-height: auto; }
+
+  .hist-hero-art { padding: 0 20px 20px; justify-content: flex-start; }
+
+  .hist-body { padding: 20px 24px 40px; }
+
+  .hist-layout { grid-template-columns: 1fr; }
+
+  .health-card { margin-top: 4px; }
+
+  .booking-page { padding: 0 24px 0; }
+
+  .booking-top { flex-direction: column; max-width: 100%; margin: 20px 0 24px; }
+
+  .booking-top-left {
+    min-width: 0;
+    max-width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .booking-top-right { padding: 20px 24px; }
+
+  .booking-form-wrap { padding: 0 24px 60px; }
+
+  .form-card { padding: 24px; }
+}
+
+/* ── Mobile: up to 480px ─────────────────────── */
+@media (max-width: 480px) {
+  .hero-wrap { padding: 16px 16px 12px; }
+
+  .hero { padding: 24px 20px 28px; min-height: 0; flex-wrap: wrap; }
+
+  .hero h1 { font-size: 22px; }
+
+  .vet-wrap { padding: 12px 16px 28px; }
+
+  .vet-profile-header { flex-direction: column; padding: 20px; gap: 12px; }
+
+  .vet-profile-img { width: 72px; height: 72px; }
+
+  .vet-stat { padding: 12px 8px; }
+
+  .vet-stat-val { font-size: 15px; }
+
+  .symptoms-grid { grid-template-columns: 1fr; }
+
+  .vet-profile-body { padding: 16px; }
+
+  .hist-hero-art { display: none; }
+
+  .hist-hero .hero-left { padding: 24px 20px; }
+
+  .hist-body { padding: 16px 16px 32px; }
+
+  .past-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+
+  .past-title { font-size: 17px; }
+
+  /* Appointment rows reflow into stacked cards instead of a squeezed row */
+  .appt-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 16px;
+  }
+
+  .appt-actions {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .booking-top-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 18px 20px;
+  }
+
+  .booking-top-right { padding: 18px 20px; }
+
+  .hstep-dot { width: 26px; height: 26px; font-size: 10px; }
+
+  .hstep-label {
+    font-size: 9px;
+    white-space: normal;
+    max-width: 50px;
+    text-align: center;
+  }
+
+  .hstep-bar { margin: 0 -6px; margin-bottom: 12px; }
+
+  .booking-form-wrap { padding: 0 16px 40px; }
+
+  .form-card { padding: 20px 18px; }
+
+  .form-card-title { font-size: 18px; }
+
+  .form-grid { grid-template-columns: 1fr; }
+
+  .form-row-2 { grid-template-columns: 1fr; }
+
+  .step-nav { flex-wrap: wrap; gap: 10px; }
+
+  .btn-next-step, .btn-back-step { width: 100%; justify-content: center; }
+
+  .success-card { padding: 28px 20px; }
+
+  .success-btns { flex-direction: column; }
+}

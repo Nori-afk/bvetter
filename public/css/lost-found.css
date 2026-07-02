@@ -137,9 +137,10 @@ body {
 
 .stat-card {
   padding: 20px 24px;
-  height: 120px;
+  min-height: 120px;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: 4px;
   border-radius: 14px;
 }
@@ -150,8 +151,8 @@ body {
 }
 
 .stat-card.green-card {
-  background: var(--color-green-light);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  background: var(--color-green-pale);
+  border: 1px solid var(--border-default);
 }
 
 .stat-card.navy-card {
@@ -2889,4 +2890,207 @@ body {
   color:       var(--text-muted);
   line-height: 1.55;
   max-width:   300px;
+}
+
+/* =============================================
+   RESPONSIVE — see public/css/variables.css for
+   the shared breakpoint scale used across all pages.
+   ============================================= */
+
+/* ── Tablet: 481px – 1024px ─────────────────── */
+@media (max-width: 1024px) {
+  .lf-hero-wrap { padding: 20px 20px 16px; }
+
+  .lf-hero { flex-wrap: wrap; gap: 16px; }
+
+  .lf-stats-wrap { padding: 0 20px 20px; }
+
+  .lf-stats { grid-template-columns: 1fr 1fr; }
+
+  .lf-filters { padding: 14px 24px; flex-wrap: wrap; gap: 12px; }
+
+  .filter-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-default) transparent;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filter-tabs::-webkit-scrollbar { height: 4px; }
+  .filter-tabs::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 4px; }
+  .filter-tabs::-webkit-scrollbar-track { background: transparent; }
+
+  /* Pills were shrinking below their text width and wrapping
+     to 2 lines — keep them single-line and let the row scroll. */
+  .tab {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .lf-grid-section { padding: 20px 24px 48px; }
+
+  .lf-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .my-reports-section { padding: 24px 24px 48px; }
+
+  .my-reports-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Report history reflows into stacked cards — the fixed
+     140px/100px/160px/120px columns don't fit until well
+     past 1024px, so this drops as low as tablet needs it.
+     Each row has 5 direct <span> children in a fixed order
+     (date, pet, type tag, status, action) — date/pet/action
+     get their own line, the two small badges (type + status)
+     share a line since they're not forced full-width. */
+  .history-header { display: none; }
+
+  .history-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    padding: 16px;
+  }
+
+  .history-row > span:nth-child(1),
+  .history-row > span:nth-child(2),
+  .history-row > span:nth-child(5) {
+    flex-basis: 100%;
+  }
+
+  .history-date { font-size: 12px; }
+
+  .history-pet { font-size: 14px; }
+
+  .history-row > span:nth-child(5) {
+    padding-top: 4px;
+    border-top: 1px solid var(--border-light);
+    text-align: right;
+  }
+
+  .modal-body { grid-template-columns: 1fr; }
+
+  .details-img-side { width: 220px; }
+}
+
+/* ── Mobile: up to 480px ─────────────────────── */
+@media (max-width: 480px) {
+  .lf-hero-wrap { padding: 16px 16px 12px; }
+
+  .lf-hero { padding: 20px 20px 22px; }
+
+  .lf-hero h1 { font-size: 22px; }
+
+  .lf-hero-right { width: 100%; flex-wrap: wrap; }
+
+  .btn-report {
+    flex: 1 1 140px;
+    justify-content: center;
+    padding: 11px 12px;
+    font-size: 12px;
+  }
+
+  .lf-stats-wrap { padding: 0 16px 16px; }
+
+  .lf-stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+  /* KPI cards stay 3-across but shrink way down to fit —
+     fixed 120px min-height and desktop padding/font are too big. */
+  .stat-card {
+    min-height: auto;
+    padding: 10px 10px;
+    gap: 3px;
+  }
+
+  .stat-label { font-size: 9px; }
+
+  .stat-big { font-size: 16px; }
+
+  .stat-desc { font-size: 9px; line-height: 1.35; margin-top: 0; }
+
+  .stat-icon-img { margin-top: 4px; width: 13px; height: 13px; }
+
+  .lf-filters { padding: 12px 16px; }
+
+  .filter-tabs { gap: 6px; }
+
+  .filter-dropdown { width: min(300px, calc(100vw - 32px)); }
+
+  .lf-grid-section { padding: 16px 16px 40px; }
+
+  .lf-grid { grid-template-columns: 1fr; }
+
+  .my-reports-section { padding: 20px 16px 40px; }
+
+  .my-reports-grid { grid-template-columns: 1fr; }
+
+  /* Modals: full-bleed, single column, stacked footers */
+  .modal-overlay { padding: 8px; }
+
+  .modal-header { padding: 14px 16px; }
+
+  .modal-body { padding: 10px 16px; }
+
+  .form-row { grid-template-columns: 1fr; }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    padding: 14px 16px;
+  }
+
+  .modal-footer-right { flex-direction: column; width: 100%; }
+
+  .modal-footer-right button { width: 100%; justify-content: center; }
+
+  .btn-save-draft { width: 100%; }
+
+  .claim-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .claim-footer .modal-footer-right { flex-direction: column; width: 100%; }
+
+  .claim-footer .modal-footer-right button { width: 100%; justify-content: center; }
+
+  .claim-body { padding: 16px 20px 0; }
+
+  .proof-grid { grid-template-columns: 1fr; }
+
+  /* Details modal: image on top instead of a fixed 300px side column */
+  .details-modal-box { flex-direction: column !important; max-height: 90vh; }
+
+  .details-img-side { width: 100%; min-height: 220px; }
+
+  .details-pet-img { min-height: 220px; }
+
+  .details-info-side { padding: 20px 18px; }
+
+  .found-details-grid { grid-template-columns: 1fr; }
+
+  .sighting-body { padding: 14px 16px; }
+
+  .sighting-footer { flex-direction: column-reverse; }
+
+  .sighting-footer button { width: 100%; justify-content: center; }
+
+  /* Matches slide-in panel */
+  .matches-panel { width: 100vw; }
+
+  .matches-panel-header { padding: 16px; }
+
+  .matches-panel-body { padding: 16px 16px 32px; }
+
+  .lf-match-pets { grid-template-columns: 1fr; }
+
+  .lf-match-vs { flex-direction: row; padding: 4px 0; }
+
+  .lf-match-vs-line { width: 14px; height: 1px; }
+
+  .lf-match-actions { grid-template-columns: 1fr; }
+
+  .success-modal-box { padding: 24px 20px 20px; }
 }

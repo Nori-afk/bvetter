@@ -312,6 +312,9 @@ body {
 
 .location-chart-wrap {
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     min-height: 260px;
     width: 100%;
 }

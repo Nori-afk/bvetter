@@ -825,50 +825,80 @@
   line-height: 1.55;
 }
 
-/* ── Responsive ─────────────────────────────── */
-@media (max-width: 1100px) {
+/* =============================================
+   RESPONSIVE — see public/css/variables.css for
+   the shared breakpoint scale used across all pages.
+   (Realigned from this file's old 1100/900/640 scale
+   to the site-wide 1024/480 scale.)
+   ============================================= */
+
+/* ── Tablet: 481px – 1024px ─────────────────── */
+@media (max-width: 1024px) {
+  .mc-hero-wrap { padding: 20px 20px 16px; }
+
   .mc-hero {
     flex-direction: column;
     align-items: flex-start;
     gap: 20px;
+    padding: 28px 28px 32px;
   }
 
-  .mc-detail-cols {
-    grid-template-columns: 1fr;
+  .mc-hero-stats { width: 100%; justify-content: space-between; }
+
+  .mc-section { padding: 24px 20px 48px; }
+
+  /* Claims table reflows into stacked cards instead of hiding
+     columns — the 5 fixed-fr columns (pet/date/uploaded-by/
+     status/action) get too tight for the "View Claim
+     Instructions" button well before mobile width. */
+  .mc-table-header { display: none; }
+
+  .mc-table-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 14px;
+    padding: 16px 20px;
   }
 
-  .mc-detail-right {
-    position: static;
+  .mc-pet-cell { flex-basis: 100%; }
+
+  .mc-table-row > span:nth-child(5) {
+    flex-basis: 100%;
+    margin-top: 6px;
   }
+
+  .mc-action-btn { width: 100%; justify-content: center; }
+
+  .mc-detail-cols { grid-template-columns: 1fr; }
+
+  .mc-detail-right { position: static; }
 }
 
-@media (max-width: 900px) {
-  .mc-hero-wrap,
-  .mc-section { padding-left: 20px; padding-right: 20px; }
+/* ── Mobile: up to 480px ─────────────────────── */
+@media (max-width: 480px) {
+  .mc-hero-wrap { padding: 16px 16px 12px; }
 
-  .mc-table-header,
-  .mc-table-row {
-    grid-template-columns: 1.6fr 1.1fr 0 1fr 1.4fr;
-  }
+  .mc-hero { padding: 24px 20px 28px; }
 
-  .mc-table-header span:nth-child(3),
-  .mc-table-row  span:nth-child(3) { display: none; }
-}
+  .mc-hero h1 { font-size: 22px; }
 
-@media (max-width: 640px) {
-  .mc-hero-stats { display: none; }
+  .mc-hero-stats { padding: 14px 16px; gap: 10px; }
 
-  .mc-table-header,
-  .mc-table-row {
-    grid-template-columns: 1fr auto auto;
-  }
+  .mc-hero-stat-num { font-size: 22px; }
 
-  .mc-table-header span:nth-child(2),
-  .mc-table-header span:nth-child(3),
-  .mc-table-header span:nth-child(5),
-  .mc-table-row   span:nth-child(2),
-  .mc-table-row   span:nth-child(3),
-  .mc-table-row   span:nth-child(5) { display: none; }
+  .mc-hero-stat-label { font-size: 10px; }
+
+  .mc-section { padding: 20px 16px 40px; }
+
+  .mc-table-row { padding: 14px 16px; }
 
   .mc-detail-panel { width: 100vw; }
+
+  .mc-detail-panel-header { padding: 16px; }
+
+  .mc-detail-body { padding: 18px 16px 36px; }
+
+  .mc-approved-banner,
+  .mc-pending-banner { padding: 14px 16px; flex-direction: column; }
 }

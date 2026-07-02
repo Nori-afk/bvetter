@@ -546,6 +546,17 @@
     margin-bottom: 12px;
     text-align: center;
 }
+
+/* Mobile: see public/css/variables.css for the shared
+   breakpoint scale. The 6-digit OTP row is 44px x 6 + gaps
+   = 304px, which overflows narrow phones, so it shrinks here. */
+@media (max-width: 480px) {
+    .otp-card { padding: 28px 20px 24px; }
+
+    .otp-digits { gap: 5px; }
+
+    .otp-digit { width: 38px; height: 48px; font-size: 18px; }
+}
 </style>
 
 <!-- ══ SCRIPTS ══ -->

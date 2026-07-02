@@ -691,3 +691,55 @@ body {
 .toast.error {
     background: var(--color-red);
 }
+
+/* =============================================
+   RESPONSIVE — see public/css/variables.css for
+   the shared breakpoint scale used across all pages.
+   ============================================= */
+
+/* ── Tablet: 481px – 1024px ─────────────────── */
+@media (max-width: 1024px) {
+    .page-body { padding: 32px 20px 60px; }
+
+    .profile-card-header { flex-wrap: wrap; gap: 12px; }
+
+    /* Avatar stacks above the fields instead of sitting beside
+       them — a 2-col fields-grid can't share space with a fixed
+       96px avatar column once the page narrows below ~600px. */
+    .profile-body { flex-direction: column; align-items: center; text-align: center; gap: 20px; }
+
+    .avatar-col { align-items: center; }
+
+    /* Only the avatar column should center — the centered text-align
+       on .profile-body was bleeding into the field labels/inputs too. */
+    .profile-fields { width: 100%; text-align: left; }
+
+    .security-row { grid-template-columns: 1fr; }
+}
+
+/* ── Mobile: up to 480px ─────────────────────── */
+@media (max-width: 480px) {
+    .page-body { padding: 20px 16px 48px; }
+
+    .page-title { font-size: 24px; }
+
+    .profile-banner { padding: 16px 20px 20px; }
+
+    /* Keep the button at its natural width instead of stretching
+       full-bleed across the banner — reads better under the title. */
+    .profile-card-header { flex-direction: column; align-items: flex-start; }
+
+    .profile-body { padding: 20px; }
+
+    .fields-grid { grid-template-columns: 1fr; }
+
+    .security-card { padding: 18px; }
+
+    .modal-box { padding: 22px 20px 20px; }
+
+    .modal-footer-row { flex-direction: column-reverse; }
+
+    .modal-footer-row button { width: 100%; justify-content: center; }
+
+    .toast { left: 16px; right: 16px; bottom: 16px; }
+}

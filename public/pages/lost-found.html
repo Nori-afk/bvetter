@@ -31,6 +31,7 @@
   <nav class="navbar">
     <div class="nav-left">
       <img src="../images/logos/logo-color.png" alt="Baliwag City Vet" class="nav-logo"/>
+      <button class="nav-hamburger" aria-label="Toggle navigation" onclick="toggleMobileNav()">&#9776;</button>
       <ul class="nav-links">
         <li><a href="landing.html">Home</a></li>
         <li><a href="book-appointment.html">Book An Appointment</a></li>
@@ -38,10 +39,52 @@
       </ul>
     </div>
     <div class="nav-right nav-right-auth">
-      <button type="button" class="nav-notif-btn" onclick="window.location.href='notification-settings.html'">
-        <img src="../images/icons/icon-bell.svg" alt="Notifications" class="nav-notif-icon"/>
-        <span class="nav-notif-dot"></span>
-      </button>
+      <div class="nav-notif-wrap">
+        <button type="button" class="nav-notif-btn" onclick="toggleNotifPanel()">
+          <img src="../images/icons/icon-bell.svg" alt="Notifications" class="nav-notif-icon"/>
+          <span class="nav-notif-dot"></span>
+        </button>
+        <!-- TODO backend: replace static items with api.getNotifications(); wire markAllNotifsRead() to api.markAllRead() -->
+        <div class="notif-panel" id="notifPanel">
+          <div class="notif-panel-head">
+            <span class="notif-panel-title">Notifications</span>
+            <button type="button" class="notif-mark-read" onclick="markAllNotifsRead()">Mark all as read</button>
+          </div>
+          <div class="notif-panel-list">
+            <a href="lost-found.html" class="notif-panel-item unread">
+              <div class="notif-item-icon-wrap green">
+                <img src="../images/icons/notif-report-found.svg" alt="" class="notif-item-icon"/>
+              </div>
+              <div class="notif-item-body">
+                <div class="notif-item-title">Lost Pet Found Near Sector 4</div>
+                <div class="notif-item-desc">A Border Collie matching your watch profile was found.</div>
+                <div class="notif-item-time">2 hours ago</div>
+              </div>
+            </a>
+            <a href="book-appointment.html" class="notif-panel-item unread">
+              <div class="notif-item-icon-wrap blue">
+                <img src="../images/icons/notif-appointment-confirmed.svg" alt="" class="notif-item-icon"/>
+              </div>
+              <div class="notif-item-body">
+                <div class="notif-item-title">Appointment Confirmed</div>
+                <div class="notif-item-desc">Dr. Aris will see 'Max' tomorrow at 10:30 AM.</div>
+                <div class="notif-item-time">Yesterday</div>
+              </div>
+            </a>
+            <a href="my-claims.html" class="notif-panel-item">
+              <div class="notif-item-icon-wrap blue">
+                <img src="../images/icons/notif-updates.svg" alt="" class="notif-item-icon"/>
+              </div>
+              <div class="notif-item-body">
+                <div class="notif-item-title">Claim Approved</div>
+                <div class="notif-item-desc">Your insurance claim #CL-2091 has been processed.</div>
+                <div class="notif-item-time">2 days ago</div>
+              </div>
+            </a>
+          </div>
+          <a href="notification-settings.html" class="notif-panel-footer">View All Notifications</a>
+        </div>
+      </div>
       <div class="nav-user-pill" onclick="toggleUserMenu()">
         <div class="nav-user-info">
           <span class="nav-user-name"></span>
@@ -50,7 +93,7 @@
         <img src="../images/img/account-avatar.png" alt="User" class="nav-user-avatar"/>
       </div>
       <div class="nav-user-dropdown" id="userDropdown">
-        <a href="account-profile.html" class="dropdown-item active-item">
+        <a href="account-profile.html" class="dropdown-item">
           <img src="../images/icons/account-profile.svg" alt="" class="dropdown-icon"/> Account Profile
         </a>
         <a href="account-settings.html" class="dropdown-item">

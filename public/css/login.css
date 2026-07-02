@@ -284,3 +284,75 @@ body {
 .signup-link:hover {
   text-decoration: underline;
 }
+
+/* =============================================
+   RESPONSIVE — see public/css/variables.css for
+   the shared breakpoint scale used across all pages.
+
+   Desktop is a fixed 100vh split screen with
+   overflow:hidden — that clips content that can't
+   fit, so tablet/mobile switch to a stacked, scrollable
+   layout instead of shrinking the split in place.
+   ============================================= */
+
+/* ── Tablet: 481px – 1024px ─────────────────── */
+@media (max-width: 1024px) {
+  body { height: auto; min-height: 100vh; overflow: visible; }
+
+  .page-wrapper { flex-direction: column; height: auto; min-height: 100vh; }
+
+  .left-panel {
+    width: 100%;
+    height: auto;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 14px;
+    padding: 28px 32px;
+  }
+
+  .left-logo {
+    position: static;
+    width: 56px;
+  }
+
+  .left-content {
+    position: relative;
+    z-index: 3;
+    bottom: auto;
+    left: auto;
+    right: auto;
+  }
+
+  .left-content h1 { font-size: 28px; margin-bottom: 10px; }
+
+  .left-content p { font-size: 11px; }
+
+  .cross-deco { display: none; }
+
+  .right-panel { width: 100%; padding: 40px 32px; }
+
+  .form-container { max-width: 460px; }
+}
+
+/* ── Mobile: up to 480px ───────────────────────
+   Green banner is dropped entirely — logo + heading
+   + subtitle center themselves at the top of the form
+   instead, so the page reads as one natural flow.    */
+@media (max-width: 480px) {
+  .left-panel { display: none; }
+
+  .right-panel { padding: 32px 20px; }
+
+  .form-container { align-items: center; text-align: center; }
+
+  .form-group { text-align: left; }
+
+  .right-logo { width: 96px; margin-bottom: 20px; }
+
+  .form-container h2 { font-size: 28px; }
+
+  .subtitle { margin-bottom: 24px; }
+}

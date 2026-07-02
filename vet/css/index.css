@@ -1679,10 +1679,6 @@ html, body {
 /* ============================= */
 
 @media (max-width: 1400px) {
-    .content-grid {
-        grid-template-columns: 1fr;
-    }
-
     .vaccine-section {
         grid-template-columns: 1fr;
     }

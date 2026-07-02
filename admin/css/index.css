@@ -691,10 +691,6 @@ html, body {
 /* RESPONSIVE                    */
 /* ============================= */
 
-@media (max-width: 1400px) {
-    .content-grid { grid-template-columns: 1fr; }
-}
-
 @media (max-width: 1200px) {
     .mainContent {
         margin-left: calc(var(--shell-gap) + var(--sidebar-width-collapsed) + 12px);
@@ -704,6 +700,7 @@ html, body {
         margin-left: calc(var(--shell-gap) + var(--sidebar-width-expanded) + 12px);
         width: calc(100% - (var(--shell-gap) + var(--sidebar-width-expanded) + 12px));
     }
+    .content-grid { grid-template-columns: 1fr; }
     .KPI { grid-template-columns: repeat(2, 1fr); }
     .card { padding: 20px; }
     .chart-container { height: 230px; }
