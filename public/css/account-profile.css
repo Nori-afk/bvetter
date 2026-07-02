@@ -474,3 +474,70 @@ body {
   object-fit: contain;
   opacity: 0.4;
 }
+
+/* =============================================
+   RESPONSIVE — see public/css/variables.css for
+   the shared breakpoint scale used across all pages.
+   ============================================= */
+
+/* ── Tablet: 481px – 1024px ─────────────────── */
+@media (max-width: 1024px) {
+  .hero-wrapper { padding: 15px 24px 0; }
+
+  .profile-hero { padding: 28px; }
+
+  .profile-hero-inner { flex-wrap: wrap; gap: 20px; }
+
+  .profile-hero-left { flex: 1 1 260px; }
+
+  .stats-row { flex-wrap: wrap; gap: 12px; }
+
+  .stat-item { flex: 1 1 220px; padding: 18px 20px; }
+
+  .content-layout { grid-template-columns: 1fr; }
+
+  .page-body { padding: 20px 0 48px; }
+}
+
+/* ── Mobile: up to 480px ─────────────────────── */
+@media (max-width: 480px) {
+  .hero-wrapper { padding: 12px 16px 0; }
+
+  .profile-hero { padding: 24px 20px; }
+
+  /* Reset the tablet row's wrap/grow/space-between so the
+     banner hugs its content instead of stretching tall. */
+  .profile-hero-inner {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 16px;
+  }
+
+  .profile-hero-left { flex: none; gap: 14px; }
+
+  .hero-avatar { width: 64px; height: 64px; }
+
+  .hero-name { font-size: 22px; }
+
+  .btn-edit-profile { width: 100%; text-align: center; }
+
+  /* KPI cards stay 3-across — icon drops (decorative) so the
+     label/value have room in a ~90px-wide column. The tablet
+     rule's flex-basis:220px + wrap would force these onto their
+     own line on a phone (3x220 doesn't fit), so reset both here. */
+  .stats-row { flex-direction: row; flex-wrap: nowrap; gap: 6px; }
+
+  .stat-item { flex: 1 1 0; min-width: 0; padding: 10px 8px; gap: 0; }
+
+  .stat-icon-wrap { display: none; }
+
+  .stat-label { font-size: 8px; margin-bottom: 4px; }
+
+  .stat-value { font-size: 18px; }
+
+  .page-body { padding: 16px 0 36px; }
+
+  .section-title { font-size: 19px; }
+}

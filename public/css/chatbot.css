@@ -733,3 +733,32 @@
   color: #ffffff;
   transform: translateY(0);
 }
+
+/* =============================================
+   RESPONSIVE — see public/css/variables.css for
+   the shared breakpoint scale used across all pages.
+
+   .chatbot-panel is a fixed 372px x 606px box pinned
+   at right:28px — below ~420px viewport width it gets
+   clipped off the left edge entirely. Internal layout
+   (.chatbot-messages flex:1/overflow-y:auto) already
+   adapts fine once the outer box is fluid.
+   ============================================= */
+
+/* ── Mobile: up to 480px ─────────────────────── */
+@media (max-width: 480px) {
+  /* Anchored to top AND bottom (not bottom+height) so it sits in
+     a fixed, predictable zone under the navbar regardless of a
+     phone's actual visual viewport height (address bar, etc.) —
+     bottom+vh was landing too low/inconsistently across devices. */
+  .chatbot-panel {
+    left: 12px;
+    right: 12px;
+    top: 76px;
+    bottom: 84px;
+    width: auto;
+    height: auto;
+  }
+
+  .chatbot-fab { bottom: 20px; right: 20px; }
+}

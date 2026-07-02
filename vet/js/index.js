@@ -34,23 +34,23 @@
 
     const calendarEl = document.getElementById('calendar');
     if (calendarEl) {
-        const calendar = new FullCalendar.Calendar(calendarEl, {
+        const dashCal = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             initialDate: new Date().toISOString().slice(0, 10),
-            headerToolbar: {
-                left: '',
-                center: '',
-                right: ''
-            },
+            headerToolbar: { left: '', center: '', right: '' },
+            height: 'auto',
+            fixedWeekCount: false,
             events: buildCalendarEvents(appointments, vaccinationEvents),
-            dayCellDidMount: function(info) {
-                // Highlight weekends lightly
-                if (info.date.getDay() === 0 || info.date.getDay() === 6) {
-                    info.el.style.backgroundColor = '#f9f9f9';
-                }
+            datesSet: function(info) {
+                const title = document.querySelector('.calendar-header h3');
+                if (title) title.textContent = info.view.currentStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
             }
         });
-        calendar.render();
+        dashCal.render();
+
+        const [prevBtn, nextBtn] = document.querySelectorAll('.nav-arrow');
+        if (prevBtn) prevBtn.addEventListener('click', () => dashCal.prev());
+        if (nextBtn) nextBtn.addEventListener('click', () => dashCal.next());
         updateCalendarTitle();
     }
 
@@ -87,15 +87,17 @@
                             { value: 250 }
                         ]).map((item) => item.value),
                         borderColor: '#002A58',
-                        backgroundColor: 'rgba(0, 42, 88, 0.1)',
-                        borderWidth: 3,
+                        backgroundColor: 'rgba(0, 42, 88, 0.07)',
+                        borderWidth: 2.5,
                         fill: true,
-                        tension: 0.4,
-                        pointRadius: 4,
+                        tension: 0.45,
+                        pointRadius: 3,
                         pointBackgroundColor: '#002A58',
-                        pointBorderColor: '#fff',
+                        pointBorderColor: '#ffffff',
                         pointBorderWidth: 2,
-                        pointHoverRadius: 6
+                        pointHoverRadius: 5,
+                        pointHoverBackgroundColor: '#002A58',
+                        pointHoverBorderWidth: 2
                     },
                     {
                         label: 'Predicted Patient Volume',
@@ -109,54 +111,66 @@
                             { predicted: 270 }
                         ]).map((item) => item.predicted || item.value),
                         borderColor: '#677BAE',
-                        backgroundColor: 'rgba(103, 123, 174, 0.1)',
-                        borderWidth: 2,
+                        backgroundColor: 'rgba(103, 123, 174, 0.06)',
+                        borderWidth: 1.5,
+                        borderDash: [5, 3],
                         fill: true,
-                        tension: 0.4,
-                        pointRadius: 4,
+                        tension: 0.45,
+                        pointRadius: 3,
                         pointBackgroundColor: '#677BAE',
-                        pointBorderColor: '#fff',
+                        pointBorderColor: '#ffffff',
                         pointBorderWidth: 2,
-                        pointHoverRadius: 6
+                        pointHoverRadius: 5
                     }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: {
                         display: true,
                         position: 'bottom',
                         labels: {
-                            color: '#002A58',
-                            font: {
-                                size: 12,
-                                weight: '600'
-                            },
-                            padding: 15,
-                            usePointStyle: true
+                            color: '#475569',
+                            font: { size: 11, weight: '600', family: "'Inter', sans-serif" },
+                            padding: 18,
+                            usePointStyle: true,
+                            pointStyleWidth: 8
                         }
+                    },
+                    tooltip: {
+                        backgroundColor: '#0F172A',
+                        titleColor: '#F8FAFC',
+                        bodyColor: '#CBD5E1',
+                        titleFont: { size: 12, weight: '700', family: "'Inter', sans-serif" },
+                        bodyFont: { size: 11, family: "'Inter', sans-serif" },
+                        padding: 12,
+                        cornerRadius: 8,
+                        boxPadding: 5,
+                        borderColor: 'rgba(255,255,255,0.08)',
+                        borderWidth: 1
                     }
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
-                        grid: {
-                            color: 'rgba(216.75, 216.75, 255, 0.1)',
-                            drawBorder: false
-                        },
+                        border: { display: false, dash: [4, 4] },
+                        grid: { color: 'rgba(0,0,0,0.04)' },
                         ticks: {
-                            color: '#737781'
+                            color: '#94A3B8',
+                            font: { size: 11, family: "'Inter', sans-serif" },
+                            padding: 8
                         }
                     },
                     x: {
-                        grid: {
-                            display: false,
-                            drawBorder: false
-                        },
+                        border: { display: false },
+                        grid: { display: false },
                         ticks: {
-                            color: '#737781'
+                            color: '#94A3B8',
+                            font: { size: 11, family: "'Inter', sans-serif" },
+                            padding: 6
                         }
                     }
                 }
@@ -180,83 +194,95 @@
                 ]).map((item) => item.barangay),
                 datasets: [
                     {
-                        label: 'Number Of Cases',
+                        label: 'Confirmed Cases',
                         data: (dashboardData?.diseaseCasesByBarangay?.length ? dashboardData.diseaseCasesByBarangay : [
                             { actual: 5 },
                             { actual: 2 },
                             { actual: 4 },
                             { actual: 10 }
                         ]).map((item) => item.actual),
-                        borderColor: '#002A58',
-                        backgroundColor: 'rgba(255, 146, 138, 0.15)',
-                        borderWidth: 2,
+                        borderColor: '#DC2626',
+                        backgroundColor: 'rgba(220, 38, 38, 0.06)',
+                        borderWidth: 2.5,
                         fill: true,
-                        tension: 0.4,
-                        pointRadius: 4,
-                        pointBackgroundColor: '#002A58',
-                        pointBorderColor: '#fff',
+                        tension: 0.45,
+                        pointStyle: 'circle',
+                        pointRadius: 3,
+                        pointBackgroundColor: '#DC2626',
+                        pointBorderColor: '#ffffff',
                         pointBorderWidth: 2,
-                        pointHoverRadius: 6
+                        pointHoverRadius: 5
                     },
                     {
-                        label: 'Predictive Cases',
+                        label: 'Predicted Cases',
                         data: (dashboardData?.diseaseCasesByBarangay?.length ? dashboardData.diseaseCasesByBarangay : [
                             { predicted: 7 },
                             { predicted: 3 },
                             { predicted: 5 },
                             { predicted: 8 }
                         ]).map((item) => item.predicted),
-                        borderColor: '#677BAE',
-                        backgroundColor: 'rgba(137.05, 121.10, 255, 0.15)',
-                        borderWidth: 2,
+                        borderColor: '#F97316',
+                        backgroundColor: 'rgba(249, 115, 22, 0.06)',
+                        borderWidth: 1.5,
+                        borderDash: [5, 3],
                         fill: true,
-                        tension: 0.4,
-                        pointRadius: 4,
-                        pointBackgroundColor: '#677BAE',
-                        pointBorderColor: '#fff',
+                        tension: 0.45,
+                        pointStyle: 'circle',
+                        pointRadius: 3,
+                        pointBackgroundColor: '#F97316',
+                        pointBorderColor: '#ffffff',
                         pointBorderWidth: 2,
-                        pointHoverRadius: 6
+                        pointHoverRadius: 5
                     }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: {
                         position: 'bottom',
                         labels: {
-                            color: '#002A58',
-                            font: {
-                                size: 12,
-                                weight: '600'
-                            },
-                            padding: 15,
-                            usePointStyle: true
+                            color: '#475569',
+                            font: { size: 11, weight: '600', family: "'Inter', sans-serif" },
+                            padding: 18,
+                            usePointStyle: true,
+                            pointStyleWidth: 8
                         }
+                    },
+                    tooltip: {
+                        backgroundColor: '#0F172A',
+                        titleColor: '#F8FAFC',
+                        bodyColor: '#CBD5E1',
+                        titleFont: { size: 12, weight: '700', family: "'Inter', sans-serif" },
+                        bodyFont: { size: 11, family: "'Inter', sans-serif" },
+                        padding: 12,
+                        cornerRadius: 8,
+                        boxPadding: 5,
+                        borderColor: 'rgba(255,255,255,0.08)',
+                        borderWidth: 1
                     }
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
-                        grid: {
-                            color: 'rgba(216.75, 216.75, 255, 0.1)',
-                            drawBorder: false
-                        },
+                        border: { display: false, dash: [4, 4] },
+                        grid: { color: 'rgba(0,0,0,0.04)' },
                         ticks: {
-                            color: '#737781',
-                            stepSize: 2
+                            color: '#94A3B8',
+                            stepSize: 2,
+                            font: { size: 11, family: "'Inter', sans-serif" },
+                            padding: 8
                         }
                     },
                     x: {
-                        grid: {
-                            display: false,
-                            drawBorder: false
-                        },
+                        border: { display: false },
+                        grid: { display: false },
                         ticks: {
-                            color: '#737781',
+                            color: '#94A3B8',
                             font: {
-                                size: 10
+                                size: 11
                             }
                         }
                     }
@@ -280,10 +306,11 @@
                         ],
                         backgroundColor: [
                             '#1B6D24',
-                            '#E2E2E8'
+                            '#E8EEF6'
                         ],
-                        borderColor: '#fff',
-                        borderWidth: 2
+                        borderColor: '#ffffff',
+                        borderWidth: 3,
+                        hoverBorderWidth: 3
                     }
                 ]
             },
@@ -291,14 +318,18 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        display: false
-                    },
+                    legend: { display: false },
                     tooltip: {
-                        enabled: false
+                        backgroundColor: '#0F172A',
+                        titleColor: '#F8FAFC',
+                        bodyColor: '#CBD5E1',
+                        titleFont: { size: 12, weight: '700', family: "'Inter', sans-serif" },
+                        bodyFont: { size: 11, family: "'Inter', sans-serif" },
+                        padding: 10,
+                        cornerRadius: 8
                     }
                 },
-                cutout: '70%'
+                cutout: '72%'
             },
             plugins: [{
                 id: 'textCenter',
@@ -554,35 +585,65 @@ function openAnnouncementEditorModal({ mode, item }) {
 
     showModal(`
         <header class="dash-modal-header">
-            <h2>${isEdit ? 'Edit Announcement' : 'Create Announcement'}</h2>
-            <button type="button" class="dash-close-btn" data-modal-close>&times;</button>
-        </header>
-        <div class="dash-modal-content">
-            <label class="dash-field-wrap">
-                <input id="announcement-title" class="dash-input" type="text" placeholder="Title Of Announcement" value="${escapeHtml(localState.title)}">
-            </label>
-            <label class="dash-field-wrap">
-                <textarea id="announcement-description" class="dash-textarea" placeholder="Description">${escapeHtml(localState.description)}</textarea>
-            </label>
-            <label class="dash-field-wrap">
-                <select id="announcement-category" class="dash-input">
-                    ${categoryOptions}
-                </select>
-            </label>
-            <label class="dash-field-wrap">
-                <input id="announcement-date" class="dash-input" type="date" value="${escapeHtml(localState.date)}">
-            </label>
-            <label class="dash-field-wrap">
-                <input id="announcement-location" class="dash-input" type="text" placeholder="Location (optional)" value="${escapeHtml(localState.location)}">
-            </label>
-            <div class="dash-upload-box" id="announcement-upload-box">
-                ${localState.image ? `<img src="${escapeHtml(localState.image)}" alt="Announcement image preview">` : '<span>Add To Your Post</span>'}
+            <div class="dash-modal-header-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
             </div>
-            <div class="dash-upload-actions">
-                <button type="button" class="dash-upload-btn" id="announcement-upload-trigger">Add To Your Post</button>
+            <div class="dash-modal-header-text">
+                <h2>${isEdit ? 'Edit Announcement' : 'Create Announcement'}</h2>
+                <p>${isEdit ? 'Update the details below and save changes.' : 'Fill in the details to post a new clinic announcement.'}</p>
+            </div>
+            <button type="button" class="dash-close-btn" data-modal-close>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </header>
+        <div class="dash-modal-divider"></div>
+        <div class="dash-modal-content">
+            <div class="dash-field-wrap">
+                <label class="dash-field-label" for="announcement-title">Announcement Title</label>
+                <input id="announcement-title" class="dash-input" type="text" placeholder="e.g. Free Vaccination Drive this Saturday" value="${escapeHtml(localState.title)}">
+            </div>
+            <div class="dash-field-wrap">
+                <label class="dash-field-label" for="announcement-description">Description</label>
+                <textarea id="announcement-description" class="dash-textarea" placeholder="Write a clear and helpful description for pet owners...">${escapeHtml(localState.description)}</textarea>
+            </div>
+            <div class="dash-form-row">
+                <div class="dash-field-wrap">
+                    <label class="dash-field-label" for="announcement-category">Category</label>
+                    <select id="announcement-category" class="dash-input">
+                        ${categoryOptions}
+                    </select>
+                </div>
+                <div class="dash-field-wrap">
+                    <label class="dash-field-label" for="announcement-date">Date</label>
+                    <input id="announcement-date" class="dash-input" type="date" value="${escapeHtml(localState.date)}">
+                </div>
+            </div>
+            <div class="dash-field-wrap">
+                <label class="dash-field-label" for="announcement-location">Location <span>(optional)</span></label>
+                <input id="announcement-location" class="dash-input" type="text" placeholder="e.g. Baliwag Veterinary Clinic, Main Branch" value="${escapeHtml(localState.location)}">
+            </div>
+            <div class="dash-field-wrap">
+                <label class="dash-field-label">Cover Image <span>(optional)</span></label>
+                <div class="dash-upload-area" id="announcement-upload-box">
+                    ${localState.image
+                        ? `<img src="${escapeHtml(localState.image)}" alt="Announcement image preview">`
+                        : `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                           <span class="dash-upload-area-label">Click to upload a cover image</span>
+                           <span class="dash-upload-area-sub">PNG, JPG or GIF — max 5 MB</span>`
+                    }
+                </div>
                 <input type="file" id="announcement-upload-input" accept="image/*" hidden>
             </div>
-            <button type="button" class="dash-primary-btn" id="announcement-submit-btn">${isEdit ? 'Update' : 'Post'}</button>
+        </div>
+        <div class="dash-modal-footer">
+            <button type="button" class="dash-secondary-btn" data-modal-close>Cancel</button>
+            <button type="button" class="dash-primary-btn" id="announcement-submit-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                ${isEdit ? 'Save Changes' : 'Post Announcement'}
+            </button>
         </div>
     `);
 
@@ -591,12 +652,11 @@ function openAnnouncementEditorModal({ mode, item }) {
     const categoryInput    = document.getElementById('announcement-category');
     const dateInput        = document.getElementById('announcement-date');
     const locationInput    = document.getElementById('announcement-location');
-    const uploadTrigger    = document.getElementById('announcement-upload-trigger');
-    const uploadInput      = document.getElementById('announcement-upload-input');
     const uploadBox        = document.getElementById('announcement-upload-box');
+    const uploadInput      = document.getElementById('announcement-upload-input');
     const submitBtn        = document.getElementById('announcement-submit-btn');
 
-    uploadTrigger?.addEventListener('click', () => uploadInput?.click());
+    uploadBox?.addEventListener('click', () => uploadInput?.click());
 
     uploadInput?.addEventListener('change', () => {
         const file = uploadInput.files?.[0];
@@ -606,7 +666,7 @@ function openAnnouncementEditorModal({ mode, item }) {
             localState.image = String(reader.result);
             localState.file = file;
             if (uploadBox) {
-                uploadBox.innerHTML = `<img src="${escapeHtml(localState.image)}" alt="Announcement image preview">`;
+                uploadBox.innerHTML = `<img src="${escapeHtml(localState.image)}" alt="Announcement image preview" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">`;
             }
         };
         reader.readAsDataURL(file);
@@ -836,27 +896,13 @@ function openAnnouncementEditorModal({ mode, item }) {
         });
     }
 
-    // Disease Cases Filter (All/Disease type)
-    const diseaseCard = document.querySelector('.card:has(#diseaseChart)') || 
-                        Array.from(document.querySelectorAll('.card')).find(card => card.querySelector('#diseaseChart'));
-    
-    if (diseaseCard) {
-        const diseaseDropdownBtn = diseaseCard.querySelector('.dropdown-btn');
-        
-        if (diseaseDropdownBtn) {
-            diseaseDropdownBtn.addEventListener('click', function(e) {
-                console.log('Disease Filter Clicked');
-                
-                const diseases = ['All Diseases', 'Canine Parvovirus', 'Canine Distemper', 'Rabies (Suspected)', 'Leptospirosis'];
-                const currentFilter = this.textContent.trim();
-                const currentIndex = diseases.indexOf(currentFilter);
-                const nextDisease = diseases[((currentIndex >= 0 ? currentIndex : 0) + 1) % diseases.length];
-                
-                this.textContent = nextDisease;
-                dashboardFilterState.disease = nextDisease;
-                refreshDashboardCharts();
-            });
-        }
+    // Disease Cases Filter
+    const diseaseFilter = document.getElementById('diseaseFilter');
+    if (diseaseFilter) {
+        diseaseFilter.addEventListener('change', function() {
+            dashboardFilterState.disease = this.value;
+            refreshDashboardCharts();
+        });
     }
 
     // Fade in cards on load

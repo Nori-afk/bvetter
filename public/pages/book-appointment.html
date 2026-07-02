@@ -32,6 +32,7 @@
   <nav class="navbar">
     <div class="nav-left">
       <img src="../images/logos/logo-color.png" alt="Baliwag City Vet" class="nav-logo"/>
+      <button class="nav-hamburger" aria-label="Toggle navigation" onclick="toggleMobileNav()">&#9776;</button>
       <ul class="nav-links">
         <li><a href="landing.html">Home</a></li>
         <li><a href="book-appointment.html" class="active">Book An Appointment</a></li>
@@ -51,7 +52,7 @@
       <img src="../images/img/account-avatar.png" alt="User" class="nav-user-avatar"/>
     </div>
     <div class="nav-user-dropdown" id="userDropdown">
-      <a href="account-profile.html" class="dropdown-item active-item">
+      <a href="account-profile.html" class="dropdown-item">
         <img src="../images/icons/account-profile.svg" alt="" class="dropdown-icon"/> Account Profile
       </a>
       <a href="account-settings.html" class="dropdown-item">
@@ -95,7 +96,9 @@
       <!-- Vet Profile -->
       <div class="vet-profile-card">
         <div class="vet-profile-header">
-          <img alt="Dr. Kizea" class="vet-profile-img" id="profile-heads"/>
+          <img alt="Dr. Kizea" class="vet-profile-img" id="profile-heads"
+               src="../images/img/vet-profile.png"
+               onerror="this.onerror=null;this.src='../images/img/vet-profile.png';"/>
           <div class="vet-profile-info">
             <div class="vet-profile-name" id="profile-name">Dr. Kizea Bien Igaya</div>
             <div class="vet-profile-title" id="profile-title">Senior Veterinary Surgeon</div>
@@ -536,8 +539,6 @@
           </div>
         </div>
 
-        <!-- EMPTY STATE — shown by default for new users
-             TODO backend: hide when api.getAppointments() returns records -->
         <div class="empty-state" id="histEmpty">
           <div class="empty-icon-wrap">
             <img src="../images/icons/icon-calendar.svg" alt="no records" class="empty-icon-img"/>
@@ -545,7 +546,7 @@
           <div class="empty-title">No Records Yet</div>
           <div class="empty-desc">You haven't made any appointments yet.<br/>Book your first visit with one of our veterinarians to get started.</div>
           <button class="btn-next-step" id="btnBookFromHistory">
-            <img src="../images/icons/icon-calendar.svg" alt="" class="btn-icon-sm"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             Book an Appointment
           </button>
         </div>
@@ -633,8 +634,8 @@
       <!-- Sidebar: Health stats -->
       <div class="hist-sidebar">
         <div class="health-card">
-          <div class="health-label">HEALTHY STATUS</div>
-          <div class="health-num" id="complted-visit">12</div>
+          <div class="health-label">Care Summary</div>
+          <div class="health-num" id="complted-visit">0</div>
           <div class="health-desc">Completed Visits</div>
           <div class="health-ontime">
             <img src="../images/icons/icon-success.svg" alt="" class="ontime-icon"/>

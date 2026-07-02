@@ -23,6 +23,22 @@
    6. Shadows
    7. Typography
    8. Gradients (for buttons and hero panels)
+
+   ██████████████████████████████████████████
+   RESPONSIVE BREAKPOINTS — use these values in
+   every @media rule across public/css/*.css.
+   CSS can't read custom properties inside a
+   media query condition, so these are literal
+   values to copy — do not invent new ones.
+
+     Mobile:   max-width: 480px
+     Tablet:   min-width: 481px and max-width: 1024px
+     Desktop:  min-width: 1025px   (current/default layout)
+
+   Pattern (mobile-first override, desktop is default):
+     @media (max-width: 1024px) { ... }  tablet + mobile
+     @media (max-width: 480px)  { ... }  mobile only
+   ██████████████████████████████████████████
    ============================================= */
 
 :root {

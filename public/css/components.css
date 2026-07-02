@@ -203,6 +203,146 @@
 
 .dropdown-logout { color: var(--color-red); }
 
+/* ── NOTIFICATION PANEL ─────────────────── */
+.nav-notif-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.notif-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 10px);
+  right: -8px;
+  width: min(360px, 92vw);
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-dropdown);
+  overflow: hidden;
+  z-index: 300;
+}
+
+.notif-panel.open { display: block; }
+
+.notif-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.notif-panel-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.notif-mark-read {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-main);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-green-dark);
+  transition: opacity 0.2s;
+}
+
+.notif-mark-read:hover { opacity: 0.7; }
+
+.notif-panel-list {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.notif-panel-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-light);
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.notif-panel-item:last-child { border-bottom: none; }
+
+.notif-panel-item:hover { background: var(--bg-page); }
+
+.notif-panel-item.unread { background: var(--bg-input); }
+
+.notif-panel-item.unread::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-green);
+}
+
+.notif-item-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.notif-item-icon-wrap.green { background: var(--color-green-pale); }
+.notif-item-icon-wrap.blue  { background: #E8EEF8; }
+
+.notif-item-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.notif-item-body { flex: 1; min-width: 0; }
+
+.notif-item-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+
+.notif-item-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 5px;
+}
+
+.notif-item-time {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-faint);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.notif-panel-footer {
+  display: block;
+  text-align: center;
+  padding: 13px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-green-dark);
+  text-decoration: none;
+  background: var(--bg-page);
+  transition: background 0.15s;
+}
+
+.notif-panel-footer:hover { background: var(--border-light); }
+
 /* =============================================
    FOOTER
    ============================================= */
@@ -433,4 +573,151 @@
 
 .dash-notification-item small {
   color: var(--text-muted);
+}
+
+/* =============================================
+   MOBILE NAV TOGGLE (hamburger)
+   Hidden on desktop, shown at tablet + mobile.
+   ============================================= */
+.nav-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  border-radius: 8px;
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.nav-hamburger:hover { background: rgba(255, 255, 255, 0.14); }
+
+/* =============================================
+   RESPONSIVE — see public/css/variables.css for
+   the shared breakpoint scale used across all pages.
+   ============================================= */
+
+/* ── Tablet: 481px – 1024px ─────────────────── */
+@media (max-width: 1024px) {
+  .navbar { padding: 0 20px; }
+
+  .nav-left { gap: 14px; }
+
+  .nav-hamburger { display: flex; }
+
+  .nav-links {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    gap: 0;
+    background: var(--color-navy);
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    padding: 0 20px;
+    box-shadow: var(--shadow-dropdown);
+    transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease;
+  }
+
+  .nav-links.open {
+    max-height: 320px;
+    opacity: 1;
+    padding: 10px 20px 18px;
+  }
+
+  .nav-links li { width: 100%; }
+
+  .nav-links li a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 10px 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .nav-links li a.active {
+    border-bottom: 1px solid var(--color-green);
+    padding-bottom: 10px;
+  }
+
+  .nav-right { gap: 8px; }
+
+  .nav-notif-btn {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .nav-user-pill { min-height: 44px; }
+
+  .footer {
+    height: auto;
+    padding: 40px 32px 24px;
+  }
+
+  .footer-paw { width: 200px; opacity: 0.1; }
+
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+
+  .footer-brand { grid-column: 1 / -1; }
+  .footer-brand p { width: 100%; }
+}
+
+/* ── Mobile: up to 480px ─────────────────────── */
+@media (max-width: 480px) {
+  .navbar { padding: 0 14px; }
+
+  .nav-left { gap: 8px; }
+
+  .nav-logo { width: 36px; height: 36px; }
+
+  .nav-links.open { max-height: 280px; }
+
+  .nav-right { gap: 6px; }
+
+  .nav-right-auth { gap: 8px; }
+
+  .nav-user-info { display: none; }
+
+  .btn-register,
+  .btn-login-nav {
+    padding: 8px 14px;
+    font-size: 12px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .nav-user-dropdown { min-width: 190px; }
+
+  .footer { padding: 32px 20px 20px; }
+
+  .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .footer-links,
+  .footer-contact { grid-column: 1 / -1; }
+
+  .footer-phone { font-size: 18px !important; }
+
+  .footer-bottom {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .footer-bottom span { line-height: 1.5; }
 }

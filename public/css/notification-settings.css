@@ -422,3 +422,47 @@ body {
 .btn-configure:hover {
   background: var(--color-green);
 }
+
+/* =============================================
+   RESPONSIVE — see public/css/variables.css for
+   the shared breakpoint scale used across all pages.
+   ============================================= */
+
+/* ── Tablet: 481px – 1024px ─────────────────── */
+@media (max-width: 1024px) {
+  .page-body { padding: 28px 20px 48px; }
+
+  .notif-card { padding: 22px 20px 8px; }
+
+  /* Channel columns only hold a 22px checkbox — shrinking them
+     from 90px to 64px gives the notification type column enough
+     room to keep breathing instead of forcing the fixed 380px
+     Quiet Hours column into a squeeze first. */
+  .table-head-row,
+  .table-row { grid-template-columns: 1fr 64px 64px 64px; }
+
+  .bottom-row { grid-template-columns: 1fr; }
+}
+
+/* ── Mobile: up to 480px ─────────────────────── */
+@media (max-width: 480px) {
+  .page-body { padding: 20px 16px 40px; }
+
+  .page-title { font-size: 22px; }
+
+  .notif-card { padding: 18px 16px 6px; }
+
+  .table-head-row,
+  .table-row { grid-template-columns: 1fr 42px 42px 42px; }
+
+  .th-channel { font-size: 8px; }
+
+  .notif-type-cell { gap: 10px; }
+
+  .notif-type-icon { width: 30px; height: 30px; }
+
+  .checkmark { width: 20px; height: 20px; }
+
+  .history-card,
+  .quiet-card { padding: 18px 16px; }
+}

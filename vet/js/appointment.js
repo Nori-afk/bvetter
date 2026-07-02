@@ -344,13 +344,13 @@ function detailsModalTemplate(appointment) {
 	const statusSlug = (appointment.status || 'unknown').toLowerCase().replace(/\s+/g, '-');
 
 	return `
-		<div class="appt-modal-banner">
-			<div class="appt-modal-avatar">${initial}</div>
+		<div class="appt-modal-header appt-accent-${statusSlug}">
+			<div class="appt-header-avatar appt-avatar-${statusSlug}">${initial}</div>
 			<div class="appt-modal-identity">
-				<div class="appt-modal-name">${appointment.patient}</div>
-				<div class="appt-modal-meta">${appointment.service} &middot; ${dt.date} at ${dt.time}</div>
+				<div class="appt-header-name">${appointment.patient}</div>
+				<div class="appt-header-meta">${appointment.service} &middot; ${dt.date} at ${dt.time}</div>
 			</div>
-			<span class="appt-status-badge appt-status-${statusSlug}">${appointment.status}</span>
+			<span class="appt-header-badge appt-badge-${statusSlug}">${appointment.status}</span>
 		</div>
 
 		<div class="appt-modal-body">
@@ -430,56 +430,72 @@ function rescheduleModalTemplate(appointment) {
 		return `
 			<button type="button" class="slot-btn${active}" data-slot="${slot.value}">
 				<span class="slot-label">${slot.label}</span>
-				<h1>${slot.display}</h1>
+				<span class="slot-time">${slot.display}</span>
 			</button>
 		`;
 	}).join('');
 	const initial = (appointment.patient || '?').charAt(0).toUpperCase();
 
 	return `
-		<div class="appt-modal-banner">
-			<div class="appt-modal-avatar">${initial}</div>
+		<div class="appt-modal-header appt-accent-reschedule">
+			<div class="appt-header-avatar appt-avatar-reschedule">${initial}</div>
 			<div class="appt-modal-identity">
-				<div class="appt-modal-name">Reschedule Appointment</div>
-				<div class="appt-modal-meta">${appointment.patient} &middot; Pick a new date and time</div>
+				<div class="appt-header-name">Reschedule Appointment</div>
+				<div class="appt-header-meta">${appointment.patient} &middot; Pick a new date and time</div>
 			</div>
 		</div>
-		<div class="appt-modal-body appt-modal-body-compact">
-		<div class="reschedule-layout">
-			<section class="reschedule-calendar">
-				<div class="reschedule-cal-head">
-					<span class="reschedule-month">${monthLabel(monthDate)}</span>
-					<div class="reschedule-nav">
-						<button type="button" aria-label="Previous month" data-resched-nav="prev">&#8249;</button>
-						<button type="button" aria-label="Next month" data-resched-nav="next">&#8250;</button>
+		<div class="appt-modal-body rsch-body">
+			<div class="reschedule-layout">
+				<section class="reschedule-calendar">
+					<div class="reschedule-cal-head">
+						<span class="reschedule-month">${monthLabel(monthDate)}</span>
+						<div class="reschedule-nav">
+							<button type="button" aria-label="Previous month" data-resched-nav="prev">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+							</button>
+							<button type="button" aria-label="Next month" data-resched-nav="next">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+							</button>
+						</div>
 					</div>
-				</div>
-				<div class="reschedule-weekdays">${RESCHEDULE_WEEK_DAYS.map((day) => `<span>${day}</span>`).join('')}</div>
-				<div class="reschedule-days">${buildRescheduleCalendar(monthDate, selectedDate)}</div>
-				<div class="selected-date-card">
-					<p>Selected date</p>
-					<div class="detailed-header">
-					<i data-lucide="calendar-check"></i>
-					<strong>${selectedDateLabel}</strong>
+					<div class="reschedule-weekdays">${RESCHEDULE_WEEK_DAYS.map((day) => `<span>${day}</span>`).join('')}</div>
+					<div class="reschedule-days">${buildRescheduleCalendar(monthDate, selectedDate)}</div>
+					<div class="selected-date-card">
+						<p>Selected date</p>
+						<div class="detailed-header">
+							<i data-lucide="calendar-check"></i>
+							<strong>${selectedDateLabel}</strong>
+						</div>
 					</div>
-				</div>
-			</section>
-			<section class="reschedule-slots">
-				<div class="reschedule-slots-head">
-					<h4>Available slots</h4>
-					<span>${slotsOpenCount} Slots Open</span>
-				</div>
-				<div class="slot-grid">
-					${slotCards}
-				</div>
-				<p class="muted"><strong>Current slot:</strong> ${dt.date} - ${dt.time}</p>
-				<p class="muted"><strong>New slot:</strong> <span data-new-slot-line>${selectedDateLabel} at ${selectedSlotLabel}</span></p>
-			</section>
-		</div>
-		<div class="two-actions">
-			<button class="btn btn-outline" type="button" data-modal-action="open-details">Cancel</button>
-			<button class="btn btn-primary" type="button" data-modal-action="confirm-reschedule">Confirm Reschedule</button>
-		</div>
+				</section>
+				<section class="reschedule-slots">
+					<div class="reschedule-slots-head">
+						<h4>Available Slots</h4>
+						<span class="rsch-slots-badge">${slotsOpenCount} Open</span>
+					</div>
+					<div class="slot-grid">${slotCards}</div>
+					<div class="rsch-summary-card">
+						<div class="rsch-summary-row">
+							<span>Current</span>
+							<strong>${dt.date} &middot; ${dt.time}</strong>
+						</div>
+						<div class="rsch-summary-row rsch-summary-new">
+							<span>New</span>
+							<strong data-new-slot-line>${selectedDateLabel} at ${selectedSlotLabel}</strong>
+						</div>
+					</div>
+				</section>
+			</div>
+			<div class="rsch-actions">
+				<button class="btn btn-outline rsch-btn" type="button" data-modal-action="open-details">
+					<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+					Back
+				</button>
+				<button class="btn btn-primary rsch-btn" type="button" data-modal-action="confirm-reschedule">
+					<i data-lucide="calendar-check-2"></i>
+					Confirm Reschedule
+				</button>
+			</div>
 		</div>
 	`;
 }
@@ -510,11 +526,11 @@ function cancelModalTemplate(appointment) {
 	const dt = formatDateTime(appointment.datetime);
 	const initial = (appointment.patient || '?').charAt(0).toUpperCase();
 	return `
-		<div class="appt-modal-banner appt-banner-danger">
-			<div class="appt-modal-avatar appt-avatar-danger">${initial}</div>
+		<div class="appt-modal-header appt-accent-danger">
+			<div class="appt-header-avatar appt-avatar-danger">${initial}</div>
 			<div class="appt-modal-identity">
-				<div class="appt-modal-name">Cancel Appointment?</div>
-				<div class="appt-modal-meta">${appointment.patient} &middot; ${appointment.service} &middot; ${dt.date}</div>
+				<div class="appt-header-name">Cancel Appointment?</div>
+				<div class="appt-header-meta">${appointment.patient} &middot; ${appointment.service} &middot; ${dt.date}</div>
 			</div>
 		</div>
 		<div class="appt-modal-body">
@@ -540,20 +556,39 @@ function cancelModalTemplate(appointment) {
 
 function deleteModalTemplate(appointment) {
 	const dt = formatDateTime(appointment.datetime);
+	const initial = (appointment.patient || '?').charAt(0).toUpperCase();
 	return `
-		<h3 class="modal-title" id="modal-title">Delete Appointment Record?</h3>
-		<p class="modal-subtitle">This action is permanent and cannot be undone.</p>
-		<article class="danger-card">
-			<p class="muted"><strong>Owner:</strong> ${appointment.owner}</p>
-			<p class="muted"><strong>Pet:</strong> ${appointment.patient}</p>
-			<p class="muted"><strong>Date and Time:</strong> ${dt.date} - ${dt.time}</p>
-			<p class="muted"><strong>Type:</strong> ${appointment.type}</p>
-		</article>
-		<label class="muted" for="delete-confirm">Type DELETE to confirm</label>
-		<input id="delete-confirm" class="textarea" style="min-height:38px" type="text" placeholder="DELETE">
-		<div class="two-actions">
-			<button class="btn btn-outline" type="button" data-modal-action="open-details">Keep</button>
-			<button class="btn btn-danger" type="button" data-modal-action="confirm-delete">Confirm Delete</button>
+		<div class="appt-modal-header appt-accent-danger">
+			<div class="appt-header-avatar appt-avatar-danger">${initial}</div>
+			<div class="appt-modal-identity">
+				<div class="appt-header-name">Delete Record?</div>
+				<div class="appt-header-meta">${appointment.patient} &middot; ${appointment.service} &middot; ${dt.date}</div>
+			</div>
+		</div>
+		<div class="appt-modal-body">
+			<p class="appt-modal-eyebrow">This action is permanent and cannot be undone. All data for this appointment will be lost.</p>
+			<div class="appt-confirm-card appt-confirm-danger">
+				<div class="appt-info-rows">
+					<div class="appt-info-row"><span>Owner</span><strong>${appointment.owner}</strong></div>
+					<div class="appt-info-row"><span>Pet</span><strong>${appointment.patient}</strong></div>
+					<div class="appt-info-row"><span>Date &amp; Time</span><strong>${dt.date} &middot; ${dt.time}</strong></div>
+					<div class="appt-info-row"><span>Type</span><strong>${appointment.type}</strong></div>
+				</div>
+			</div>
+			<div class="delete-confirm-field">
+				<label class="delete-confirm-label" for="delete-confirm">
+					<i data-lucide="triangle-alert"></i>
+					Type <strong>DELETE</strong> to confirm
+				</label>
+				<input id="delete-confirm" class="delete-confirm-input" type="text" placeholder="DELETE" autocomplete="off">
+			</div>
+			<div class="modal-footer">
+				<button class="btn btn-outline" type="button" data-modal-action="open-details">Keep Record</button>
+				<button class="btn btn-danger" type="button" data-modal-action="confirm-delete">
+					<i data-lucide="trash-2"></i>
+					Confirm Delete
+				</button>
+			</div>
 		</div>
 	`;
 }

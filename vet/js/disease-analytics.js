@@ -54,6 +54,45 @@ function isAllDiseasesSelected(disease) {
     return d === '' || d === 'all diseases' || d === 'all';
 }
 
+function animateBars(container) {
+    const fills = container.querySelectorAll('.bar-fill[data-w]');
+    requestAnimationFrame(function () {
+        setTimeout(function () {
+            fills.forEach(function (fill, i) {
+                setTimeout(function () { fill.style.width = fill.dataset.w; }, i * 28);
+            });
+        }, 30);
+    });
+}
+
+function countUp(el, duration) {
+    duration = duration || 720;
+    var original = el.textContent.trim();
+    var match    = original.match(/^(\d+(?:\.\d+)?)(.*)/);
+    if (!match) return;
+    var num       = parseFloat(match[1]);
+    var suffix    = match[2] || '';
+    var hasDecimal= match[1].includes('.');
+    if (isNaN(num) || num === 0) return;
+    var start = performance.now();
+    function tick(now) {
+        var p      = Math.min((now - start) / duration, 1);
+        var eased  = 1 - Math.pow(1 - p, 3);
+        var cur    = num * eased;
+        el.textContent = (hasDecimal ? cur.toFixed(1) : Math.round(cur)) + suffix;
+        if (p < 1) requestAnimationFrame(tick);
+        else el.textContent = original;
+    }
+    requestAnimationFrame(tick);
+}
+
+function getRiskLevel(insight) {
+    var cls = (insight.rf_risk_class || '').toLowerCase();
+    if (cls.includes('high') || cls === 'critical') return 'high';
+    if (cls.includes('medium') || cls.includes('med') || cls === 'monitor') return 'medium';
+    return 'low';
+}
+
 /* ── API calls ──────────────────────────────────────────────── */
 async function diseaseAnalyticsRequest(disease, period) {
     const params = new URLSearchParams({
@@ -209,13 +248,13 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
             pred_source:     source,
             eval_note:       rf.eval_note || rf.split_method || '',
             comparisons: [
-                { label: 'This Barangay',    value: loadPct, color: '#2ca0f0' },
-                { label: 'Barangay Average', value: avgPct,  color: '#3d6670' },
-                { label: 'Peak Barangay',    value: 100,     color: '#0b7a2c' },
+                { label: 'This Barangay',    value: loadPct, color: '#002A58' },
+                { label: 'Barangay Average', value: avgPct,  color: '#5B8DB8' },
+                { label: 'Peak Barangay',    value: 100,     color: '#CBD5E1' },
             ],
             predicted: [
-                { label: 'Predicted Load', value: predPct, color: '#2ca0f0' },
-                { label: 'Current Load',   value: loadPct, color: '#3d6670' },
+                { label: 'Predicted Load', value: predPct, color: '#002A58' },
+                { label: 'Current Load',   value: loadPct, color: '#94A3B8' },
             ],
             forecast:       arimaForecast,
             lower_ci:       arimaLowerCi,
@@ -344,17 +383,24 @@ function switchPanel(panelId) {
 /* ── Overview render ────────────────────────────────────────── */
 function renderOverview() {
     document.getElementById('kpiCards').innerHTML = diseaseAnalyticsData.kpis
-        .map(kpi => `
-            <article class="kpi-card">
+        .map((kpi, i) => `
+            <article class="kpi-card" style="animation-delay:${i * 60}ms">
                 <h5>${kpi.label}</h5>
                 <strong>${kpi.value}</strong>
                 <small>${kpi.trend}</small>
             </article>
         `).join('');
+    document.querySelectorAll('#kpiCards .kpi-card strong').forEach(el => countUp(el));
 
     document.getElementById('sourceList').innerHTML = diseaseAnalyticsData.sources
-        .map(s => `<li><strong>${s.name}</strong><br><span>${s.status}</span></li>`)
-        .join('');
+        .map(s => {
+            const isUsed = (s.status || '').toLowerCase().includes('used') &&
+                           !(s.status || '').toLowerCase().includes('not used');
+            return `<li>
+                <div class="source-info"><strong>${s.name}</strong><span>${s.status}</span></div>
+                <span class="source-status ${isUsed ? 'active' : 'inactive'}"></span>
+            </li>`;
+        }).join('');
 
     const pred = diseaseAnalyticsData.predictionSummary;
     document.getElementById('predictionBanner').innerHTML = `
@@ -397,11 +443,14 @@ function renderOverview() {
 
     const insightRoot = document.getElementById('insightCards');
     insightRoot.innerHTML = diseaseAnalyticsData.insights
-        .map(insight => `
-            <article class="insight-card">
-                <span class="chip">${insight.barangay}</span>
+        .map((insight, idx) => `
+            <article class="insight-card risk-${getRiskLevel(insight)}" style="animation-delay:${idx * 55}ms">
+                <div class="insight-card-top">
+                    <span class="chip">${insight.barangay}</span>
+                    ${insight.rf_risk_class ? `<span class="risk-indicator">${insight.rf_risk_class}</span>` : ''}
+                </div>
                 <p>${insight.recommendation || 'No recommendation yet.'}</p>
-                <button class="action-link" data-insight-id="${insight.id}">View Action</button>
+                <button class="action-link" data-insight-id="${insight.id}">View Action <span class="arrow">→</span></button>
             </article>
         `).join('');
 
@@ -441,7 +490,7 @@ function renderBarChart(targetId, rows, chartType) {
                 : `<div class="fallback-warning">Showing ${modelType || 'disease-specific'} forecast estimate.</div>`;
     }
 
-    root.innerHTML = warning + rows.map(item => {
+    root.innerHTML = warning + rows.map((item, index) => {
         const width = Math.max((item.value / maxValue) * 100, 3);
         let badge = '';
         if (chartType === 'predicted') {
@@ -456,15 +505,16 @@ function renderBarChart(targetId, rows, chartType) {
         const ciAttr = (chartType === 'predicted' && item.upper > 0)
             ? ` title="80% CI: ${item.lower ?? '?'} – ${item.upper ?? '?'}"` : '';
         return `
-            <div class="bar-row"${ciAttr}>
+            <div class="bar-row" style="animation-delay:${index * 22}ms"${ciAttr}>
                 <span>${item.barangay}</span>
                 <div class="bar-track">
-                    <span class="bar-fill" style="width:${width}%;"></span>
+                    <span class="bar-fill" data-w="${width}%" style="width:0;"></span>
                 </div>
                 <span>${item.value}${badge}</span>
             </div>
         `;
     }).join('');
+    animateBars(root);
 }
 
 /* ── Insight panel ──────────────────────────────────────────── */
@@ -483,13 +533,15 @@ function renderInsightPanel() {
         return;
     }
 
-    document.getElementById('insightBarangayName').textContent = insight.barangay;
+    const nameEl = document.getElementById('insightBarangayName');
+    nameEl.innerHTML = `<span class="location-eyebrow">Selected Barangay</span>${insight.barangay}`;
     document.getElementById('selectedCaseCount').textContent   = insight.cases;
     document.getElementById('selectedAverage').textContent     = insight.avg;
 
     renderMiniBars('comparisonBars', insight.comparisons);
     renderMiniBars('predictionBars', insight.predicted);
 
+    // ── 3-Month Forecast ─────────────────────────────────────────
     let forecastHtml = '';
     if (insight.forecast?.length) {
         const months    = ['Next Month', 'Month 2', 'Month 3'];
@@ -497,79 +549,89 @@ function renderInsightPanel() {
         const orderStr  = insight.seasonal_order?.some(v => v > 0)
             ? `(${insight.arima_order?.join(',')})×S(${insight.seasonal_order.slice(0,3).join(',')})`
             : (insight.arima_order?.some(v => v > 0) ? `(${insight.arima_order.join(',')})` : '');
-        const nObs    = insight.n_obs   ? ` · ${insight.n_obs} obs` : '';
-        const mapeStr = insight.model_mape  != null ? ` · MAPE ${insight.model_mape}%` : '';
-        const rmseStr = insight.model_rmse  != null ? ` · RMSE ${insight.model_rmse}`  : '';
-        const maeStr  = insight.model_mae   != null ? ` MAE ${insight.model_mae}`       : '';
+        const metaParts = [
+            insight.model_mae  != null ? `MAE ${insight.model_mae}`   : '',
+            insight.model_rmse != null ? `RMSE ${insight.model_rmse}` : '',
+            insight.model_mape != null ? `MAPE ${insight.model_mape}%`: ''
+        ].filter(Boolean).join(' · ');
+
+        const trend     = (insight.trend || 'stable').toLowerCase();
+        const trendIcon = trend === 'rising' ? '↑' : trend === 'falling' ? '↓' : '→';
 
         forecastHtml = `
-            <div class="arima-forecast">
-                <h4>
-                    ${modelType}${orderStr} — 3-Month Forecast
-                    <small>${nObs}${maeStr}${rmseStr}${mapeStr}</small>
-                </h4>
-                <div class="forecast-band">
+            <div class="ip-forecast">
+                <div class="ip-forecast-header">
+                    <span class="ip-forecast-title">${modelType}${orderStr} — 3-Month Forecast</span>
+                    ${metaParts ? `<span class="ip-forecast-meta">${metaParts}</span>` : ''}
+                </div>
+                <div class="ip-forecast-grid">
                     ${insight.forecast.map((val, i) => `
-                        <div class="forecast-col">
-                            <span class="fc-label">${months[i] || 'Month ' + (i + 1)}</span>
-                            <span class="fc-val">${val}</span>
-                            <span class="fc-range">${insight.lower_ci?.[i] ?? '–'} – ${insight.upper_ci?.[i] ?? '–'}</span>
-                            <span class="fc-sub">${modelType.includes('MovingAverage') ? '80% Bootstrap CI' : '80% CI'}</span>
+                        <div class="ip-fc-card">
+                            <span class="ip-fc-label">${months[i] || 'Month ' + (i + 1)}</span>
+                            <span class="ip-fc-val">${val}</span>
+                            <span class="ip-fc-range">${insight.lower_ci?.[i] ?? '–'} – ${insight.upper_ci?.[i] ?? '–'}</span>
+                            <span class="ip-fc-ci">80% CI</span>
                         </div>
                     `).join('')}
                 </div>
-                <p class="trend-badge trend-${insight.trend || 'stable'}">
-                    ▶ Trend: ${(insight.trend || 'stable').toUpperCase()}
-                </p>
+                <div class="ip-trend ip-trend-${trend}">${trendIcon} Trend: ${trend.toUpperCase()}</div>
             </div>
         `;
     }
 
+    // ── Model badge ───────────────────────────────────────────────
     const isRuleBased = insight.rf_model_type === 'RuleBasedThreshold';
-    let riskNoteHtml  = '';
+    let modelBadgeHtml = '';
     if (isRuleBased && insight.risk_thresholds) {
         const t = insight.risk_thresholds;
-        riskNoteHtml = `
-            <div class="rule-based-note">
-                <strong>⚠ Rule-Based Risk Classification</strong><br>
-                ${t.note || 'Thresholds derived from per-disease case distribution.'}
-                Thresholds: Low &lt; ${t.low_max}, Medium ${t.low_max}–${t.med_max}, High ≥ ${t.med_max}.
-                ${insight.eval_note ? '<br><em>' + insight.eval_note + '</em>' : ''}
+        modelBadgeHtml = `
+            <div class="ip-model-row">
+                <span class="ip-model-badge">Rule-Based</span>
+                <span class="ip-model-text">Thresholds: Low &lt; ${t.low_max} · Medium ${t.low_max}–${t.med_max} · High ≥ ${t.med_max}</span>
             </div>
         `;
     } else if (!isRuleBased) {
-        riskNoteHtml = `
-            <div class="rf-note">
-                🤖 ARIMA+RF — ${insight.rf_risk_class || 'N/A'} Risk · ${insight.rf_confidence ?? 'N/A'}% confidence
-                <span class="source-badge model">ARIMA+RF</span>
+        modelBadgeHtml = `
+            <div class="ip-model-row">
+                <span class="ip-model-badge">ARIMA+RF</span>
+                <span class="ip-model-text">${insight.rf_risk_class || 'N/A'} Risk · ${insight.rf_confidence ?? 'N/A'}% confidence</span>
             </div>
         `;
     }
 
-    const protocol = insight.protocol;
+    // ── Risk tier chip ────────────────────────────────────────────
+    const protocol  = insight.protocol;
+    const classText = (protocol.classification || '').toLowerCase();
+    const tierClass = classText.includes('high') ? 'high' : classText.includes('medium') ? 'medium' : 'low';
+
     document.getElementById('protocolPanel').innerHTML = `
-        <div class="protocol-alert">
-            <div class="protocol-title">Auto-Triggered Protocol: ${insight.barangay}</div>
-            <small>${protocol.classification}</small>
+        <div class="ip-risk-header">
+            <span class="ip-risk-chip ip-risk-${tierClass}">${protocol.classification}</span>
         </div>
-        ${riskNoteHtml}
+        ${modelBadgeHtml}
         ${forecastHtml}
-        <div class="protocol-id">
-            <strong>${protocol.title}</strong>
-            <p>${protocol.description}</p>
+        <div class="ip-protocol-block">
+            <p class="ip-protocol-title">${protocol.title}</p>
+            <p class="ip-protocol-desc">${protocol.description}</p>
         </div>
-        ${(protocol.steps || []).map((step, i) => `
-            <div class="action-step">
-                <span class="step-dot ${step.level}">${String(i + 1).padStart(2, '0')}</span>
-                <div>
-                    <strong>${step.title}</strong>
-                    <p>${step.detail}</p>
+        <div class="ip-steps">
+            ${(protocol.steps || []).map((step, i) => `
+                <div class="ip-step">
+                    <span class="ip-step-num">${String(i + 1).padStart(2, '0')}</span>
+                    <div>
+                        <strong>${step.title}</strong>
+                        <p>${step.detail}</p>
+                    </div>
                 </div>
-            </div>
-        `).join('')}
-        <div class="protocol-actions">
-            <button class="btn btn-primary"   id="createEventBtn">Create Event</button>
-            <button class="btn btn-secondary" id="backOverviewBtn2">Back to Overview</button>
+            `).join('')}
+        </div>
+        <div class="ip-actions">
+            <button class="ip-btn-primary" id="createEventBtn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/></svg>Create Event
+            </button>
+            <button class="ip-btn-secondary" id="backOverviewBtn2">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;flex-shrink:0"><polyline points="15 18 9 12 15 6"/></svg>Back to Overview
+            </button>
         </div>
     `;
 

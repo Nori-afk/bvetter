@@ -26,7 +26,7 @@
 
     /* Layout tokens */
     --sidebar-width-collapsed: 80px;
-    --sidebar-width-expanded:  180px;
+    --sidebar-width-expanded:  220px;
     --shell-gap:               16px;
     --sidebar-main-gap:        16px;
     --transition:              all 0.3s ease;
@@ -239,19 +239,40 @@
 
 .sidebar.expanded .nav-label {
     opacity:   1;
-    max-width: 160px;
+    max-width: 200px;
 }
 
 /* ── Footer / Profile card ───────────────────────────────── */
 .sidebar-footer {
     width:           100%;
     display:         flex;
-    justify-content: center;
+    flex-direction:  column;
+    align-items:     center;
+    gap:             0;
     padding-bottom:  6px;
 }
 
 .sidebar.expanded .sidebar-footer {
-    justify-content: stretch;
+    align-items: stretch;
+}
+
+/* Logout — reuses .nav-item look, set off from the profile card by a
+   hairline divider so it doesn't read as part of the card above it.
+   (border/margin used instead of padding so this survives the higher-
+   specificity ".sidebar.expanded .nav-item { padding: ... }" rule.) */
+.nav-item.logout-item {
+    border:        none;
+    border-top:    1px solid rgba(255, 255, 255, 0.10);
+    background:    transparent;
+    font:          inherit;
+    cursor:        pointer;
+    margin-top:    10px;
+    border-radius: 0 0 8px 8px;
+}
+
+.nav-item.logout-item:hover {
+    background: rgba(147, 0, 10, 0.22);
+    color:      var(--white);
 }
 
 .sidebar-profile-card {
@@ -317,7 +338,7 @@
     display:        flex;
     flex-direction: column;
     width:          auto;
-    max-width:      130px;
+    max-width:      160px;
     opacity:        1;
     visibility:     visible;
     overflow:       hidden;

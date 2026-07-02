@@ -1,6 +1,5 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,12 +9,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="/final-VBETTER/bvetter/shared/css/sidebar.css">
     <link rel="stylesheet" href="/final-VBETTER/bvetter/vet/css/profile.css">
-    <!-- <script src="/final-VBETTER/bvetter/shared/js/sidebar.js" defer></script>
-    <script src="/final-VBETTER/bvetter/vet/js/profile.js" defer></script> -->
 </head>
-
 <body>
     <div class="main-holder">
+
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="logo"><img src="/final-VBETTER/bvetter/vet/images/logo.png" alt="VBetter Logo"></div>
@@ -68,86 +65,300 @@
         </aside>
 
         <main class="profile-main">
-            <section class="profile-hero card">
-                <img id="profile-avatar" src="https://i.pravatar.cc/150?img=47" alt="User profile" class="hero-avatar">
-                <div>
-                    <h1 id="profile-name">Loading profile...</h1>
-                    <p id="profile-member-since">Vet profile</p>
+
+            <!-- ── Hero ── -->
+            <section class="profile-hero">
+                <div class="hero-inner">
+                    <div class="hero-avatar-wrap">
+                        <img id="profile-avatar" src="" alt="User profile" class="hero-avatar"
+                             onerror="this.style.display='none';document.getElementById('avatar-initials').style.display='flex';">
+                        <div id="avatar-initials" class="hero-avatar-initials" style="display:none;" aria-hidden="true"></div>
+                        <div class="avatar-edit-ring" title="Change photo">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                <circle cx="12" cy="13" r="4"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="hero-copy">
+                        <p class="hero-eyebrow">Veterinary Professional</p>
+                        <h1 id="profile-name">Loading profile…</h1>
+                        <div class="hero-badges">
+                            <span class="badge-active">Active</span>
+                            <span class="badge-role">VBetter Staff</span>
+                        </div>
+                    </div>
                 </div>
             </section>
 
-            <section class="profile-kpis" aria-label="Profile KPI cards">
-                <article class="kpi-card card">
-                    <p>Patients Today</p>
-                    <strong id="stat-patients-today">0</strong>
-                    <small>From patient visit records</small>
-                </article>
-                <article class="kpi-card card">
-                    <p>Surgeries Performed</p>
-                    <strong id="stat-surgeries">0</strong>
-                    <small>All-time records</small>
-                </article>
-                <article class="kpi-card card">
-                    <p>Avg. Treatment Time</p>
-                    <strong id="stat-treatment-time">45m</strong>
-                    <small>Profile metric</small>
-                </article>
-                <article class="kpi-card card">
-                    <p>Satisfaction Rate</p>
-                    <strong id="stat-satisfaction">0.0</strong>
-                    <small>Review average</small>
-                </article>
-            </section>
-
-            <section class="profile-panel card">
-                <div class="panel-head">
-                    <h2>Profile Information</h2>
-                    <button class="save-btn" type="submit" form="profile-form">Save Changes</button>
+        <!-- ── KPI Strip ── -->
+        <div class="kpi-strip">
+            <article class="kpi-card">
+                <div class="kpi-icon kpi-icon--navy">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
                 </div>
-                <form class="form-grid" id="profile-form">
-                    <label>Full Name
-                        <input type="text" name="fullName" required>
-                    </label>
-                    <label>Email Address
-                        <input type="email" name="email" required>
-                    </label>
-                    <label>Contact Number
-                        <input type="tel" name="phone">
-                    </label>
-                    <label>Role
-                        <input type="text" name="role" readonly>
-                    </label>
+                <div class="kpi-body">
+                    <p class="kpi-label">Patients Today</p>
+                    <strong class="kpi-val" id="stat-patients-today">0</strong>
+                    <span class="kpi-note">From patient visit records</span>
+                </div>
+            </article>
+            <article class="kpi-card">
+                <div class="kpi-icon kpi-icon--green">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                </div>
+                <div class="kpi-body">
+                    <p class="kpi-label">Surgeries Performed</p>
+                    <strong class="kpi-val" id="stat-surgeries">0</strong>
+                    <span class="kpi-note">All-time records</span>
+                </div>
+            </article>
+            <article class="kpi-card">
+                <div class="kpi-icon kpi-icon--blue">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                </div>
+                <div class="kpi-body">
+                    <p class="kpi-label">Avg. Treatment Time</p>
+                    <strong class="kpi-val" id="stat-treatment-time">45m</strong>
+                    <span class="kpi-note">Profile metric</span>
+                </div>
+            </article>
+            <article class="kpi-card">
+                <div class="kpi-icon kpi-icon--amber">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                </div>
+                <div class="kpi-body">
+                    <p class="kpi-label">Satisfaction Rate</p>
+                    <strong class="kpi-val" id="stat-satisfaction">0.0</strong>
+                    <span class="kpi-note">Review average</span>
+                </div>
+            </article>
+        </div>
+
+        <!-- ── Daily Clinical Schedule ── -->
+        <section class="prof-card">
+            <div class="prof-card-head">
+                <div class="prof-card-title">
+                    <div class="title-icon title-icon--green">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2>Daily Clinical Schedule</h2>
+                        <p>Today's appointments and their current status</p>
+                    </div>
+                </div>
+                <a href="/bvetter/vet/html/appointment.html" class="sched-view-link">View Calendar</a>
+            </div>
+            <div class="prof-divider"></div>
+            <div class="sched-list" id="sched-list">
+                <div class="sched-empty">Loading schedule…</div>
+            </div>
+        </section>
+
+        <!-- ── Profile Information ── -->
+        <section class="prof-card">
+            <div class="prof-card-head">
+                <div class="prof-card-title">
+                    <div class="title-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2>Profile Information</h2>
+                        <p>Update your personal and contact details</p>
+                    </div>
+                </div>
+                <button class="btn-save" type="submit" form="profile-form">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    Save Changes
+                </button>
+            </div>
+            <div class="prof-divider"></div>
+            <div class="prof-form-body">
+                <form class="prof-form-grid" id="profile-form">
+                    <div class="field-group">
+                        <label for="pf-fullName">Full Name</label>
+                        <input type="text" id="pf-fullName" name="fullName" placeholder="Enter your full name" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="pf-email">Email Address</label>
+                        <input type="email" id="pf-email" name="email" placeholder="your@email.com" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="pf-phone">Contact Number</label>
+                        <input type="tel" id="pf-phone" name="phone" placeholder="+63 912 345 6789">
+                    </div>
+                    <div class="field-group">
+                        <label for="pf-role">Role</label>
+                        <div class="input-readonly-wrap">
+                            <input type="text" id="pf-role" name="role" readonly class="input-readonly">
+                            <span class="input-lock-icon">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                </svg>
+                            </span>
+                        </div>
+                    </div>
                 </form>
                 <p class="profile-message" id="profile-message" role="status"></p>
-            </section>
+            </div>
+        </section>
 
-            <section class="profile-panel card">
-                <h2>Security</h2>
-                <p>Change password and two-factor settings.</p>
-                <div class="security-actions">
-                    <button class="save-btn" id="update-password-btn" type="button">Update Password</button>
-                    <button class="save-btn alt" type="button">Manage 2FA</button>
+        <!-- ── Security ── -->
+        <section class="prof-card">
+            <div class="prof-card-head">
+                <div class="prof-card-title">
+                    <div class="title-icon title-icon--amber">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2>Security</h2>
+                        <p>Manage your password and account protection</p>
+                    </div>
                 </div>
-            </section>
+            </div>
+            <div class="prof-divider"></div>
+            <div class="security-list">
+                <div class="security-item">
+                    <div class="security-item-left">
+                        <div class="sec-icon">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="sec-title">Password</p>
+                            <p class="sec-desc">Keep your account secure with a strong password</p>
+                        </div>
+                    </div>
+                    <button class="btn-outline" id="update-password-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        Update Password
+                    </button>
+                </div>
+                <div class="security-item">
+                    <div class="security-item-left">
+                        <div class="sec-icon">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                                <line x1="12" y1="18" x2="12.01" y2="18"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="sec-title">Two-Factor Authentication</p>
+                            <p class="sec-desc">Add an extra layer of security to your account</p>
+                        </div>
+                    </div>
+                    <button class="btn-outline">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        </svg>
+                        Manage 2FA
+                    </button>
+                </div>
+            </div>
+        </section>
 
-            <section class="profile-panel card">
-                <h2>Notification Preferences</h2>
-                <p>Choose what updates you receive.</p>
-                <form class="checks" id="notification-form">
-                    <label><input type="checkbox" name="lostFoundAlerts"> Lost/Found Alerts</label>
-                    <label><input type="checkbox" name="appointmentReminders"> Appointment Reminders</label>
-                    <label><input type="checkbox" name="chatbotUpdates"> New Chatbot Updates</label>
-                    <button class="save-btn alt" type="submit">Save Preferences</button>
-                </form>
-            </section>
+        <!-- ── Notification Preferences ── -->
+        <section class="prof-card">
+            <div class="prof-card-head">
+                <div class="prof-card-title">
+                    <div class="title-icon title-icon--info">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2>Notification Preferences</h2>
+                        <p>Control which updates you receive</p>
+                    </div>
+                </div>
+                <button class="btn-save btn-save--sm" type="submit" form="notification-form">Save</button>
+            </div>
+            <div class="prof-divider"></div>
+            <form class="notif-list" id="notification-form">
+                <div class="notif-item">
+                    <div class="notif-item-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                    </div>
+                    <div class="notif-item-body">
+                        <p class="notif-title">Lost & Found Alerts</p>
+                        <p class="notif-desc">Get notified when new lost or found pet reports are submitted</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="lostFoundAlerts">
+                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    </label>
+                </div>
+                <div class="notif-item">
+                    <div class="notif-item-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                            <line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                    </div>
+                    <div class="notif-item-body">
+                        <p class="notif-title">Appointment Reminders</p>
+                        <p class="notif-desc">Receive notifications for upcoming scheduled appointments</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="appointmentReminders">
+                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    </label>
+                </div>
+                <div class="notif-item">
+                    <div class="notif-item-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                    </div>
+                    <div class="notif-item-body">
+                        <p class="notif-title">Chatbot Rule Updates</p>
+                        <p class="notif-desc">Be informed when chatbot inquiry rules are added or modified</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="chatbotUpdates">
+                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    </label>
+                </div>
+            </form>
+        </section>
+
         </main>
     </div>
 
-    <script src="/final-VBETTER/bvetter/shared/js/auth.js"></script>
-    <script>VBetterAuth.requireAuth(['vet']);</script>
-    <script src="/final-VBETTER/bvetter/shared/js/sidebar.js"></script>
-    <script src="/final-VBETTER/bvetter/vet/js/profile.js"></script>
-
+<script src="/final-VBETTER/bvetter/shared/js/auth.js"></script>
+<script>VBetterAuth.requireAuth(['vet']);</script>
+<script src="/final-VBETTER/bvetter/shared/js/sidebar.js"></script>
+<script src="/final-VBETTER/bvetter/vet/js/profile.js"></script>
 </body>
-
 </html>

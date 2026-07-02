@@ -8,11 +8,13 @@ document.addEventListener('DOMContentLoaded', () => {
             date_type: 'all',
             category: 'all_patient'
         },
-        sort: 'asc',
+        sort: 'desc',
+        sortField: 'date',
         page: 1,
         pageSize: 6,
         columns: [],
         filterOpen: false,
+        sortOpen: false,
         exportOpen: false,
         exportFormat: 'pdf'
     };
@@ -28,6 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
         dateType:           document.getElementById('date-type'),
         reportCategory:     document.getElementById('report-category'),
         sortButton:         document.getElementById('sort-button'),
+        sortPopover:        document.getElementById('sort-popover'),
+        sortField:          document.getElementById('sort-field'),
+        sortDir:            document.getElementById('sort-dir'),
+        sortDone:           document.getElementById('sort-done'),
         exportButton:       document.getElementById('export-button'),
         exportModalOverlay: document.getElementById('export-modal-overlay'),
         exportClose:        document.getElementById('export-close'),
@@ -146,9 +152,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function requestParams(extra) {
         extra = extra || {};
         return Object.assign({}, state.filters, {
-            sort:      state.sort,
-            page:      state.page,
-            page_size: state.pageSize
+            sort:       state.sort,
+            sort_field: state.sortField,
+            page:       state.page,
+            page_size:  state.pageSize
         }, extra);
     }
 
@@ -281,10 +288,37 @@ document.addEventListener('DOMContentLoaded', () => {
     ui.reportCategory.addEventListener('change', function() {
         state.draftFilters.category = ui.reportCategory.value;
     });
-    ui.sortButton.addEventListener('click', function() {
-        state.sort = state.sort === 'asc' ? 'desc' : 'asc';
+    ui.sortButton.addEventListener('click', function(e) {
+        e.stopPropagation();
+        state.sortOpen = !state.sortOpen;
+        ui.sortPopover.hidden = !state.sortOpen;
+        ui.sortButton.setAttribute('aria-expanded', String(state.sortOpen));
+        if (state.sortOpen) {
+            ui.sortField.value = state.sortField;
+            ui.sortDir.value = state.sort;
+        }
+    });
+    ui.sortField.addEventListener('change', function() {
+        var isDate = ui.sortField.value === 'date';
+        ui.sortDir.innerHTML = isDate
+            ? '<option value="desc">Newest First</option><option value="asc">Oldest First</option>'
+            : '<option value="asc">A → Z</option><option value="desc">Z → A</option>';
+    });
+    ui.sortDone.addEventListener('click', function() {
+        state.sortField = ui.sortField.value;
+        state.sort = ui.sortDir.value;
+        state.sortOpen = false;
+        ui.sortPopover.hidden = true;
+        ui.sortButton.setAttribute('aria-expanded', 'false');
         state.page = 1;
         loadReports();
+    });
+    document.addEventListener('click', function(e) {
+        if (state.sortOpen && !ui.sortButton.contains(e.target) && !ui.sortPopover.contains(e.target)) {
+            state.sortOpen = false;
+            ui.sortPopover.hidden = true;
+            ui.sortButton.setAttribute('aria-expanded', 'false');
+        }
     });
     ui.exportButton.addEventListener('click', openExportModal);
     ui.exportClose.addEventListener('click', closeExportModal);

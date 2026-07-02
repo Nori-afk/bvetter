@@ -394,12 +394,46 @@ function renderPotential(root) {
 }
 
 function renderResolved(root) {
-	root.innerHTML = lfData.resolvedCases.length ? `
-		<table class="resolved-table">
-			<thead><tr><th>Pet Name</th><th>Type/Breed</th><th>Source</th><th>Owner/Submitter</th><th>Date</th><th>Status</th></tr></thead>
-			<tbody>${lfData.resolvedCases.map((item) => `<tr><td>${escapeHtml(item.petName)}</td><td>${escapeHtml(item.breed || item.type)}</td><td>${escapeHtml(item.source)}</td><td>${escapeHtml(item.uploader)}<br><small>${escapeHtml(item.barangay)}</small></td><td>${escapeHtml(item.date || '')}</td><td><span class="pill">Resolved</span></td></tr>`).join('')}</tbody>
-		</table>
-	` : empty('No resolved cases yet.');
+	if (!lfData.resolvedCases.length) { root.innerHTML = empty('No resolved cases yet.'); return; }
+	const locIcon = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
+	root.innerHTML = `
+		<div class="lf-table-wrap">
+			<table class="lf-table">
+				<thead>
+					<tr>
+						<th>Pet</th>
+						<th>Type / Breed</th>
+						<th>Source</th>
+						<th>Owner / Submitter</th>
+						<th>Date</th>
+						<th>Status</th>
+					</tr>
+				</thead>
+				<tbody>
+					${lfData.resolvedCases.map((item) => `
+						<tr>
+							<td>
+								<div class="lf-pet-cell">
+									<div class="lf-pet-avatar">${escapeHtml((item.petName || '?')[0].toUpperCase())}</div>
+									<span class="lf-pet-name">${escapeHtml(item.petName)}</span>
+								</div>
+							</td>
+							<td><span class="lf-breed-text">${escapeHtml(item.breed || item.type || '—')}</span></td>
+							<td><span class="lf-source-chip${String(item.source||'').toLowerCase()==='admin'?' lf-source-chip--admin':''}">${escapeHtml(item.source)}</span></td>
+							<td>
+								<div class="lf-submitter-cell">
+									<span class="lf-submitter-name">${escapeHtml(item.uploader)}</span>
+									<span class="lf-submitter-loc">${locIcon}${escapeHtml(item.barangay)}</span>
+								</div>
+							</td>
+							<td><span class="lf-date-text">${escapeHtml(item.date || '—')}</span></td>
+							<td><span class="lf-status-pill lf-pill-resolved">Resolved</span></td>
+						</tr>
+					`).join('')}
+				</tbody>
+			</table>
+		</div>
+	`;
 }
 
 function renderClaims(root) {
@@ -756,95 +790,146 @@ function getInitials(name) {
 //                Added dynamic label + required toggling for "Pet Name" when type changes.
 //                When type = "found", pet name becomes optional and labelled accordingly.
 function buildUploadModal() {
+	const barangayOpts = lfData.filters.barangays
+		.map((b) => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`)
+		.join('');
+	const speciesOpts = PET_TYPES.map((t) => `<option>${escapeHtml(t)}</option>`).join('');
+
 	return `
-		<form id="uploadPetForm" class="upload-modal">
-			<header class="upload-head">
-				<h2 id="lfModalTitle">Report Lost or Found Pet</h2>
-				<p>Vet uploads are published directly as active reports.</p>
-			</header>
-			<div class="upload-grid">
-				<section class="upload-left">
-					<span class="section-title">Pet Identification Photo</span>
-					<label class="upload-photo-box" for="uploadPhotoInput">
-						<div id="uploadPhotoPreviewText">Upload clear portrait<br><small>JPG or PNG preferred</small></div>
-						<img id="uploadPhotoPreview" alt="Preview" hidden>
+		<form id="uploadPetForm" class="vet-lf-modal">
+			<div class="modal-header">
+				<div class="modal-header-left">
+					<div class="modal-header-icon">
+						<img src="/bvetter/public/images/icons/report-paw.svg" alt="" class="modal-header-icon-img">
+					</div>
+					<div>
+						<h2 class="modal-title" id="lfModalTitle">Report Lost Pet</h2>
+						<p class="modal-subtitle">Vet uploads are published directly as active reports.</p>
+					</div>
+				</div>
+				<div class="modal-header-right">
+					<div class="report-type-toggle" role="group" aria-label="Report type">
+						<button type="button" class="type-toggle-btn active" data-type="lost">
+							<img src="/bvetter/public/images/icons/report-paw.svg" alt="" class="type-toggle-icon">Lost
+						</button>
+						<button type="button" class="type-toggle-btn" data-type="found">
+							<img src="/bvetter/public/images/icons/report-paw.svg" alt="" class="type-toggle-icon">Found
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<input type="hidden" name="type" id="reportType" value="lost">
+
+			<div class="modal-body">
+				<div class="modal-col">
+					<div class="modal-section-label">Pet Identification Photo</div>
+					<label class="upload-box" for="uploadPhotoInput">
+						<div id="uploadPhotoPreviewText">
+							<img src="/bvetter/public/images/icons/report-upload.svg" alt="" class="upload-cam-icon">
+							<span class="upload-text">Upload Clear Portrait</span>
+							<span class="upload-hint">High-res JPG or PNG preferred</span>
+						</div>
+						<img id="uploadPhotoPreview" alt="Preview" hidden style="width:100%;height:100%;object-fit:cover;border-radius:8px;position:absolute;inset:0;">
 					</label>
 					<input id="uploadPhotoInput" name="photo" type="file" accept="image/*" hidden>
 
-					<span class="section-title">Animal Details</span>
-					<div class="modal-grid">
-						<div class="field">
-							<label>Type</label>
-							<select name="type" id="reportType">
-								<option value="found">Found</option>
-								<option value="lost">Lost</option>
-							</select>
-						</div>
-						<div class="field">
-							<label>Species</label>
-							<select name="species">${PET_TYPES.map((type) => `<option>${escapeHtml(type)}</option>`).join('')}</select>
-						</div>
-						<div class="field">
-							<label>Breed</label>
-							<input name="breed" placeholder="e.g. Golden Retriever" required>
-						</div>
-						<div class="field" id="petNameField">
-							<label id="petNameLabel">Pet Name <span id="petNameOptional" style="font-weight:normal;color:#888;">(if known)</span></label>
-							<input name="pet_name" id="petNameInput" placeholder="Pet Name">
-						</div>
-						<div class="field">
-							<label>Sex</label>
-							<select name="sex"><option>Male</option><option>Female</option></select>
-						</div>
-						<div class="field">
-							<label>Size</label>
-							<select name="size">
-								<option>Small (Under 10kg)</option>
-								<option>Medium (10-25kg)</option>
-								<option>Large (25kg+)</option>
-							</select>
-						</div>
-						<div class="field">
-							<label>Barangay</label>
-							<select name="barangay" id="uploadBarangay">
-								${lfData.filters.barangays.map((b) => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('')}
-							</select>
-						</div>
-					</div>
-					<div class="field">
-						<label>Color/Markings</label>
-						<input name="color_markings" placeholder="e.g. White chest patch" required>
-					</div>
-				</section>
+					<div class="modal-section-label" id="petDetailsLabel">Pet Details</div>
 
-				<section class="upload-right">
-					<span class="section-title">Where and When</span>
-					<div class="modal-grid">
-						<div class="field"><label>Date</label><input name="incident_date" type="date" required></div>
-						<div class="field"><label>Time</label><input name="incident_time" type="time"></div>
-					</div>
-					<div class="field">
-						<label>Current Status / Notes</label>
-						<textarea name="notes" rows="4" placeholder="Last behavior, collar color, chip ID if known..." required></textarea>
-					</div>
-					<div class="upload-map-wrap">
-						<span class="section-title">Map Location</span>
-						<div id="uploadMap" class="map-api"
-							data-map-lat="14.9577"
-							data-map-lng="120.9055"
-							data-map-editable="true"
-							style="height:210px;">
-						</div>
-						<div class="coords-row">
-							<div class="field"><label>Latitude</label><input id="uploadLat" name="lat" value="14.9577" readonly></div>
-							<div class="field"><label>Longitude</label><input id="uploadLng" name="lng" value="120.9055" readonly></div>
+					<div class="form-row" id="petNameField">
+						<div class="form-group full">
+							<label id="petNameLabel">Pet Name <span id="petNameOptional" style="font-weight:400;color:#9ba3ae;text-transform:none;">(if known)</span></label>
+							<input name="pet_name" id="petNameInput" class="form-input" placeholder="e.g. Max">
 						</div>
 					</div>
-				</section>
+
+					<div class="form-row">
+						<div class="form-group">
+							<label>Type</label>
+							<div class="select-wrap">
+								<select name="species" class="form-select">${speciesOpts}</select>
+							</div>
+						</div>
+						<div class="form-group">
+							<label>Breed</label>
+							<input name="breed" class="form-input" placeholder="e.g. Golden Retriever" required>
+						</div>
+					</div>
+
+					<div class="form-row">
+						<div class="form-group">
+							<label>Sex</label>
+							<div class="sex-toggle">
+								<button type="button" class="sex-btn active" data-value="Male">Male</button>
+								<button type="button" class="sex-btn" data-value="Female">Female</button>
+							</div>
+							<input type="hidden" name="sex" id="sexInput" value="Male">
+						</div>
+						<div class="form-group">
+							<label>Size</label>
+							<div class="select-wrap">
+								<select name="size" class="form-select">
+									<option>Small (Under 10kg)</option>
+									<option>Medium (10-25kg)</option>
+									<option>Large (25kg+)</option>
+								</select>
+							</div>
+						</div>
+					</div>
+
+					<div class="form-row">
+						<div class="form-group full">
+							<label>Color / Markings</label>
+							<input name="color_markings" class="form-input" placeholder="e.g. White with brown patches, black collar" required>
+						</div>
+					</div>
+				</div>
+
+				<div class="modal-col">
+					<div class="modal-section-label" id="incidentSectionLabel">Incident Details</div>
+
+					<div class="form-row">
+						<div class="form-group">
+							<label id="dateLostLabel">Date Lost</label>
+							<input name="incident_date" type="date" class="form-input" required>
+						</div>
+						<div class="form-group">
+							<label>Barangay Last Seen</label>
+							<div class="select-wrap">
+								<select name="barangay" id="uploadBarangay" class="form-select">${barangayOpts}</select>
+							</div>
+						</div>
+					</div>
+
+					<a href="#" class="view-map-link" onclick="return false;">Set exact location on map</a>
+
+					<div id="uploadMap" class="map-api"
+						data-map-lat="14.9577"
+						data-map-lng="120.9055"
+						data-map-editable="true"
+						style="height:200px;border-radius:10px;overflow:hidden;margin-top:6px;">
+					</div>
+					<div style="display:none;">
+						<input id="uploadLat" name="lat" value="14.9577">
+						<input id="uploadLng" name="lng" value="120.9055">
+					</div>
+
+					<div class="form-group" style="margin-top:8px;">
+						<label id="notesLabel">Additional Details</label>
+						<textarea name="notes" id="notesTextarea" class="form-textarea" placeholder="Last behavior, collar color, chip ID if known..." required></textarea>
+					</div>
+				</div>
 			</div>
-			<footer class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-modal-action="close">Cancel</button>
-				<button type="submit" class="btn btn-success">Submit Pet Report</button>
+
+			<footer class="vlf-footer">
+				<button type="button" class="vlf-save-draft">Save Draft</button>
+				<div class="vlf-footer-right">
+					<button type="button" class="vlf-cancel" data-modal-action="close">Cancel</button>
+					<button type="submit" class="vlf-submit" id="submitReportBtn">
+						<span>Submit Lost Pet Report</span>
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+					</button>
+				</div>
 			</footer>
 		</form>
 	`;
@@ -854,28 +939,57 @@ function buildUploadSuccessModal() {
 	return `<section class="upload-success" id="lfModalTitle"><div class="success-icon">✓</div><h2>Report Has Been Published</h2><p>The vet-created report is active and visible publicly.</p><button type="button" class="btn btn-primary" data-modal-action="close">Close</button></section>`;
 }
 
-// ─── BUG FIX 2 (continued): Type change handler toggles pet name label/required.
-//                             Contact panel removed; validation adjusted accordingly.
 function wireUploadFormIfPresent() {
 	const form = document.getElementById('uploadPetForm');
 	if (!form) return;
 
-	const photoInput       = document.getElementById('uploadPhotoInput');
-	const preview          = document.getElementById('uploadPhotoPreview');
-	const previewText      = document.getElementById('uploadPhotoPreviewText');
-	const reportTypeSelect = document.getElementById('reportType');
-	const petNameInput     = document.getElementById('petNameInput');
-	const petNameOptional  = document.getElementById('petNameOptional');
+	const photoInput      = document.getElementById('uploadPhotoInput');
+	const preview         = document.getElementById('uploadPhotoPreview');
+	const previewText     = document.getElementById('uploadPhotoPreviewText');
+	const reportTypeInput = document.getElementById('reportType');
+	const petNameInput    = document.getElementById('petNameInput');
+	const petNameOptional = document.getElementById('petNameOptional');
 
-	// Set initial state based on default type value ("found")
-	function syncPetNameField() {
-		const isLost = reportTypeSelect?.value === 'lost';
+	function applyType(type) {
+		const isLost = type === 'lost';
+		reportTypeInput.value = type;
+
+		const title = document.getElementById('lfModalTitle');
+		if (title) title.textContent = `Report ${isLost ? 'Lost' : 'Found'} Pet`;
+
+		const submitBtn = document.getElementById('submitReportBtn');
+		if (submitBtn) submitBtn.textContent = `Submit ${isLost ? 'Lost' : 'Found'} Pet Report`;
+
+		const dateLabel = document.getElementById('dateLostLabel');
+		if (dateLabel) dateLabel.textContent = isLost ? 'Date Lost' : 'Date Found';
+
+		const notes = document.getElementById('notesTextarea');
+		if (notes) notes.placeholder = isLost
+			? 'Last behavior, collar color, chip ID if known...'
+			: 'Where found, animal condition, how to contact owner...';
+
 		if (petNameInput) petNameInput.required = isLost;
 		if (petNameOptional) petNameOptional.hidden = isLost;
-	}
-	syncPetNameField();
 
-	reportTypeSelect?.addEventListener('change', syncPetNameField);
+		form.querySelectorAll('.type-toggle-btn').forEach((btn) => {
+			btn.classList.toggle('active', btn.dataset.type === type);
+		});
+	}
+
+	applyType('lost');
+
+	form.querySelectorAll('.type-toggle-btn').forEach((btn) => {
+		btn.addEventListener('click', () => applyType(btn.dataset.type));
+	});
+
+	form.querySelectorAll('.sex-btn').forEach((btn) => {
+		btn.addEventListener('click', () => {
+			form.querySelectorAll('.sex-btn').forEach((b) => b.classList.remove('active'));
+			btn.classList.add('active');
+			const sexInput = document.getElementById('sexInput');
+			if (sexInput) sexInput.value = btn.dataset.value;
+		});
+	});
 
 	photoInput.addEventListener('change', () => {
 		const file = photoInput.files?.[0];

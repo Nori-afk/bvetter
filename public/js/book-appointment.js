@@ -201,7 +201,7 @@ function updateVetProfile(vet) {
 
 
 /* ── Vet list fetch & click wiring ───────────── */
-async function fectchVets() {
+async function fetchVets() {
   const VetAccounts = await api.getVets();
   const temp        = await api.allUsers();
 
@@ -213,6 +213,11 @@ async function fectchVets() {
 
   const container = document.getElementById('vetContainer');
 
+  if (!Array.isArray(VetAccounts.data)) {
+    console.error('fetchVets: expected VetAccounts.data to be an array, got:', VetAccounts.data);
+    return;
+  }
+
   VetAccounts.data.forEach((vet, index) => {
     // Merge avatar onto vet object by matching email
     vet.avatar = avatarMap[vet.email] || '';
@@ -221,7 +226,8 @@ async function fectchVets() {
     const item = document.createElement('div');
     item.className = 'vet-item' + (index === 0 ? ' active' : '');
     item.innerHTML = `
-      <img src="${escapeAttr(avatarSrc)}" alt="${escapeAttr(vet.full_name)}" class="vet-thumb"/>
+      <img src="${escapeAttr(avatarSrc)}" alt="${escapeAttr(vet.full_name)}" class="vet-thumb"
+           onerror="this.onerror=null;this.src='../images/img/vet-profile.png';"/>
       <div>
         <div class="vet-item-name">${escapeHtml(vet.full_name)}</div>
         <div class="vet-item-role">${escapeHtml(vet.position_title)}</div>
@@ -579,7 +585,7 @@ async function loadVetFeedback(vetId) {
     console.error('Failed to load vet feedback:', err);
   }
 }
-fectchVets();
+fetchVets();
 loadRecentHistory();
 
 

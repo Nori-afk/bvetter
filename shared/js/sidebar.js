@@ -29,6 +29,16 @@
         'website management':     '/final-VBETTER/bvetter/admin/pages/website-management.html', // input here the directory of the Website management.
     };
 
+    /* Default profile photos — used until the user uploads their own.
+       Reuses images already in the project (no external fetches):
+       vet-profile.png is the existing vet headshot used elsewhere
+       (book-appointment.html); account-avatar.png is the generic
+       silhouette already used as the pet-owner default. */
+    const DEFAULT_AVATARS = {
+        vet:   '/bvetter/public/images/img/vet-profile.png',
+        admin: '/bvetter/public/images/img/account-avatar.png'
+    };
+
     const ACTIVE_ICON_CAPABLE = new Set([
         'dashboard',
         'appointment',
@@ -121,15 +131,15 @@
 
     const name      = (session && session.name)      ? session.name      : 'Unknown';
     const role      = (session && session.role)      ? session.role      : '';
-    const avatarUrl = (session && session.pfp) ? session.pfp : '';
+    const avatarUrl = (session && session.pfp) ? session.pfp : (DEFAULT_AVATARS[role] || DEFAULT_AVATARS.admin);
     const roleLabel = roleDisplayLabel(role);
     const firstLet  = name.slice(0, 1).toUpperCase();
 
-    // Build either an <img> or a letter-avatar <div>
-    const avatarHTML = avatarUrl
-        ? '<img src="' + avatarUrl + '" alt="' + name + '" class="sidebar-profile-avatar" ' +
-          'onerror="this.outerHTML=\'<div class=\\\'sidebar-profile-avatar sidebar-profile-avatar--initials\\\'>' + firstLet + '</div>\'">'
-        : '<div class="sidebar-profile-avatar sidebar-profile-avatar--initials">' + firstLet + '</div>';
+    // Always render a photo; fall back to a letter avatar only if the
+    // image itself fails to load (broken path, offline, etc).
+    const avatarHTML =
+        '<img src="' + avatarUrl + '" alt="' + name + '" class="sidebar-profile-avatar" ' +
+        'onerror="this.onerror=null;this.outerHTML=\'<div class=\\\'sidebar-profile-avatar sidebar-profile-avatar--initials\\\'>' + firstLet + '</div>\'">';
 
     footer.innerHTML =
         '<article class="sidebar-profile-card" data-role="' + role + '" aria-label="' + name + ' profile">' +
@@ -138,7 +148,11 @@
         '<strong class="sidebar-profile-name">' + name + '</strong>' +
         '<span class="sidebar-profile-role">' + roleLabel + '</span>' +
         '</div>' +
-        '</article>';
+        '</article>' +
+        '<button type="button" class="nav-item logout-item" id="sidebar-logout-btn" title="Log Out">' +
+        '<img src="/bvetter/shared/images/sidebar/logout.svg" class="nav-icon" alt="Log Out">' +
+        '<span class="nav-label">Log Out</span>' +
+        '</button>';
 
     const card = footer.querySelector('.sidebar-profile-card');
     if (card) {
@@ -151,12 +165,22 @@
             }
         });
     }
-}
-    function defaultAvatar(role) {
-        const seed = { vet: '47', admin: '12', owner: '33' }[role] || '10';
-        return 'https://i.pravatar.cc/120?img=' + seed;
-    }
 
+    const logoutBtn = footer.querySelector('#sidebar-logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (window.VBetterAuth && window.VBetterAuth.logout) {
+                window.VBetterAuth.logout();
+                return;
+            }
+            // Fallback: some pages don't load auth.js yet — clear the
+            // session directly so logout still works everywhere.
+            sessionStorage.removeItem('vbetter_session');
+            window.location.href = '/bvetter/public/pages/login.html';
+        });
+    }
+}
     function roleDisplayLabel(role) {
         return { vet: 'Vet III', admin: 'Administrator', owner: 'Pet Owner' }[role] || '';
     }
