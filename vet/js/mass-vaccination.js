@@ -324,7 +324,7 @@
             const noteEl = petsEl.nextElementSibling;
             const tv     = state.arimaData.total_vaccinated;
             if (noteEl) {
-                noteEl.textContent = `ARIMA forecast: ${tv.forecast[0]} next month (${tv.trend || 'stable'})`;
+                noteEl.textContent = `Predicted next month: ${tv.forecast[0]} (${tv.trend || 'stable'})`;
                 noteEl.className   = 'metric-note ' + (tv.trend === 'rising' ? 'success' : '');
             }
         }
@@ -366,7 +366,7 @@
         card.innerHTML = `
             <div class="mv-arima-header">
                 <div>
-                    <span class="mv-arima-badge">ARIMA(${(tv.arima_order||[]).join(',')})</span>
+                    <span class="mv-arima-badge">Smart Forecast</span>
                     <h3 class="mv-arima-title">Vaccine Demand Forecast</h3>
                     <p class="mv-arima-desc">${sanitize(tv.action || 'Demand forecast based on historical vaccination data.')}</p>
 
@@ -381,7 +381,7 @@
                             <span class="mv-fc-label">${sanitize(m)}</span>
                             <span class="mv-fc-val">${tv.forecast?.[i] || 0}</span>
                             <span class="mv-fc-range">${tv.lower_ci?.[i]||0} – ${tv.upper_ci?.[i]||0}</span>
-                            <span class="mv-fc-ci">80% CI</span>
+                            <span class="mv-fc-ci">Likely Range</span>
                         </div>
                     `).join('')}
                 </div>
@@ -564,7 +564,7 @@
 
                 var c2datasets = [
                     {
-                        label: 'Predicted Total (ARIMA)',
+                        label: 'Predicted Total (Forecast)',
                         data: tv.forecast || [],
                         backgroundColor: '#002A58',
                         borderRadius: 5
@@ -581,12 +581,10 @@
                     });
                 }
 
-                var arimaOrderStr = (tv.arima_order || []).join(',');
-                var ciStr = `CI: ${tv.lower_ci?.[0] || 0}–${tv.upper_ci?.[0] || 0}`;
-                var c2Model = tv.model_type || 'ARIMA';
+                var rangeStr = `Likely Range: ${tv.lower_ci?.[0] || 0}–${tv.upper_ci?.[0] || 0}`;
                 var c2Title = dbGrandTotal > 0
-                    ? `${c2Model}(${arimaOrderStr}) Forecast — ${ciStr} | Actual this period: ${dbGrandTotal.toLocaleString()}`
-                    : `${c2Model}(${arimaOrderStr}) Forecast — ${ciStr}`;
+                    ? `Predicted Vaccinations — ${rangeStr} | Actual this period: ${dbGrandTotal.toLocaleString()}`
+                    : `Predicted Vaccinations — ${rangeStr}`;
 
                 charts['predictedAnimals'] = new Chart(
                     document.getElementById('predictedAnimalsChart'), {
@@ -689,8 +687,8 @@
                             title: {
                                 display: true,
                                 text: monthlyRows.length > 0
-                                    ? 'Monthly Trend (Excel) — ARIMA service unavailable'
-                                    : 'Live DB Data — ARIMA and Excel history unavailable',
+                                    ? 'Monthly Trend — Forecast Service Unavailable'
+                                    : 'Live Data — Forecast & History Unavailable',
                                 font: { size: 11 }, color: '#e07b39'
                             }
                         }
@@ -893,8 +891,8 @@
                 }
 
                 var c4Title = dbGrandTotal > 0
-                    ? `ARIMA Vaccine Demand (${range}): ~${Math.round(adjustedTotal).toLocaleString()} needed (DB-adjusted)`
-                    : `ARIMA Vaccine Demand (${range}): ~${Math.round(arimaBase).toLocaleString()} vaccines`;
+                    ? `Predicted Vaccine Demand (${range}): ~${Math.round(adjustedTotal).toLocaleString()} needed`
+                    : `Predicted Vaccine Demand (${range}): ~${Math.round(arimaBase).toLocaleString()} vaccines`;
 
                 charts['vaccinesNeeded'] = new Chart(
                     document.getElementById('vaccinesNeededChart'), {
@@ -903,7 +901,7 @@
                         labels: allBarangays,
                         datasets: [
                             {
-                                label: 'Vaccines Needed (ARIMA)',
+                                label: 'Vaccines Needed (Forecast)',
                                 // Distribute total proportionally by each barangay's historical share
                                 data: allBarangays.map(b =>
                                     Math.round(((barangayBaseMap[b].actual || 0) / totalActual) * adjustedTotal)
@@ -966,7 +964,7 @@
                             legend: { position: 'bottom' },
                             title: {
                                 display: true,
-                                text: `Vaccine Demand — ${range} (RF Predicted, ARIMA unavailable)`,
+                                text: `Vaccine Demand — ${range} (Estimated — Forecast Unavailable)`,
                                 font: { size: 11 }, color: '#e07b39'
                             }
                         }

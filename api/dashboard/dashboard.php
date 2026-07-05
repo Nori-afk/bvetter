@@ -473,9 +473,6 @@ function disease_analytics_data($pdo)
             ['name' => 'Barangay_Disease_Monthly',   'status' => 'All-diseases source (not used here)'],
           ];
 
-    /* ── Model label for KPI card ─────────────────────────────────────── */
-    $modelLabel = $isAllDiseases ? 'AllDiseaseARIMA+RF' : 'DiseaseSpecificARIMA / WMA';
-
     return [
         'filters'         => $filters,
         'selectedDisease' => $selected !== '' ? ucwords($selected) : 'All Diseases',
@@ -504,8 +501,8 @@ function disease_analytics_data($pdo)
                 'label' => 'Auto Alerts',
                 'value' => str_pad((string) $alertCount, 2, '0', STR_PAD_LEFT),
                 'trend' => $isAllDiseases
-                    ? 'Generated from RF risk classification'
-                    : 'Generated from rule-based thresholds (' . $modelLabel . ')',
+                    ? 'Generated from automatic risk detection'
+                    : 'Generated from automatic risk rules',
             ],
         ],
         'predictionSummary' => [

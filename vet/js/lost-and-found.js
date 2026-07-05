@@ -58,6 +58,12 @@ const barangayCoordinates = {
 	'Select Barangay': [14.9577, 120.9055]
 };
 
+function formatDate(value) {
+	if (!value) return 'No date';
+	const date = new Date(value);
+	return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 function todayISODate() {
 	const now = new Date();
 	const offset = now.getTimezoneOffset();
@@ -401,9 +407,9 @@ function renderPotential(root) {
 				${lfData.potentialMatches.map((match) => `
 					<article class="match-card" data-action="select-match" data-id="${match.id}">
 						<div class="match-pair">
-							<div class="match-side"><img src="${escapeHtml(match.lost.image || FALLBACK_IMAGE)}" alt=""><h4>${escapeHtml(match.lost.name)}</h4><small>${escapeHtml(match.lost.breed || '')}</small></div>
+							<div class="match-side"><img src="${escapeHtml(match.lost.image || FALLBACK_IMAGE)}" alt=""><h4>${escapeHtml(match.lost.name)}</h4><small>${escapeHtml(match.lost.breed || '')}</small><small>Reported: ${escapeHtml(formatDate(match.lost.createdAt))}</small></div>
 							<div class="score-pill">${match.confidence}%</div>
-							<div class="match-side"><img src="${escapeHtml(match.found.image || FALLBACK_IMAGE)}" alt=""><h4>${escapeHtml(match.found.name)}</h4><small>${escapeHtml(match.found.breed || '')}</small></div>
+							<div class="match-side"><img src="${escapeHtml(match.found.image || FALLBACK_IMAGE)}" alt=""><h4>${escapeHtml(match.found.name)}</h4><small>${escapeHtml(match.found.breed || '')}</small><small>Reported: ${escapeHtml(formatDate(match.found.createdAt))}</small></div>
 						</div>
 						<div class="reason-row">${(match.reasons || []).map((reason) => `<span class="reason-chip">${escapeHtml(reason)}</span>`).join('')}</div>
 						<button type="button" class="btn btn-success" data-action="approve-match" data-id="${match.id}">Approve Match</button>

@@ -616,12 +616,6 @@ function listReports($pdo, $data, $management = false)
         $params[':species'] = normalizeSpecies($species);
     }
 
-    $ownerId = (int) ($data['owner_id'] ?? $data['user_id'] ?? 0);
-    if (!$management && $ownerId > 0) {
-        $where[] = 'lost_found_reports.owner_id = :owner_id';
-        $params[':owner_id'] = $ownerId;
-    }
-    
     $barangay = clean($data['barangay'] ?? $data['barangay_name'] ?? '');
     if ($barangay !== '' && strtolower($barangay) !== 'select barangay') {
         $where[] = 'lost_found_reports.barangay_name = :barangay';
@@ -643,6 +637,36 @@ function listReports($pdo, $data, $management = false)
         $sql .= ' LIMIT ' . $limit;
     }
 
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $reports = array_map('reportRowToArray', $stmt->fetchAll());
+
+    respond(200, ['success' => true, 'data' => $reports]);
+}
+
+function listMyReports($pdo, $data)
+{
+    $ownerId = (int) ($data['owner_id'] ?? $data['user_id'] ?? 0);
+    if ($ownerId <= 0) {
+        respond(401, ['success' => false, 'message' => 'You must be logged in to view your reports.']);
+    }
+
+    $where = ['lost_found_reports.owner_id = :owner_id'];
+    $params = [':owner_id' => $ownerId];
+
+    $status = clean($data['status'] ?? '');
+    if ($status !== '' && $status !== 'all') {
+        $where[] = 'lost_found_reports.status = :status';
+        $params[':status'] = normalizeStatus($status, 'pending');
+    }
+
+    $type = clean($data['type'] ?? $data['report_type'] ?? '');
+    if ($type !== '' && strtolower($type) !== 'all') {
+        $where[] = 'lost_found_reports.report_type = :type';
+        $params[':type'] = normalizeType($type);
+    }
+
+    $sql = reportSelectSql() . ' WHERE ' . implode(' AND ', $where) . ' ORDER BY lost_found_reports.created_at DESC';
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $reports = array_map('reportRowToArray', $stmt->fetchAll());
@@ -887,7 +911,7 @@ function rebuildSightingMatches($pdo, $lostReportId)
     $lost = fetchReportForMatch($pdo, $lostReportId);
     if (!$lost || $lost['status'] !== 'active') return;
 
-    $stmt = $pdo->query("SELECT * FROM lost_found_sightings WHERE status IN ('pending','active')");
+    $stmt = $pdo->query("SELECT * FROM lost_found_sightings WHERE status = 'active'");
     foreach ($stmt->fetchAll() as $sighting) {
         $candidate = [
             'species' => $lost['species'],
@@ -948,6 +972,7 @@ function listMatches($pdo, $data)
         $includeResolved ? "lost_found_matches.status IN ('suggested','approved')" : "lost_found_matches.status = 'suggested'",
         "lost.status = 'active'",
         "(lost_found_matches.found_report_id IS NULL OR found.status = 'active')",
+        "(lost_found_matches.sighting_id IS NULL OR sightings.status = 'active')",
     ];
     $params = [];
     if ($reportId > 0) {
@@ -966,9 +991,9 @@ function listMatches($pdo, $data)
     $sql = "
         SELECT
             lost_found_matches.*,
-            lost.case_number AS lost_case, lost.pet_name AS lost_name, lost.species AS lost_species, lost.breed AS lost_breed, lost.photo_path AS lost_photo, lost.barangay_name AS lost_barangay,
-            found.case_number AS found_case, found.pet_name AS found_name, found.species AS found_species, found.breed AS found_breed, found.photo_path AS found_photo, found.barangay_name AS found_barangay,
-            sightings.case_number AS sighting_case, sightings.photo_path AS sighting_photo, sightings.barangay_name AS sighting_barangay, sightings.notes AS sighting_notes
+            lost.case_number AS lost_case, lost.pet_name AS lost_name, lost.species AS lost_species, lost.breed AS lost_breed, lost.photo_path AS lost_photo, lost.barangay_name AS lost_barangay, lost.created_at AS lost_created_at,
+            found.case_number AS found_case, found.pet_name AS found_name, found.species AS found_species, found.breed AS found_breed, found.photo_path AS found_photo, found.barangay_name AS found_barangay, found.created_at AS found_created_at,
+            sightings.case_number AS sighting_case, sightings.photo_path AS sighting_photo, sightings.barangay_name AS sighting_barangay, sightings.notes AS sighting_notes, sightings.created_at AS sighting_created_at
         FROM lost_found_matches
         INNER JOIN lost_found_reports lost ON lost.id = lost_found_matches.lost_report_id
         LEFT JOIN lost_found_reports found ON found.id = lost_found_matches.found_report_id
@@ -994,6 +1019,7 @@ function listMatches($pdo, $data)
                 'breed' => $row['lost_breed'],
                 'location' => $row['lost_barangay'],
                 'image' => $row['lost_photo'],
+                'createdAt' => $row['lost_created_at'],
             ],
             'found' => [
                 'reportId' => $row['found_report_id'] ? (int) $row['found_report_id'] : null,
@@ -1005,6 +1031,7 @@ function listMatches($pdo, $data)
                 'location' => $row['found_barangay'] ?: $row['sighting_barangay'],
                 'image' => $row['found_photo'] ?: $row['sighting_photo'],
                 'notes' => $row['sighting_notes'],
+                'createdAt' => $row['found_report_id'] ? $row['found_created_at'] : $row['sighting_created_at'],
             ],
         ];
     }
@@ -1137,6 +1164,11 @@ function updateSightingStatus($pdo, $data, $status)
         ':notes' => clean($data['review_notes'] ?? ''),
         ':id' => $id,
     ]);
+
+    if ($status === 'active') {
+        $lostReports = $pdo->query("SELECT id FROM lost_found_reports WHERE report_type = 'lost' AND status = 'active'")->fetchAll();
+        foreach ($lostReports as $row) rebuildSightingMatches($pdo, (int) $row['id']);
+    }
 
     respond(200, ['success' => true, 'message' => 'Sighting status updated.']);
 }
@@ -1324,7 +1356,7 @@ try {
     if ($action === 'list') listReports($pdo, $input, false);
     if ($action === 'management_list') listReports($pdo, $input, true);
     if ($action === 'get') getReport($pdo, $input);
-    if ($action === 'my_reports') listReports($pdo, $input, true);
+    if ($action === 'my_reports') listMyReports($pdo, $input);
     if ($action === 'create' || $action === 'create_report') createReport($pdo, $input);
     if ($action === 'approve' || $action === 'approve_report') updateReportStatus($pdo, $input, 'active');
     if ($action === 'reject' || $action === 'reject_report') updateReportStatus($pdo, $input, 'rejected');

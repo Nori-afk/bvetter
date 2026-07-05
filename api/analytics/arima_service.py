@@ -84,11 +84,32 @@ def mape(actual, predicted):
 # ARIMA HELPERS
 # ════════════════════════════════════════════════════════════════════════
 
-def _adf_d(series: pd.Series) -> int:
+def adf_test_report(series: pd.Series) -> dict:
+    """Augmented Dickey-Fuller stationarity test on a time series.
+
+    Used both to pick ARIMA's differencing order (d) and, in the model
+    evaluation report, to show whether the series was stationary before
+    fitting -- a standard ARIMA validation/assumption check.
+    """
     try:
-        return 0 if adfuller(series.dropna())[1] < 0.05 else 1
-    except Exception:
-        return 1
+        stat, pvalue, _, _, crit, _ = adfuller(series.dropna())
+        stationary = pvalue < 0.05
+        return {
+            "statistic":       round(float(stat), 4),
+            "p_value":         round(float(pvalue), 4),
+            "critical_values": {k: round(float(v), 4) for k, v in crit.items()},
+            "is_stationary":   bool(stationary),
+            "recommended_d":   0 if stationary else 1,
+        }
+    except Exception as e:
+        return {
+            "statistic": None, "p_value": None, "critical_values": {},
+            "is_stationary": None, "recommended_d": 1, "error": str(e),
+        }
+
+
+def _adf_d(series: pd.Series) -> int:
+    return adf_test_report(series)["recommended_d"]
 
 
 def _select_arima_order(series: pd.Series) -> tuple:
@@ -195,8 +216,11 @@ def _seasonal_vaccination_baseline(series: pd.Series, steps: int, diagnostics: d
     for step in range(1, steps + 1):
         future_month = (last_period + step).month
         month_values = baseline_source[baseline_source.index.month == future_month]
+        # Only fall back to the global floor when a month has no history at all.
+        # Clamping every month to `fallback` would flatten genuine seasonal lows
+        # (e.g. a real Jan/Feb trough) up to the same flat number.
         value = float(month_values.median()) if not month_values.empty else fallback
-        baseline.append(round(max(value, fallback), 1))
+        baseline.append(round(value, 1))
     return baseline
 
 

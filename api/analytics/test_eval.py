@@ -47,6 +47,7 @@ from arima_service import (
     _compute_disease_metrics,
     _run_disease_arima,
     run_arima,
+    adf_test_report,
     FEATURE_COLS,
     EXCEL_PATH,
 )
@@ -868,6 +869,77 @@ else:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# FIGURE 9B — ADF Stationarity Test (ARIMA model-validation step)
+#   ARIMA assumes the series being fit is stationary (constant mean/variance
+#   over time). The Augmented Dickey-Fuller test is the standard way to check
+#   this before trusting the model's forecast/CI math. arima_service.py
+#   already runs this test internally to pick the differencing order (d);
+#   this section surfaces the actual statistic/p-value as an evaluation
+#   metric instead of only using it as a silent internal switch.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_section("Figure 9B — ADF Stationarity Test")
+
+adf_single = None
+if chosen_series is not None:
+    adf_single = adf_test_report(chosen_series)
+    verdict = "STATIONARY" if adf_single["is_stationary"] else "NON-STATIONARY (differenced before fitting)"
+    print(f"  Series: {chosen_disease} / {chosen_barangay}")
+    print(f"  ADF statistic       : {adf_single['statistic']}")
+    print(f"  p-value             : {adf_single['p_value']}")
+    print(f"  Critical values     : {adf_single['critical_values']}")
+    print(f"  Result              : {verdict}")
+    print(_wrap(
+        "INTERPRETATION — Figure 9B: The null hypothesis of the ADF test is that the "
+        "series has a unit root (i.e., is non-stationary). A p-value below 0.05 rejects "
+        "that null, meaning the series is already stationary and ARIMA's differencing "
+        "term (d) can stay at 0. A p-value at or above 0.05 means the raw series drifts "
+        "over time, so arima_service.py automatically applies one round of differencing "
+        "(d=1) before fitting -- this is why the model order search in Figure 7/8 is not "
+        "run on raw case counts directly."
+    ))
+else:
+    print("  No representative series available; skipping single-series ADF test.")
+
+# Aggregate ADF check across every barangay used for the disease evaluated in
+# Figure 8, so the stationarity claim is verified across the dataset rather
+# than on one cherry-picked series.
+adf_results = []
+try:
+    agg_adf = _load_disease_specific_df(disease_to_eval)
+    for barangay in agg_adf["barangay"].unique():
+        b_df = agg_adf[agg_adf["barangay"] == barangay].sort_values(["year", "month_no"])
+        b_df["period_dt"] = pd.to_datetime(
+            b_df["year"].astype(str) + "-" +
+            b_df["month_no"].astype(str).str.zfill(2)
+        ).dt.to_period("M")
+        series = b_df.groupby("period_dt")["cases"].sum().astype(float).asfreq("M", fill_value=0)
+        if len(series.dropna()) < 12:
+            continue
+        rep = adf_test_report(series)
+        if rep["p_value"] is not None:
+            adf_results.append({"barangay": barangay, **rep})
+except Exception as e:
+    print(f"  Warning: {e}")
+
+if adf_results:
+    n_stationary = sum(1 for r in adf_results if r["is_stationary"])
+    avg_p        = float(np.mean([r["p_value"] for r in adf_results]))
+    print(f"\n  Barangays tested          : {len(adf_results)}  [{disease_to_eval}]")
+    print(f"  Stationary at p<0.05      : {n_stationary} / {len(adf_results)}")
+    print(f"  Average p-value           : {avg_p:.4f}")
+    print(_wrap(
+        f"INTERPRETATION: {n_stationary} of {len(adf_results)} barangay series for "
+        f"{disease_to_eval} were already stationary; the rest were automatically "
+        "differenced (d=1) by _select_arima_order/_sarima_order_search before "
+        "fitting. This confirms the ADF-based order selection is behaving as "
+        "intended across the dataset, not just for the single sample series above."
+    ))
+else:
+    print("  Insufficient per-barangay history for aggregate ADF verification.")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # FIGURE 10 — Summary Dashboard
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -893,7 +965,9 @@ kpi_data = [
     ("High-Risk Recall",   f"{high_rec:.1%}",  BRAND_RED,   "Fraction of actual High-risk\nbarangays correctly flagged"),
     ("RF Weighted F1",     f"{f1_val:.3f}",    BRAND_GREEN, "Harmonic mean of precision\n& recall (weighted)"),
     ("RF Regressor MAE",   f"{models['mae']}", BRAND_AMBER, "Avg absolute error in monthly\ncase count predictions"),
-    ("RF Regressor RMSE",  f"{models['rmse']}",BRAND_GRAY,  "Root mean squared error\n(penalises outliers more)"),
+    ("ADF Stationarity",
+     f"{sum(1 for r in adf_results if r['is_stationary'])}/{len(adf_results)}" if adf_results else "N/A",
+     BRAND_GRAY,  "Barangay series confirmed\nstationary before ARIMA fit"),
     ("ARIMA Avg MAE",
      f"{df_ar['MAE'].mean():.2f}" if arima_results else "N/A",
      BRAND_BLUE, "Average 3-month holdout MAE\nacross barangays (disease-specific)"),
@@ -920,9 +994,10 @@ fig.text(0.5, -0.04, (
     "Summary: The Random Forest risk classifier and ARIMA case forecaster work "
     "together in the VBetter pipeline. RF classifies each barangay's risk level using "
     "lag features and rolling statistics; ARIMA extrapolates the time series trend "
-    "for up to 12 months ahead. High-Risk Recall is the most operationally important "
-    "metric — a value close to 1.0 means nearly all outbreak-risk barangays are "
-    "correctly flagged for veterinary intervention."
+    "for up to 12 months ahead, after an Augmented Dickey-Fuller (ADF) test confirms "
+    "whether each series is stationary and needs differencing first. High-Risk Recall "
+    "is the most operationally important metric — a value close to 1.0 means nearly "
+    "all outbreak-risk barangays are correctly flagged for veterinary intervention."
 ), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
 plt.tight_layout()
@@ -957,6 +1032,11 @@ print(f"""
 ║    Avg MAE               : {df_ar['MAE'].mean():.2f} cases/month            ║
 ║    Avg RMSE              : {df_ar['RMSE'].mean():.2f}                        ║
 ║    Barangays evaluated   : {len(df_ar)}                             ║
+╠══════════════════════════════════════════════════════════════╣
+║  ADF STATIONARITY TEST (pre-fit validation)                 ║
+║    Sample series ADF p-value : {adf_single['p_value'] if adf_single else 'N/A'}                        ║
+║    Sample series stationary  : {adf_single['is_stationary'] if adf_single else 'N/A'}                        ║
+║    Stationary across barangays: {sum(1 for r in adf_results if r['is_stationary'])}/{len(adf_results)} tested          ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  OUTPUT FILES                                               ║
 ║    fig1_class_distribution.png                              ║

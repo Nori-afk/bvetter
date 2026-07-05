@@ -206,7 +206,17 @@ function renderMyReports() {
     return;
   }
 
-  grid.innerHTML = myReports.map((report) => {
+  // Only ongoing (pending/active) reports belong in the working grid — resolved/rejected
+  // cases live in the History table below instead.
+  const ongoingReports = myReports.filter((report) => report.status !== 'resolved' && report.status !== 'rejected');
+
+  if (!ongoingReports.length) {
+    grid.innerHTML = `<div class="empty-state">No ongoing reports right now. Check your history below.</div>${createCard}`;
+    renderHistory(myReports);
+    return;
+  }
+
+  grid.innerHTML = ongoingReports.map((report) => {
     const type = normalizeType(report.type);
     const pending = report.status === 'pending';
     return `
@@ -347,6 +357,7 @@ function openModal(type) {
   if (notesLabel) notesLabel.textContent = isLost ? 'Additional Details' : 'Current Status / Notes';
 
   openModalById('reportModal');
+  setTimeout(() => initReportMap(), 100);
 
   // image preview code
  const fileInput = document.getElementById("petPhoto");
@@ -596,6 +607,7 @@ function buildMatchCard(match, index, report) {
 						</h4>
 						<p class="lf-match-pet-meta">${escapeHtml(match.lost.breed || '')}</p>
 						<p class="lf-match-pet-meta">${escapeHtml(match.lost.location || '')}</p>
+						<p class="lf-match-pet-meta">Reported: ${escapeHtml(formatDate(match.lost.createdAt))}</p>
 						<span class="lf-match-tag lost-tag">Lost (Your Report)</span>
 					</div>
 				</div>
@@ -624,6 +636,7 @@ function buildMatchCard(match, index, report) {
 						</h4>
 						<p class="lf-match-pet-meta">${escapeHtml(match.found.breed || '')}</p>
 						<p class="lf-match-pet-meta">Source: ${escapeHtml(foundSource)}</p>
+						<p class="lf-match-pet-meta">Reported: ${escapeHtml(formatDate(match.found.createdAt))}</p>
 						<span class="lf-match-tag found-tag">Found (Admin)</span>
 					</div>
 				</div>

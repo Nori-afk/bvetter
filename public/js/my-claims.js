@@ -161,22 +161,6 @@ function buildDetailPanel(claim) {
                     <p class="mc-step-desc">${approved ? 'Bring your proof of ownership and coordinate the safe handover.' : 'Your submitted proof and notes are visible to vet management.'}</p>
                   </div>
                 </div>
-                <div class="mc-step-connector"></div>
-                <div class="mc-step">
-                  <div class="mc-step-num pending-num">2</div>
-                  <div class="mc-step-content">
-                    <h4 class="mc-step-title">Proof Type</h4>
-                    <p class="mc-step-desc">${escapeHtml(claim.proof_type || 'Not specified')}</p>
-                  </div>
-                </div>
-                <div class="mc-step-connector"></div>
-                <div class="mc-step">
-                  <div class="mc-step-num pending-num">3</div>
-                  <div class="mc-step-content">
-                    <h4 class="mc-step-title">Notes</h4>
-                    <p class="mc-step-desc">${escapeHtml(claim.proof_notes || claim.review_notes || 'No notes provided.')}</p>
-                  </div>
-                </div>
               </div>
               ${approved && status !== 'resolved' ? `<button type="button" class="mc-resolve-btn" onclick="handleResolved('${claim.id}')">Mark as Resolved</button>` : ''}
             </div>
