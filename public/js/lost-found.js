@@ -401,6 +401,14 @@ function setDateInputLimits() {
   });
 }
 
+function updateCharCounter(inputId, counterId) {
+  const input = document.getElementById(inputId);
+  const counter = document.getElementById(counterId);
+  if (!input || !counter) return;
+  const max = Number(input.getAttribute('maxlength')) || 500;
+  counter.textContent = `${input.value.length}/${max}`;
+}
+
 function assertDateNotFuture(value, label) {
   if (value && value > todayISODate()) {
     throw new Error(`${label} cannot be a future date.`);
@@ -829,17 +837,36 @@ function focusReportMap(event) {
   document.getElementById('reportMap')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
-function setReportMapLocation(lat, lng) {
+function nearestBarangay(lat, lng) {
+  let closest = null;
+  let closestDist = Infinity;
+  Object.keys(barangayCoordinates).forEach((name) => {
+    const [blat, blng] = barangayCoordinates[name];
+    const dist = Math.hypot(blat - lat, blng - lng);
+    if (dist < closestDist) {
+      closestDist = dist;
+      closest = name;
+    }
+  });
+  return closest;
+}
+
+function setReportMapLocation(lat, lng, syncBarangay = true) {
   document.getElementById('reportLatInput').value = Number(lat).toFixed(6);
   document.getElementById('reportLngInput').value = Number(lng).toFixed(6);
   if (reportMarker) reportMarker.setLatLng([lat, lng]);
   if (reportMap) reportMap.setView([lat, lng], 14);
+  if (syncBarangay) {
+    const barangaySelect = document.getElementById('barangayInput');
+    const nearest = nearestBarangay(lat, lng);
+    if (barangaySelect && nearest) barangaySelect.value = nearest;
+  }
 }
 
 function updateReportMapFromBarangay() {
   const barangay = document.getElementById('barangayInput')?.value || '';
   const [lat, lng] = barangayCoordinates[barangay] || DEFAULT_COORDS;
-  setReportMapLocation(lat, lng);
+  setReportMapLocation(lat, lng, false);
 }
 
 function initSightingMap() {
@@ -858,11 +885,11 @@ function initSightingMap() {
   }).addTo(sightingMap);
   sightingMarker = L.marker([lat, lng]).addTo(sightingMap);
   sightingMap.on('click', (event) => setSightingMapLocation(event.latlng.lat, event.latlng.lng));
-  setSightingMapLocation(lat, lng);
+  setSightingMapLocation(lat, lng, false);
   setTimeout(() => sightingMap?.invalidateSize(), 100);
 }
 
-function setSightingMapLocation(lat, lng) {
+function setSightingMapLocation(lat, lng, syncBarangay = true) {
   const nextLat = Number(lat);
   const nextLng = Number(lng);
   if (!Number.isFinite(nextLat) || !Number.isFinite(nextLng)) return;
@@ -872,12 +899,17 @@ function setSightingMapLocation(lat, lng) {
   if (lngInput) lngInput.value = nextLng.toFixed(6);
   if (sightingMarker) sightingMarker.setLatLng([nextLat, nextLng]);
   if (sightingMap) sightingMap.setView([nextLat, nextLng], 14);
+  if (syncBarangay) {
+    const barangaySelect = document.getElementById('sightingBarangayInput');
+    const nearest = nearestBarangay(nextLat, nextLng);
+    if (barangaySelect && nearest) barangaySelect.value = nearest;
+  }
 }
 
 function updateSightingMapFromBarangay() {
   const barangay = document.getElementById('sightingBarangayInput')?.value || '';
   const [lat, lng] = barangayCoordinates[barangay] || DEFAULT_COORDS;
-  setSightingMapLocation(lat, lng);
+  setSightingMapLocation(lat, lng, false);
 }
 
 function destroySightingMap() {
@@ -914,7 +946,69 @@ function destroyDetailMap() {
 function openClaimModal(reportId = null) {
   if (reportId) currentClaimReportId = reportId;
   closeModal('detailsFoundModal');
-  setTimeout(() => openModalById('claimModal'), 150);
+  setTimeout(() => {
+    openModalById('claimModal');
+    initClaimDocPreview();
+  }, 150);
+}
+
+function initClaimDocPreview() {
+  const input = document.getElementById('claimDoc');
+  resetClaimDocPreview();
+  if (!input || input.dataset.previewBound === 'true') return;
+  input.dataset.previewBound = 'true';
+  input.addEventListener('change', updateClaimDocPreview);
+}
+
+function updateClaimDocPreview() {
+  const input = document.getElementById('claimDoc');
+  const uploadBox = input?.closest('.upload-box-wide');
+  const file = input?.files?.[0];
+  if (!uploadBox || !file) return;
+
+  uploadBox.querySelector('.upload-doc-icon-img')?.style.setProperty('display', 'none');
+  uploadBox.querySelector('.upload-text')?.style.setProperty('display', 'none');
+  uploadBox.querySelector('.upload-hint')?.style.setProperty('display', 'none');
+
+  let fileNameEl = uploadBox.querySelector('.upload-file-name');
+  if (!fileNameEl) {
+    fileNameEl = document.createElement('span');
+    fileNameEl.className = 'upload-file-name';
+    uploadBox.appendChild(fileNameEl);
+  }
+
+  if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      uploadBox.style.backgroundImage = `url(${event.target.result})`;
+      uploadBox.style.backgroundSize = 'cover';
+      uploadBox.style.backgroundPosition = 'center';
+      uploadBox.style.backgroundRepeat = 'no-repeat';
+      fileNameEl.hidden = true;
+      fileNameEl.textContent = '';
+    };
+    reader.readAsDataURL(file);
+  } else {
+    uploadBox.style.backgroundImage = '';
+    fileNameEl.hidden = false;
+    fileNameEl.textContent = `Selected: ${file.name}`;
+  }
+}
+
+function resetClaimDocPreview() {
+  const input = document.getElementById('claimDoc');
+  const uploadBox = input?.closest('.upload-box-wide');
+  if (input) input.value = '';
+  if (!uploadBox) return;
+
+  uploadBox.style.backgroundImage = '';
+  uploadBox.style.backgroundSize = '';
+  uploadBox.style.backgroundPosition = '';
+  uploadBox.style.backgroundRepeat = '';
+  uploadBox.querySelector('.upload-doc-icon-img')?.style.removeProperty('display');
+  uploadBox.querySelector('.upload-text')?.style.removeProperty('display');
+  uploadBox.querySelector('.upload-hint')?.style.removeProperty('display');
+  uploadBox.querySelector('.upload-file-name')?.remove();
 }
 
 async function submitClaim() {

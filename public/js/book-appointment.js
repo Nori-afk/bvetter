@@ -15,7 +15,7 @@
    - populateReview / goStep(5): replace with
      api.bookAppointment(data)
    - pageHistory: replace static rows with
-     api.getAppointments()
+     api.getAppointments()  
    ============================================= */
 
 /* ── Calendar state ──────────────────────────── */
@@ -25,8 +25,28 @@ let calYear, calMonth;
 let selectedVetId   = null;
 let selectedCalDate = null;   // 'YYYY-MM-DD'
 
+/* ── Local calendar date as 'YYYY-MM-DD' ─────────
+   toISOString() converts to UTC first, which is one day
+   off from the local date for part of the day in any
+   timezone ahead of UTC (e.g. early morning in PH, UTC+8).
+   That off-by-one let yesterday's date pass the "min" /
+   past-date checks below, so use local Y/M/D instead.
+─────────────────────────────────────────────────── */
+function toLocalIsoDate(date = new Date()) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function buildCalendar(year, month) {
-  calYear  = year;
+  const vaccDate = document.getElementById("petVaccDate");
+  const today_input = toLocalIsoDate();
+  const apptDate = document.getElementById("apptDate");
+  apptDate.min = today_input;
+  vaccDate.min = today_input;
+
+  calYear = year;
   calMonth = month;
 
   const MONTH_NAMES = [
@@ -38,8 +58,11 @@ function buildCalendar(year, month) {
   document.querySelector('.cal-month').textContent =
     `${MONTH_NAMES[month]} ${year}`;
 
-  const grid  = document.querySelector('.cal-grid');
+  const grid = document.querySelector('.cal-grid');
   const today = new Date();
+
+  // Remove time so only the date is compared
+  today.setHours(0, 0, 0, 0);
 
   // Rebuild grid: labels + day cells
   grid.innerHTML = DAY_LABELS
@@ -59,24 +82,38 @@ function buildCalendar(year, month) {
 
   for (let d = 1; d <= daysInMonth; d++) {
     const cell = document.createElement('div');
+
+    const cellDate = new Date(year, month, d);
+    cellDate.setHours(0, 0, 0, 0);
+
+    const isPast = cellDate < today;
+
     const isToday =
       d === today.getDate() &&
       month === today.getMonth() &&
-      year  === today.getFullYear();
-    cell.className   = 'cal-day' + (isToday ? ' today' : '');
+      year === today.getFullYear();
+
+    cell.className = 'cal-day';
+
+    if (isToday) cell.classList.add('today');
+    if (isPast) cell.classList.add('disabled');
+
     cell.textContent = d;
 
-    cell.addEventListener('click', () => {
-      grid.querySelectorAll('.cal-day').forEach(c => c.classList.remove('today'));
-      cell.classList.add('today');
+    // Only allow clicking today and future dates
+    if (!isPast) {
+      cell.addEventListener('click', () => {
+        grid.querySelectorAll('.cal-day').forEach(c => c.classList.remove('today'));
 
-      // Zero-pad month/day for YYYY-MM-DD
-      const mm = String(month + 1).padStart(2, '0');
-      const dd = String(d).padStart(2, '0');
-      selectedCalDate = `${year}-${mm}-${dd}`;
+        cell.classList.add('today');
 
-      fetchAndBuildSlots();   // refresh available hours for this date + vet
-    });
+        const mm = String(month + 1).padStart(2, '0');
+        const dd = String(d).padStart(2, '0');
+        selectedCalDate = `${year}-${mm}-${dd}`;
+
+        fetchAndBuildSlots();
+      });
+    }
 
     grid.appendChild(cell);
   }
@@ -86,6 +123,7 @@ function buildCalendar(year, month) {
 // Init calendar to current month and set today as the selected date
 (function initCalendar() {
   const now = new Date();
+
   buildCalendar(now.getFullYear(), now.getMonth());
 
   // Set today as the default selected date so slots load on page open
@@ -96,14 +134,26 @@ function buildCalendar(year, month) {
   const calBtns = document.querySelectorAll('.cal-btn');
 
   calBtns[0].addEventListener('click', () => {
-    let m = calMonth - 1, y = calYear;
-    if (m < 0) { m = 11; y--; }
+    let m = calMonth - 1;
+    let y = calYear;
+
+    if (m < 0) {
+      m = 11;
+      y--;
+    }
+
     buildCalendar(y, m);
   });
 
   calBtns[1].addEventListener('click', () => {
-    let m = calMonth + 1, y = calYear;
-    if (m > 11) { m = 0; y++; }
+    let m = calMonth + 1;
+    let y = calYear;
+
+    if (m > 11) {
+      m = 0;
+      y++;
+    }
+
     buildCalendar(y, m);
   });
 })();
@@ -178,6 +228,8 @@ buildTimeSlots();
 
 
 function updateVetProfile(vet) {
+  replaceContent()
+  console.log(vet)
   const avatarSrc = getAvatarUrl(vet.avatar);
 
   // FIX: profile image src was never set
@@ -193,7 +245,7 @@ function updateVetProfile(vet) {
   set('profile-rating',       vet.rating,               '4.9');
   set('profile-review-count', `(${vet.review_count || 124} reviews)`);
   set('stat-experience-val',  vet.experience_years  ? `${vet.experience_years}+ Years`   : '12+ Years');
-  set('stat-patients-val',    vet.patients_served   ? `${vet.patients_served} Served`    : '2.4k');
+  // stat-patients-val is populated by replaceContent() (completed appointment count for this vet)
   set('stat-rating-val',      vet.rating_percentage ? `${vet.rating_percentage}%`        : '98%');
   set('edu-tag',              vet.education,            'DVM, Cornell University');
   set('section-desc',         vet.bio,                  '');
@@ -240,8 +292,9 @@ async function fetchVets() {
       item.classList.add('active');
       selectedVetId = vet.id;          // track selected vet
       updateVetProfile(vet);
-      fetchAndBuildSlots();    
+      fetchAndBuildSlots();
       loadVetFeedback(vet.id);        // refresh slots for new vet + current date
+      loadCommonCases(vet.id);
     });
 
     container.appendChild(item);
@@ -251,8 +304,9 @@ async function fetchVets() {
   if (VetAccounts.data.length > 0) {
     selectedVetId = VetAccounts.data[0].id;
     updateVetProfile(VetAccounts.data[0]);
-    fetchAndBuildSlots();   
+    fetchAndBuildSlots();
     loadVetFeedback(VetAccounts.data[0].id);// now both selectedVetId + selectedCalDate are set
+    loadCommonCases(VetAccounts.data[0].id);
   }
 }
 async function loadRecentHistory() {
@@ -392,6 +446,31 @@ async function submitReview(appointmentId, rating, comment) {
 
     if (json.success) {
       alert('Review submitted successfully!');
+      loadAppointmentHistory(); // refresh history
+    } else {
+      alert(json.message || 'Failed to submit review.');
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Failed to submit review.');
+  }
+}
+async function replaceContent(){
+   try {
+    const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'get_total',
+        veterinarian_id: selectedVetId
+      })
+    });
+
+    const json = await res.json();
+    console.log(json)
+
+    if (json.success) {
+      document.getElementById('stat-patients-val').textContent = json.data;
       loadAppointmentHistory(); // refresh history
     } else {
       alert(json.message || 'Failed to submit review.');
@@ -557,8 +636,16 @@ async function loadVetFeedback(vetId) {
     }
 
     // Get latest review (or first one)
-    const review = json.data[0];
+    const review = json.data.reduce((highest, current) =>
+  current.rating > highest.rating ? current : highest
+);
+    const averageRating =
+    json.data.reduce((sum, item) => sum + item.rating, 0) / json.data.length;
 
+
+    document.getElementById('profile-rating').textContent=    `${averageRating.toFixed(1)} out of 5`;
+    document.getElementById('stat-rating-val').textContent=getAverageRate(averageRating);
+    document.getElementById('profile-review-count').textContent = "("+ json.data.length + ' reviews )';
     // Update reviewer info
     document.getElementById('feedback-name').textContent =
       review.owner_name || 'Anonymous';
@@ -585,10 +672,137 @@ async function loadVetFeedback(vetId) {
     console.error('Failed to load vet feedback:', err);
   }
 }
+
+const COMMON_CASE_ICONS = ['vet-symptom-1.svg', 'vet-symptom-3.svg', 'vet-symptom-2.svg', 'vet-symptom-4.svg'];
+
+async function loadCommonCases(vetId) {
+  const section = document.getElementById('commonCasesSection');
+  const grid = document.getElementById('symptomsGrid');
+  if (!section || !grid) return;
+
+  let cases = [];
+
+  try {
+    const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'common_cases',
+        veterinarian_id: vetId
+      })
+    });
+
+    const json = await res.json();
+    if (json.success && Array.isArray(json.data)) {
+      cases = json.data;
+    }
+  } catch (err) {
+    console.error('Failed to load common cases:', err);
+  }
+
+  if (cases.length === 0) {
+    section.style.display = 'none';
+    grid.innerHTML = '';
+    return;
+  }
+
+  section.style.display = '';
+  grid.innerHTML = cases.map((label, i) => `
+    <div class="symptom-item">
+      <div class="symptom-icon"><img src="../images/icons/${COMMON_CASE_ICONS[i % COMMON_CASE_ICONS.length]}" alt=""/></div>
+      ${escapeHtml(label)}
+    </div>
+  `).join('');
+}
+
+async function openReviewsModal() {
+  const overlay = document.getElementById('reviewsModalOverlay');
+  const list = document.getElementById('reviewsModalList');
+  if (!overlay || !list) return;
+
+  list.innerHTML = '<div class="feedback-text">Loading reviews...</div>';
+  overlay.classList.add('active');
+
+  try {
+    const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'vet_reviews',
+        veterinarian_id: selectedVetId
+      })
+    });
+
+    const json = await res.json();
+
+    if (!json.success || !json.data || json.data.length === 0) {
+      list.innerHTML = '<div class="feedback-text">This veterinarian has not received feedback yet.</div>';
+      return;
+    }
+
+    list.innerHTML = json.data.map(review => {
+      const rating = parseInt(review.rating || 0);
+      const stars = '<img src="../images/icons/rate.svg" alt="star" class="star-sm"/>'.repeat(rating);
+      return `
+        <div class="feedback-card">
+          <div class="feedback-user">
+            <div class="feedback-avatar"></div>
+            <div class="feedback-user-info">
+              <div class="feedback-name">${escapeHtml(review.owner_name || 'Anonymous')}</div>
+              <div class="feedback-pet">Pet: ${escapeHtml(review.pet_name || 'Unknown Pet')} (${escapeHtml(review.species || '')})</div>
+            </div>
+            <div class="feedback-stars">${stars}</div>
+          </div>
+          <div class="feedback-text">"${escapeHtml(review.comment || 'No comment provided')}"</div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Failed to load reviews:', err);
+    list.innerHTML = '<div class="feedback-text">Failed to load reviews.</div>';
+  }
+}
+
+function closeReviewsModal() {
+  const overlay = document.getElementById('reviewsModalOverlay');
+  if (overlay) overlay.classList.remove('active');
+}
+
 fetchVets();
 loadRecentHistory();
 
-
+function getAverageRate(average) {
+  if (average >= 5.0) {
+    return '100%';
+  }
+  else if (average >= 4.5) {
+    return '95%';
+  }
+  else if (average >= 4.0) {
+    return '90%';
+  }
+  else if (average >= 3.5) {
+    return '85%';
+  }
+  else if (average >= 3.0) {
+    return '80%';
+  }
+  else if (average >= 2.5) {
+    return '75%';
+  }
+  else if (average >= 2.0) {
+    return '70%';
+  }
+  else if (average >= 1.5) {
+    return '65%';
+  }
+  else if (average >= 1.0) {
+    return '60%';
+  }
+  else {
+    return '0%';
+  }
+}
 /* ── Page + booking form logic ───────────────── */
 (function () {
   'use strict';
@@ -596,7 +810,6 @@ loadRecentHistory();
   /* ── Page references ─────────────────────── */
   const pageVet     = document.getElementById('pageVet');
   const pageBooking = document.getElementById('pageBooking');
-  console.log(document.getElementById('btnViewAll'));
   const pageHistory = document.getElementById('pageHistory');
 
   /* ── Switch between 3 main page views ─────── */
@@ -618,6 +831,15 @@ loadRecentHistory();
     e.preventDefault();
     showPage(pageHistory);
     loadAppointmentHistory();
+  });
+  document.getElementById('btnSeeAllReviews')
+  .addEventListener('click', (e) => {
+    e.preventDefault();
+    openReviewsModal();
+  });
+  document.getElementById('btnCloseReviews')   .addEventListener('click', closeReviewsModal);
+  document.getElementById('reviewsModalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'reviewsModalOverlay') closeReviewsModal();
   });
   document.getElementById('btnBackToVet')      .addEventListener('click', (e) => { e.preventDefault(); showPage(pageVet); });
   document.getElementById('btnBackHome')       .addEventListener('click', () => showPage(pageVet));
@@ -686,6 +908,12 @@ time_slot: selectedSlot ? selectedSlot.textContent.trim() : '',
     ];
     if (required.some(k => !payload[k])) {
       alert('Please complete all required appointment fields.');
+      return;
+    }
+
+    const todayIso = toLocalIsoDate();
+    if (payload.preferred_date < todayIso) {
+      alert('Please select a date that has not yet passed.');
       return;
     }
 

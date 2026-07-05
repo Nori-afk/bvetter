@@ -49,7 +49,7 @@
       </button>
       <div class="nav-user-pill" onclick="toggleUserMenu()">
         <div class="nav-user-info">
-          <span class="nav-user-name">Sheena Ramos</span>
+          <span class="nav-user-name"></span>
           <span class="nav-user-role">Pet Owner</span>
         </div>
         <img src="../images/img/account-avatar.png" alt="User" class="nav-user-avatar"/>
@@ -575,7 +575,7 @@
 
   <script src="../../shared/js/auth.js"></script>
   <script>
-    if (window.VBetterAuth && window.ROLES) guardPage([ROLES.PET_OWNER]);
+    requireAuth(['owner']);
   </script>
   <script src="../js/nav.js"></script>
   <script src="../js/api.js"></script>

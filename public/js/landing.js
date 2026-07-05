@@ -50,7 +50,6 @@ async function loadLandingData() {
     renderLandingLostFound(),
     renderLandingSpecialists()
   ]);
-  hydratePublicNav();
   window.addEventListener('resize', updateCarousel);
 }
 
@@ -181,23 +180,6 @@ async function renderLandingSpecialists() {
       </div>
     </div>
   `).join('');
-}
-
-function hydratePublicNav() {
-  const user = getCurrentUser();
-  const navGuest = document.getElementById('navGuest');
-  const navAuth = document.getElementById('navAuth');
-
-  if (navGuest) navGuest.style.display = user ? 'none' : 'flex';
-  if (navAuth) navAuth.style.display = user ? 'flex' : 'none';
-
-  if (!user) return;
-  const nameEl = document.querySelector('.nav-user-name');
-  const roleEl = document.querySelector('.nav-user-role');
-  const avatarEl = document.querySelector('.nav-user-avatar');
-  if (nameEl) nameEl.textContent = user.name || 'Pet Owner';
-  if (roleEl) roleEl.textContent = user.role === 'admin' ? 'Administrator' : (user.role === 'vet' ? 'Veterinarian' : 'Pet Owner');
-  if (avatarEl && user.avatarUrl) avatarEl.src = user.avatarUrl;
 }
 
 document.addEventListener('DOMContentLoaded', loadLandingData);

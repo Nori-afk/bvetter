@@ -275,6 +275,13 @@ body {
   margin-bottom: 16px;
 }
 
+.activity-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 24px 0;
+}
+
 .activity-card {
   background: #fff;
   border-radius: 12px;
@@ -375,6 +382,11 @@ body {
   color: var(--color-yellow);
 }
 
+.badge-rejected {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
 .activity-body {
   padding-left: 46px;
 }
@@ -393,23 +405,44 @@ body {
   letter-spacing: 0.5px;
 }
 
-.btn-view-all {
-  width: 100%;
-  padding: 13px;
-  background: #fff;
+/* ── ACTIVITY PAGINATION ────────────────────── */
+.activity-pagination {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.activity-page-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
   border: 1.5px solid var(--border-default);
-  border-radius: 10px;
+  background: #fff;
   font-size: 13px;
   font-weight: 700;
   font-family: 'Manrope', sans-serif;
-  color: var(--color-green-dark);
+  color: var(--text-body);
   cursor: pointer;
+  display: inline-grid;
+  place-items: center;
   transition: all 0.2s;
 }
 
-.btn-view-all:hover {
+.activity-page-btn:hover:not(:disabled) {
   background: var(--color-green-pale);
   border-color: var(--color-green);
+}
+
+.activity-page-btn.active {
+  background: var(--color-navy);
+  border-color: var(--color-navy);
+  color: #fff;
+}
+
+.activity-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ── QUICK ACTIONS ─────────────────────────── */

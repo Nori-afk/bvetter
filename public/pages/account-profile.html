@@ -44,7 +44,7 @@
     </button>
     <div class="nav-user-pill" onclick="toggleUserMenu()">
       <div class="nav-user-info">
-        <span class="nav-user-name">Mark Depa</span>
+        <span class="nav-user-name"></span>
         <span class="nav-user-role">Pet Owner</span>
       </div>
       <img src="../images/img/account-avatar.png" alt="User" class="nav-user-avatar"/>
@@ -75,10 +75,10 @@
     <div class="profile-hero">
       <div class="profile-hero-inner">
         <div class="profile-hero-left">
-          <img src="../images/img/account-avatar.png" alt="User" class="hero-avatar"/>
+          <img src="../images/img/account-avatar.png" alt="User" class="hero-avatar" id="heroAvatar"/>
           <div class="hero-info">
-            <h1 class="hero-name">Mark Depa</h1>
-            <p class="hero-sub">Elite Pet Owner since 2021.</p>
+            <h1 class="hero-name" id="heroName"></h1>
+            <p class="hero-sub" id="heroSub">Pet Owner</p>
             <span class="verified-badge">
               <img src="../images/icons/icon-success.svg" alt="" class="verified-icon"/>
               VERIFIED IDENTITY
@@ -98,7 +98,7 @@
           <div class="stat-accent red"></div>
           <div class="stat-content">
             <div class="stat-label">ACTIVE LOST REPORTS</div>
-            <div class="stat-value">02</div>
+            <div class="stat-value" id="statActiveReports">00</div>
           </div>
           <div class="stat-icon-wrap red-bg">
             <img src="../images/icons/profile-stats-reports.svg" alt="" class="stat-icon"/>
@@ -109,7 +109,7 @@
           <div class="stat-accent blue"></div>
           <div class="stat-content">
             <div class="stat-label">PENDING CLAIMS</div>
-            <div class="stat-value">01</div>
+            <div class="stat-value" id="statPendingClaims">00</div>
           </div>
           <div class="stat-icon-wrap blue-bg">
             <img src="../images/icons/profile-stats-claims.svg" alt="" class="stat-icon"/>
@@ -120,7 +120,7 @@
           <div class="stat-accent green"></div>
           <div class="stat-content">
             <div class="stat-label">UPCOMING APPOINTMENTS</div>
-            <div class="stat-value">04</div>
+            <div class="stat-value" id="statUpcomingAppointments">00</div>
           </div>
           <div class="stat-icon-wrap green-bg">
             <img src="../images/icons/profile-stats-appointments.svg" alt="" class="stat-icon"/>
@@ -137,71 +137,11 @@
           <div class="section-title">Recent Activity</div>
         </div>
 
-          <div class="activity-list">
-
-            <!-- Activity Item: Approved -->
-            <div class="activity-card">
-              <div class="activity-card-top">
-                <div class="activity-left">
-                  <div class="activity-dot-wrap green-dot">
-                    <img src="../images/icons/profile-report-verification.svg" alt="" class="activity-dot-icon"/>
-                  </div>
-                  <div class="activity-meta">
-                    <div class="activity-title">Found Pet Verification</div>
-                    <div class="activity-ref">Report ID: #VP-9021</div>
-                  </div>
-                </div>
-                <span class="activity-badge badge-approved">APPROVED</span>
-              </div>
-              <div class="activity-body">
-                <p class="activity-desc">The claim for the Golden Retriever found in North Hills has been verified and matched.</p>
-                <span class="activity-time">2 HOURS AGO</span>
-              </div>
-            </div>
-
-            <!-- Activity Item: In Review -->
-            <div class="activity-card">
-              <div class="activity-card-top">
-                <div class="activity-left">
-                  <div class="activity-dot-wrap blue-dot">
-                    <img src="../images/icons/profile-report-submitted.svg" alt="" class="activity-dot-icon"/>
-                  </div>
-                  <div class="activity-meta">
-                    <div class="activity-title">Lost Pet Report Submitted</div>
-                    <div class="activity-ref">Report ID: #VP-9088</div>
-                  </div>
-                </div>
-                <span class="activity-badge badge-review">IN REVIEW</span>
-              </div>
-              <div class="activity-body">
-                <p class="activity-desc">Missing report for "Oliver" (Scottish Fold) is currently being processed by the regional team.</p>
-                <span class="activity-time">YESTERDAY, 14:30</span>
-              </div>
-            </div>
-
-            <!-- Activity Item: Completed -->
-            <div class="activity-card">
-              <div class="activity-card-top">
-                <div class="activity-left">
-                  <div class="activity-dot-wrap teal-dot">
-                    <img src="../images/icons/profile-appointment-completed.svg" alt="" class="activity-dot-icon"/>
-                  </div>
-                  <div class="activity-meta">
-                    <div class="activity-title">Appointment Completed</div>
-                    <div class="activity-ref">Booking: #BK-5521</div>
-                  </div>
-                </div>
-                <span class="activity-badge badge-completed">COMPLETED</span>
-              </div>
-              <div class="activity-body">
-                <p class="activity-desc">Annual vaccination check-up for Luna was successfully completed at Central Clinic.</p>
-                <span class="activity-time">MAY 12, 2024</span>
-              </div>
-            </div>
-
+          <div class="activity-list" id="activityList">
+            <p class="activity-empty">Loading recent activity&hellip;</p>
           </div>
 
-          <button class="btn-view-all">View All Activity</button>
+          <div class="activity-pagination" id="activityPagination"></div>
         </div>
 
         <!-- Right: Quick Actions -->
@@ -255,7 +195,7 @@
   <script src="../../shared/js/auth.js"></script>
   <script>
     /* Route guard — redirects wrong role to their home */
-    guardPage([ROLES.PET_OWNER]);
+    requireAuth(['owner']);
   </script>
   <script src="../js/nav.js"></script>
   <script src="../js/api.js"></script>

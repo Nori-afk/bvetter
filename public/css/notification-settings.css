@@ -79,7 +79,7 @@ body {
 
 .table-head-row {
   display: grid;
-  grid-template-columns: 1fr 90px 90px 90px;
+  grid-template-columns: 1fr 90px 90px;
   padding: 0 0 10px;
   border-bottom: 1px solid var(--border-light);
   margin-bottom: 0;
@@ -104,7 +104,7 @@ body {
 
 .table-row {
   display: grid;
-  grid-template-columns: 1fr 90px 90px 90px;
+  grid-template-columns: 1fr 90px 90px;
   align-items: center;
   padding: 18px 0;
   border-bottom: 1px solid var(--bg-input);
@@ -439,7 +439,7 @@ body {
      room to keep breathing instead of forcing the fixed 380px
      Quiet Hours column into a squeeze first. */
   .table-head-row,
-  .table-row { grid-template-columns: 1fr 64px 64px 64px; }
+  .table-row { grid-template-columns: 1fr 64px 64px; }
 
   .bottom-row { grid-template-columns: 1fr; }
 }
@@ -453,7 +453,7 @@ body {
   .notif-card { padding: 18px 16px 6px; }
 
   .table-head-row,
-  .table-row { grid-template-columns: 1fr 42px 42px 42px; }
+  .table-row { grid-template-columns: 1fr 42px 42px; }
 
   .th-channel { font-size: 8px; }
 

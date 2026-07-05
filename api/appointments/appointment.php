@@ -296,6 +296,12 @@ function createAppointment($pdo, $data)
             'message' => 'Appointment type, date, and time slot are required.'
         ]);
     }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $preferredDate) || strtotime($preferredDate) === false) {
+        respond(422, ['success' => false, 'message' => 'A valid date is required.']);
+    }
+    if (strtotime($preferredDate) < strtotime(date('Y-m-d'))) {
+        respond(422, ['success' => false, 'message' => 'Cannot book an appointment on a past date.']);
+    }
 
     $pdo->beginTransaction();
 
@@ -585,6 +591,8 @@ try {
     if ($action === 'booked_slots') getBookedSlots($pdo, $input);
     if ($action === 'submit_review') submitReview($pdo, $input);
     if ($action === 'vet_reviews') getVetReviews($pdo, $input);
+    if ($action === 'get_total') getTotalAppointment($pdo, $input);
+    if ($action === 'common_cases') getCommonCases($pdo, $input);
 
     respond(400, [
         'success' => false,
@@ -619,7 +627,7 @@ function getVetReviews($pdo, $data)
         INNER JOIN pets ON pets.id = appointments.pet_id
         WHERE reviews.veterinarian_id = :vet_id
         ORDER BY reviews.created_at DESC
-        LIMIT 1
+        LIMIT 50
     ");
 
     $stmt->execute([':vet_id' => $vetId]);
@@ -629,5 +637,56 @@ function getVetReviews($pdo, $data)
     respond(200, [
         'success' => true,
         'data' => $reviews
+    ]);
+}
+function getTotalAppointment($pdo, $data)
+{
+    $vetId = (int)($data['veterinarian_id'] ?? 0);
+
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM appointments
+        WHERE veterinarian_id = :vetId
+          AND status = 'completed'
+    ");
+
+    $stmt->execute([
+        ':vetId' => $vetId
+    ]);
+
+    $totalAppointments = $stmt->fetchColumn();
+
+    respond(200, [
+        'success' => true,
+        'data' => (int)$totalAppointments
+    ]);
+}
+
+function getCommonCases($pdo, $data)
+{
+    $vetId = (int)($data['veterinarian_id'] ?? 0);
+
+    $vetStmt = $pdo->prepare("SELECT full_name FROM users WHERE id = :vetId");
+    $vetStmt->execute([':vetId' => $vetId]);
+    $vetName = $vetStmt->fetchColumn();
+
+    $cases = [];
+    if ($vetName) {
+        $stmt = $pdo->prepare("
+            SELECT category, COUNT(*) AS total
+            FROM patient_visit_records
+            WHERE attending_vet = :vetName
+              AND category IS NOT NULL AND category <> ''
+            GROUP BY category
+            ORDER BY total DESC
+            LIMIT 4
+        ");
+        $stmt->execute([':vetName' => $vetName]);
+        $cases = array_column($stmt->fetchAll(), 'category');
+    }
+
+    respond(200, [
+        'success' => true,
+        'data' => $cases
     ]);
 }

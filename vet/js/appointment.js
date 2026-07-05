@@ -62,6 +62,12 @@ function isValidDateString(value) {
 	return !Number.isNaN(date.getTime());
 }
 
+function extractDatePart(value) {
+	if (typeof value !== 'string') return '';
+	const match = value.match(/^\d{4}-\d{2}-\d{2}/);
+	return match ? match[0] : '';
+}
+
 function normalizeAppointment(item, index) {
 	const fallbackDate = '2026-04-21T09:00:00';
 	const datetime = typeof item.datetime === 'string' && isValidDateString(item.datetime)
@@ -69,9 +75,15 @@ function normalizeAppointment(item, index) {
 		: fallbackDate;
 	const status = VALID_STATUSES.has(item.status) ? item.status : 'pending';
 
+	// preferred_date is a clean 'YYYY-MM-DD' column straight from the DB — use it for
+	// date filtering instead of the concatenated "preferred_date + time_slot" datetime
+	// string, which mixes 12-hour and 24-hour time formats and isn't reliably parseable.
+	const preferredDate = extractDatePart(item.preferred_date) || extractDatePart(datetime);
+
 	return {
 		id: Number.isFinite(Number(item.id)) ? Number(item.id) : index + 1,
 		datetime,
+		preferredDate,
 		patient: String(item.patient || 'Unknown Patient'),
 		owner: String(item.owner || 'Unknown Owner'),
 		service: String(item.service || 'General Service'),
@@ -185,7 +197,7 @@ function getFilteredAppointments() {
 		const searchable = `${appointment.patient} ${appointment.owner} ${appointment.service}`.toLowerCase();
 		const matchesSearch = !q || searchable.includes(q);
 		const matchesStatus = selectedStatus === 'all' || appointment.status === selectedStatus;
-		const matchesDate = !selectedDate || appointment.datetime.startsWith(selectedDate);
+		const matchesDate = !selectedDate || appointment.preferredDate === selectedDate;
 		return matchesSearch && matchesStatus && matchesDate;
 	});
 }

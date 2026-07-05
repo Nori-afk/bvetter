@@ -1613,6 +1613,8 @@ body {
 
 /* ── Upload box (uploader UI only — text excluded per design) ── */
 .vet-lf-modal .upload-box {
+	position:        relative;
+	overflow:        hidden;
 	border:          1.5px dashed #C3C6D2;
 	border-radius:   10px;
 	background:      #F9F9FF;
@@ -1663,6 +1665,14 @@ body {
 .vet-lf-modal .upload-hint {
 	font-size: 10px;
 	color:     #9ba3ae;
+}
+
+.vet-lf-modal .char-counter {
+	display:    block;
+	text-align: right;
+	font-size:  10px;
+	color:      #9ba3ae;
+	margin-top: -6px;
 }
 
 /* ── Form layout ── */

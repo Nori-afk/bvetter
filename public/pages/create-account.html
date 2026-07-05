@@ -127,9 +127,18 @@
 
           <div class="form-group">
             <label>UPLOAD DOCUMENT (PROOF OF RESIDENCY)</label>
-            <div class="upload-box" onclick="document.getElementById('reg_proof').click()">
-              <p>Click to upload or drag &amp; drop</p>
-              <span>PDF, JPG or PNG (Max. 5MB)</span>
+            <div class="upload-box" id="proof_upload_box" onclick="document.getElementById('reg_proof').click()">
+              <div id="proof_preview_wrap" class="upload-preview-wrap" hidden>
+                <img id="proof_preview_img" class="upload-preview-img" alt="Proof of residency preview" hidden/>
+                <div id="proof_preview_pdf" class="upload-preview-pdf" hidden>
+                  <img src="../images/icons/qa-file.svg" alt="" class="upload-preview-pdf-icon"/>
+                </div>
+                <p id="proof_preview_name" class="upload-preview-name"></p>
+              </div>
+              <div id="proof_upload_prompt">
+                <p>Click to upload or drag &amp; drop</p>
+                <span>PDF, JPG or PNG (Max. 5MB)</span>
+              </div>
               <input type="file" id="reg_proof" name="proof_document" style="display:none" accept=".pdf,.jpg,.jpeg,.png"/>
             </div>
           </div>
@@ -200,6 +209,12 @@
               <img src="../images/icons/icon-edit.svg" alt="edit" class="edit-icon-sm" onclick="goTo(2)"/>
             </div>
             <div class="upload-box">
+              <div id="rv_preview_wrap" class="upload-preview-wrap" hidden>
+                <img id="rv_preview_img" class="upload-preview-img" alt="Proof of residency preview" hidden/>
+                <div id="rv_preview_pdf" class="upload-preview-pdf" hidden>
+                  <img src="../images/icons/qa-file.svg" alt="" class="upload-preview-pdf-icon"/>
+                </div>
+              </div>
               <p id="rv_proof_name">No file selected</p>
               <span>PDF, JPG or PNG (Max. 5MB)</span>
             </div>

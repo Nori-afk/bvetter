@@ -248,6 +248,13 @@ function normalizeTimeValue($value)
     return $timestamp ? date('H:i:s', $timestamp) : null;
 }
 
+function assertDateNotFuture($normalizedDate, $label)
+{
+    if ($normalizedDate && strtotime($normalizedDate) > strtotime(date('Y-m-d'))) {
+        respond(422, ['success' => false, 'message' => "{$label} cannot be a future date."]);
+    }
+}
+
 function publicUploadPath($fileName, $folder)
 {
     return '/final-VBETTER/bvetter/storage/' . $folder . '/' . $fileName;
@@ -689,12 +696,18 @@ function createReport($pdo, $data)
     if (!nullableClean($data['color_markings'] ?? $data['markings'] ?? '')) {
         respond(422, ['success' => false, 'message' => 'Color or markings are required.']);
     }
-    if (!nullableClean($data['notes'] ?? '')) {
+    $notes = nullableClean($data['notes'] ?? '');
+    if (!$notes) {
         respond(422, ['success' => false, 'message' => 'Additional notes are required.']);
     }
-    if (!normalizeDate($data['incident_date'] ?? $data['dateLost'] ?? $data['date'] ?? '')) {
+    if (mb_strlen($notes) > 500) {
+        respond(422, ['success' => false, 'message' => 'Additional details must be 500 characters or fewer.']);
+    }
+    $incidentDate = normalizeDate($data['incident_date'] ?? $data['dateLost'] ?? $data['date'] ?? '');
+    if (!$incidentDate) {
         respond(422, ['success' => false, 'message' => 'Incident date is required.']);
     }
+    assertDateNotFuture($incidentDate, 'Incident date');
     if ($type === 'lost' && !$petName) {
         respond(422, ['success' => false, 'message' => 'Pet name is required for lost pet reports.']);
     }
@@ -729,13 +742,13 @@ function createReport($pdo, $data)
         ':sex' => nullableClean($data['sex'] ?? ''),
         ':size' => nullableClean($data['size'] ?? ''),
         ':color_markings' => nullableClean($data['color_markings'] ?? $data['markings'] ?? ''),
-        ':notes' => nullableClean($data['notes'] ?? ''),
+        ':notes' => $notes,
         ':barangay_id' => $barangayId,
         ':barangay_name' => $barangayName,
         ':location_text' => nullableClean($data['location_text'] ?? $data['location'] ?? ''),
         ':latitude' => clean($data['latitude'] ?? $data['lat'] ?? '') !== '' ? (float) ($data['latitude'] ?? $data['lat']) : null,
         ':longitude' => clean($data['longitude'] ?? $data['lng'] ?? '') !== '' ? (float) ($data['longitude'] ?? $data['lng']) : null,
-        ':incident_date' => normalizeDate($data['incident_date'] ?? $data['dateLost'] ?? $data['date'] ?? ''),
+        ':incident_date' => $incidentDate,
         ':incident_time' => normalizeTimeValue($data['incident_time'] ?? $data['timeLost'] ?? $data['time'] ?? ''),
         ':photo_path' => $photoPath,
         ':image_features' => $features ? json_encode($features) : null,
@@ -1050,6 +1063,13 @@ function createSighting($pdo, $data)
         respond(422, ['success' => false, 'message' => 'Sighting location is required.']);
     }
 
+    $sightingNotes = nullableClean($data['notes'] ?? '');
+    if ($sightingNotes && mb_strlen($sightingNotes) > 500) {
+        respond(422, ['success' => false, 'message' => 'Additional details must be 500 characters or fewer.']);
+    }
+    $sightingDate = normalizeDate($data['sighting_date'] ?? $data['date'] ?? '');
+    assertDateNotFuture($sightingDate, 'Sighting date');
+
     $insert = $pdo->prepare("
         INSERT INTO lost_found_sightings
             (case_number, report_id, submitted_by_user_id, status, barangay_id, barangay_name, location_text,
@@ -1069,9 +1089,9 @@ function createSighting($pdo, $data)
         ':location_text' => nullableClean($data['location_text'] ?? $data['location'] ?? ''),
         ':latitude' => clean($data['latitude'] ?? $data['lat'] ?? '') !== '' ? (float) ($data['latitude'] ?? $data['lat']) : null,
         ':longitude' => clean($data['longitude'] ?? $data['lng'] ?? '') !== '' ? (float) ($data['longitude'] ?? $data['lng']) : null,
-        ':sighting_date' => normalizeDate($data['sighting_date'] ?? $data['date'] ?? ''),
+        ':sighting_date' => $sightingDate,
         ':sighting_time' => normalizeTimeValue($data['sighting_time'] ?? $data['time'] ?? ''),
-        ':notes' => nullableClean($data['notes'] ?? ''),
+        ':notes' => $sightingNotes,
         ':photo_path' => $photoPath,
         ':image_features' => ($features = imageFeatures($absolutePhoto)) ? json_encode($features) : null,
         ':contact_name' => nullableClean($data['contact_name'] ?? $data['uploader'] ?? ''),
@@ -1198,11 +1218,44 @@ function updateClaimStatus($pdo, $data, $status)
     ]);
 
     if (in_array($status, ['approved', 'resolved'], true)) {
-        $reportId = $pdo->prepare('SELECT report_id FROM lost_found_claims WHERE id = :id LIMIT 1');
-        $reportId->execute([':id' => $id]);
-        $row = $reportId->fetch();
-        if ($row) {
-            $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id")->execute([':id' => (int) $row['report_id']]);
+        $claimStmt = $pdo->prepare('SELECT report_id, claimant_user_id FROM lost_found_claims WHERE id = :id LIMIT 1');
+        $claimStmt->execute([':id' => $id]);
+        $claim = $claimStmt->fetch();
+        if ($claim) {
+            $foundReportId = (int) $claim['report_id'];
+            $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id")
+                ->execute([':id' => $foundReportId]);
+
+            // Also resolve the claimant's own matching lost-pet report so both sides close together.
+            $claimantId = (int) ($claim['claimant_user_id'] ?? 0);
+            if ($claimantId > 0) {
+                $matchStmt = $pdo->prepare("
+                    SELECT m.id AS match_id, m.lost_report_id
+                    FROM lost_found_matches m
+                    INNER JOIN lost_found_reports lr ON lr.id = m.lost_report_id
+                    WHERE m.found_report_id = :found_id AND lr.owner_id = :claimant_id
+                    ORDER BY m.confidence DESC
+                    LIMIT 1
+                ");
+                $matchStmt->execute([
+                    ':found_id' => $foundReportId,
+                    ':claimant_id' => $claimantId,
+                ]);
+                $matchRow = $matchStmt->fetch();
+
+                if ($matchRow) {
+                    $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id")
+                        ->execute([':id' => (int) $matchRow['lost_report_id']]);
+                    $pdo->prepare("UPDATE lost_found_matches SET status = 'approved', reviewed_at = NOW() WHERE id = :id")
+                        ->execute([':id' => (int) $matchRow['match_id']]);
+                } else {
+                    $pdo->prepare("
+                        UPDATE lost_found_reports
+                        SET status = 'resolved', resolved_at = NOW()
+                        WHERE owner_id = :owner_id AND report_type = 'lost' AND status = 'active'
+                    ")->execute([':owner_id' => $claimantId]);
+                }
+            }
         }
     }
 

@@ -27,30 +27,57 @@ const lfData = {
 };
 
 const barangayCoordinates = {
-	Tangos: [14.9599, 120.9083],
-	Poblacion: [14.9621, 120.9017],
-	'Sta. Cruz': [14.9578, 120.9066],
-	'Santa Cruz': [14.9578, 120.9066],
-	'San Jose': [14.9542, 120.9099],
-	Tibig: [14.9518, 120.8992],
-	Tibag: [14.9518, 120.8992],
-	'Sto. Cristo': [14.9498, 120.9038],
-	'Santa Cristo': [14.9498, 120.9038],
-	'Sta. Barbara': [14.9548, 120.9057],
-	'Santa Barbara': [14.9548, 120.9057],
-	Sabang: [14.9654, 120.9050],
-	Caniogan: [14.9680, 120.8952],
-	Pagala: [14.9562, 120.8980],
-	Subic: [14.9477, 120.9090],
-	Tilapayong: [14.9447, 120.9002],
-	Makinabang: [14.9584, 120.9001],
-	Matangtubig: [14.9516, 120.8979],
-	'Virgen delas Flores': [14.9568, 120.8947],
-	Tiaong: [14.9488, 120.8958],
-	'Santo Nino': [14.9630, 120.8940],
-	'Santo Niño': [14.9630, 120.8940],
+	Tiaong: [14.942488, 120.896141],
+	Poblacion: [14.952325, 120.902748],
+	'San Jose': [14.949194, 120.897469],
+	Tangos: [14.97498, 120.897369],
+	'Bagong Nayon': [14.96041, 120.898087],
+	Sulivan: [14.979081, 120.885002],
+	Pagala: [14.962781, 120.889984],
+	'Virgen Delas Flores': [14.946227, 120.88604],
+	Matangtubig: [14.954293, 120.861511],
+	Makinabang: [14.919284, 120.883728],
+	Tilapayong: [14.977394, 120.873024],
+	Tibag: [14.956218, 120.904831],
+	Hinukay: [15.001118, 120.891594],
+	Pinagbarilan: [14.952386, 120.878044],
+	Concepcion: [14.952222, 120.888626],
+	Tarcan: [14.935418, 120.866425],
+	'San Roque': [15.000359, 120.889992],
+	Calantipay: [14.970637, 120.863106],
+	Subic: [14.96235, 120.902748],
+	Barangca: [14.986587, 120.900276],
+	Paitan: [15.01128, 120.894753],
+	Sabang: [14.968414, 120.908592],
+	Piel: [14.986943, 120.88723],
+	'Sta. Barbara': [14.938139, 120.889046],
+	'Sto. Nino': [14.983848, 120.893478],
+	'Sto. Niño': [14.983848, 120.893478],
+	'Sto. Cristo': [14.956154, 120.893936],
+	Catulinan: [14.968497, 120.877312],
 	'Select Barangay': [14.9577, 120.9055]
 };
+
+function todayISODate() {
+	const now = new Date();
+	const offset = now.getTimezoneOffset();
+	return new Date(now.getTime() - offset * 60000).toISOString().slice(0, 10);
+}
+
+function nearestBarangay(lat, lng) {
+	let closest = null;
+	let closestDist = Infinity;
+	Object.keys(barangayCoordinates).forEach((name) => {
+		if (name === 'Select Barangay') return;
+		const [blat, blng] = barangayCoordinates[name];
+		const dist = Math.hypot(blat - lat, blng - lng);
+		if (dist < closestDist) {
+			closestDist = dist;
+			closest = name;
+		}
+	});
+	return closest;
+}
 
 const lfState = {
 	activeTab: 'pending',
@@ -891,7 +918,7 @@ function buildUploadModal() {
 					<div class="form-row">
 						<div class="form-group">
 							<label id="dateLostLabel">Date Lost</label>
-							<input name="incident_date" type="date" class="form-input" required>
+							<input name="incident_date" id="incidentDateInput" type="date" class="form-input" required>
 						</div>
 						<div class="form-group">
 							<label>Barangay Last Seen</label>
@@ -916,7 +943,8 @@ function buildUploadModal() {
 
 					<div class="form-group" style="margin-top:8px;">
 						<label id="notesLabel">Additional Details</label>
-						<textarea name="notes" id="notesTextarea" class="form-textarea" placeholder="Last behavior, collar color, chip ID if known..." required></textarea>
+						<textarea name="notes" id="notesTextarea" class="form-textarea" maxlength="500" placeholder="Last behavior, collar color, chip ID if known..." required></textarea>
+						<span class="char-counter" id="notesCounter">0/500</span>
 					</div>
 				</div>
 			</div>
@@ -991,6 +1019,19 @@ function wireUploadFormIfPresent() {
 		});
 	});
 
+	const incidentDateInput = document.getElementById('incidentDateInput');
+	if (incidentDateInput) incidentDateInput.max = todayISODate();
+
+	const notesTextarea = document.getElementById('notesTextarea');
+	const notesCounter  = document.getElementById('notesCounter');
+	if (notesTextarea && notesCounter) {
+		const updateNotesCounter = () => {
+			notesCounter.textContent = `${notesTextarea.value.length}/${notesTextarea.maxLength}`;
+		};
+		notesTextarea.addEventListener('input', updateNotesCounter);
+		updateNotesCounter();
+	}
+
 	photoInput.addEventListener('change', () => {
 		const file = photoInput.files?.[0];
 		if (!file) return;
@@ -1013,6 +1054,11 @@ function wireUploadFormIfPresent() {
 		const formData = new FormData(form);
 		if (formData.get('type') === 'lost' && !String(formData.get('pet_name') || '').trim()) {
 			alert('Pet name is required for lost pet reports.');
+			return;
+		}
+		const incidentDate = String(formData.get('incident_date') || '');
+		if (incidentDate && incidentDate > todayISODate()) {
+			alert('Date lost/found cannot be a future date.');
 			return;
 		}
 		const session = getSession();
@@ -1053,6 +1099,9 @@ function setupModalMaps() {
 					latInput.value = clickLat.toFixed(6);
 					lngInput.value = clickLng.toFixed(6);
 				}
+				const barangaySelect = document.getElementById('uploadBarangay');
+				const nearest = nearestBarangay(clickLat, clickLng);
+				if (barangaySelect && nearest) barangaySelect.value = nearest;
 			});
 		} else {
 			L.marker([lat, lng])

@@ -471,16 +471,6 @@ forgotPassword: (email) => {
     }).then(r => r.json());
   },
 
-  deleteUser: (userId) => {
-    const formData = new FormData();
-    formData.append('action', 'delete');
-    formData.append('user_id', userId);
-    return fetch(`${API_BASE_REG}/admin/account-management.php`, {
-      method: 'POST',
-      body: formData
-    }).then(r => r.json());
-  },
-
   approveUser: (userId) => {
     const formData = new FormData();
     formData.append('action', 'approve');
@@ -512,7 +502,16 @@ forgotPassword: (email) => {
     }).then(r => r.json());
   },
 
-  
+  updateUserStatus: (userId, status) => {
+    const formData = new FormData();
+    formData.append('action', 'update_status');
+    formData.append('user_id', userId);
+    formData.append('status', status);
+    return fetch(`${API_BASE_REG}/admin/account-management.php`, {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json());
+  },
 
 };
 

@@ -211,9 +211,6 @@
                         <label class="dash-label" for="add-acc-role">Role</label>
                         <select class="dash-input" id="add-acc-role">
                             <option value="">Select role…</option>
-                            <option value="vet">Veterinarian</option>
-                            <option value="owner">Pet Owner</option>
-                            <option value="admin">Administrator</option>
                         </select>
                     </div>
                     <div class="dash-form-group">
@@ -243,6 +240,31 @@
                         </select>
                     </div>
                 </div>
+
+                <!-- Veterinarian-only fields — backend requires these
+                     when the selected role is "veterinarian". -->
+                <div id="add-acc-vet-fields" hidden>
+                    <div class="dash-form-row">
+                        <div class="dash-form-group">
+                            <label class="dash-label" for="add-acc-license">License Number</label>
+                            <input class="dash-input" type="text" id="add-acc-license" placeholder="PRC license number">
+                        </div>
+                        <div class="dash-form-group">
+                            <label class="dash-label" for="add-acc-specialization">Specialization</label>
+                            <input class="dash-input" type="text" id="add-acc-specialization" placeholder="e.g. Small Animal Medicine">
+                        </div>
+                    </div>
+                    <div class="dash-form-row">
+                        <div class="dash-form-group">
+                            <label class="dash-label" for="add-acc-education">Education</label>
+                            <input class="dash-input" type="text" id="add-acc-education" placeholder="e.g. DVM, University of the Philippines">
+                        </div>
+                        <div class="dash-form-group">
+                            <label class="dash-label" for="add-acc-clinic">Clinic Location</label>
+                            <input class="dash-input" type="text" id="add-acc-clinic" placeholder="Assigned clinic / branch">
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="dash-modal-foot">
@@ -257,84 +279,17 @@
     </div>
 
     <!-- ══════════════════════════════════════════════════════
-         EDIT USER MODAL
-    ══════════════════════════════════════════════════════ -->
-    <div class="am-modal-overlay" id="modal-edit" hidden>
-        <div class="am-modal am-modal-lg" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
-            <div class="am-modal-header-plain">
-                <div>
-                    <h2 id="edit-modal-title">Edit User</h2>
-                    <p>Update the staff profile details below</p>
-                </div>
-                <button class="am-modal-close" data-close="modal-edit" aria-label="Close">&times;</button>
-            </div>
-
-            <label class="am-photo-upload" for="edit-photo-input">
-                <div class="am-photo-circle" id="edit-photo-preview">
-                    <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
-                </div>
-                <span class="am-photo-label">Tap to upload Staff photo<br><small>Clear, recent photo preferred</small></span>
-                <input type="file" id="edit-photo-input" accept="image/*" hidden>
-            </label>
-
-            <div class="am-modal-body">
-                <input type="hidden" id="edit-user-id">
-                <div class="am-form-group full">
-                    <label class="am-label" for="edit-name">Full Name</label>
-                    <input class="am-input" type="text" id="edit-name" placeholder="Enter Full Name">
-                </div>
-                <div class="am-form-row">
-                    <div class="am-form-group">
-                        <label class="am-label" for="edit-role">Role</label>
-                        <select class="am-input" id="edit-role">
-                            <option value="vet">Veterinarian</option>
-                            <option value="owner">Pet Owner</option>
-                            <option value="admin">Administrator</option>
-                        </select>
-                    </div>
-                    <div class="am-form-group">
-                        <label class="am-label" for="edit-phone">Phone Number</label>
-                        <div class="am-input-icon-wrap">
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
-                            <input class="am-input" type="tel" id="edit-phone" placeholder="09XX XXX XXXX">
-                        </div>
-                    </div>
-                </div>
-                <div class="am-form-row">
-                    <div class="am-form-group">
-                        <label class="am-label" for="edit-email">Email Address</label>
-                        <div class="am-input-icon-wrap">
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                            <input class="am-input" type="email" id="edit-email" placeholder="user@vetclinic.com">
-                        </div>
-                    </div>
-                    <div class="am-form-group">
-                        <label class="am-label" for="edit-status">Status</label>
-                        <select class="am-input" id="edit-status">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="blocked">Blocked</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="am-modal-footer">
-                <button class="am-btn-cancel" data-close="modal-edit" type="button">CANCEL</button>
-                <button class="am-btn-submit" id="edit-submit" type="button">SAVE CHANGES</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ══════════════════════════════════════════════════════
          UNBLOCK USER MODAL
+         No edit fields here — users manage their own profile
+         (account-settings.html) and password (forgot-password
+         flow). This modal only confirms the status change.
     ══════════════════════════════════════════════════════ -->
     <div class="am-modal-overlay" id="modal-unblock" hidden>
         <div class="am-modal am-modal-lg" role="dialog" aria-modal="true" aria-labelledby="unblock-modal-title">
             <div class="am-modal-header-plain">
                 <div>
                     <h2 id="unblock-modal-title">Unblock User</h2>
-                    <p>Complete the staff profile details below</p>
+                    <p>Review the account below before restoring access</p>
                 </div>
                 <button class="am-modal-close" data-close="modal-unblock" aria-label="Close">&times;</button>
             </div>
@@ -348,51 +303,24 @@
                 </div>
             </div>
 
-            <label class="am-photo-upload" for="unblock-photo-input">
-                <div class="am-photo-circle" id="unblock-photo-preview">
-                    <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
-                </div>
-                <span class="am-photo-label">Tap to upload Staff photo<br><small>Clear, recent photo preferred</small></span>
-                <input type="file" id="unblock-photo-input" accept="image/*" hidden>
-            </label>
-
             <div class="am-modal-body">
                 <input type="hidden" id="unblock-user-id">
-                <div class="am-form-group full">
-                    <label class="am-label" for="unblock-name">Full Name</label>
-                    <input class="am-input" type="text" id="unblock-name" placeholder="Full Name" readonly>
-                </div>
-                <div class="am-form-row">
-                    <div class="am-form-group">
-                        <label class="am-label" for="unblock-role">Role</label>
-                        <select class="am-input" id="unblock-role">
-                            <option value="vet">Veterinarian</option>
-                            <option value="owner">Pet Owner</option>
-                            <option value="admin">Administrator</option>
-                        </select>
+                <div class="am-verify-info-grid">
+                    <div class="am-verify-field">
+                        <label>Full Name</label>
+                        <span id="unblock-name">—</span>
                     </div>
-                    <div class="am-form-group">
-                        <label class="am-label" for="unblock-phone">Phone Number</label>
-                        <div class="am-input-icon-wrap">
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
-                            <input class="am-input" type="tel" id="unblock-phone" placeholder="09XX XXX XXXX">
-                        </div>
+                    <div class="am-verify-field">
+                        <label>Role</label>
+                        <span id="unblock-role">—</span>
                     </div>
-                </div>
-                <div class="am-form-row">
-                    <div class="am-form-group">
-                        <label class="am-label" for="unblock-email">Email Address</label>
-                        <div class="am-input-icon-wrap">
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                            <input class="am-input" type="email" id="unblock-email" placeholder="user@vetclinic.com" readonly>
-                        </div>
+                    <div class="am-verify-field">
+                        <label>Phone Number</label>
+                        <span id="unblock-phone">—</span>
                     </div>
-                    <div class="am-form-group">
-                        <label class="am-label" for="unblock-status">Status</label>
-                        <select class="am-input" id="unblock-status">
-                            <option value="active">Active</option>
-                            <option value="blocked">Blocked</option>
-                        </select>
+                    <div class="am-verify-field">
+                        <label>Email Address</label>
+                        <span id="unblock-email">—</span>
                     </div>
                 </div>
             </div>
@@ -402,7 +330,6 @@
 
             <div class="am-modal-footer">
                 <button class="am-btn-cancel" data-close="modal-unblock" type="button">CANCEL</button>
-                <button class="am-btn-submit" id="unblock-save-btn" type="button">SAVE CHANGES</button>
             </div>
         </div>
     </div>
@@ -470,9 +397,14 @@
                             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#00B928" stroke-width="2" style="vertical-align:middle;margin-right:6px;"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                             Uploaded Document
                         </span>
-                        <a href="#" class="am-verify-fullsize">View Full Size</a>
+                        <a href="#" id="verify-fullsize-link" class="am-verify-fullsize" target="_blank" rel="noopener">View Full Size</a>
                     </div>
                     <img class="am-verify-id-img" id="verify-id-img" src="" alt="Uploaded ID">
+                    <div class="am-verify-id-pdf" id="verify-id-pdf" hidden>
+                        <img src="../../public/images/icons/qa-file.svg" alt="" class="am-verify-id-pdf-icon"/>
+                        <span id="verify-id-pdf-name">Document.pdf</span>
+                    </div>
+                    <p class="am-verify-id-empty" id="verify-id-empty" hidden>No document was uploaded.</p>
                 </div>
             </div>
 
@@ -493,6 +425,7 @@
     <script src="../../shared/js/auth.js"></script>
     <script>VBetterAuth.requireAuth(['admin']);</script>
     <script src="../../shared/js/sidebar.js"></script>
+    <script src="../../public/js/api.js"></script>
     <script src="../js/account-management.js"></script>
 </body>
 </html>

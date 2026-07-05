@@ -1098,6 +1098,15 @@ body {
   color: var(--text-faint);
 }
 
+.char-counter {
+  display: block;
+  text-align: right;
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-top: -6px;
+  margin-bottom: 8px;
+}
+
 /* =============================================
    CONTACT BOX
    ============================================= */
@@ -1702,6 +1711,14 @@ body {
   color: var(--color-navy);
   font-weight: 700;
   text-decoration: underline;
+}
+
+.upload-file-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  word-break: break-all;
+  padding: 0 8px;
 }
 
 .sighting-footer {

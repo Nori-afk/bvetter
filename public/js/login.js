@@ -34,3 +34,17 @@ async function handleLogin() {
     alert('Login failed. Please try again.');
   }
 }
+document.addEventListener('DOMContentLoaded',()=>{
+  const email = document.getElementById('loginEmail');
+  const password = document.getElementById('loginPassword');
+
+  function loginButtons(event){
+    if(event.key ==='Enter'){
+      event.preventDefault();
+      handleLogin();
+    }
+  }
+  email.addEventListener('keydown', loginButtons);
+  password.addEventListener('keydown', loginButtons);
+})
+

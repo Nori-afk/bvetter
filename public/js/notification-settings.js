@@ -1,21 +1,64 @@
-﻿/* =============================================
+/* =============================================
    BVETTER — Notification Settings JS
    File: js/notification-settings.js
    Depends: nav.js, api.js
 
    Functions:
+   - loadNotifPrefs()      — api.getNotifPrefs() to set checkbox states
+   - saveNotifPrefs()      — api.updateNotifPrefs() on checkbox change
    - (clear all history)
    - (configure schedule placeholder)
-   - (checkbox state save)
 
-   TODO backend:
-   - On load: api.getNotifPrefs() to set checkbox states
-   - On checkbox change: api.updateNotifPrefs(data)
-   - Configure schedule: open schedule modal → PATCH /notifications/quiet-hours
+   NOTE — known backend/UI mismatch:
+   The backend (api/users/profile.php) only stores ONE on/off
+   switch per category (lostFoundAlerts, appointmentReminders,
+   chatbotUpdates) — it does not track email/SMS/app separately.
+   This page's UI has 3 channel checkboxes per row, so a row is
+   treated as "on" if ANY of its 3 channel checkboxes is checked,
+   and all 3 channels move together as one saved preference.
+
+   Also: the 3rd row in this page is labeled "Claim Updates" but
+   the backend column behind it is `chatbot_updates`. That is a
+   pre-existing naming mismatch — flagging it here rather than
+   silently renaming a database column.
    ============================================= */
 
 (function () {
   'use strict';
+
+  const ROW_TO_PREF = {
+    lf: 'lostFoundAlerts',
+    ar: 'appointmentReminders',
+    cu: 'chatbotUpdates' // see NOTE above — UI row is "Claim Updates"
+  };
+
+  function rowCheckboxes(row) {
+    return Array.from(document.querySelectorAll(`input[data-row="${row}"]`));
+  }
+
+  async function loadNotifPrefs() {
+    const result = await api.getNotifPrefs().catch(() => ({ success: false }));
+    if (!result.success) return;
+    const prefs = result.data || {};
+    Object.entries(ROW_TO_PREF).forEach(([row, prefKey]) => {
+      const enabled = !!prefs[prefKey];
+      rowCheckboxes(row).forEach(cb => { cb.checked = enabled; });
+    });
+  }
+
+  async function saveNotifPrefs() {
+    const payload = {};
+    Object.entries(ROW_TO_PREF).forEach(([row, prefKey]) => {
+      payload[prefKey] = rowCheckboxes(row).some(cb => cb.checked);
+    });
+    await api.updateNotifPrefs(payload).catch(() => ({ success: false }));
+  }
+
+  document.addEventListener('DOMContentLoaded', loadNotifPrefs);
+
+  document.querySelectorAll('[data-row]').forEach(cb => {
+    cb.addEventListener('change', saveNotifPrefs);
+  });
 
   /* ── Clear notification history ─────────────
      TODO backend: DELETE /final-VBETTER/bvetter/api/notifications/history */
@@ -37,25 +80,5 @@
       alert('Schedule configuration coming soon.');
     });
   }
-
-  /* ── Checkbox preference saving ──────────────
-     TODO backend: on each change, call:
-     api.updateNotifPrefs(collectPrefs())
-
-  function collectPrefs() {
-    const prefs = {};
-    document.querySelectorAll('[data-row]').forEach(cb => {
-      const row     = cb.dataset.row;
-      const channel = cb.dataset.channel;
-      if (!prefs[row]) prefs[row] = {};
-      prefs[row][channel] = cb.checked;
-    });
-    return prefs;
-  }
-
-  document.querySelectorAll('[data-row]').forEach(cb => {
-    cb.addEventListener('change', () => api.updateNotifPrefs(collectPrefs()));
-  });
-  */
 
 })();

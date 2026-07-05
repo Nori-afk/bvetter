@@ -137,29 +137,14 @@
            
           </div>
 
-          <div class="section-title" id="section-symptoms">Common Symptoms Treated</div>
-          <div class="symptoms-grid">
-            <div class="symptom-item">
-              <div class="symptom-icon"><img src="../images/icons/vet-symptom-1.svg" alt=""/></div>
-              Acute Trauma
-            </div>
-            <div class="symptom-item">
-              <div class="symptom-icon"><img src="../images/icons/vet-symptom-3.svg" alt=""/></div>
-              Joint Issues
-            </div>
-            <div class="symptom-item">
-              <div class="symptom-icon"><img src="../images/icons/vet-symptom-2.svg" alt=""/></div>
-              Post-Op Care
-            </div>
-            <div class="symptom-item">
-              <div class="symptom-icon"><img src="../images/icons/vet-symptom-4.svg" alt=""/></div>
-              Internal Pain
-            </div>
+          <div id="commonCasesSection">
+            <div class="section-title" id="section-symptoms">Common Cases Handled</div>
+            <div class="symptoms-grid" id="symptomsGrid"></div>
           </div>
 
           <div class="feedback-header">
             <div class="section-title" id="section-feedback" style="margin-bottom:0;">Patient Feedback</div>
-            <a href="#" class="see-all">See All</a>
+            <a href="#" class="see-all" id="btnSeeAllReviews">See All</a>
           </div>
           <div class="feedback-card">
             <div class="feedback-user">
@@ -178,6 +163,17 @@
             </div>
             <div class="feedback-text" id="comment">"Dr. Clara was amazing with Buster's leg surgery. Extremely professional and communicative throughout the process."</div>
           </div>
+        </div>
+      </div>
+
+      <!-- All Reviews Modal -->
+      <div class="reviews-modal-overlay" id="reviewsModalOverlay">
+        <div class="reviews-modal">
+          <div class="reviews-modal-header">
+            <div class="section-title" style="margin-bottom:0;">All Reviews</div>
+            <button type="button" class="reviews-modal-close" id="btnCloseReviews" aria-label="Close">&times;</button>
+          </div>
+          <div class="reviews-modal-list" id="reviewsModalList"></div>
         </div>
       </div>
 
@@ -349,7 +345,7 @@
             <label class="form-label">Pet Type *</label>
             <div class="select-wrap">
               <select class="form-select" id="petType">
-                <option>Dog</option><option>Cat</option><option>Bird</option><option>Other</option>
+                <option>Dog</option><option>Cat</option><option>Other</option>
               </select>
               <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
@@ -697,6 +693,5 @@
   <script src="../js/nav.js"></script>
   <script src="../js/api.js"></script>
   <script src="../js/book-appointment.js"></script>
-     <script src="../js/landing.js"></script>
 </body>
 </html>

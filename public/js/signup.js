@@ -284,6 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadBarangays();
     updateStepper(1);
+    wireProofPreview();
 
     const terms = document.getElementById('reg_terms');
     if (terms) terms.checked = false;
@@ -321,6 +322,53 @@ function updateStepper(step) {
 }
 
 /* ══════════════════════════════════════════════
+   PROOF OF RESIDENCY — upload thumbnail preview
+══════════════════════════════════════════════ */
+
+function wireProofPreview() {
+    const input = document.getElementById('reg_proof');
+    if (!input) return;
+    input.addEventListener('change', () => {
+        const file = input.files[0];
+        renderProofPreview(file, {
+            wrap: 'proof_preview_wrap',
+            img: 'proof_preview_img',
+            pdf: 'proof_preview_pdf',
+            prompt: 'proof_upload_prompt'
+        });
+    });
+}
+
+function renderProofPreview(file, ids) {
+    const wrap   = document.getElementById(ids.wrap);
+    const img    = document.getElementById(ids.img);
+    const pdfBox = document.getElementById(ids.pdf);
+    const prompt = ids.prompt ? document.getElementById(ids.prompt) : null;
+
+    if (!file) {
+        if (wrap) wrap.hidden = true;
+        if (prompt) prompt.hidden = false;
+        return;
+    }
+
+    if (wrap) wrap.hidden = false;
+    if (prompt) prompt.hidden = true;
+
+    if (file.type === 'application/pdf') {
+        if (img) img.hidden = true;
+        if (pdfBox) pdfBox.hidden = false;
+    } else {
+        if (pdfBox) pdfBox.hidden = true;
+        if (img) {
+            img.hidden = false;
+            const reader = new FileReader();
+            reader.onload = e => { img.src = e.target.result; };
+            reader.readAsDataURL(file);
+        }
+    }
+}
+
+/* ══════════════════════════════════════════════
    REVIEW STEP
 ══════════════════════════════════════════════ */
 
@@ -345,10 +393,14 @@ function reviewStep() {
         document.getElementById('rv_barangay_id').value = barangay.value || '';
     }
 
-    document.getElementById('rv_proof_name').textContent =
-        (proofFile && proofFile.files.length > 0)
-            ? proofFile.files[0].name
-            : 'No file selected';
+    const file = proofFile && proofFile.files.length > 0 ? proofFile.files[0] : null;
+    document.getElementById('rv_proof_name').textContent = file ? file.name : 'No file selected';
+
+    renderProofPreview(file, {
+        wrap: 'rv_preview_wrap',
+        img: 'rv_preview_img',
+        pdf: 'rv_preview_pdf'
+    });
 }
 
 /* ══════════════════════════════════════════════

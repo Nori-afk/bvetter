@@ -605,7 +605,8 @@
           <input type="hidden" id="reportLngInput" value="120.9055"/>
           <div class="form-group" style="margin-top:8px;">
             <label id="notesLabel">Additional Details</label>
-          <textarea class="form-textarea" id="notesInput" placeholder="Last behavior, collar color, chip ID if known..."></textarea>
+          <textarea class="form-textarea" id="notesInput" maxlength="500" oninput="updateCharCounter('notesInput','notesCounter')" placeholder="Last behavior, collar color, chip ID if known..."></textarea>
+          <span class="char-counter" id="notesCounter">0/500</span>
           </div>
           <div class="contact-box">
             <div class="contact-box-header">
@@ -807,7 +808,8 @@
         </div>
         <div class="form-group" style="margin-bottom:20px;">
           <label>ADDITIONAL DETAILS</label>
-          <textarea class="form-textarea" id="sightingNotesInput" placeholder="Was the pet wearing a collar? What was its temperament?"></textarea>
+          <textarea class="form-textarea" id="sightingNotesInput" maxlength="500" oninput="updateCharCounter('sightingNotesInput','sightingNotesCounter')" placeholder="Was the pet wearing a collar? What was its temperament?"></textarea>
+          <span class="char-counter" id="sightingNotesCounter">0/500</span>
         </div>
         <div class="sighting-footer">
           <button type="button" class="btn-cancel" onclick="closeModal('sightingModal')">Cancel</button>
@@ -996,32 +998,6 @@
           </div>
         </div>
       </div>
-      <div class="success-step">
-        <div class="step-num navy-num">2</div>
-        <div class="step-content">
-          <div class="step-icon-wrap gray-icon">
-            <img src="../images/icons/icon-bell.svg" alt="" class="step-icon-img"/>
-          </div>
-          <div>
-            <span class="step-label-sm">STEP 2</span>
-            <h4 class="step-title">Finder is Notified</h4>
-            <p class="step-desc">Once verified, the temporary guardian will receive your contact details securely.</p>
-          </div>
-        </div>
-      </div>
-      <div class="success-step">
-        <div class="step-num navy-num">3</div>
-        <div class="step-content">
-          <div class="step-icon-wrap gray-icon">
-            <img src="../images/icons/icon-pawprint.svg" alt="" class="step-icon-img"/>
-          </div>
-          <div>
-            <span class="step-label-sm">STEP 3</span>
-            <h4 class="step-title">Pickup / Meetup Coordinated</h4>
-            <p class="step-desc">Safe location options will be provided to finalize the handover process.</p>
-          </div>
-        </div>
-      </div>
     </div>
     <button type="button" class="btn-success-primary" onclick="window.location.href='my-claims.html'">View My Claims</button>
     <button type="button" class="btn-success-secondary" onclick="closeAll()">Back to Lost &amp; Found</button>
@@ -1071,6 +1047,5 @@
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
           crossorigin=""></script>
   <script src="../js/lost-found.js"></script>
-   <script src="../js/landing.js"></script>
 </body>
 </html>

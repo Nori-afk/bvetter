@@ -405,6 +405,55 @@ body {
   font-style: italic;
 }
 
+.reviews-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+
+.reviews-modal-overlay.active {
+  display: flex;
+}
+
+.reviews-modal {
+  background: var(--bg-card, #fff);
+  border-radius: 12px;
+  width: min(480px, 92vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.reviews-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.reviews-modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.reviews-modal-list {
+  padding: 14px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 /* Calendar */
 .vet-calendar-card {
   background: #fff;
@@ -1641,6 +1690,13 @@ body {
 /* ── STEPPER SIZE + SPACING FIX ── */
 .header-stepper {
   margin-top: 14px;
+}
+.cal-day.disabled {
+  color: #999;
+  background: #f3f3f3;
+  cursor: not-allowed;
+  pointer-events: none; /* Prevent clicks */
+  opacity: 0.6;
 }
 
 .hstep-col {

@@ -24,6 +24,31 @@ function toggleUserMenu() {
   if (panel) panel.classList.remove('open');
 }
 
+/* =============================================
+   NAV USER PILL — fills in the real logged-in
+   name/role/avatar over the placeholder markup.
+   Runs on every page that loads nav.js, so pages
+   no longer depend on landing.js being present.
+   ============================================= */
+function hydrateNavUser() {
+  const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  const navGuest = document.getElementById('navGuest');
+  const navAuth = document.getElementById('navAuth');
+
+  if (navGuest) navGuest.style.display = user ? 'none' : 'flex';
+  if (navAuth) navAuth.style.display = user ? 'flex' : 'none';
+  if (!user) return;
+
+  const nameEl = document.querySelector('.nav-user-name');
+  const roleEl = document.querySelector('.nav-user-role');
+  const avatarEl = document.querySelector('.nav-user-avatar');
+  if (nameEl) nameEl.textContent = user.name || 'Pet Owner';
+  if (roleEl) roleEl.textContent = user.role === 'admin' ? 'Administrator' : (user.role === 'vet' ? 'Veterinarian' : 'Pet Owner');
+  if (avatarEl && user.avatarUrl) avatarEl.src = user.avatarUrl;
+}
+
+document.addEventListener('DOMContentLoaded', hydrateNavUser);
+
 /* Close dropdown when clicking outside */
 document.addEventListener('click', function (e) {
   var pill = document.querySelector('.nav-user-pill');

@@ -42,7 +42,7 @@
     </button>
     <div class="nav-user-pill" onclick="toggleUserMenu()">
       <div class="nav-user-info">
-        <span class="nav-user-name">Mark Depa</span>
+        <span class="nav-user-name"></span>
         <span class="nav-user-role">Pet Owner</span>
       </div>
       <img src="../images/img/account-avatar.png" alt="User" class="nav-user-avatar"/>
@@ -82,8 +82,7 @@
         <div class="table-head-row">
           <div class="th-notif-type">NOTIFICATION TYPE</div>
           <div class="th-channel">EMAIL</div>
-          <div class="th-channel">SMS</div>
-          <div class="th-channel">APP</div>
+          <div class="th-channel">Website</div>
         </div>
 
         <!-- Row: Lost/Found Alerts -->
@@ -100,12 +99,6 @@
           <div class="check-cell">
             <label class="custom-check">
               <input type="checkbox" checked data-row="lf" data-channel="email"/>
-              <span class="checkmark"></span>
-            </label>
-          </div>
-          <div class="check-cell">
-            <label class="custom-check">
-              <input type="checkbox" checked data-row="lf" data-channel="sms"/>
               <span class="checkmark"></span>
             </label>
           </div>
@@ -136,12 +129,6 @@
           </div>
           <div class="check-cell">
             <label class="custom-check">
-              <input type="checkbox" checked data-row="ar" data-channel="sms"/>
-              <span class="checkmark"></span>
-            </label>
-          </div>
-          <div class="check-cell">
-            <label class="custom-check">
               <input type="checkbox" data-row="ar" data-channel="app"/>
               <span class="checkmark"></span>
             </label>
@@ -162,12 +149,6 @@
           <div class="check-cell">
             <label class="custom-check">
               <input type="checkbox" checked data-row="cu" data-channel="email"/>
-              <span class="checkmark"></span>
-            </label>
-          </div>
-          <div class="check-cell">
-            <label class="custom-check">
-              <input type="checkbox" data-row="cu" data-channel="sms"/>
               <span class="checkmark"></span>
             </label>
           </div>
@@ -245,7 +226,7 @@
   <script src="../../shared/js/auth.js"></script>
   <script>
     /* Route guard — redirects wrong role to their home */
-    guardPage([ROLES.PET_OWNER]);
+    requireAuth(['owner']);
   </script>
   <script src="../js/nav.js"></script>
   <script src="../js/api.js"></script>
