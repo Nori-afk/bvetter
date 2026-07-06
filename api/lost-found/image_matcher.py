@@ -32,7 +32,6 @@ def sha1_file(path):
 def brightness_hash(image, size=12):
     gray = image.convert("L").resize((size, size)) # get the image then convert it to gray using .convert('L')
     values = list(gray.getdata()) #we convert the gray image to the list of pixel so that we can iterate it pixel by pixel, the value of each pixel will be between 0 and 255, where 0 is black and 255 is white.
-    print(values)
     avg = sum(values) / max(1, len(values))
     return "".join("1" if value >= avg else "0" for value in values)
  #this return a string value of 1 and 0 indicating the lighting of the iamge or photos

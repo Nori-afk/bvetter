@@ -773,7 +773,7 @@ function showHotspotAction(hotspot) {
         if (isRuleBased) {
             const t = insight.risk_thresholds || {};
             modelBadge = `
-                <div class="rule-based-note" style="margin:8px 0;">
+                <div class="rule-based-note">
                     ⚠ Rule-Based Risk (${insight.model_type || 'DiseaseSpecific'}) —
                     ${insight.rf_risk_class || 'N/A'} risk
                     ${insight.pred_source?.includes('fallback')
@@ -786,7 +786,6 @@ function showHotspotAction(hotspot) {
                 <div class="rf-badge">
                     🤖 ARIMA+RF — ${insight.rf_risk_class || 'N/A'} Risk ·
                     ${insight.rf_confidence ?? 'N/A'}% confidence
-                    <span class="source-badge model">ARIMA+RF</span>
                 </div>`;
         }
     } else {
@@ -850,8 +849,57 @@ if (window.VetAPI) {
     };
 }
 
+/* ── Skeleton loading (shown until the first fetch resolves) ─── */
+function renderSkeletons() {
+    const kpiCards = document.getElementById('kpiCards');
+    if (kpiCards) {
+        kpiCards.innerHTML = Array.from({ length: 4 }, () => `
+            <div class="skeleton-kpi-card">
+                <div class="skeleton-block"></div>
+                <div class="skeleton-block"></div>
+                <div class="skeleton-block"></div>
+            </div>
+        `).join('');
+    }
+
+    const banner = document.getElementById('predictionBanner');
+    if (banner) banner.innerHTML = '<div class="skeleton-block skeleton-banner"></div>';
+
+    const sourceList = document.getElementById('sourceList');
+    if (sourceList) {
+        sourceList.innerHTML = Array.from({ length: 3 }, () => `
+            <li><div class="skeleton-block skeleton-source-row" style="width:100%"></div></li>
+        `).join('');
+    }
+
+    ['actualChart', 'predictedChart'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = Array.from({ length: 5 }, () => `
+            <div class="skeleton-bar-row">
+                <div class="skeleton-block"></div>
+                <div class="skeleton-block"></div>
+                <div class="skeleton-block"></div>
+            </div>
+        `).join('');
+    });
+
+    const insightCards = document.getElementById('insightCards');
+    if (insightCards) {
+        insightCards.innerHTML = Array.from({ length: 3 }, () => `
+            <div class="skeleton-insight-card">
+                <div class="skeleton-block"></div>
+                <div class="skeleton-block"></div>
+                <div class="skeleton-block"></div>
+                <div class="skeleton-block"></div>
+            </div>
+        `).join('');
+    }
+}
+
 /* ── Init ───────────────────────────────────────────────────── */
 async function initDiseaseAnalytics() {
+    renderSkeletons();
     await loadDiseaseAnalytics();
     bindEvents();
     renderOverview();

@@ -296,6 +296,12 @@ function createAppointment($pdo, $data)
             'message' => 'Appointment type, date, and time slot are required.'
         ]);
     }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $preferredDate) || strtotime($preferredDate) === false) {
+        respond(422, ['success' => false, 'message' => 'A valid date is required.']);
+    }
+    if (strtotime($preferredDate) < strtotime(date('Y-m-d'))) {
+        respond(422, ['success' => false, 'message' => 'Cannot book an appointment on a past date.']);
+    }
 
     $pdo->beginTransaction();
 
@@ -368,6 +374,89 @@ function updateAppointmentStatus($pdo, $data)
     respond(200, [
         'success' => true,
         'message' => 'Appointment status updated.'
+    ]);
+}
+
+function rescheduleAppointment($pdo, $data)
+{
+    $appointmentId = (int) ($data['appointment_id'] ?? $data['id'] ?? 0);
+    $date = clean($data['preferred_date'] ?? $data['date'] ?? '');
+    $timeSlot = clean($data['time_slot'] ?? '');
+
+    if ($appointmentId <= 0) {
+        respond(422, ['success' => false, 'message' => 'Invalid appointment id.']);
+    }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || strtotime($date) === false) {
+        respond(422, ['success' => false, 'message' => 'A valid date is required.']);
+    }
+    if (strtotime($date) < strtotime(date('Y-m-d'))) {
+        respond(422, ['success' => false, 'message' => 'Cannot reschedule to a past date.']);
+    }
+    if (!preg_match('/^\d{2}:\d{2}$/', $timeSlot)) {
+        respond(422, ['success' => false, 'message' => 'A valid time slot is required.']);
+    }
+
+    $stmt = $pdo->prepare('SELECT id, veterinarian_id FROM appointments WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => $appointmentId]);
+    $appointment = $stmt->fetch();
+    if (!$appointment) {
+        respond(404, ['success' => false, 'message' => 'Appointment not found.']);
+    }
+
+    $vetId = (int) ($appointment['veterinarian_id'] ?? 0);
+    if ($vetId > 0) {
+        $conflict = $pdo->prepare("
+            SELECT id FROM appointments
+            WHERE preferred_date = :date
+              AND time_slot = :time_slot
+              AND status IN ('confirmed', 'completed')
+              AND id <> :id
+              AND (veterinarian_id = :vet_id OR veterinarian_id IS NULL)
+            LIMIT 1
+        ");
+        $conflict->execute([
+            ':date' => $date,
+            ':time_slot' => $timeSlot,
+            ':id' => $appointmentId,
+            ':vet_id' => $vetId,
+        ]);
+    } else {
+        $conflict = $pdo->prepare("
+            SELECT id FROM appointments
+            WHERE preferred_date = :date
+              AND time_slot = :time_slot
+              AND status IN ('confirmed', 'completed')
+              AND id <> :id
+            LIMIT 1
+        ");
+        $conflict->execute([
+            ':date' => $date,
+            ':time_slot' => $timeSlot,
+            ':id' => $appointmentId,
+        ]);
+    }
+
+    if ($conflict->fetchColumn()) {
+        respond(409, ['success' => false, 'message' => 'That time slot is already booked.']);
+    }
+
+    $update = $pdo->prepare("
+        UPDATE appointments
+        SET preferred_date = :date,
+            time_slot = :time_slot,
+            status = 'confirmed',
+            confirmed_at = NOW()
+        WHERE id = :id
+    ");
+    $update->execute([
+        ':date' => $date,
+        ':time_slot' => $timeSlot,
+        ':id' => $appointmentId,
+    ]);
+
+    respond(200, [
+        'success' => true,
+        'message' => 'Appointment rescheduled.'
     ]);
 }
 
@@ -496,11 +585,14 @@ try {
     if ($action === 'list') listAppointments($pdo, $input);
     if ($action === 'create') createAppointment($pdo, $input);
     if ($action === 'update_status') updateAppointmentStatus($pdo, $input);
+    if ($action === 'reschedule') rescheduleAppointment($pdo, $input);
     if ($action === 'delete') deleteAppointment($pdo, $input);
     if ($action === 'vets') listVeterinarians($pdo);
     if ($action === 'booked_slots') getBookedSlots($pdo, $input);
     if ($action === 'submit_review') submitReview($pdo, $input);
     if ($action === 'vet_reviews') getVetReviews($pdo, $input);
+    if ($action === 'get_total') getTotalAppointment($pdo, $input);
+    if ($action === 'common_cases') getCommonCases($pdo, $input);
 
     respond(400, [
         'success' => false,
@@ -535,7 +627,7 @@ function getVetReviews($pdo, $data)
         INNER JOIN pets ON pets.id = appointments.pet_id
         WHERE reviews.veterinarian_id = :vet_id
         ORDER BY reviews.created_at DESC
-        LIMIT 1
+        LIMIT 50
     ");
 
     $stmt->execute([':vet_id' => $vetId]);
@@ -545,5 +637,56 @@ function getVetReviews($pdo, $data)
     respond(200, [
         'success' => true,
         'data' => $reviews
+    ]);
+}
+function getTotalAppointment($pdo, $data)
+{
+    $vetId = (int)($data['veterinarian_id'] ?? 0);
+
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM appointments
+        WHERE veterinarian_id = :vetId
+          AND status = 'completed'
+    ");
+
+    $stmt->execute([
+        ':vetId' => $vetId
+    ]);
+
+    $totalAppointments = $stmt->fetchColumn();
+
+    respond(200, [
+        'success' => true,
+        'data' => (int)$totalAppointments
+    ]);
+}
+
+function getCommonCases($pdo, $data)
+{
+    $vetId = (int)($data['veterinarian_id'] ?? 0);
+
+    $vetStmt = $pdo->prepare("SELECT full_name FROM users WHERE id = :vetId");
+    $vetStmt->execute([':vetId' => $vetId]);
+    $vetName = $vetStmt->fetchColumn();
+
+    $cases = [];
+    if ($vetName) {
+        $stmt = $pdo->prepare("
+            SELECT category, COUNT(*) AS total
+            FROM patient_visit_records
+            WHERE attending_vet = :vetName
+              AND category IS NOT NULL AND category <> ''
+            GROUP BY category
+            ORDER BY total DESC
+            LIMIT 4
+        ");
+        $stmt->execute([':vetName' => $vetName]);
+        $cases = array_column($stmt->fetchAll(), 'category');
+    }
+
+    respond(200, [
+        'success' => true,
+        'data' => $cases
     ]);
 }

@@ -204,16 +204,54 @@ document.addEventListener("DOMContentLoaded", () => {
 		}
 	});
 
-	document.getElementById("update-password-btn")?.addEventListener("click", async () => {
-		const currentPassword = window.prompt("Current password");
-		if (!currentPassword) return;
-		const newPassword = window.prompt("New password (minimum 8 characters)");
-		if (!newPassword) return;
+	const pwOverlay = document.getElementById("pwModalOverlay");
+	const pwForm = document.getElementById("pw-update-form");
+	const pwMessage = document.getElementById("pwModalMessage");
+
+	function setPwMessage(text, type = "info") {
+		if (!pwMessage) return;
+		pwMessage.textContent = text;
+		pwMessage.dataset.type = type;
+	}
+
+	function openPasswordModal() {
+		pwForm?.reset();
+		setPwMessage("");
+		if (pwOverlay) pwOverlay.hidden = false;
+		document.getElementById("pw-current")?.focus();
+	}
+
+	function closePasswordModal() {
+		if (pwOverlay) pwOverlay.hidden = true;
+	}
+
+	document.getElementById("update-password-btn")?.addEventListener("click", openPasswordModal);
+	document.getElementById("pwModalClose")?.addEventListener("click", closePasswordModal);
+	document.getElementById("pwModalCancel")?.addEventListener("click", closePasswordModal);
+	pwOverlay?.addEventListener("click", (event) => {
+		if (event.target === pwOverlay) closePasswordModal();
+	});
+
+	pwForm?.addEventListener("submit", async (event) => {
+		event.preventDefault();
+		const currentPassword = pwForm.elements.currentPassword.value;
+		const newPassword = pwForm.elements.newPassword.value;
+		const confirmPassword = pwForm.elements.confirmPassword.value;
+
+		if (!currentPassword) return setPwMessage("Enter your current password.", "error");
+		if (newPassword.length < 8) return setPwMessage("New password must be at least 8 characters.", "error");
+		if (newPassword !== confirmPassword) return setPwMessage("New password and confirmation do not match.", "error");
+
+		const submitBtn = pwForm.querySelector('button[type="submit"]');
+		submitBtn.disabled = true;
 		try {
 			await profileRequest("password", { currentPassword, newPassword });
+			closePasswordModal();
 			setMessage("Password updated.", "success");
 		} catch (error) {
-			setMessage(error.message, "error");
+			setPwMessage(error.message, "error");
+		} finally {
+			submitBtn.disabled = false;
 		}
 	});
 

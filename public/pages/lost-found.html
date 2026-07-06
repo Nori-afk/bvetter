@@ -48,39 +48,51 @@
         <div class="notif-panel" id="notifPanel">
           <div class="notif-panel-head">
             <span class="notif-panel-title">Notifications</span>
-            <button type="button" class="notif-mark-read" onclick="markAllNotifsRead()">Mark all as read</button>
+            <div class="notif-panel-actions">
+              <button type="button" class="notif-mark-read" onclick="markAllNotifsRead()">Mark all as read</button>
+              <button type="button" class="notif-clear-all" onclick="clearAllNotifs()">Clear all</button>
+            </div>
           </div>
           <div class="notif-panel-list">
-            <a href="lost-found.html" class="notif-panel-item unread">
-              <div class="notif-item-icon-wrap green">
-                <img src="../images/icons/notif-report-found.svg" alt="" class="notif-item-icon"/>
-              </div>
-              <div class="notif-item-body">
-                <div class="notif-item-title">Lost Pet Found Near Sector 4</div>
-                <div class="notif-item-desc">A Border Collie matching your watch profile was found.</div>
-                <div class="notif-item-time">2 hours ago</div>
-              </div>
-            </a>
-            <a href="book-appointment.html" class="notif-panel-item unread">
-              <div class="notif-item-icon-wrap blue">
-                <img src="../images/icons/notif-appointment-confirmed.svg" alt="" class="notif-item-icon"/>
-              </div>
-              <div class="notif-item-body">
-                <div class="notif-item-title">Appointment Confirmed</div>
-                <div class="notif-item-desc">Dr. Aris will see 'Max' tomorrow at 10:30 AM.</div>
-                <div class="notif-item-time">Yesterday</div>
-              </div>
-            </a>
-            <a href="my-claims.html" class="notif-panel-item">
-              <div class="notif-item-icon-wrap blue">
-                <img src="../images/icons/notif-updates.svg" alt="" class="notif-item-icon"/>
-              </div>
-              <div class="notif-item-body">
-                <div class="notif-item-title">Claim Approved</div>
-                <div class="notif-item-desc">Your insurance claim #CL-2091 has been processed.</div>
-                <div class="notif-item-time">2 days ago</div>
-              </div>
-            </a>
+            <div class="notif-panel-item unread">
+              <a href="lost-found.html" class="notif-item-link">
+                <div class="notif-item-icon-wrap green">
+                  <img src="../images/icons/notif-report-found.svg" alt="" class="notif-item-icon"/>
+                </div>
+                <div class="notif-item-body">
+                  <div class="notif-item-title">Lost Pet Found Near Sector 4</div>
+                  <div class="notif-item-desc">A Border Collie matching your watch profile was found.</div>
+                  <div class="notif-item-time">2 hours ago</div>
+                </div>
+              </a>
+              <button type="button" class="notif-item-delete" aria-label="Dismiss notification" onclick="dismissNotif(event, this)">&times;</button>
+            </div>
+            <div class="notif-panel-item unread">
+              <a href="book-appointment.html" class="notif-item-link">
+                <div class="notif-item-icon-wrap blue">
+                  <img src="../images/icons/notif-appointment-confirmed.svg" alt="" class="notif-item-icon"/>
+                </div>
+                <div class="notif-item-body">
+                  <div class="notif-item-title">Appointment Confirmed</div>
+                  <div class="notif-item-desc">Dr. Aris will see 'Max' tomorrow at 10:30 AM.</div>
+                  <div class="notif-item-time">Yesterday</div>
+                </div>
+              </a>
+              <button type="button" class="notif-item-delete" aria-label="Dismiss notification" onclick="dismissNotif(event, this)">&times;</button>
+            </div>
+            <div class="notif-panel-item">
+              <a href="my-claims.html" class="notif-item-link">
+                <div class="notif-item-icon-wrap blue">
+                  <img src="../images/icons/notif-updates.svg" alt="" class="notif-item-icon"/>
+                </div>
+                <div class="notif-item-body">
+                  <div class="notif-item-title">Claim Approved</div>
+                  <div class="notif-item-desc">Your insurance claim #CL-2091 has been processed.</div>
+                  <div class="notif-item-time">2 days ago</div>
+                </div>
+              </a>
+              <button type="button" class="notif-item-delete" aria-label="Dismiss notification" onclick="dismissNotif(event, this)">&times;</button>
+            </div>
           </div>
           <a href="notification-settings.html" class="notif-panel-footer">View All Notifications</a>
         </div>
@@ -165,7 +177,7 @@
       <div class="filter-location" onclick="toggleFilterPanel()" id="filterBtn">
         <img src="../images/icons/icon-filter.svg" alt="" class="filter-icon-img"/>
         Filter
-        <img src="../images/icons/icon-chevron-down.svg" alt="" class="filter-chevron-img"/>
+        <img src="../images/icons/icon-dropwdown.svg" alt="" class="filter-chevron-img"/>
       </div>
       <div class="filter-dropdown" id="filterDropdown">
         <p class="filter-dropdown-title">Filter Reports</p>
@@ -382,7 +394,7 @@
           <span class="history-date">Oct 24, 2023</span>
           <span class="history-pet"><img src="../images/img/pet-1.jpg" alt="" class="history-pet-img"/> Bella</span>
           <span><span class="type-tag lost-tag">LOST</span></span>
-          <span><span class="final-status reunited"><img src="../images/icons/icon-check-circle.svg" alt="" class="status-icon"/> Reunited</span></span>
+          <span><span class="final-status reunited"><img src="../images/icons/icon-success.svg" alt="" class="status-icon"/> Reunited</span></span>
           <span><button type="button" class="btn-view-case">View Case</button></span>
         </div>
         <div class="history-row">
@@ -396,7 +408,7 @@
           <span class="history-date">Aug 05, 2023</span>
           <span class="history-pet"><img src="../images/img/pet-5.jpg" alt="" class="history-pet-img"/> Max</span>
           <span><span class="type-tag lost-tag">LOST</span></span>
-          <span><span class="final-status reunited"><img src="../images/icons/icon-check-circle.svg" alt="" class="status-icon"/> Reunited</span></span>
+          <span><span class="final-status reunited"><img src="../images/icons/icon-success.svg" alt="" class="status-icon"/> Reunited</span></span>
           <span><button type="button" class="btn-view-case">View Case</button></span>
         </div>
       </div>
@@ -612,7 +624,7 @@
                   <option>Medium (10-25kg)</option>
                   <option>Large (25kg+)</option>
                 </select>
-                <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-arrow-img"/>
+                <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img"/>
               </div>
             </div>
           </div>
@@ -637,7 +649,7 @@
                 <select class="form-select" id="barangayInput">
                   <option value="">Select Barangay</option>
                 </select>
-                <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-arrow-img"/>
+                <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img"/>
               </div>
             </div>
           </div>
@@ -751,33 +763,26 @@
             <img src="../images/icons/icon-close.svg" alt="close" class="close-icon-img"/>
           </button>
         </div>
-        <div class="found-details-grid">
-          <div class="found-detail-item">
-            <img src="../images/icons/icon-location.svg" alt="" class="found-detail-icon-img"/>
-            <div><span class="found-detail-label">FOUND AT</span><span class="found-detail-value" id="dFoundAt">—</span></div>
-          </div>
-          <div class="found-detail-item">
-            <img src="../images/icons/icon-calendar.svg" alt="" class="found-detail-icon-img"/>
-            <div><span class="found-detail-label">DATE FOUND</span><span class="found-detail-value" id="dDateFound">—</span></div>
-          </div>
-          <div class="found-detail-item">
-            <img src="../images/icons/icon-size.svg" alt="" class="found-detail-icon-img"/>
-            <div><span class="found-detail-label">SIZE</span><span class="found-detail-value" id="dFoundSize">—</span></div>
-          </div>
-          <div class="found-detail-item">
-            <img src="../images/icons/icon-sex.svg" alt="" class="found-detail-icon-img"/>
-            <div><span class="found-detail-label">SEX</span><span class="found-detail-value" id="dFoundSex">—</span></div>
-          </div>
-          <div class="found-detail-item full-span">
-            <img src="../images/icons/icon-color.svg" alt="" class="found-detail-icon-img"/>
-            <div><span class="found-detail-label">COLOR/MARKING</span><span class="found-detail-value" id="dFoundColor">—</span></div>
-          </div>
+        <div class="details-tags">
+          <div class="details-tag"><span class="tag-label">SIZE</span><span class="tag-value" id="dFoundSize">—</span></div>
+          <div class="details-tag"><span class="tag-label">SEX</span><span class="tag-value" id="dFoundSex">—</span></div>
+          <div class="details-tag"><span class="tag-label">COLOR/MARKING</span><span class="tag-value" id="dFoundColor">—</span></div>
+        </div>
+        <div class="details-section">
+          <h4 class="details-section-title">Notes</h4>
+          <p class="details-section-text" id="dFoundNotes">—</p>
         </div>
         <div class="details-section">
           <h4 class="details-section-title green">FOUND LOCATION</h4>
           <div class="details-map-placeholder" id="detailsFoundMap" style="height:180px;"></div>
+          <div class="details-location-info">
+            <img src="../images/icons/icon-location.svg" alt="" class="details-loc-icon"/>
+            <div>
+              <span class="details-date" id="dDateFound">—</span>
+              <span class="details-location-text" id="dFoundAt">—</span>
+            </div>
+          </div>
         </div>
-        <div class="found-notes-box" id="dFoundNotes">—</div>
         <div class="details-footer">
           <button type="button" class="btn-details-close" onclick="closeModal('detailsFoundModal')">Close</button>
           <button type="button" class="btn-details-action" onclick="openClaimModal()">
@@ -821,7 +826,7 @@
               <select class="form-select" id="sightingBarangayInput">
                 <option value="">Select Barangay</option>
               </select>
-              <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-arrow-img"/>
+              <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img"/>
             </div>
           </div>
         </div>
@@ -990,7 +995,7 @@
         <div class="step-num">1</div>
         <div class="step-content">
           <div class="step-icon-wrap">
-            <img src="../images/icons/icon-clipboard.svg" alt="" class="step-icon-img"/>
+            <img src="../images/icons/admin-review.svg" alt="" class="step-icon-img"/>
           </div>
           <div>
             <h4 class="step-title">Admin Review</h4>
@@ -1029,7 +1034,7 @@
         <div class="step-num navy-num">1</div>
         <div class="step-content">
           <div class="step-icon-wrap navy-icon">
-            <img src="../images/icons/icon-paw.svg" alt="" class="step-icon-img"/>
+            <img src="../images/icons/icon-pawprint.svg" alt="" class="step-icon-img"/>
           </div>
           <div>
             <span class="step-label-sm">STEP 1</span>
@@ -1055,7 +1060,7 @@
         <div class="step-num navy-num">3</div>
         <div class="step-content">
           <div class="step-icon-wrap gray-icon">
-            <img src="../images/icons/icon-paw.svg" alt="" class="step-icon-img"/>
+            <img src="../images/icons/icon-pawprint.svg" alt="" class="step-icon-img"/>
           </div>
           <div>
             <span class="step-label-sm">STEP 3</span>

@@ -1,6 +1,41 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     // ===========================
+    // HEADER IDENTITY — logged-in admin's name + today's date
+    // ===========================
+    (function renderHeaderIdentity() {
+        const nameEl = document.getElementById('headerUserName');
+        const dateEl = document.getElementById('headerDate');
+        const avatarEl = document.getElementById('headerAvatar');
+        if (!nameEl && !dateEl && !avatarEl) return;
+
+        let session = null;
+        try {
+            if (window.VBetterAuth && window.VBetterAuth.getSession) {
+                session = window.VBetterAuth.getSession();
+            } else {
+                const raw = sessionStorage.getItem('vbetter_session');
+                session = raw ? JSON.parse(raw) : null;
+            }
+        } catch { session = null; }
+
+        const name = (session && session.name) ? session.name : 'Unknown';
+        if (nameEl) nameEl.textContent = name;
+        if (avatarEl) {
+            const words = name.trim().split(/\s+/).filter(Boolean);
+            const initials = words.length >= 2
+                ? (words[0][0] + words[words.length - 1][0])
+                : (words[0] || '?').slice(0, 2);
+            avatarEl.textContent = initials.toUpperCase();
+        }
+        if (dateEl) {
+            dateEl.textContent = new Date().toLocaleDateString('en-US', {
+                weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+            });
+        }
+    })();
+
+    // ===========================
     // REGISTRATION CHART
     // ===========================
     const regCtx = document.getElementById('registrationChart');

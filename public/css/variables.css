@@ -53,6 +53,7 @@
 
   /* Green — primary action color, badges, accents */
   --color-green:         #11C125;   /* bright — CTA buttons, checkmarks */
+  --color-green-mid:     #0FA82E;   /* mid — solid button fills (readable on white, not as dark/muddy as green-dark) */
   --color-green-dark:    #005312;   /* dark — body text links, labels */
   --color-green-light:   #A0F399;   /* light — success badges, pill backgrounds */
   --color-green-pale:    #F0FFF0;   /* pale — card backgrounds, success areas */

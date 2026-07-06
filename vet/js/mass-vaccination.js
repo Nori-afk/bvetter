@@ -76,6 +76,71 @@ document.addEventListener('DOMContentLoaded', async () => {
     const statusClass = (s) => s.toLowerCase().includes('completed') ? 'completed' : 'pending';
     const destroyChart = (key) => { if (charts[key]) { charts[key].destroy(); charts[key] = null; } };
 
+    // ── Skeleton loading (shown until the first fetch resolves) ───────────
+    const skeletonBar = (w, h, extra) => `<span class="skeleton-block" style="width:${w};height:${h};${extra || ''}"></span>`;
+
+    function renderSkeletons() {
+        document.querySelectorAll('.metric-card').forEach((card) => {
+            const valueEl = card.querySelector('.metric-value');
+            const noteEl  = card.querySelector('.metric-note');
+            if (valueEl) valueEl.innerHTML = skeletonBar('64px', '28px', 'border-radius:8px;');
+            if (noteEl)  noteEl.innerHTML  = skeletonBar('75%', '10px');
+        });
+
+        ['vaccinatedPerBarangayChart', 'predictedAnimalsChart', 'vaccineTypesChart', 'vaccinesNeededChart'].forEach((id) => {
+            const canvas = document.getElementById(id);
+            if (!canvas || canvas.dataset.skeletonApplied) return;
+            canvas.dataset.skeletonApplied = 'true';
+            canvas.style.display = 'none';
+            const rows = [1, 2, 3, 4, 5].map(() => `
+                <div class="chart-skeleton-row">
+                    ${skeletonBar('70px', '9px')}
+                    ${skeletonBar('', '14px', 'flex:1;')}
+                </div>
+            `).join('');
+            const skeleton = document.createElement('div');
+            skeleton.className = 'chart-skeleton';
+            skeleton.innerHTML = rows;
+            canvas.insertAdjacentElement('beforebegin', skeleton);
+        });
+
+        const placeholder = document.getElementById('arima-card-placeholder');
+        if (!placeholder) return;
+        const fcCard = () => `
+            <div class="mv-fc-card">
+                ${skeletonBar('60%', '9px', 'margin-bottom:10px;')}
+                ${skeletonBar('40%', '22px', 'margin-bottom:8px;border-radius:8px;')}
+                ${skeletonBar('70%', '9px')}
+            </div>`;
+        const bkCard = () => `
+            <div class="mv-breakdown-card">
+                ${skeletonBar('50%', '9px', 'margin-bottom:9px;')}
+                ${skeletonBar('35%', '18px', 'margin-bottom:8px;border-radius:6px;')}
+                ${skeletonBar('45%', '9px')}
+            </div>`;
+
+        placeholder.innerHTML = `
+            <section class="card mv-arima-card">
+                <div class="mv-arima-header">
+                    <div style="flex:1">
+                        ${skeletonBar('90px', '18px', 'border-radius:6px;margin-bottom:10px;')}
+                        ${skeletonBar('220px', '16px', 'margin-bottom:8px;')}
+                        ${skeletonBar('65%', '11px')}
+                    </div>
+                    ${skeletonBar('130px', '26px', 'border-radius:999px;')}
+                </div>
+                <div class="mv-forecast-section">
+                    <p class="mv-section-label">${skeletonBar('150px', '10px')}</p>
+                    <div class="mv-fc-grid">${[1, 2, 3].map(fcCard).join('')}</div>
+                </div>
+                <div class="mv-breakdown-section">
+                    <p class="mv-section-label">${skeletonBar('220px', '10px')}</p>
+                    <div class="mv-breakdown-grid">${[1, 2, 3].map(bkCard).join('')}</div>
+                </div>
+            </section>
+        `;
+    }
+
     // ── Filter helpers ────────────────────────────────────────────────────
     function getFilteredEvents(range) {
         var events  = state.events || [];
@@ -420,6 +485,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ── Charts ────────────────────────────────────────────────────────────
     const buildCharts = (range) => {
         range = range || document.getElementById('range-filter')?.value || 'This Year';
+
+        document.querySelectorAll('.chart-skeleton').forEach((el) => el.remove());
+        ['vaccinatedPerBarangayChart', 'predictedAnimalsChart', 'vaccineTypesChart', 'vaccinesNeededChart'].forEach((id) => {
+            const canvas = document.getElementById(id);
+            if (canvas) canvas.style.display = '';
+        });
 
         // ── Live DB barangay totals for this range (used across multiple charts)
         var dbBarangayTotals = getDbBarangayTotals(range);
@@ -1111,6 +1182,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('range-filter')?.addEventListener('change', e => buildCharts(e.target.value));
 
     // ── Init ──────────────────────────────────────────────────────────────
+    renderSkeletons();
     await Promise.all([loadEvents(), loadArimaForecast(), loadDashboardData(), loadVaccinationDataset()]);
 
     renderTable();

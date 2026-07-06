@@ -60,39 +60,51 @@
         <div class="notif-panel" id="notifPanel">
           <div class="notif-panel-head">
             <span class="notif-panel-title">Notifications</span>
-            <button type="button" class="notif-mark-read" onclick="markAllNotifsRead()">Mark all as read</button>
+            <div class="notif-panel-actions">
+              <button type="button" class="notif-mark-read" onclick="markAllNotifsRead()">Mark all as read</button>
+              <button type="button" class="notif-clear-all" onclick="clearAllNotifs()">Clear all</button>
+            </div>
           </div>
           <div class="notif-panel-list">
-            <a href="lost-found.html" class="notif-panel-item unread">
-              <div class="notif-item-icon-wrap green">
-                <img src="../images/icons/notif-report-found.svg" alt="" class="notif-item-icon"/>
-              </div>
-              <div class="notif-item-body">
-                <div class="notif-item-title">Lost Pet Found Near Sector 4</div>
-                <div class="notif-item-desc">A Border Collie matching your watch profile was found.</div>
-                <div class="notif-item-time">2 hours ago</div>
-              </div>
-            </a>
-            <a href="book-appointment.html" class="notif-panel-item unread">
-              <div class="notif-item-icon-wrap blue">
-                <img src="../images/icons/notif-appointment-confirmed.svg" alt="" class="notif-item-icon"/>
-              </div>
-              <div class="notif-item-body">
-                <div class="notif-item-title">Appointment Confirmed</div>
-                <div class="notif-item-desc">Dr. Aris will see 'Max' tomorrow at 10:30 AM.</div>
-                <div class="notif-item-time">Yesterday</div>
-              </div>
-            </a>
-            <a href="my-claims.html" class="notif-panel-item">
-              <div class="notif-item-icon-wrap blue">
-                <img src="../images/icons/notif-updates.svg" alt="" class="notif-item-icon"/>
-              </div>
-              <div class="notif-item-body">
-                <div class="notif-item-title">Claim Approved</div>
-                <div class="notif-item-desc">Your insurance claim #CL-2091 has been processed.</div>
-                <div class="notif-item-time">2 days ago</div>
-              </div>
-            </a>
+            <div class="notif-panel-item unread">
+              <a href="lost-found.html" class="notif-item-link">
+                <div class="notif-item-icon-wrap green">
+                  <img src="../images/icons/notif-report-found.svg" alt="" class="notif-item-icon"/>
+                </div>
+                <div class="notif-item-body">
+                  <div class="notif-item-title">Lost Pet Found Near Sector 4</div>
+                  <div class="notif-item-desc">A Border Collie matching your watch profile was found.</div>
+                  <div class="notif-item-time">2 hours ago</div>
+                </div>
+              </a>
+              <button type="button" class="notif-item-delete" aria-label="Dismiss notification" onclick="dismissNotif(event, this)">&times;</button>
+            </div>
+            <div class="notif-panel-item unread">
+              <a href="book-appointment.html" class="notif-item-link">
+                <div class="notif-item-icon-wrap blue">
+                  <img src="../images/icons/notif-appointment-confirmed.svg" alt="" class="notif-item-icon"/>
+                </div>
+                <div class="notif-item-body">
+                  <div class="notif-item-title">Appointment Confirmed</div>
+                  <div class="notif-item-desc">Dr. Aris will see 'Max' tomorrow at 10:30 AM.</div>
+                  <div class="notif-item-time">Yesterday</div>
+                </div>
+              </a>
+              <button type="button" class="notif-item-delete" aria-label="Dismiss notification" onclick="dismissNotif(event, this)">&times;</button>
+            </div>
+            <div class="notif-panel-item">
+              <a href="my-claims.html" class="notif-item-link">
+                <div class="notif-item-icon-wrap blue">
+                  <img src="../images/icons/notif-updates.svg" alt="" class="notif-item-icon"/>
+                </div>
+                <div class="notif-item-body">
+                  <div class="notif-item-title">Claim Approved</div>
+                  <div class="notif-item-desc">Your insurance claim #CL-2091 has been processed.</div>
+                  <div class="notif-item-time">2 days ago</div>
+                </div>
+              </a>
+              <button type="button" class="notif-item-delete" aria-label="Dismiss notification" onclick="dismissNotif(event, this)">&times;</button>
+            </div>
           </div>
           <a href="notification-settings.html" class="notif-panel-footer">View All Notifications</a>
         </div>

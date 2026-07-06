@@ -366,27 +366,40 @@ body {
 
 .pending-actions {
     display: flex;
-    gap:     6px;
+    gap:     8px;
 }
 
 .pending-actions button {
     flex:          1;
-    padding:       6px 0;
+    padding:       9px 0;
     border-radius: 8px;
-    border:        none;
-    font-size:     0.78rem;
-    font-weight:   700;
+    border:        1px solid transparent;
+    font-family:   'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size:     0.8rem;
+    font-weight:   500;
+    letter-spacing: 0.01em;
     cursor:        pointer;
+    transition:    background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .pending-actions .accept {
-    background: var(--appt-green);
+    background: #107C10;
     color:      #fff;
 }
 
+.pending-actions .accept:hover {
+    background: #0E6B0E;
+}
+
 .pending-actions .decline {
-    background: #ffe5e5;
-    color:      #c0392b;
+    background:   #fff;
+    color:        #B91C1C;
+    border-color: #E2E8F0;
+}
+
+.pending-actions .decline:hover {
+    background:   #FEF2F2;
+    border-color: #FECACA;
 }
 
 .pending-empty {
@@ -401,13 +414,12 @@ body {
 .pending-empty-icon {
     width:           52px;
     height:          52px;
-    border-radius:   16px;
-    background:      linear-gradient(135deg, #eef6ff, #e8f9ee);
+    border-radius:   14px;
+    background:      #EFF6FF;
     display:         flex;
     align-items:     center;
     justify-content: center;
     margin-bottom:   8px;
-    box-shadow:      0 4px 14px rgba(13, 63, 122, 0.1);
 }
 
 .pending-empty-icon i,
@@ -432,16 +444,18 @@ body {
 
 #accept-butt {
     width:         100%;
-    padding:       10px;
+    padding:       11px;
     border-radius: 10px;
     border:        none;
     background:    var(--appt-blue);
     color:         #fff;
-    font-weight:   700;
+    font-family:   'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-weight:   500;
     font-size:     0.875rem;
+    letter-spacing: 0.01em;
     cursor:        pointer;
     margin-top:    8px;
-    transition:    background 0.2s ease;
+    transition:    background 0.15s ease;
 }
 
 #accept-butt:hover   { background: #003068; }
@@ -785,7 +799,7 @@ body {
     margin-bottom: 20px;
 }
 
-/* Action buttons — 3-col grid with icon stacked above label */
+/* Action buttons — 3-col grid, icon inline with label */
 .appt-action-row {
     display:       grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -795,51 +809,47 @@ body {
 
 .appt-action-btn {
     display:         flex;
-    flex-direction:  column;
     align-items:     center;
     justify-content: center;
     gap:             8px;
-    padding:         14px 10px;
-    border-radius:   14px;
-    border:          1.5px solid transparent;
+    padding:         11px 12px;
+    border-radius:   10px;
+    border:          1px solid transparent;
     cursor:          pointer;
     font-family:     inherit;
-    font-size:       12px;
-    font-weight:     700;
+    font-size:       13px;
+    font-weight:     600;
     line-height:     1.2;
     text-align:      center;
-    transition:      transform 0.2s, box-shadow 0.2s, background 0.2s, border-color 0.2s;
+    transition:      background 0.15s, border-color 0.15s;
 }
 
 .appt-action-btn i,
 .appt-action-btn svg {
-    width:        22px;
-    height:       22px;
-    stroke-width: 1.8;
+    width:        16px;
+    height:       16px;
+    stroke-width: 2;
     flex-shrink:  0;
 }
 
 .appt-action-complete {
-    background:  linear-gradient(135deg, #0d3f7a, #1358a0);
-    color:       #fff;
-    box-shadow:  0 4px 16px rgba(13, 63, 122, 0.24);
+    background: var(--appt-blue);
+    color:      #fff;
 }
 
 .appt-action-complete:hover {
-    transform:  translateY(-2px);
-    box-shadow: 0 8px 22px rgba(13, 63, 122, 0.36);
+    background: var(--appt-navy);
 }
 
 .appt-action-reschedule {
     background:   #f0f5ff;
-    color:        #0d3f7a;
-    border-color: rgba(13, 63, 122, 0.16);
+    color:        var(--appt-blue);
+    border-color: rgba(0, 64, 128, 0.16);
 }
 
 .appt-action-reschedule:hover {
     background:   #e0ecff;
-    border-color: rgba(13, 63, 122, 0.32);
-    transform:    translateY(-2px);
+    border-color: rgba(0, 64, 128, 0.32);
 }
 
 .appt-action-cancel {
@@ -851,7 +861,6 @@ body {
 .appt-action-cancel:hover {
     background:   #ffe4e4;
     border-color: rgba(192, 57, 43, 0.32);
-    transform:    translateY(-2px);
 }
 
 /* Info cards */

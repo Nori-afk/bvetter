@@ -49,39 +49,51 @@
         <div class="notif-panel" id="notifPanel">
           <div class="notif-panel-head">
             <span class="notif-panel-title">Notifications</span>
-            <button type="button" class="notif-mark-read" onclick="markAllNotifsRead()">Mark all as read</button>
+            <div class="notif-panel-actions">
+              <button type="button" class="notif-mark-read" onclick="markAllNotifsRead()">Mark all as read</button>
+              <button type="button" class="notif-clear-all" onclick="clearAllNotifs()">Clear all</button>
+            </div>
           </div>
           <div class="notif-panel-list">
-            <a href="lost-found.html" class="notif-panel-item unread">
-              <div class="notif-item-icon-wrap green">
-                <img src="../images/icons/notif-report-found.svg" alt="" class="notif-item-icon"/>
-              </div>
-              <div class="notif-item-body">
-                <div class="notif-item-title">Lost Pet Found Near Sector 4</div>
-                <div class="notif-item-desc">A Border Collie matching your watch profile was found.</div>
-                <div class="notif-item-time">2 hours ago</div>
-              </div>
-            </a>
-            <a href="book-appointment.html" class="notif-panel-item unread">
-              <div class="notif-item-icon-wrap blue">
-                <img src="../images/icons/notif-appointment-confirmed.svg" alt="" class="notif-item-icon"/>
-              </div>
-              <div class="notif-item-body">
-                <div class="notif-item-title">Appointment Confirmed</div>
-                <div class="notif-item-desc">Dr. Aris will see 'Max' tomorrow at 10:30 AM.</div>
-                <div class="notif-item-time">Yesterday</div>
-              </div>
-            </a>
-            <a href="my-claims.html" class="notif-panel-item">
-              <div class="notif-item-icon-wrap blue">
-                <img src="../images/icons/notif-updates.svg" alt="" class="notif-item-icon"/>
-              </div>
-              <div class="notif-item-body">
-                <div class="notif-item-title">Claim Approved</div>
-                <div class="notif-item-desc">Your insurance claim #CL-2091 has been processed.</div>
-                <div class="notif-item-time">2 days ago</div>
-              </div>
-            </a>
+            <div class="notif-panel-item unread">
+              <a href="lost-found.html" class="notif-item-link">
+                <div class="notif-item-icon-wrap green">
+                  <img src="../images/icons/notif-report-found.svg" alt="" class="notif-item-icon"/>
+                </div>
+                <div class="notif-item-body">
+                  <div class="notif-item-title">Lost Pet Found Near Sector 4</div>
+                  <div class="notif-item-desc">A Border Collie matching your watch profile was found.</div>
+                  <div class="notif-item-time">2 hours ago</div>
+                </div>
+              </a>
+              <button type="button" class="notif-item-delete" aria-label="Dismiss notification" onclick="dismissNotif(event, this)">&times;</button>
+            </div>
+            <div class="notif-panel-item unread">
+              <a href="book-appointment.html" class="notif-item-link">
+                <div class="notif-item-icon-wrap blue">
+                  <img src="../images/icons/notif-appointment-confirmed.svg" alt="" class="notif-item-icon"/>
+                </div>
+                <div class="notif-item-body">
+                  <div class="notif-item-title">Appointment Confirmed</div>
+                  <div class="notif-item-desc">Dr. Aris will see 'Max' tomorrow at 10:30 AM.</div>
+                  <div class="notif-item-time">Yesterday</div>
+                </div>
+              </a>
+              <button type="button" class="notif-item-delete" aria-label="Dismiss notification" onclick="dismissNotif(event, this)">&times;</button>
+            </div>
+            <div class="notif-panel-item">
+              <a href="my-claims.html" class="notif-item-link">
+                <div class="notif-item-icon-wrap blue">
+                  <img src="../images/icons/notif-updates.svg" alt="" class="notif-item-icon"/>
+                </div>
+                <div class="notif-item-body">
+                  <div class="notif-item-title">Claim Approved</div>
+                  <div class="notif-item-desc">Your insurance claim #CL-2091 has been processed.</div>
+                  <div class="notif-item-time">2 days ago</div>
+                </div>
+              </a>
+              <button type="button" class="notif-item-delete" aria-label="Dismiss notification" onclick="dismissNotif(event, this)">&times;</button>
+            </div>
           </div>
           <a href="notification-settings.html" class="notif-panel-footer">View All Notifications</a>
         </div>
@@ -360,7 +372,7 @@
                 <option>Sta. Barbara</option><option>Subic</option><option>Tangos</option>
                 <option>Tibag</option><option>Tilapayong</option>
               </select>
-              <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-icon"/>
+              <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
           </div>
           <div class="form-group full">
@@ -393,7 +405,7 @@
               <select class="form-select" id="petType">
                 <option>Dog</option><option>Cat</option><option>Bird</option><option>Other</option>
               </select>
-              <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-icon"/>
+              <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
           </div>
           <div class="form-group">
@@ -410,7 +422,7 @@
               <select class="form-select" id="petSex">
                 <option>Male</option><option>Female</option>
               </select>
-              <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-icon"/>
+              <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
           </div>
           <div class="form-group">
@@ -443,7 +455,7 @@
                 <option>Consultation</option><option>Vaccination</option>
                 <option>Surgery</option><option>Grooming</option><option>Check-up</option>
               </select>
-              <img src="../images/icons/icon-chevron-down.svg" alt="" class="sel-icon"/>
+              <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
           </div>
           <div class="form-group">
@@ -742,6 +754,41 @@
       </div>
     </div>
   </footer>
+
+  <!-- ══════════ RATE & REVIEW MODAL ══════════ -->
+  <div class="modal-overlay" id="ratingModal" onclick="if(event.target===this) closeRatingModal()">
+    <div class="modal-box rating-modal-box">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title">Rate Your Appointment</h2>
+          <p class="modal-subtitle">Let us know how the visit went.</p>
+        </div>
+        <button type="button" class="modal-close" onclick="closeRatingModal()">
+          <img src="../images/icons/icon-close.svg" alt="close" class="close-icon-img"/>
+        </button>
+      </div>
+      <div class="rating-body">
+        <div class="rating-stars" id="ratingStars" role="radiogroup" aria-label="Rating from 1 to 5 stars">
+          <button type="button" class="rating-star" data-value="1" aria-label="1 star"><img src="../images/icons/rating.svg" alt=""/></button>
+          <button type="button" class="rating-star" data-value="2" aria-label="2 stars"><img src="../images/icons/rating.svg" alt=""/></button>
+          <button type="button" class="rating-star" data-value="3" aria-label="3 stars"><img src="../images/icons/rating.svg" alt=""/></button>
+          <button type="button" class="rating-star" data-value="4" aria-label="4 stars"><img src="../images/icons/rating.svg" alt=""/></button>
+          <button type="button" class="rating-star" data-value="5" aria-label="5 stars"><img src="../images/icons/rating.svg" alt=""/></button>
+        </div>
+        <p class="rating-hint" id="ratingHint">Tap a star to rate</p>
+        <div class="form-group">
+          <label>Leave a comment (optional)</label>
+          <textarea class="form-textarea" id="ratingComment" placeholder="How was your visit?"></textarea>
+        </div>
+        <p class="rating-error" id="ratingError" hidden>Please select a rating before submitting.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" onclick="closeRatingModal()">Cancel</button>
+        <button type="button" class="btn-submit" id="ratingSubmitBtn" onclick="submitRatingModal()">Submit Review</button>
+      </div>
+    </div>
+  </div>
+
   <!-- SCRIPTS - auth.js must load first -->
    <script src="../../shared/js/auth.js"></script>
   <!-- <script>

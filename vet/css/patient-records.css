@@ -1310,8 +1310,12 @@ body {
     font-size: 13px;
     color: var(--text-secondary);
     line-height: 1.55;
-    margin-bottom: 10px;
+    margin-bottom: 0;
 }
+
+.detail-block { margin-bottom: 16px; }
+.detail-block-last { margin-bottom: 0; }
+.detail-block .history-label { margin-bottom: 6px; }
 
 /* Info rows */
 .informs {
@@ -1422,12 +1426,32 @@ body {
 }
 
 .history-entry-top, .history-columns, .vaccination-card { display: grid; gap: 12px; }
-.history-entry-top { grid-template-columns: 1fr auto; align-items: start; }
+.history-entry-top {
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    margin-bottom: 18px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+}
+
+.history-entry-heading { display: flex; align-items: flex-start; gap: 12px; }
+
+.history-entry-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: #EFF6FF;
+    color: var(--primary-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
 
 .history-entry-top h3, .vaccination-main h4 {
-    font-size: 28px;
-    font-weight: 800;
-    line-height: 1.05;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.2;
     color: var(--primary-dark);
     margin-bottom: 4px;
 }
@@ -1435,13 +1459,19 @@ body {
 .history-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--text-tertiary); }
 .history-statuses { display: flex; gap: 8px; flex-wrap: wrap; }
 .history-columns { grid-template-columns: 1.2fr 0.8fr; }
-.history-column-side { gap: 12px; }
+.history-column:not(.history-column-side) {
+    background: var(--bg-white);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    border: 1px solid var(--border);
+}
+.history-column-side { display: flex; flex-direction: column; gap: 12px; }
 
 .muted-box {
-    background: var(--background-light);
+    background: var(--bg-white);
     border-radius: var(--radius-sm);
     padding: 12px;
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--border);
 }
 
 .vaccination-section {
@@ -1483,14 +1513,22 @@ body {
 
 /* ── Vaccination History (redesigned) ──────────────────────── */
 
-.vacc-shell { display: flex; flex-direction: column; gap: 16px; }
+.vacc-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: var(--background-light);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    border: 1px solid var(--border);
+}
 
 .vacc-section-header {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding-bottom: 14px;
-    border-bottom: 1px solid #F1F5F9;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
 }
 
 .vacc-section-icon {
@@ -1521,7 +1559,7 @@ body {
 
 .vacc-count-badge {
     margin-left: auto;
-    background: #F1F5F9;
+    background: #ffffff;
     border: 1px solid #E2E8F0;
     border-radius: 999px;
     padding: 3px 10px;
@@ -1664,6 +1702,9 @@ body {
     font-size: 13px;
     font-family: 'Inter', sans-serif;
     text-align: center;
+    background: #ffffff;
+    border: 1px dashed #E2E8F0;
+    border-radius: 12px;
 }
 
 /* History items */
@@ -1772,6 +1813,17 @@ body {
 }
 
 .form-input::placeholder, .form-textarea::placeholder { color: #CBD5E1; }
+
+.form-input[readonly] {
+    background: #F8FAFC;
+    color: #64748B;
+    cursor: not-allowed;
+}
+
+.form-input[readonly]:focus {
+    border-color: #E2E8F0;
+    box-shadow: none;
+}
 
 .form-textarea { min-height: 100px; resize: vertical; }
 

@@ -148,6 +148,26 @@ async function updateAppointmentStatus(id, status) {
     }
 }
 
+/** PATCH /api/vet/appointments/:id/reschedule */
+async function rescheduleAppointment(id, preferredDate, timeSlot) {
+    const formData = new FormData();
+    formData.append('action', 'reschedule');
+    formData.append('appointment_id', id);
+    formData.append('preferred_date', preferredDate);
+    formData.append('time_slot', timeSlot);
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        return { ok: result.success, data: { id, preferredDate, timeSlot }, error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, data: null, error: error.message };
+    }
+}
+
 /** DELETE /api/vet/appointments/:id */
 async function deleteAppointment(id) {
     const formData = new FormData();
@@ -513,6 +533,7 @@ window.VetAPI = {
     deleteAnnouncement,
     getAppointments,
     updateAppointmentStatus,
+    rescheduleAppointment,
     deleteAppointment,
     getPatients,
     getPatientById,

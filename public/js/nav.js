@@ -13,6 +13,8 @@
    - toggleUserMenu()     — opens/closes user dropdown
    - toggleNotifPanel()   — opens/closes notification panel
    - markAllNotifsRead()  — clears unread state client-side
+   - dismissNotif(e, btn) — removes a single notification item
+   - clearAllNotifs()     — removes all notification items
    - toggleMobileNav()    — opens/closes mobile nav-links menu
    NOTE: logout() and loginAs() live in auth.js
    ============================================= */
@@ -46,6 +48,46 @@ function markAllNotifsRead() {
   });
   var dot = document.querySelector('.nav-notif-dot');
   if (dot) dot.style.display = 'none';
+}
+
+/* TODO backend: call api.deleteNotification(id) here once notif items carry a real id */
+function dismissNotif(e, btn) {
+  e.preventDefault();
+  e.stopPropagation();
+  var item = btn.closest('.notif-panel-item');
+  if (item) item.remove();
+  refreshNotifEmptyState();
+  refreshNotifDot();
+}
+
+/* TODO backend: call api.clearAllNotifications() here */
+function clearAllNotifs() {
+  var list = document.querySelector('.notif-panel-list');
+  if (list) list.querySelectorAll('.notif-panel-item').forEach(function (item) {
+    item.remove();
+  });
+  refreshNotifEmptyState();
+  refreshNotifDot();
+}
+
+function refreshNotifDot() {
+  var dot = document.querySelector('.nav-notif-dot');
+  if (dot) dot.style.display = document.querySelector('.notif-panel-item.unread') ? '' : 'none';
+}
+
+function refreshNotifEmptyState() {
+  var list = document.querySelector('.notif-panel-list');
+  if (!list) return;
+  var hasItems = !!list.querySelector('.notif-panel-item');
+  var empty = list.querySelector('.notif-panel-empty');
+  if (!hasItems && !empty) {
+    empty = document.createElement('p');
+    empty.className = 'notif-panel-empty';
+    empty.textContent = "You're all caught up.";
+    list.appendChild(empty);
+  } else if (hasItems && empty) {
+    empty.remove();
+  }
 }
 
 /* Close notification panel when clicking outside */

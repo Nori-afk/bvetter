@@ -20,7 +20,7 @@ function bv_project_root()
 
 function bv_dataset_path()
 {
-    return bv_project_root() . DIRECTORY_SEPARATOR . 'BaliwagVet_2023-2025.xlsx';
+    return bv_project_root() . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'BaliwagVet_2023-2025.xlsx';
 }
 
 function bv_col_letters_to_index($letters)

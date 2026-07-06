@@ -86,6 +86,7 @@ function getProfile($pdo, $userId)
 
     $stmt = $pdo->prepare("
         SELECT users.id, users.full_name, users.email, users.phone_number, users.profile_photo,
+               users.education, users.specialization,
                roles.name AS role_name, users.created_at
         FROM users
         LEFT JOIN roles ON roles.id = users.role_id
@@ -111,6 +112,8 @@ function getProfile($pdo, $userId)
             'fullName' => $user['full_name'],
             'email' => $user['email'],
             'phone' => $user['phone_number'],
+            'education' => $user['education'],
+            'specialization' => $user['specialization'],
             'role' => $user['role_name'],
             'roleLabel' => roleLabel($user['role_name']),
             'avatarUrl' => $user['profile_photo'] ?: '',
@@ -133,6 +136,8 @@ function updateProfile($pdo, $data)
     $fullName = clean($data['fullName'] ?? $data['full_name'] ?? '');
     $email = clean($data['email'] ?? '');
     $phone = clean($data['phone'] ?? $data['phone_number'] ?? '');
+    $education = clean($data['education'] ?? '');
+    $specialization = clean($data['specialization'] ?? '');
     if ($fullName === '' || $email === '') {
         respond(422, ['success' => false, 'message' => 'Full name and email are required.']);
     }
@@ -141,8 +146,8 @@ function updateProfile($pdo, $data)
     $stmt->execute([':email' => $email, ':id' => $userId]);
     if ($stmt->fetch()) respond(409, ['success' => false, 'message' => 'Email is already used by another account.']);
 
-    $stmt = $pdo->prepare('UPDATE users SET full_name = :name, email = :email, phone_number = :phone WHERE id = :id');
-    $stmt->execute([':name' => $fullName, ':email' => $email, ':phone' => $phone, ':id' => $userId]);
+    $stmt = $pdo->prepare('UPDATE users SET full_name = :name, email = :email, phone_number = :phone, education = :education, specialization = :specialization WHERE id = :id');
+    $stmt->execute([':name' => $fullName, ':email' => $email, ':phone' => $phone, ':education' => $education, ':specialization' => $specialization, ':id' => $userId]);
 
     getProfile($pdo, $userId);
 }

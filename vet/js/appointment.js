@@ -13,14 +13,14 @@ const FALLBACK_APPOINTMENTS = [
 
 const VALID_STATUSES = new Set(['pending', 'confirmed', 'completed', 'canceled', 'cancelled', 'rejected']);
 const RESCHEDULE_SLOTS = [
-	{ label: 'Morning', value: '09:30', display: '09:30 AM' },
-	{ label: 'Morning', value: '10:15', display: '10:15 AM' },
+	{ label: 'Morning', value: '08:00', display: '8:00 AM' },
+	{ label: 'Morning', value: '09:00', display: '9:00 AM' },
+	{ label: 'Morning', value: '10:00', display: '10:00 AM' },
 	{ label: 'Morning', value: '11:00', display: '11:00 AM' },
-	{ label: 'Afternoon', value: '13:45', display: '01:45 PM' },
-	{ label: 'Afternoon', value: '14:30', display: '02:30 PM' },
-	{ label: 'Afternoon', value: '15:15', display: '03:15 PM' },
-	{ label: 'Late Afternoon', value: '16:00', display: '04:00 PM' },
-	{ label: 'Late Afternoon', value: '16:45', display: '04:45 PM' }
+	{ label: 'Afternoon', value: '13:00', display: '1:00 PM' },
+	{ label: 'Afternoon', value: '14:00', display: '2:00 PM' },
+	{ label: 'Afternoon', value: '15:00', display: '3:00 PM' },
+	{ label: 'Afternoon', value: '16:00', display: '4:00 PM' }
 ];
 const RESCHEDULE_WEEK_DAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
 
@@ -635,9 +635,30 @@ function openDeleteModal() {
 	openModal(deleteModalTemplate(selected), 'modal-sm');
 }
 
-function applyReschedule() {
+async function applyReschedule() {
 	const selected = getAppointmentById(state.selectedAppointmentId);
-	if (!selected || !state.selectedSlot || !state.selectedDate) return;
+	if (!selected) return;
+
+	if (!state.selectedDate) {
+		alert('Please select a new date on the calendar.');
+		return;
+	}
+	if (state.selectedDate < toIsoDate(new Date())) {
+		alert('Cannot reschedule to a past date.');
+		return;
+	}
+	if (!state.selectedSlot) {
+		alert('Please select an available time slot.');
+		return;
+	}
+
+	if (window.VetAPI?.rescheduleAppointment) {
+		const result = await window.VetAPI.rescheduleAppointment(selected.id, state.selectedDate, state.selectedSlot);
+		if (!result.ok) {
+			alert(result.error || 'Failed to reschedule appointment.');
+			return;
+		}
+	}
 
 	const nextDate = new Date(`${state.selectedDate}T00:00:00`);
 	const [hours, minutes] = state.selectedSlot.split(':').map(Number);

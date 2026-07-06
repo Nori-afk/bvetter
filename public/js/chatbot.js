@@ -83,6 +83,11 @@
       ' stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
       '<path d="M5 3l4 4-4 4"/></svg>',
 
+    check:
+      '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor"' +
+      ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M2.5 7.2l3 3L11.5 3.5"/></svg>',
+
     /* ── Tab icons  (replace img src when ready) ── */
     inquiry:
       '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor"' +
@@ -608,6 +613,7 @@ function closeChat() {
     var btn = document.createElement('button');
     btn.className = 'option-btn';
     btn.type = 'button';
+    btn.style.animationDelay = (el.children.length * 45) + 'ms';
 
     /* Left cluster */
     var left = document.createElement('span');
@@ -690,6 +696,61 @@ function closeChat() {
     });
 
     el.appendChild(row);
+    scrollBottom(cMsgs);
+  }
+
+  /* Multi-select symptom checklist — toggle any number, then Continue */
+  function showSymptomChecklist(el, symptoms, onSubmit) {
+    showOptionLabel(el, 'Select all that apply:');
+
+    var grid = document.createElement('div');
+    grid.className = 'symptom-checklist';
+
+    var picked = [];
+
+    symptoms.forEach(function (symptom, i) {
+      var b = document.createElement('button');
+      b.className = 'symptom-check-btn';
+      b.type = 'button';
+      b.style.animationDelay = (i * 45) + 'ms';
+
+      var mark = document.createElement('span');
+      mark.className = 'symptom-check-mark';
+      mark.innerHTML = SVG.check;
+      b.appendChild(mark);
+
+      var lbl = document.createElement('span');
+      lbl.className = 'symptom-check-label';
+      lbl.textContent = symptom;
+      b.appendChild(lbl);
+
+      b.addEventListener('click', function () {
+        var idx = picked.indexOf(symptom);
+        if (idx >= 0) {
+          picked.splice(idx, 1);
+          b.classList.remove('selected');
+        } else {
+          picked.push(symptom);
+          b.classList.add('selected');
+        }
+      });
+
+      grid.appendChild(b);
+    });
+
+    el.appendChild(grid);
+
+    var continueBtn = document.createElement('button');
+    continueBtn.type = 'button';
+    continueBtn.className = 'symptom-continue-btn';
+    continueBtn.textContent = 'Continue';
+    continueBtn.addEventListener('click', function () {
+      if (continueBtn.disabled) return;
+      continueBtn.disabled = true;
+      grid.querySelectorAll('.symptom-check-btn').forEach(function (x) { x.disabled = true; });
+      setTimeout(function () { onSubmit(picked.slice()); }, 200);
+    });
+    el.appendChild(continueBtn);
     scrollBottom(cMsgs);
   }
 
@@ -1032,27 +1093,20 @@ function closeChat() {
           addUserBubble(cMsgs, ageGroup);
           clearOptions(cOpts);
           cState.symptoms = [];
-          askSymptomsYesNo(0);
+          askSymptomsChecklist();
         });
       });
   }
 
-  function askSymptomsYesNo(index) {
+  function askSymptomsChecklist() {
     var symptoms = ['Fever', 'Vomiting', 'Diarrhea', 'Coughing', 'Loss of Appetite', 'Wounds', 'Seizures'];
-    if (index >= symptoms.length) {
-      if (!cState.symptoms.length) cState.symptoms = ['No listed symptoms'];
-      askDuration();
-      return;
-    }
-
-    var symptom = symptoms[index];
-    addBotBubble(cMsgs, 'Does your pet have ' + symptom.toLowerCase() + '?', 450)
+    addBotBubble(cMsgs, 'Which symptoms does your pet have? Select all that apply.', 450)
       .then(function () {
-        showChips(cOpts, ['Yes', 'No'], function (answer) {
-          addUserBubble(cMsgs, symptom + ': ' + answer);
-          if (answer === 'Yes') cState.symptoms.push(symptom);
+        showSymptomChecklist(cOpts, symptoms, function (selected) {
+          cState.symptoms = selected.length ? selected : ['No listed symptoms'];
+          addUserBubble(cMsgs, selected.length ? selected.join(', ') : 'None of these');
           clearOptions(cOpts);
-          askSymptomsYesNo(index + 1);
+          askDuration();
         });
       });
   }

@@ -365,6 +365,36 @@ function createUser($pdo)
     ]);
 }
 
+function updateAccountStatus($pdo)
+{
+    $userId = (int) (isset($_POST['user_id']) ? $_POST['user_id'] : 0);
+    $status = trim(isset($_POST['status']) ? $_POST['status'] : '');
+
+    if ($userId <= 0 || !in_array($status, ['active', 'inactive', 'blocked'], true)) {
+        respond(422, [
+            'success' => false,
+            'message' => 'A valid user id and status are required.'
+        ]);
+    }
+
+    $userQuery = $pdo->prepare('SELECT id FROM users WHERE id = :id LIMIT 1');
+    $userQuery->execute([':id' => $userId]);
+    if (!$userQuery->fetch()) {
+        respond(404, [
+            'success' => false,
+            'message' => 'User not found.'
+        ]);
+    }
+
+    $updateUser = $pdo->prepare('UPDATE users SET account_status = :status WHERE id = :id');
+    $updateUser->execute([':status' => $status, ':id' => $userId]);
+
+    respond(200, [
+        'success' => true,
+        'message' => 'Account status updated.'
+    ]);
+}
+
 function deleteUser($pdo)
 {
     $userId = (int) (isset($_POST['user_id']) ? $_POST['user_id'] : 0);
@@ -444,6 +474,10 @@ try {
         $userId = (int) (isset($_POST['user_id']) ? $_POST['user_id'] : 0);
         $notes = trim(isset($_POST['review_notes']) ? $_POST['review_notes'] : '');
         updateOwnerVerification($pdo, $userId, 'rejected', $notes);
+    }
+
+    if ($action === 'update_status') {
+        updateAccountStatus($pdo);
     }
 
     respond(400, [

@@ -343,7 +343,9 @@
    ═══════════════════════════════════════════ */
 .chatbot-messages {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px 14px 10px;
   display: flex;
   flex-direction: column;
@@ -581,9 +583,16 @@
   flex-direction: column;
   gap: 7px;
   flex-shrink: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: #ffffff;
   border-top: 1px solid #E5E7EB;
+  scrollbar-width: thin;
+  scrollbar-color: #D1D5DB transparent;
 }
+.chatbot-options::-webkit-scrollbar       { width: 3px; }
+.chatbot-options::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
 .chatbot-options-label {
   font-size: 9.5px;
   font-weight: 700;
@@ -599,86 +608,117 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 11px 13px;
   background: #F9FAFB;
   border: 1px solid #E5E7EB;
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: pointer;
   text-align: left;
   width: 100%;
-  transition: background 0.15s ease,
-              border-color 0.15s ease,
-              transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
-              box-shadow 0.15s ease;
+  opacity: 0;
+  animation: bvt-pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transition: background 0.18s ease,
+              border-color 0.18s ease,
+              transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.18s ease;
   user-select: none;
 }
 .option-btn:hover {
   background: #EFF6FF;
   border-color: #BFDBFE;
   transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(0, 42, 88, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 42, 88, 0.09);
 }
 .option-btn:active {
   transform: translateY(0) scale(0.99);
   transition: transform 0.08s ease;
 }
+
+/* Selected — a tinted wash + navy border + checkmark badge.
+   Icons are full-color raster illustrations, not recolorable line
+   icons, so we never filter/invert them — that's what was crushing
+   them into a blank white blob. Selection is communicated by the
+   background, border and checkmark badge instead. */
 .option-btn.selected {
-  background: var(--color-navy);
+  background: #EFF6FF;
   border-color: var(--color-navy);
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(0, 42, 88, 0.25);
+  transform: translateY(0) scale(1.01);
+  box-shadow: 0 6px 16px rgba(0, 42, 88, 0.14);
 }
-.option-btn.selected .option-btn-label { color: #ffffff; }
-.option-btn.selected .option-btn-sub   { color: rgba(255, 255, 255, 0.55); }
-.option-btn.selected .option-btn-icon  { background: rgba(255, 255, 255, 0.12); }
+.option-btn.selected .option-btn-label { color: var(--color-navy); }
+.option-btn.selected .option-btn-sub   { color: #3B82F6; }
+.option-btn.selected .option-btn-icon  { background: #DBEAFE; }
 
 .option-btn-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   flex: 1;
   min-width: 0;
 }
 .option-btn-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
   background: #EFF6FF;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background 0.15s ease;
+  transition: background 0.18s ease;
 }
 .option-btn-icon img {
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
   object-fit: contain;
   display: block;
-  opacity: 0.75;
+  opacity: 0.8;
+  transition: opacity 0.18s ease;
 }
-.option-btn-icon svg { width: 16px; height: 16px; display: block; }
+.option-btn-icon svg { width: 17px; height: 17px; display: block; color: var(--color-navy); opacity: 0.8; }
 
-.option-btn.selected .option-btn-icon img {
-  filter: brightness(0) invert(1);
-  opacity: 1;
+.option-btn.selected .option-btn-icon img,
+.option-btn.selected .option-btn-icon svg { opacity: 1; }
+
+/* Checkmark badge — pops onto the icon tile corner when selected */
+.option-btn-icon::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background-color: #107C10;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='4 12 9 17 20 6'/%3E%3C/svg%3E");
+  background-size: 8px 8px;
+  background-repeat: no-repeat;
+  background-position: center;
+  border: 2px solid #ffffff;
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.option-btn.selected .option-btn-icon svg {
-  stroke: #ffffff;
+.option-btn.selected .option-btn-icon::after {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .option-btn-label {
   display: block;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   color: #111827;
   line-height: 1.3;
+  transition: color 0.18s ease;
 }
 .option-btn-sub {
   display: block;
   font-size: 11px;
   color: var(--text-faint);
   margin-top: 1px;
+  transition: color 0.18s ease;
 }
 .option-btn-chevron {
   flex-shrink: 0;
@@ -688,10 +728,10 @@
   align-items: center;
   justify-content: center;
   opacity: 0.35;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: opacity 0.18s ease, transform 0.18s ease;
 }
 .option-btn:hover .option-btn-chevron     { opacity: 0.6; transform: translateX(2px); }
-.option-btn.selected .option-btn-chevron  { opacity: 0.5; }
+.option-btn.selected .option-btn-chevron  { opacity: 0; transform: translateX(4px); }
 .option-btn-chevron svg { width: 13px; height: 13px; display: block; }
 
 
@@ -732,6 +772,99 @@
   border-color: var(--color-navy);
   color: #ffffff;
   transform: translateY(0);
+}
+
+/* ═══════════════════════════════════════════
+   SYMPTOM CHECKLIST — multi-select, green = checked
+   ═══════════════════════════════════════════ */
+.symptom-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.symptom-check-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 20px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #374151;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  opacity: 0;
+  animation: bvt-pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.symptom-check-btn:hover {
+  background: #F0FDF4;
+  border-color: #86EFAC;
+  transform: translateY(-1px);
+}
+
+.symptom-check-btn:active { transform: scale(0.97); }
+.symptom-check-btn:disabled { cursor: default; }
+
+.symptom-check-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1.5px solid #D1D5DB;
+  color: transparent;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.symptom-check-mark svg { width: 9px; height: 9px; display: block; }
+
+.symptom-check-btn.selected {
+  background: #107C10;
+  border-color: #107C10;
+  color: #ffffff;
+}
+
+.symptom-check-btn.selected .symptom-check-mark {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #107C10;
+  transform: scale(1.1);
+}
+
+.symptom-continue-btn {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px;
+  background: var(--color-navy);
+  color: #ffffff;
+  border: 0;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  opacity: 0;
+  animation: bvt-fadein 0.25s ease forwards;
+  animation-delay: 0.25s;
+  transition: background 0.15s ease, transform 0.12s ease, opacity 0.15s ease;
+}
+
+.symptom-continue-btn:hover { background: #003a78; transform: translateY(-1px); }
+.symptom-continue-btn:active { transform: translateY(0) scale(0.98); }
+.symptom-continue-btn:disabled { opacity: 0.55 !important; cursor: default; transform: none; }
+
+@keyframes bvt-pop-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* =============================================
