@@ -456,6 +456,11 @@ html, body {
     color: var(--admin-accent);
 }
 
+.role-badge.owner {
+    background: rgba(115, 119, 129, 0.12);
+    color: var(--text-tertiary);
+}
+
 .status-pill {
     padding: 3px 10px;
     border-radius: 50px;
@@ -469,7 +474,18 @@ html, body {
     color: var(--secondary-green);
 }
 
-.status-pill.inactive {
+.status-pill.inactive,
+.status-pill.blocked {
+    background: var(--accent-light-red);
+    color: var(--accent-red);
+}
+
+.status-pill.pending {
+    background: rgba(217, 119, 6, 0.12);
+    color: #D97706;
+}
+
+.status-pill.rejected {
     background: var(--accent-light-red);
     color: var(--accent-red);
 }
@@ -517,6 +533,13 @@ html, body {
 
 .module-fill.blue { background: var(--primary-blue); }
 .module-fill.muted { background: var(--text-tertiary); }
+
+.am-loading-cell {
+    text-align: center;
+    color: var(--text-tertiary);
+    padding: 24px !important;
+    font-size: 13px;
+}
 
 /* ============================= */
 /* RIGHT COLUMN                  */

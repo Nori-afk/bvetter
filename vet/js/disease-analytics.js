@@ -59,7 +59,7 @@ function isAllDiseasesSelected(disease) {
 function friendlyModelLabel(modelType) {
     const s = String(modelType || '').toLowerCase();
     if (s.includes('movingaverage') || s.includes('wma')) return 'Basic Estimate';
-    if (s.includes('arima') && (s.includes('rf') || s.includes('alldisease'))) return 'AI Forecast';
+    if (s.includes('arima') && (s.includes('rf') || s.includes('alldisease'))) return 'Advanced Forecast';
     if (s.includes('sarima') || s.includes('arima')) return 'Smart Forecast';
     return 'Forecast';
 }
@@ -231,7 +231,7 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
             );
         } else {
             protocolDesc = (
-                `Our AI Forecast predicts ${arimaForecast[0] ?? '?'} cases next month. ` +
+                `Our Advanced Forecast predicts ${arimaForecast[0] ?? '?'} cases next month. ` +
                 `Risk level: ${rf.risk_class || 'N/A'} (${rf.confidence || 0}% confidence). ` +
                 `Typically accurate within ±${rf.model_mae ?? 'N/A'} cases.`
             );
@@ -276,7 +276,7 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
                 classification: rf.tier === 'critical' ? 'Grade 4 — High Risk'
                                : rf.tier === 'monitor'  ? 'Grade 3 — Medium Risk'
                                :                          'Grade 2 — Low Risk',
-                title:       (isRuleBased ? 'Response Plan: ' : 'AI Response Plan: ') + rf.barangay,
+                title:       (isRuleBased ? 'Response Plan: ' : 'Advanced Response Plan: ') + rf.barangay,
                 description: protocolDesc,
                 steps:       rf.steps || [],
             },
@@ -434,8 +434,8 @@ function renderOverview() {
         if (allDiseases) {
             // JS-FIX-2: "12-Month Sum" is accurate; "×12" was misleading
             predCard.querySelector('h3').textContent = isMonthly
-                ? 'AI Forecast — Next Month'
-                : 'AI Forecast — Projected Annual (12-Month Sum)';
+                ? 'Advanced Forecast — Next Month'
+                : 'Advanced Forecast — Projected Annual (12-Month Sum)';
         } else {
             const firstInsight = diseaseAnalyticsData.insights?.[0];
             const modelLabel   = friendlyModelLabel(firstInsight?.model_type);
@@ -491,7 +491,7 @@ function renderBarChart(targetId, rows, chartType) {
     let warning = '';
     if (chartType === 'predicted' && hasFallback) {
         warning = allDiseases
-            ? `<div class="fallback-warning">Prediction service unavailable — showing a simple +12% estimate instead of the AI forecast.</div>`
+            ? `<div class="fallback-warning">Prediction service unavailable — showing a simple +12% estimate instead of the advanced forecast.</div>`
             : isWMA
                 ? `<div class="fallback-warning">Not enough historical data — showing a basic short-term average with an estimated likely range.</div>`
                 : `<div class="fallback-warning">Showing a ${friendlyModelLabel(modelType).toLowerCase()} estimate.</div>`;
@@ -504,7 +504,7 @@ function renderBarChart(targetId, rows, chartType) {
             const src = (item.source || '').toLowerCase();
             if (src.includes('sarima') || src.includes('arima')) {
                 badge = (src.includes('alldisease') || src.includes('rf'))
-                    ? `<span class="source-badge model">AI Forecast</span>`
+                    ? `<span class="source-badge model">Advanced Forecast</span>`
                     : `<span class="source-badge model">Smart Forecast</span>`;
             }
             else if (src.includes('moving') || src.includes('wma')) badge = `<span class="source-badge wma">Basic Estimate</span>`;
@@ -595,7 +595,7 @@ function renderInsightPanel() {
     } else if (!isRuleBased) {
         modelBadgeHtml = `
             <div class="ip-model-row">
-                <span class="ip-model-badge">AI Forecast</span>
+                <span class="ip-model-badge">Advanced Forecast</span>
                 <span class="ip-model-text">${insight.rf_risk_class || 'N/A'} Risk · ${insight.rf_confidence ?? 'N/A'}% confidence</span>
             </div>
         `;
@@ -676,7 +676,7 @@ function renderHotspotList() {
         let badge = '';
         if (src.includes('sarima') || src.includes('arima')) {
             badge = (src.includes('rf') || src.includes('alldisease'))
-                ? `<span class="source-badge model">AI Forecast</span>`
+                ? `<span class="source-badge model">Advanced Forecast</span>`
                 : `<span class="source-badge model">Smart Forecast</span>`;
         }
         else if (src.includes('moving') || src.includes('wma')) badge = `<span class="source-badge wma">Basic Estimate</span>`;
@@ -788,9 +788,9 @@ function showHotspotAction(hotspot) {
         } else {
             modelBadge = `
                 <div class="rf-badge">
-                    🤖 AI Forecast — ${insight.rf_risk_class || 'N/A'} Risk ·
+                    Advanced Forecast — ${insight.rf_risk_class || 'N/A'} Risk ·
                     ${insight.rf_confidence ?? 'N/A'}% confidence
-                    <span class="source-badge model">AI Forecast</span>
+                    <span class="source-badge model">Advanced Forecast</span>
                 </div>`;
         }
     } else {

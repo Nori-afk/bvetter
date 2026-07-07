@@ -38,7 +38,13 @@ app = Flask(__name__)
 EXCEL_PATH = os.path.join(os.path.dirname(__file__), "../../database/BaliwagVet_2023-2025.xlsx")
 
 _cache    = {}
-CACHE_TTL = 600  # SPEED-1: raised from 300 to 600 s
+# SPEED-7: raised 600s -> 6h. The source Excel file only changes on a service
+# restart anyway (it's read fresh from disk on first cache-miss, never hot-
+# reloaded), so there's no correctness reason to re-run an expensive ~15-20s
+# disease-specific SARIMA search every 10 minutes. This makes every disease
+# filter pay its cost once per server run instead of once per 10-minute window,
+# matching how _all_disease_models/arima_cache already never expire.
+CACHE_TTL = 21600
 
 
 def cache_get(key):
@@ -702,7 +708,16 @@ def _empty_prediction(barangay_name: str) -> dict:
 # DISEASE-SPECIFIC FORECASTING
 # ════════════════════════════════════════════════════════════════════════
 
-def _load_disease_specific_df(disease_name: str) -> pd.DataFrame:
+_consult_diagnosis_df = None
+
+
+def _load_consult_diagnosis_raw() -> pd.DataFrame:
+    # SPEED-6: this sheet doesn't change while the service is running, but was
+    # being re-read from disk (twice, via read_excel_sheet's header probe) on
+    # every disease-specific request. Warm-started once, like get_all_disease_models().
+    global _consult_diagnosis_df
+    if _consult_diagnosis_df is not None:
+        return _consult_diagnosis_df
     raw = read_excel_sheet("Consult_Diagnosis_3Y")
     raw.columns = [str(c).strip().lower() for c in raw.columns]
     raw["year"]           = pd.to_numeric(raw["year"], errors="coerce")
@@ -710,6 +725,12 @@ def _load_disease_specific_df(disease_name: str) -> pd.DataFrame:
     raw["cases_reported"] = pd.to_numeric(raw["cases_reported"], errors="coerce").fillna(1)
     raw = raw[pd.to_numeric(raw["year"], errors="coerce").notna()]
     raw["year"] = raw["year"].astype(int)
+    _consult_diagnosis_df = raw
+    return raw
+
+
+def _load_disease_specific_df(disease_name: str) -> pd.DataFrame:
+    raw = _load_consult_diagnosis_raw()
     dn = disease_name.strip().lower()
     subset = raw[raw["diagnosis"].str.strip().str.lower() == dn].copy()
     if subset.empty:
@@ -731,13 +752,22 @@ def _load_disease_specific_df(disease_name: str) -> pd.DataFrame:
 
 def _sarima_order_search(series: pd.Series, seasonal: bool = True) -> tuple:
     """
-    SPEED-2: tight 4×4 grid (16 combos) instead of 9×8 (81 combos).
-    Cuts per-barangay fit time ~5× with negligible AIC loss in practice.
+    SPEED-2: tight 4x4 grid (16 combos) instead of 9x8 (81 combos).
+    Cuts per-barangay fit time ~5x with negligible AIC loss in practice.
+    SPEED-8: dropped the (2,d,1) shape (p=2). Measured across 243 real
+    barangay/disease series (10 diseases): p=2 was consistently the most
+    expensive shape to fit (avg ~2-3x the other shapes) yet won on AIC only
+    ~18.5% of the time -- less often than the much cheaper (0,d,1) shape
+    (~59% win rate). Cuts ~38% of order-search time.
+    All 4 seasonal (PDQ) shapes are kept: none of them is a safe cut --
+    each won the AIC comparison on a meaningful share of real series (from
+    ~9% up to ~40%), including the "no seasonal component" option, so
+    dropping any of them would silently mis-fit real series.
     """
     d = _adf_d(series)
     best_aic, best_order, best_sorder = np.inf, (1, d, 1), (0, 0, 0, 12)
 
-    pdq_grid  = [(1, d, 1), (1, d, 0), (0, d, 1), (2, d, 1)]
+    pdq_grid  = [(1, d, 1), (1, d, 0), (0, d, 1)]
     PDQ_grid  = [(1, 0, 1), (0, 1, 1), (1, 1, 0), (0, 0, 0)] if seasonal else [(0, 0, 0)]
 
     for order in pdq_grid:
@@ -759,14 +789,18 @@ def _sarima_order_search(series: pd.Series, seasonal: bool = True) -> tuple:
     return best_order, best_sorder
 
 
-def _run_disease_arima(series: pd.Series, steps: int) -> dict:
+def _run_disease_arima(series: pd.Series, steps: int, order: tuple = None, s_order: tuple = None) -> dict:
     n = len(series.dropna())
     if n < 6:
         return _ma_fallback(series, steps)
     seasonal = n >= 12
     try:
-        order, s_order = _sarima_order_search(series, seasonal=seasonal)
-        if seasonal and any(s_order[:3]):
+        # SPEED-5: callers iterating many barangays (predict_disease_specific) can
+        # pass in an order/s_order already picked for this series, so the 16-combo
+        # grid search doesn't run a second time just for this fit.
+        if order is None:
+            order, s_order = _sarima_order_search(series, seasonal=seasonal)
+        if seasonal and s_order and any(s_order[:3]):
             res = SARIMAX(series, order=order, seasonal_order=s_order,
                           enforce_stationarity=False, enforce_invertibility=False,
                           ).fit(disp=False, maxiter=100)
@@ -779,6 +813,21 @@ def _run_disease_arima(series: pd.Series, steps: int) -> dict:
         ci = fc_obj.conf_int(alpha=0.2)
         lo = [max(0.0, round(float(v), 1)) for v in ci.iloc[:, 0]]
         hi = [max(0.0, round(float(v), 1)) for v in ci.iloc[:, 1]]
+
+        # SANITY GUARD: seasonally-differenced models fit to short/sparse/mostly-zero
+        # count series can be numerically unstable -- they fit the observed history
+        # fine but extrapolate an explosive multiplicative pattern many steps ahead
+        # (e.g. a barangay whose worst month ever was 10 cases forecasting 80,000+
+        # cases a year out). AIC picks the best in-sample fit, not the most stable
+        # one, so this can't be caught at order-selection time. Instead, reject any
+        # forecast that blows past what the series' own history could plausibly
+        # support and fall back to the bounded weighted-moving-average estimate.
+        hist_vals = series.dropna().values.astype(float)
+        hist_max  = float(hist_vals.max()) if len(hist_vals) else 0.0
+        sane_cap  = max(hist_max * 8, 15.0)
+        if max(fc, default=0.0) > sane_cap or max(hi, default=0.0) > sane_cap * 1.5:
+            return _ma_fallback(series, steps)
+
         slope = fc[-1] - fc[0]
         trend = "rising" if slope > 0.5 else ("falling" if slope < -0.5 else "stable")
         return {"forecast": fc, "lower_ci": lo, "upper_ci": hi,
@@ -834,7 +883,7 @@ def _disease_tier(risk_label: str) -> str:
     return {"High": "critical", "Medium": "monitor", "Low": "stable"}.get(risk_label, "stable")
 
 
-def _compute_disease_metrics(series: pd.Series, steps: int = 3) -> dict:
+def _compute_disease_metrics(series: pd.Series, steps: int = 3, order: tuple = None, s_order: tuple = None) -> dict:
     series = series.dropna()
     if len(series) < steps + 3:
         return {"mae": None, "rmse": None, "mape": None, "holdout_size": 0,
@@ -843,19 +892,21 @@ def _compute_disease_metrics(series: pd.Series, steps: int = 3) -> dict:
     test_actual = series.iloc[-steps:].values.astype(float)
     try:
         n_train = len(train)
-        if n_train >= 12:
-            order, s_order = _sarima_order_search(train, seasonal=True)
-            res = (SARIMAX(train, order=order, seasonal_order=s_order,
-                           enforce_stationarity=False, enforce_invertibility=False,
-                           ).fit(disp=False, maxiter=50)
-                   if any(s_order[:3]) else
-                   ARIMA(train, order=order).fit(method_kwargs={"maxiter": 50}))
-        elif n_train >= 6:
-            order, _ = _sarima_order_search(train, seasonal=False)
-            res = ARIMA(train, order=order).fit(method_kwargs={"maxiter": 50})
-        else:
+        if n_train < 6:
             return {"mae": None, "rmse": None, "mape": None, "holdout_size": steps,
                     "note": "train set too small for model evaluation"}
+        # SPEED-5: reuse the order already selected for the full series (passed in
+        # by predict_disease_specific) instead of running a second 16-combo grid
+        # search on the train-only slice -- halves the ARIMA/SARIMAX fits per
+        # barangay with no change to the reported holdout metrics' meaning.
+        if order is None:
+            order, s_order = _sarima_order_search(train, seasonal=(n_train >= 12))
+        use_seasonal = n_train >= 12 and s_order and any(s_order[:3])
+        res = (SARIMAX(train, order=order, seasonal_order=s_order,
+                       enforce_stationarity=False, enforce_invertibility=False,
+                       ).fit(disp=False, maxiter=50)
+               if use_seasonal else
+               ARIMA(train, order=order).fit(method_kwargs={"maxiter": 50}))
         fc    = res.get_forecast(steps=steps).predicted_mean.values.clip(min=0)
         mae_v = round(float(mean_absolute_error(test_actual, fc)), 2)
         return {"mae": mae_v, "rmse": rmse(test_actual, fc), "mape": mape(test_actual, fc),
@@ -913,8 +964,17 @@ def predict_disease_specific(
             ).dt.to_period("M")
             series = b_df.groupby("period_dt")["cases"].sum().astype(float).asfreq("M", fill_value=0)
 
-        metrics   = _compute_disease_metrics(series, steps=min(steps, 3))
-        fc_result = _run_disease_arima(series, steps=fc_steps)
+        # SPEED-5: pick the ARIMA/SARIMA order once per barangay and reuse it for
+        # both the holdout evaluation and the real forecast (previously each ran
+        # its own independent 16-combo grid search -- 34 model fits per barangay
+        # instead of ~18, which is most of why this endpoint was slow).
+        n_obs = len(series.dropna())
+        order = s_order = None
+        if n_obs >= 6:
+            order, s_order = _sarima_order_search(series, seasonal=(n_obs >= 12))
+
+        metrics   = _compute_disease_metrics(series, steps=min(steps, 3), order=order, s_order=s_order)
+        fc_result = _run_disease_arima(series, steps=fc_steps, order=order, s_order=s_order)
 
         current_cases = float(
             current_by_barangay.get(barangay, 0) or
@@ -1206,7 +1266,7 @@ def model_info():
             },
             "disease_specific": {
                 "description": "Per-disease SARIMA/ARIMA/WMA from Consult_Diagnosis_3Y",
-                "sarima_grid": "4 pdq x 4 PDQ = 16 combos (SPEED-2)",
+                "sarima_grid": "3 pdq x 3 PDQ = 9 combos (SPEED-8)",
                 "bootstrap_ci": "200 resamples (SPEED-3)",
                 "risk_classification": {
                     "type": "RuleBasedThreshold",

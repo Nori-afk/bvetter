@@ -109,17 +109,17 @@
                     </div>
                     <div class="greet-right">
                         <div class="greet-stat">
-                            <span class="greet-stat-val">38</span>
+                            <span class="greet-stat-val" id="greet-total">--</span>
                             <span class="greet-stat-lbl">Total Accounts</span>
                         </div>
                         <div class="greet-divider"></div>
                         <div class="greet-stat">
-                            <span class="greet-stat-val">34</span>
+                            <span class="greet-stat-val" id="greet-active">--</span>
                             <span class="greet-stat-lbl">Active</span>
                         </div>
                         <div class="greet-divider"></div>
                         <div class="greet-stat">
-                            <span class="greet-stat-val">06</span>
+                            <span class="greet-stat-val" id="greet-pending">--</span>
                             <span class="greet-stat-lbl">Pending</span>
                         </div>
                     </div>
@@ -129,32 +129,30 @@
                 <div class="KPI">
                     <div class="kpi-card">
                         <p class="kpi-label">Total Accounts</p>
-                        <h2 class="kpi-value">38</h2>
+                        <h2 class="kpi-value" id="kpi-total-accounts">--</h2>
                         <div class="kpi-trend">
-                            <span class="trend-icon">↑</span>
-                            <span class="trend-text">4 this month</span>
+                            <span class="trend-text">Across all roles</span>
                         </div>
                     </div>
                     <div class="kpi-card">
                         <p class="kpi-label">Pending Approvals</p>
-                        <h2 class="kpi-value">06</h2>
-                        <div class="urgent-badge">Needs Action</div>
+                        <h2 class="kpi-value" id="kpi-pending-approvals">--</h2>
+                        <div class="urgent-badge" id="kpi-pending-badge" hidden>Needs Action</div>
                     </div>
                     <div class="kpi-card">
                         <p class="kpi-label">System Alerts</p>
-                        <h2 class="kpi-value">03</h2>
-                        <div class="kpi-trend warn">
-                            <span class="trend-icon">↓</span>
-                            <span class="trend-text">2 resolved today</span>
+                        <h2 class="kpi-value" id="kpi-system-alerts">--</h2>
+                        <div class="kpi-trend">
+                            <span class="trend-text">Lost &amp; found reports awaiting review</span>
                         </div>
                     </div>
                     <div class="kpi-card">
                         <p class="kpi-label success">Clinic Vaccination Rate</p>
                         <div class="vaccination-progress">
                             <div class="progress-bar">
-                                <div class="progress-fill" style="width: 94%;"></div>
+                                <div class="progress-fill" id="kpi-vacc-fill" style="width: 0%;"></div>
                             </div>
-                            <h2 class="kpi-value">94%</h2>
+                            <h2 class="kpi-value" id="kpi-vacc-rate">--</h2>
                         </div>
                     </div>
                 </div>
@@ -200,57 +198,8 @@
                                             <th>Joined</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td class="user-cell">
-                                                <div class="user-avatar">MS</div>
-                                                <span>Dr. Maria Santos</span>
-                                            </td>
-                                            <td><span class="role-badge vet">Vet</span></td>
-                                            <td class="email-cell">m.santos@vbetter.local</td>
-                                            <td><span class="status-pill active">Active</span></td>
-                                            <td class="date-cell">Apr 28</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="user-cell">
-                                                <div class="user-avatar">JC</div>
-                                                <span>Juan dela Cruz</span>
-                                            </td>
-                                            <td><span class="role-badge vet">Vet</span></td>
-                                            <td class="email-cell">j.delacruz@vbetter.local</td>
-                                            <td><span class="status-pill active">Active</span></td>
-                                            <td class="date-cell">Apr 25</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="user-cell">
-                                                <div class="user-avatar admin-av">AR</div>
-                                                <span>Ana Reyes</span>
-                                            </td>
-                                            <td><span class="role-badge admin">Admin</span></td>
-                                            <td class="email-cell">a.reyes@vbetter.local</td>
-                                            <td><span class="status-pill active">Active</span></td>
-                                            <td class="date-cell">Apr 22</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="user-cell">
-                                                <div class="user-avatar">MV</div>
-                                                <span>Mark Villanueva</span>
-                                            </td>
-                                            <td><span class="role-badge vet">Vet</span></td>
-                                            <td class="email-cell">m.villanueva@vbetter.local</td>
-                                            <td><span class="status-pill inactive">Inactive</span></td>
-                                            <td class="date-cell">Apr 18</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="user-cell">
-                                                <div class="user-avatar">CO</div>
-                                                <span>Carla Ocampo</span>
-                                            </td>
-                                            <td><span class="role-badge vet">Vet</span></td>
-                                            <td class="email-cell">c.ocampo@vbetter.local</td>
-                                            <td><span class="status-pill active">Active</span></td>
-                                            <td class="date-cell">Apr 14</td>
-                                        </tr>
+                                    <tbody id="recent-accounts-body">
+                                        <tr><td colspan="5" class="am-loading-cell">Loading accounts…</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -261,52 +210,11 @@
                             <div class="card-header">
                                 <div>
                                     <h3 class="card-title">Module Usage by Vets</h3>
-                                    <p class="card-subtitle">Percentage of sessions accessing each module</p>
+                                    <p class="card-subtitle">Relative record volume across modules</p>
                                 </div>
                             </div>
-                            <div class="module-bars">
-                                <div class="module-bar-item">
-                                    <div class="module-bar-label">
-                                        <span class="module-name">Appointment Management</span>
-                                        <span class="module-pct">78%</span>
-                                    </div>
-                                    <div class="module-track"><div class="module-fill" style="width:78%"></div></div>
-                                </div>
-                                <div class="module-bar-item">
-                                    <div class="module-bar-label">
-                                        <span class="module-name">Patient Records</span>
-                                        <span class="module-pct">65%</span>
-                                    </div>
-                                    <div class="module-track"><div class="module-fill" style="width:65%"></div></div>
-                                </div>
-                                <div class="module-bar-item">
-                                    <div class="module-bar-label">
-                                        <span class="module-name">Disease Analytics</span>
-                                        <span class="module-pct">52%</span>
-                                    </div>
-                                    <div class="module-track"><div class="module-fill blue" style="width:52%"></div></div>
-                                </div>
-                                <div class="module-bar-item">
-                                    <div class="module-bar-label">
-                                        <span class="module-name">Mass Vaccination</span>
-                                        <span class="module-pct">44%</span>
-                                    </div>
-                                    <div class="module-track"><div class="module-fill blue" style="width:44%"></div></div>
-                                </div>
-                                <div class="module-bar-item">
-                                    <div class="module-bar-label">
-                                        <span class="module-name">Lost and Found</span>
-                                        <span class="module-pct">31%</span>
-                                    </div>
-                                    <div class="module-track"><div class="module-fill muted" style="width:31%"></div></div>
-                                </div>
-                                <div class="module-bar-item">
-                                    <div class="module-bar-label">
-                                        <span class="module-name">Chatbot Management</span>
-                                        <span class="module-pct">22%</span>
-                                    </div>
-                                    <div class="module-track"><div class="module-fill muted" style="width:22%"></div></div>
-                                </div>
+                            <div class="module-bars" id="module-bars">
+                                <p class="am-loading-cell">Loading module activity…</p>
                             </div>
                         </div>
 
@@ -322,70 +230,38 @@
                                     <h3 class="card-title">Pending Approvals</h3>
                                     <p class="card-subtitle">Accounts awaiting review</p>
                                 </div>
-                                <span class="pending-count">6</span>
+                                <span class="pending-count" id="pending-count">--</span>
                             </div>
-                            <div class="pending-list">
-                                <div class="pending-item">
-                                    <div class="user-avatar small">RD</div>
-                                    <div class="pending-info">
-                                        <p class="pending-name">Rico Domingo</p>
-                                        <p class="pending-role">Veterinarian • Applied Apr 30</p>
-                                    </div>
-                                    <div class="pending-actions">
-                                        <button class="btn-approve">✓</button>
-                                        <button class="btn-reject">✕</button>
-                                    </div>
-                                </div>
-                                <div class="pending-item">
-                                    <div class="user-avatar small">LG</div>
-                                    <div class="pending-info">
-                                        <p class="pending-name">Liza Gutierrez</p>
-                                        <p class="pending-role">Veterinarian • Applied Apr 29</p>
-                                    </div>
-                                    <div class="pending-actions">
-                                        <button class="btn-approve">✓</button>
-                                        <button class="btn-reject">✕</button>
-                                    </div>
-                                </div>
-                                <div class="pending-item">
-                                    <div class="user-avatar small admin-av">BM</div>
-                                    <div class="pending-info">
-                                        <p class="pending-name">Ben Morales</p>
-                                        <p class="pending-role">Administrator • Applied Apr 28</p>
-                                    </div>
-                                    <div class="pending-actions">
-                                        <button class="btn-approve">✓</button>
-                                        <button class="btn-reject">✕</button>
-                                    </div>
-                                </div>
+                            <div class="pending-list" id="pending-list">
+                                <p class="am-loading-cell">Loading pending approvals…</p>
                             </div>
-                            <button class="btn btn-view-all-pending">View All 6 Pending</button>
+                            <button class="btn btn-view-all-pending">View All Pending</button>
                         </div>
 
                         <!-- Clinic Snapshot -->
                         <div class="card snapshot-card">
                             <h3 class="card-title" style="margin-bottom:4px;">Clinic Snapshot</h3>
-                            <p class="card-subtitle" style="margin-bottom:16px;">Key operational numbers today</p>
+                            <p class="card-subtitle" style="margin-bottom:16px;">Key operational numbers</p>
                             <div class="snapshot-grid">
                                 <div class="snapshot-item">
                                     <p class="snapshot-label">Appointments Today</p>
-                                    <h4 class="snapshot-val">24</h4>
-                                    <p class="snapshot-trend up">↑ 12% vs yesterday</p>
+                                    <h4 class="snapshot-val" id="snap-appointments-today">--</h4>
+                                    <p class="snapshot-trend neutral">Scheduled for today</p>
                                 </div>
                                 <div class="snapshot-item">
                                     <p class="snapshot-label">Active Lost Reports</p>
-                                    <h4 class="snapshot-val">08</h4>
-                                    <p class="snapshot-trend neutral">San Jose District</p>
+                                    <h4 class="snapshot-val" id="snap-lost-reports">--</h4>
+                                    <p class="snapshot-trend neutral">Awaiting resolution</p>
                                 </div>
                                 <div class="snapshot-item">
                                     <p class="snapshot-label">Chatbot Queries</p>
-                                    <h4 class="snapshot-val">183</h4>
-                                    <p class="snapshot-trend neutral">Last 24 hours</p>
+                                    <h4 class="snapshot-val" id="snap-chatbot-queries">--</h4>
+                                    <p class="snapshot-trend neutral">Total logged queries</p>
                                 </div>
                                 <div class="snapshot-item">
                                     <p class="snapshot-label">Pending Actions</p>
-                                    <h4 class="snapshot-val">42</h4>
-                                    <p class="snapshot-trend down">↑ Urgent</p>
+                                    <h4 class="snapshot-val" id="snap-pending-actions">--</h4>
+                                    <p class="snapshot-trend neutral">Appointments needing action</p>
                                 </div>
                             </div>
                         </div>
@@ -394,42 +270,8 @@
                         <div class="card activity-card">
                             <h3 class="card-title" style="margin-bottom:4px;">Recent Activity</h3>
                             <p class="card-subtitle" style="margin-bottom:16px;">System-wide account events</p>
-                            <div class="activity-feed">
-                                <div class="activity-item">
-                                    <div class="activity-dot green"></div>
-                                    <div class="activity-body">
-                                        <p class="activity-text"><strong>Dr. Santos</strong> logged in successfully.</p>
-                                        <span class="activity-time">2 mins ago</span>
-                                    </div>
-                                </div>
-                                <div class="activity-item">
-                                    <div class="activity-dot blue"></div>
-                                    <div class="activity-body">
-                                        <p class="activity-text"><strong>Admin Ana</strong> created a new announcement.</p>
-                                        <span class="activity-time">18 mins ago</span>
-                                    </div>
-                                </div>
-                                <div class="activity-item">
-                                    <div class="activity-dot red"></div>
-                                    <div class="activity-body">
-                                        <p class="activity-text"><strong>Mark Villanueva</strong>'s account was deactivated.</p>
-                                        <span class="activity-time">1 hour ago</span>
-                                    </div>
-                                </div>
-                                <div class="activity-item">
-                                    <div class="activity-dot green"></div>
-                                    <div class="activity-body">
-                                        <p class="activity-text"><strong>Carla Ocampo</strong> registered as a new vet account.</p>
-                                        <span class="activity-time">3 hours ago</span>
-                                    </div>
-                                </div>
-                                <div class="activity-item">
-                                    <div class="activity-dot blue"></div>
-                                    <div class="activity-body">
-                                        <p class="activity-text"><strong>System</strong> flagged 3 pending account approvals.</p>
-                                        <span class="activity-time">5 hours ago</span>
-                                    </div>
-                                </div>
+                            <div class="activity-feed" id="activity-feed">
+                                <p class="am-loading-cell">Loading recent activity…</p>
                             </div>
                         </div>
 
@@ -474,9 +316,6 @@
                         <label class="dash-label" for="add-acc-role">Role</label>
                         <select class="dash-input" id="add-acc-role">
                             <option value="">Select role…</option>
-                            <option value="vet">Veterinarian</option>
-                            <option value="owner">Pet Owner</option>
-                            <option value="admin">Administrator</option>
                         </select>
                     </div>
                     <div class="dash-form-group">
@@ -506,6 +345,31 @@
                         </select>
                     </div>
                 </div>
+
+                <!-- Veterinarian-only fields — backend requires these
+                     when the selected role is "veterinarian". -->
+                <div id="add-acc-vet-fields" hidden>
+                    <div class="dash-form-row">
+                        <div class="dash-form-group">
+                            <label class="dash-label" for="add-acc-license">License Number</label>
+                            <input class="dash-input" type="text" id="add-acc-license" placeholder="PRC license number">
+                        </div>
+                        <div class="dash-form-group">
+                            <label class="dash-label" for="add-acc-specialization">Specialization</label>
+                            <input class="dash-input" type="text" id="add-acc-specialization" placeholder="e.g. Small Animal Medicine">
+                        </div>
+                    </div>
+                    <div class="dash-form-row">
+                        <div class="dash-form-group">
+                            <label class="dash-label" for="add-acc-education">Education</label>
+                            <input class="dash-input" type="text" id="add-acc-education" placeholder="e.g. DVM, University of the Philippines">
+                        </div>
+                        <div class="dash-form-group">
+                            <label class="dash-label" for="add-acc-clinic">Clinic Location</label>
+                            <input class="dash-input" type="text" id="add-acc-clinic" placeholder="Assigned clinic / branch">
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="dash-modal-foot">
@@ -523,6 +387,7 @@
     <script src="../../shared/js/auth.js"></script>
     <script>VBetterAuth.requireAuth(['admin']);</script>
     <script src="../../shared/js/sidebar.js"></script>
+    <script src="../../public/js/api.js"></script>
     <script src="../js/index.js"></script>
 </body>
 </html>
