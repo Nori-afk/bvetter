@@ -143,7 +143,7 @@ function normalizeReport(report) {
 		title: report.title || report.petName || (String(report.type).toLowerCase() === 'found' ? 'Found Pet Report' : 'Lost Pet Report'),
 		petName: report.petName || report.title || 'Unknown',
 		source: report.source || 'Owner',
-		image: report.image,
+		image: report.image || FALLBACK_IMAGE,
 		uploadedBy: report.uploadedBy || report.uploader || 'Unknown',
 		uploader: report.uploader || report.uploadedBy || 'Unknown',
 		contact: report.contact || '',
@@ -379,17 +379,20 @@ function renderActive(root) {
 	}));
 	root.innerHTML = list.length ? `<div class="active-grid">${list.map((item) => `
 		<article class="active-card" data-action="view-active" data-id="${item.id}">
-			<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}">
-			<div class="active-overlay">
+			<div class="active-card-media">
+				<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}">
+				<span class="tag-chip ${(item.type || 'lost').toLowerCase()}">${escapeHtml((item.type || 'Lost').toUpperCase())}</span>
+			</div>
+			<div class="active-card-body">
 				<h4>${escapeHtml(item.title)}</h4>
-				<small>${escapeHtml(item.barangay)} - ${escapeHtml(item.date || '')}</small>
+				<small>${escapeHtml(item.barangay)} &middot; ${escapeHtml(item.date || '')}</small>
 				<div class="mini-row">
 					<span class="mini-chip">${escapeHtml(item.breed || '')}</span>
 					<span class="mini-chip">${escapeHtml(item.sex || '')}</span>
 					<span class="mini-chip">${escapeHtml(item.size || '')}</span>
 				</div>
 				<div class="foot">
-					<div class="uploader-info"><p>Uploaded By:</p><h4>${escapeHtml(item.source)}</h4></div>
+					<div class="uploader-info"><span class="uploader-label">Uploaded by</span><strong>${escapeHtml(item.source)}</strong></div>
 					<button type="button" class="btn btn-success resolve-btn" data-action="resolve-active" data-id="${item.id}">Resolve</button>
 				</div>
 			</div>
@@ -398,28 +401,51 @@ function renderActive(root) {
 	bindRootActions(root);
 }
 
+function confidenceGauge(confidence) {
+	const pct = Math.max(0, Math.min(100, Number(confidence) || 0));
+	const tone = pct >= 75 ? '#199f44' : pct >= 50 ? '#a07a13' : '#c52c2c';
+	return `
+		<div class="score-gauge" style="--gauge-pct:${pct}; --gauge-tone:${tone};">
+			<span class="score-gauge-value">${pct}%</span>
+		</div>
+	`;
+}
+
 function renderPotential(root) {
 	const selectedMatch = lfData.potentialMatches.find((item) => String(item.id) === String(lfState.selectedMatchId)) || lfData.potentialMatches[0];
 	root.innerHTML = lfData.potentialMatches.length ? `
 		<div class="potential-layout">
 			<div class="potential-main">
-				<div class="suggested-banner">Suggested matches are generated from pet details, image metadata, and location similarity.</div>
+				<div class="suggested-banner">
+					<span class="suggested-banner-icon">&#9432;</span>
+					Suggested matches are generated from pet details, image metadata, and location similarity.
+				</div>
 				${lfData.potentialMatches.map((match) => `
-					<article class="match-card" data-action="select-match" data-id="${match.id}">
+					<article class="match-card ${selectedMatch && String(match.id) === String(selectedMatch.id) ? 'is-selected' : ''}" data-action="select-match" data-id="${match.id}">
 						<div class="match-pair">
-							<div class="match-side"><img src="${escapeHtml(match.lost.image || FALLBACK_IMAGE)}" alt=""><h4>${escapeHtml(match.lost.name)}</h4><small>${escapeHtml(match.lost.breed || '')}</small><small>Reported: ${escapeHtml(formatDate(match.lost.createdAt))}</small></div>
-							<div class="score-pill">${match.confidence}%</div>
-							<div class="match-side"><img src="${escapeHtml(match.found.image || FALLBACK_IMAGE)}" alt=""><h4>${escapeHtml(match.found.name)}</h4><small>${escapeHtml(match.found.breed || '')}</small><small>Reported: ${escapeHtml(formatDate(match.found.createdAt))}</small></div>
+							<div class="match-side"><img src="${escapeHtml(match.lost.image || FALLBACK_IMAGE)}" alt=""><h4>${escapeHtml(match.lost.name)}</h4><small>${escapeHtml(match.lost.breed || '')}</small></div>
+							${confidenceGauge(match.confidence)}
+							<div class="match-side"><img src="${escapeHtml(match.found.image || FALLBACK_IMAGE)}" alt=""><h4>${escapeHtml(match.found.name)}</h4><small>${escapeHtml(match.found.breed || '')}</small></div>
 						</div>
 						<div class="reason-row">${(match.reasons || []).map((reason) => `<span class="reason-chip">${escapeHtml(reason)}</span>`).join('')}</div>
-						<button type="button" class="btn btn-success" data-action="approve-match" data-id="${match.id}">Approve Match</button>
-						<button type="button" class="btn btn-danger" data-action="dismiss-match" data-id="${match.id}">Dismiss</button>
+						<div class="match-actions">
+							<button type="button" class="btn btn-danger" data-action="dismiss-match" data-id="${match.id}">Dismiss</button>
+							<button type="button" class="btn btn-success" data-action="approve-match" data-id="${match.id}">Approve Match</button>
+						</div>
 					</article>
 				`).join('')}
 			</div>
 			<aside class="approval-card">
 				<h3>Approve The Match</h3>
-				${selectedMatch ? `<p>Approving marks the matching case as resolved.</p><div class="summary-box"><strong>Lost:</strong> ${escapeHtml(selectedMatch.lost.name)}<br><strong>Found:</strong> ${escapeHtml(selectedMatch.found.name)}</div><button type="button" class="btn btn-primary" data-action="approve-match" data-id="${selectedMatch.id}">Approve Match</button>` : '<p>No suggested match selected.</p>'}
+				${selectedMatch ? `
+					<p>Approving marks the matching case as resolved and notifies both submitters.</p>
+					<div class="summary-box">
+						<div class="summary-row"><span class="summary-label">Lost</span><span class="summary-value">${escapeHtml(selectedMatch.lost.name)}</span></div>
+						<div class="summary-row"><span class="summary-label">Found</span><span class="summary-value">${escapeHtml(selectedMatch.found.name)}</span></div>
+						<div class="summary-row"><span class="summary-label">Confidence</span><span class="summary-value">${escapeHtml(String(selectedMatch.confidence))}%</span></div>
+					</div>
+					<button type="button" class="btn btn-primary approval-card-btn" data-action="approve-match" data-id="${selectedMatch.id}">Approve Match</button>
+				` : '<p>No suggested match selected.</p>'}
 			</aside>
 		</div>
 	` : empty('No potential matches yet.');
@@ -511,6 +537,34 @@ function renderSightings(root) {
 
 // ─── BUG FIX: Route view actions to the correct dedicated modal builder
 //             and pass the mode to buildDetailModal for context-aware buttons.
+// Every mutating action on this page confirms before it fires. One config entry
+// per action drives both the root-level buttons and the buttons inside modals
+// (wireModalActionButtons below) so the copy and behavior can't drift apart.
+const CONFIRM_ACTIONS = {
+	'approve-pending': { tone: 'success', title: 'Approve this report?', message: 'The report will go public and become visible to pet owners.', confirmLabel: 'Approve', request: 'approve_report', idKey: 'report_id' },
+	'reject-pending': { tone: 'danger', title: 'Reject this report?', message: 'The submitter will be notified that their report was not approved.', confirmLabel: 'Reject', request: 'reject_report', idKey: 'report_id' },
+	'resolve-active': { tone: 'success', title: 'Mark this case as resolved?', message: 'The report will be moved to Resolved Cases and removed from the active list.', confirmLabel: 'Resolve', request: 'resolve_report', idKey: 'report_id' },
+	'approve-match': { tone: 'success', title: 'Approve this match?', message: 'This will mark both the lost and found reports as resolved and notify the submitters.', confirmLabel: 'Approve Match', request: 'approve_match', idKey: 'match_id' },
+	'dismiss-match': { tone: 'danger', title: 'Dismiss this match?', message: 'This suggested match will be removed. This cannot be undone.', confirmLabel: 'Dismiss Match', request: 'dismiss_match', idKey: 'match_id' },
+	'approve-claim': { tone: 'success', title: 'Approve this claim?', message: 'The claimant will be notified that their claim was approved.', confirmLabel: 'Approve', request: 'approve_claim', idKey: 'claim_id' },
+	'reject-claim': { tone: 'danger', title: 'Reject this claim?', message: 'The claimant will be notified that their claim was not approved.', confirmLabel: 'Reject', request: 'reject_claim', idKey: 'claim_id' },
+	'approve-sighting': { tone: 'success', title: 'Approve this sighting?', message: 'The sighting will be published and made visible to pet owners.', confirmLabel: 'Approve', request: 'approve_sighting', idKey: 'sighting_id' },
+	'reject-sighting': { tone: 'danger', title: 'Reject this sighting?', message: 'The sighting will be rejected and removed from the queue.', confirmLabel: 'Reject', request: 'reject_sighting', idKey: 'sighting_id' }
+};
+
+function runConfirmableAction(action, id) {
+	const config = CONFIRM_ACTIONS[action];
+	if (!config) return false;
+	openConfirmDialog({
+		tone: config.tone,
+		title: config.title,
+		message: config.message,
+		confirmLabel: config.confirmLabel,
+		onConfirm: () => lfRequest(config.request, { [config.idKey]: id })
+	});
+	return true;
+}
+
 function bindRootActions(root) {
 	root.querySelectorAll('[data-action]').forEach((button) => {
 		button.addEventListener('click', async (event) => {
@@ -531,16 +585,7 @@ function bindRootActions(root) {
 					lfState.selectedMatchId = id;
 					return renderContent();
 				}
-				if (action === 'approve-pending') await lfRequest('approve_report', { report_id: id });
-				if (action === 'reject-pending') await lfRequest('reject_report', { report_id: id });
-				if (action === 'resolve-active') await lfRequest('resolve_report', { report_id: id });
-				if (action === 'approve-match') await lfRequest('approve_match', { match_id: id });
-				if (action === 'dismiss-match') await lfRequest('dismiss_match', { match_id: id });
-				if (action === 'approve-claim') await lfRequest('approve_claim', { claim_id: id });
-				if (action === 'reject-claim') await lfRequest('reject_claim', { claim_id: id });
-				if (action === 'approve-sighting') await lfRequest('approve_sighting', { sighting_id: id });
-				if (action === 'reject-sighting') await lfRequest('reject_sighting', { sighting_id: id });
-				await loadAllData();
+				runConfirmableAction(action, id);
 			} catch (error) {
 				alert(error.message);
 			}
@@ -554,6 +599,34 @@ function findRecord(action, id) {
 	if (action.includes('claim')) return lfData.claims.find((item) => item.id === id);
 	if (action.includes('sighting')) return lfData.sightings.find((item) => item.id === id);
 	return null;
+}
+
+function openConfirmDialog({ tone = 'success', title, message, confirmLabel, cancelLabel = 'Cancel', onConfirm }) {
+	document.getElementById('lfModalBody').innerHTML = `
+		<div class="confirm-dialog">
+			<div class="confirm-icon confirm-icon--${tone}">${tone === 'danger' ? '&#33;' : '&#10003;'}</div>
+			<h3 class="confirm-title">${escapeHtml(title)}</h3>
+			<p class="confirm-message">${escapeHtml(message)}</p>
+			<div class="confirm-actions">
+				<button type="button" class="btn btn-secondary" id="lfConfirmCancel">${escapeHtml(cancelLabel)}</button>
+				<button type="button" class="btn ${tone === 'danger' ? 'btn-danger-solid' : 'btn-success'}" id="lfConfirmOk">${escapeHtml(confirmLabel)}</button>
+			</div>
+		</div>
+	`;
+	document.getElementById('lfModalOverlay').hidden = false;
+	document.getElementById('lfConfirmCancel').addEventListener('click', closeModal);
+	document.getElementById('lfConfirmOk').addEventListener('click', async () => {
+		const okButton = document.getElementById('lfConfirmOk');
+		okButton.disabled = true;
+		try {
+			await onConfirm();
+			closeModal();
+			await loadAllData(true);
+		} catch (error) {
+			okButton.disabled = false;
+			alert(error.message);
+		}
+	});
 }
 
 function openModal(content) {
@@ -575,24 +648,10 @@ function openModal(content) {
 //             (e.g. Approve / Reject / Resolve in the detail/claim/sighting modals).
 function wireModalActionButtons() {
 	document.querySelectorAll('#lfModalBody [data-action]').forEach((button) => {
-		button.addEventListener('click', async (event) => {
+		button.addEventListener('click', (event) => {
 			event.preventDefault();
 			event.stopPropagation();
-			const action = button.dataset.action;
-			const id = button.dataset.id;
-			try {
-				if (action === 'approve-pending') await lfRequest('approve_report', { report_id: id });
-				if (action === 'reject-pending')  await lfRequest('reject_report',  { report_id: id });
-				if (action === 'resolve-active')  await lfRequest('resolve_report', { report_id: id });
-				if (action === 'approve-claim')   await lfRequest('approve_claim',  { claim_id: id });
-				if (action === 'reject-claim')    await lfRequest('reject_claim',   { claim_id: id });
-				if (action === 'approve-sighting') await lfRequest('approve_sighting', { sighting_id: id });
-				if (action === 'reject-sighting') await lfRequest('reject_sighting',  { sighting_id: id });
-				closeModal();
-				await loadAllData(true);
-			} catch (error) {
-				alert(error.message);
-			}
+			runConfirmableAction(button.dataset.action, button.dataset.id);
 		});
 	});
 }
@@ -617,28 +676,34 @@ function buildDetailModal(report, mode = 'view') {
 		)
 		: [];
 
+	// Reuses the same match-card / confidence-gauge component as the Potential
+	// Matches tab (renderPotential) instead of one-off markup, so styling stays consistent.
 	const matchesSection = matches.length
 		? `
-			<span class="section-title">04. Potential Matches</span>
-			<div class="modal-matches">
-				${matches.map((m) => `
-					<div class="modal-match-item">
-						<div class="match-pair">
-							<div class="match-side">
-								<img src="${escapeHtml(m.lost.image || FALLBACK_IMAGE)}" alt="">
-								<small>${escapeHtml(m.lost.name || 'Lost Pet')}</small>
+			<div class="details-section">
+				<h4 class="details-section-title green">Potential Matches</h4>
+				<div class="potential-main">
+					${matches.map((m) => `
+						<article class="match-card static">
+							<div class="match-pair">
+								<div class="match-side">
+									<img src="${escapeHtml(m.lost.image || FALLBACK_IMAGE)}" alt="">
+									<h4>${escapeHtml(m.lost.name || 'Lost Pet')}</h4>
+									<small>${escapeHtml(m.lost.breed || '')}</small>
+								</div>
+								${confidenceGauge(m.confidence)}
+								<div class="match-side">
+									<img src="${escapeHtml(m.found.image || FALLBACK_IMAGE)}" alt="">
+									<h4>${escapeHtml(m.found.name || 'Found Pet')}</h4>
+									<small>${escapeHtml(m.found.breed || '')}</small>
+								</div>
 							</div>
-							<div class="score-pill">${m.confidence}%</div>
-							<div class="match-side">
-								<img src="${escapeHtml(m.found.image || FALLBACK_IMAGE)}" alt="">
-								<small>${escapeHtml(m.found.name || 'Found Pet')}</small>
+							<div class="reason-row">
+								${(m.reasons || []).map((r) => `<span class="reason-chip">${escapeHtml(r)}</span>`).join('')}
 							</div>
-						</div>
-						<div class="reason-row">
-							${(m.reasons || []).map((r) => `<span class="reason-chip">${escapeHtml(r)}</span>`).join('')}
-						</div>
-					</div>
-				`).join('')}
+						</article>
+					`).join('')}
+				</div>
 			</div>
 		`
 		: (mode === 'active'
@@ -646,72 +711,82 @@ function buildDetailModal(report, mode = 'view') {
 			: '');
 
 	// Context-aware footer buttons per mode
-	let footerButtons = `<button type="button" class="btn btn-secondary" data-modal-action="close">Close</button>`;
+	let footerButtons = `<button type="button" class="btn-details-close" data-modal-action="close">Close</button>`;
 	if (mode === 'pending') {
 		footerButtons += `
-			<button type="button" class="btn btn-danger"  data-action="reject-pending"  data-id="${report.id}">Reject</button>
-			<button type="button" class="btn btn-success" data-action="approve-pending" data-id="${report.id}">Approve</button>
+			<button type="button" class="btn-details-danger"  data-action="reject-pending"  data-id="${report.id}">Reject</button>
+			<button type="button" class="btn-details-success" data-action="approve-pending" data-id="${report.id}">Approve</button>
 		`;
 	} else if (mode === 'active') {
 		footerButtons += `
-			<button type="button" class="btn btn-success" data-action="resolve-active" data-id="${report.id}">Resolve</button>
+			<button type="button" class="btn-details-success" data-action="resolve-active" data-id="${report.id}">Resolve</button>
 		`;
 	}
 
+	const isLost = String(report.type).toLowerCase() === 'lost';
+	const locationLabel = isLost ? 'Last Seen Location' : 'Found Location';
+	const dateValue = escapeHtml(report.dateLost || report.date || '');
+	const timeValue = escapeHtml(report.timeLost || report.time || '');
+
 	return `
-    <div class="modal-layout">
-        <aside class="modal-media">
-            <img src="${escapeHtml(report.image)}" alt="${escapeHtml(report.petName || report.title)}">
-            <div id="mapDetail${escapeHtml(report.id)}" class="map-api"
-                data-map-lat="${mapLat(report)}"
-                data-map-lng="${mapLng(report)}"
-                data-map-zoom="14">
+    <div class="details-modal-box">
+        <div class="details-img-side">
+            <img src="${escapeHtml(report.image)}" alt="${escapeHtml(report.petName || report.title)}" class="details-pet-img">
+            <div class="details-status-badge ${isLost ? 'lost' : 'found'}">${escapeHtml(report.type || 'Lost')}</div>
+        </div>
+
+        <div class="details-info-side">
+            <div class="details-info-header">
+                <div>
+                    <h2 id="lfModalTitle" class="details-pet-name">${escapeHtml(report.petName || report.title || 'Unknown')}</h2>
+                    <span class="details-case-id">Case ID: ${escapeHtml(report.caseId || '')}</span>
+                </div>
             </div>
-        </aside>
 
-        <!-- Outer wrapper: flex column so footer is always pinned at bottom -->
-        <div style="display:flex; flex-direction:column; flex:1; min-height:0;">
+            <div class="details-tags">
+                <div class="details-tag"><span class="tag-label">Breed</span><span class="tag-value">${escapeHtml(report.breed || report.petName || 'Unknown')}</span></div>
+                <div class="details-tag"><span class="tag-label">Age</span><span class="tag-value">${escapeHtml(report.age || 'Unknown')}</span></div>
+                <div class="details-tag"><span class="tag-label">Size</span><span class="tag-value">${escapeHtml(report.size || 'Unknown')}</span></div>
+                <div class="details-tag"><span class="tag-label">Sex</span><span class="tag-value">${escapeHtml(report.sex || 'Unknown')}</span></div>
+            </div>
 
-            <!-- Scrollable only when active -->
-            <section class="modal-content" style="flex:1; overflow-y:${mode === 'active' ? 'auto' : 'hidden'}; min-height:0;">
-                <header class="modal-head">
-                    <h2 id="lfModalTitle">${escapeHtml(report.type || 'Lost and Found')} Report</h2>
-                    <p>Case ID: ${escapeHtml(report.caseId || '')}</p>
-                </header>
+            <div class="details-section">
+                <h4 class="details-section-title">Unique Markings</h4>
+                <p class="details-section-text">${escapeHtml(report.markings || 'N/A')}</p>
+            </div>
 
-                <span class="section-title">01. Pet Details</span>
-                <div class="modal-grid">
-                    <div class="field"><label>Pet Name</label><p>${escapeHtml(report.petName || report.title || 'Unknown')}</p></div>
-                    <div class="field"><label>Species / Breed</label><p>${escapeHtml(report.breed || report.petName || '')}</p></div>
-                    <div class="field"><label>Size</label><p>${escapeHtml(report.size || '')}</p></div>
-                    <div class="field"><label>Sex</label><p>${escapeHtml(report.sex || '')}</p></div>
-                    <div class="field"><label>Color / Markings</label><p>${escapeHtml(report.markings || '')}</p></div>
-                    <div class="field"><label>Notes</label><p>${escapeHtml(report.notes || report.title || '')}</p></div>
+            <div class="details-section">
+                <h4 class="details-section-title green">${locationLabel}</h4>
+                <div id="mapDetail${escapeHtml(report.id)}" class="map-api details-map-api"
+                    data-map-lat="${mapLat(report)}"
+                    data-map-lng="${mapLng(report)}"
+                    data-map-zoom="14">
                 </div>
-
-                <span class="section-title">02. Location & Date</span>
-                <div class="modal-grid">
-                    <div class="field"><label>Date</label><p>${escapeHtml(report.dateLost || report.date || '')}</p></div>
-                    <div class="field"><label>Time</label><p>${escapeHtml(report.timeLost || report.time || '')}</p></div>
+                <div class="details-location-info">
+                    <img src="/bvetter/public/images/icons/icon-location.svg" alt="" class="details-loc-icon">
+                    <div>
+                        <span class="details-date">${dateValue}${timeValue ? ` &middot; ${timeValue}` : ''}</span>
+                        <span class="details-location-text">${escapeHtml(report.barangay || '')}, Baliwag</span>
+                    </div>
                 </div>
+            </div>
 
-                <span class="section-title">03. Uploader Information</span>
+            <div class="details-section">
+                <h4 class="details-section-title">Reporter Information</h4>
                 <div class="uploader">
                     <div class="profile-initial">${getInitials(report.uploader || report.title || 'Unknown')}</div>
                     <div>
                         <strong>${escapeHtml(report.uploader || report.title || 'Unknown')}</strong><br>
-                        <small>${escapeHtml(report.contact || '')}</small>
+                        <small>${escapeHtml(report.contact || 'No contact provided')} &middot; ${escapeHtml(report.source || 'Owner')}</small>
                     </div>
                 </div>
+            </div>
 
-                ${matchesSection}
-            </section>
+            ${matchesSection}
 
-            <!-- Footer is OUTSIDE the scroll area — always visible -->
-            <footer class="modal-footer" style="flex-shrink:0; border-top:1px solid #e5e7eb; padding:12px 16px;">
+            <div class="details-footer">
                 ${footerButtons}
-            </footer>
-
+            </div>
         </div>
     </div>
 `;
@@ -749,8 +824,10 @@ function buildClaimModal(claim) {
 
 				<footer class="modal-footer">
 					<button type="button" class="btn btn-secondary" data-modal-action="close">Close</button>
-					<button  type="button"class="btn btn-danger"  data-action="reject-claim"  data-id="${claim.id}">Reject</button>
-					<button  type="button" class="btn btn-success" data-action="approve-claim" data-id="${claim.id}">Approve</button>
+					<div class="modal-footer-actions">
+						<button type="button" class="btn btn-danger"  data-action="reject-claim"  data-id="${claim.id}">Reject</button>
+						<button type="button" class="btn btn-success" data-action="approve-claim" data-id="${claim.id}">Approve</button>
+					</div>
 				</footer>
 			</section>
 		</div>
@@ -798,7 +875,7 @@ function buildSightingModal(sighting) {
 
 				<footer class="modal-footer">
 				<button type="button" class="btn btn-secondary" data-modal-action="close">Close</button>
-				<div class="action-group">
+				<div class="modal-footer-actions">
 				<button type="button" class="btn btn-danger"  data-action="reject-sighting"  data-id="${sighting.id}">Reject</button>
 				<button type="button" class="btn btn-success" data-action="approve-sighting" data-id="${sighting.id}">Approve</button>
 				</div>
@@ -881,6 +958,7 @@ function buildUploadModal() {
 							<label>Type</label>
 							<div class="select-wrap">
 								<select name="species" class="form-select">${speciesOpts}</select>
+								<img src="/bvetter/public/images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img">
 							</div>
 						</div>
 						<div class="form-group">
@@ -906,6 +984,7 @@ function buildUploadModal() {
 									<option>Medium (10-25kg)</option>
 									<option>Large (25kg+)</option>
 								</select>
+								<img src="/bvetter/public/images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img">
 							</div>
 						</div>
 					</div>
@@ -930,6 +1009,7 @@ function buildUploadModal() {
 							<label>Barangay Last Seen</label>
 							<div class="select-wrap">
 								<select name="barangay" id="uploadBarangay" class="form-select">${barangayOpts}</select>
+								<img src="/bvetter/public/images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img">
 							</div>
 						</div>
 					</div>
@@ -960,8 +1040,8 @@ function buildUploadModal() {
 				<div class="vlf-footer-right">
 					<button type="button" class="vlf-cancel" data-modal-action="close">Cancel</button>
 					<button type="submit" class="vlf-submit" id="submitReportBtn">
-						<span>Submit Lost Pet Report</span>
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+						<span id="submitReportBtnText">Submit Lost Pet Report</span>
+						<img src="/bvetter/public/images/icons/report-submit.svg" alt="" class="btn-icon-img">
 					</button>
 				</div>
 			</footer>
@@ -991,8 +1071,8 @@ function wireUploadFormIfPresent() {
 		const title = document.getElementById('lfModalTitle');
 		if (title) title.textContent = `Report ${isLost ? 'Lost' : 'Found'} Pet`;
 
-		const submitBtn = document.getElementById('submitReportBtn');
-		if (submitBtn) submitBtn.textContent = `Submit ${isLost ? 'Lost' : 'Found'} Pet Report`;
+		const submitBtnText = document.getElementById('submitReportBtnText');
+		if (submitBtnText) submitBtnText.textContent = `Submit ${isLost ? 'Lost' : 'Found'} Pet Report`;
 
 		const dateLabel = document.getElementById('dateLostLabel');
 		if (dateLabel) dateLabel.textContent = isLost ? 'Date Lost' : 'Date Found';

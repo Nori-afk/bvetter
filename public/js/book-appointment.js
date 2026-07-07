@@ -445,7 +445,6 @@ async function submitReview(appointmentId, rating, comment) {
     const json = await res.json();
 
     if (json.success) {
-      alert('Review submitted successfully!');
       loadAppointmentHistory(); // refresh history
     } else {
       alert(json.message || 'Failed to submit review.');
@@ -480,21 +479,61 @@ async function replaceContent(){
     alert('Failed to submit review.');
   }
 }
+
+const ratingModalState = { appointmentId: null, value: 0 };
+
 function openReviewForm(appointmentId, currentRating = '', currentComment = '') {
-  const rating = prompt('Rate this appointment (1 to 5):', currentRating);
-  if (!rating) return;
+  ratingModalState.appointmentId = appointmentId;
+  setRatingValue(parseInt(currentRating) || 0);
+  document.getElementById('ratingComment').value = currentComment || '';
+  document.getElementById('ratingError').hidden = true;
+  document.getElementById('ratingModal').classList.add('open');
+}
 
-  const numRating = parseInt(rating);
+function closeRatingModal() {
+  document.getElementById('ratingModal').classList.remove('open');
+  ratingModalState.appointmentId = null;
+}
 
-  if (numRating < 1 || numRating > 5) {
-    alert('Rating must be between 1 and 5.');
+function setRatingValue(value) {
+  ratingModalState.value = value;
+  const stars = document.querySelectorAll('#ratingStars .rating-star');
+  stars.forEach((star) => {
+    star.classList.toggle('active', parseInt(star.dataset.value) <= value);
+  });
+  const hint = document.getElementById('ratingHint');
+  const labels = ['Tap a star to rate', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+  hint.textContent = labels[value] || labels[0];
+  if (value > 0) document.getElementById('ratingError').hidden = true;
+}
+
+function initRatingStars() {
+  const stars = document.querySelectorAll('#ratingStars .rating-star');
+  stars.forEach((star) => {
+    star.addEventListener('click', () => setRatingValue(parseInt(star.dataset.value)));
+    star.addEventListener('mouseenter', () => previewRatingValue(parseInt(star.dataset.value)));
+  });
+  document.getElementById('ratingStars')?.addEventListener('mouseleave', () => setRatingValue(ratingModalState.value));
+}
+
+function previewRatingValue(value) {
+  const stars = document.querySelectorAll('#ratingStars .rating-star');
+  stars.forEach((star) => {
+    star.classList.toggle('active', parseInt(star.dataset.value) <= value);
+  });
+}
+
+function submitRatingModal() {
+  if (!ratingModalState.value) {
+    document.getElementById('ratingError').hidden = false;
     return;
   }
+  const comment = document.getElementById('ratingComment').value.trim();
+  submitReview(ratingModalState.appointmentId, ratingModalState.value, comment);
+  closeRatingModal();
+}
 
-  const comment = prompt('Leave a comment:', currentComment || '');
-
-  submitReview(appointmentId, numRating, comment);
-}async function loadAppointmentHistory() {
+initRatingStars();async function loadAppointmentHistory() {
   try {
     const session = JSON.parse(
       sessionStorage.getItem('vbetter_session') ||

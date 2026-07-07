@@ -1243,11 +1243,11 @@ body {
 .modal-footer-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .btn-cancel {
-  padding: 9px 20px;
+  padding: 10px 22px;
   background: #ffffff;
   border: 1.5px solid var(--border-default);
   border-radius: 8px;
@@ -1266,7 +1266,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 20px;
+  padding: 10px 22px;
   background: var(--color-navy);
   border: none;
   border-radius: 8px;
@@ -1376,10 +1376,10 @@ body {
 }
 
 .details-tags {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   gap: 8px;
   margin-bottom: 20px;
-  flex-wrap: wrap;
 }
 
 .details-tag {
@@ -1390,7 +1390,7 @@ body {
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: var(--bg-input);
-  min-width: 68px;
+  min-width: 0;
 }
 
 .tag-label {
@@ -1405,6 +1405,7 @@ body {
   font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
+  overflow-wrap: break-word;
 }
 
 .details-section {
@@ -1793,6 +1794,9 @@ body {
 
 .claim-body {
   padding: 20px 28px 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .proof-grid {
@@ -1840,10 +1844,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px 20px;
+  padding: 18px 24px 22px;
   border-top: 1px solid var(--border-default);
-  gap: 12px;
+  gap: 16px;
   margin-top: 16px;
+  flex-shrink: 0;
 }
 
 /* =============================================
@@ -2666,10 +2671,11 @@ body {
 /* ── Match cards (reused from lost-found-detail styles) ── */
 .lf-match-card {
   border-radius: 16px;
-  padding:       18px 20px;
+  padding:       20px 22px;
   display:       flex;
   flex-direction: column;
-  gap:           14px;
+  gap:           16px;
+  box-shadow:    var(--shadow-card);
   transition:    box-shadow 0.2s, opacity 0.35s ease, transform 0.35s ease;
 }
 .lf-match-photos img{
@@ -2755,10 +2761,11 @@ body {
   display:     flex;
   align-items: center;
   gap:         10px;
-  padding:     10px 12px;
+  padding:     12px 14px;
   background:  #ffffff;
   border-radius: 10px;
   border:      1.5px solid var(--border-default);
+  box-shadow:  0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .lf-match-pet-card.owner { border-color: #c8eec8; }
@@ -2847,7 +2854,7 @@ body {
 }
 
 .lfd-btn-notmine {
-  padding:       11px;
+  padding:       12px;
   background:    #ffffff;
   border:        1.5px solid var(--border-default);
   border-radius: 8px;
@@ -2863,11 +2870,12 @@ body {
 .lfd-btn-notmine:hover {
   border-color: var(--color-red);
   color:        var(--color-red);
+  transform:    translateY(-1px);
 }
 
 .lfd-btn-claim {
-  padding:       11px;
-  background:    var(--color-green-dark);
+  padding:       12px;
+  background:    var(--color-green-mid);
   border:        none;
   border-radius: 8px;
   font-size:     11px;
@@ -2876,10 +2884,15 @@ body {
   color:         #ffffff;
   cursor:        pointer;
   letter-spacing: 0.5px;
-  transition:    background 0.2s;
+  box-shadow:    0 2px 6px rgba(15, 168, 46, 0.28);
+  transition:    background 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
-.lfd-btn-claim:hover { background: #003d0c; }
+.lfd-btn-claim:hover {
+  background:  #0C8A26;
+  box-shadow:  0 4px 12px rgba(15, 168, 46, 0.32);
+  transform:   translateY(-1px);
+}
 
 /* Empty state when all matches dismissed */
 .lf-no-matches {

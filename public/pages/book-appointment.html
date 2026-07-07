@@ -685,6 +685,41 @@
       </div>
     </div>
   </footer>
+
+  <!-- ══════════ RATE & REVIEW MODAL ══════════ -->
+  <div class="modal-overlay" id="ratingModal" onclick="if(event.target===this) closeRatingModal()">
+    <div class="modal-box rating-modal-box">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title">Rate Your Appointment</h2>
+          <p class="modal-subtitle">Let us know how the visit went.</p>
+        </div>
+        <button type="button" class="modal-close" onclick="closeRatingModal()">
+          <img src="../images/icons/icon-close.svg" alt="close" class="close-icon-img"/>
+        </button>
+      </div>
+      <div class="rating-body">
+        <div class="rating-stars" id="ratingStars" role="radiogroup" aria-label="Rating from 1 to 5 stars">
+          <button type="button" class="rating-star" data-value="1" aria-label="1 star"><img src="../images/icons/rating.svg" alt=""/></button>
+          <button type="button" class="rating-star" data-value="2" aria-label="2 stars"><img src="../images/icons/rating.svg" alt=""/></button>
+          <button type="button" class="rating-star" data-value="3" aria-label="3 stars"><img src="../images/icons/rating.svg" alt=""/></button>
+          <button type="button" class="rating-star" data-value="4" aria-label="4 stars"><img src="../images/icons/rating.svg" alt=""/></button>
+          <button type="button" class="rating-star" data-value="5" aria-label="5 stars"><img src="../images/icons/rating.svg" alt=""/></button>
+        </div>
+        <p class="rating-hint" id="ratingHint">Tap a star to rate</p>
+        <div class="form-group">
+          <label>Leave a comment (optional)</label>
+          <textarea class="form-textarea" id="ratingComment" placeholder="How was your visit?"></textarea>
+        </div>
+        <p class="rating-error" id="ratingError" hidden>Please select a rating before submitting.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" onclick="closeRatingModal()">Cancel</button>
+        <button type="button" class="btn-submit" id="ratingSubmitBtn" onclick="submitRatingModal()">Submit Review</button>
+      </div>
+    </div>
+  </div>
+
   <!-- SCRIPTS - auth.js must load first -->
    <script src="../../shared/js/auth.js"></script>
   <!-- <script>

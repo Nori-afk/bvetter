@@ -267,21 +267,27 @@
             <button id="close-create-event" class="modal-close" type="button" aria-label="Close modal">×</button>
             <h2 id="create-event-heading">Create Mass Vaccination Event</h2>
             <form id="create-event-form">
-                <label for="event-date">Date *</label>
-                <input id="event-date" name="date" type="date" required>
+                <div class="field">
+                    <label class="field-label" for="event-date">DATE *</label>
+                    <input class="form-input" id="event-date" name="date" type="date" required>
+                </div>
 
-               <label for="event-barangay">Barangay *</label>
-                <select id="event-barangay" name="barangay" required>
-                    <option value="">Select Barangay…</option>
-                </select>
+                <div class="field">
+                    <label class="field-label" for="event-barangay">BARANGAY *</label>
+                    <select class="form-input" id="event-barangay" name="barangay" required>
+                        <option value="">Select Barangay…</option>
+                    </select>
+                </div>
 
-                <label for="event-vaccine">Vaccine Type *</label>
-                <select id="event-vaccine" name="vaccine" required>
-                    <option value="">Select Vaccine…</option>
-                    <option>Anti-Rabies</option>
-                    <option>5-in-1</option>
-                    <option>Others</option>
-                </select>
+                <div class="field">
+                    <label class="field-label" for="event-vaccine">VACCINE TYPE *</label>
+                    <select class="form-input" id="event-vaccine" name="vaccine" required>
+                        <option value="">Select Vaccine…</option>
+                        <option>Anti-Rabies</option>
+                        <option>5-in-1</option>
+                        <option>Others</option>
+                    </select>
+                </div>
 
                 <div class="modal-actions">
                     <button id="cancel-create-event" type="button" class="btn btn-outline">Cancel</button>

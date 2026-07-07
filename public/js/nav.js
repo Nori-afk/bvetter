@@ -13,6 +13,8 @@
    - toggleUserMenu()     — opens/closes user dropdown
    - toggleNotifPanel()   — opens/closes notification panel
    - markAllNotifsRead()  — clears unread state client-side
+   - dismissNotif(e, btn) — removes a single notification item
+   - clearAllNotifs()     — removes all notification items
    - toggleMobileNav()    — opens/closes mobile nav-links menu
    NOTE: logout() and loginAs() live in auth.js
    ============================================= */

@@ -218,6 +218,14 @@
                             </span>
                         </div>
                     </div>
+                    <div class="field-group">
+                        <label for="pf-education">Education</label>
+                        <input type="text" id="pf-education" name="education" placeholder="e.g. DVM, University of the Philippines">
+                    </div>
+                    <div class="field-group">
+                        <label for="pf-specialization">Specialization / Expertise</label>
+                        <input type="text" id="pf-specialization" name="specialization" placeholder="e.g. Small Animal Surgery">
+                    </div>
                 </form>
                 <p class="profile-message" id="profile-message" role="status"></p>
             </div>
@@ -355,6 +363,34 @@
 
         </main>
     </div>
+
+<!-- ── Update Password Modal ── -->
+<div class="pw-modal-overlay" id="pwModalOverlay" hidden>
+    <div class="pw-modal" role="dialog" aria-modal="true" aria-labelledby="pwModalTitle">
+        <button type="button" class="pw-modal-close" id="pwModalClose" aria-label="Close">&times;</button>
+        <h3 id="pwModalTitle">Update Password</h3>
+        <p class="pw-modal-sub">Choose a new password with at least 8 characters.</p>
+        <form id="pw-update-form" class="pw-modal-form" novalidate>
+            <div class="field-group">
+                <label for="pw-current">Current Password</label>
+                <input type="password" id="pw-current" name="currentPassword" autocomplete="current-password" required>
+            </div>
+            <div class="field-group">
+                <label for="pw-new">New Password</label>
+                <input type="password" id="pw-new" name="newPassword" autocomplete="new-password" minlength="8" required>
+            </div>
+            <div class="field-group">
+                <label for="pw-confirm">Confirm New Password</label>
+                <input type="password" id="pw-confirm" name="confirmPassword" autocomplete="new-password" minlength="8" required>
+            </div>
+            <p class="pw-modal-message" id="pwModalMessage"></p>
+            <div class="pw-modal-actions">
+                <button type="button" class="btn-outline" id="pwModalCancel">Cancel</button>
+                <button type="submit" class="btn-save">Update Password</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <script src="/final-VBETTER/bvetter/shared/js/auth.js"></script>
 <script>VBetterAuth.requireAuth(['vet']);</script>

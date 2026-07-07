@@ -124,7 +124,20 @@ function openClaimDetail(claimId) {
 function buildDetailPanel(claim) {
   const status = claim.status || 'pending';
   const approved = status === 'approved' || status === 'resolved';
+  const rejected = status === 'rejected';
+  const bannerClass = approved ? 'mc-approved-banner' : rejected ? 'mc-rejected-banner' : 'mc-pending-banner';
+  const iconClass = approved ? 'mc-approved-check' : rejected ? 'mc-rejected-icon' : 'mc-pending-icon';
+  const titleClass = approved ? 'mc-approved-title' : rejected ? 'mc-rejected-title' : 'mc-pending-title';
+  const subClass = approved ? 'mc-approved-sub' : rejected ? 'mc-rejected-sub' : 'mc-pending-sub';
+  const bannerIcon = approved
+    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0f7a3d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+    : rejected
+      ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b42318" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>'
+      : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7a5c00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>';
   const petName = claim.pet_name || 'Found Pet Report';
+  const reviewNote = rejected
+    ? (claim.review_notes || 'The vet management team was unable to verify this claim.')
+    : 'Your submitted proof and notes are visible to vet management.';
   return `
     <div class="mc-detail-overlay dynamic-claim-detail" id="detailClaim${claim.id}" onclick="closeDetailOutside(event,'detailClaim${claim.id}')">
       <div class="mc-detail-panel" role="dialog" aria-modal="true" aria-label="Claim detail">
@@ -140,26 +153,33 @@ function buildDetailPanel(claim) {
           </button>
         </div>
         <div class="mc-detail-body">
-          <div class="${approved ? 'mc-approved-banner' : 'mc-pending-banner'}">
-            <div class="${approved ? 'mc-approved-check' : 'mc-pending-icon'}"></div>
+          <div class="${bannerClass}">
+            <div class="${iconClass}">${bannerIcon}</div>
             <div>
-              <h3 class="${approved ? 'mc-approved-title' : 'mc-pending-title'}">${approved ? 'Claim Approved' : status === 'rejected' ? 'Claim Rejected' : 'Claim Under Review'}</h3>
-              <p class="${approved ? 'mc-approved-sub' : 'mc-pending-sub'}">${approved ? 'Your claim has been verified. Coordinate safely before marking this case resolved.' : 'Your claim is being reviewed by the vet management team.'}</p>
+              <h3 class="${titleClass}">${approved ? 'Claim Approved' : rejected ? 'Claim Rejected' : 'Claim Under Review'}</h3>
+              <p class="${subClass}">${approved ? 'Your claim has been verified. Coordinate safely before marking this case resolved.' : rejected ? reviewNote : 'Your claim is being reviewed by the vet management team.'}</p>
             </div>
           </div>
           <div class="mc-detail-cols">
             <div class="mc-detail-left">
               <div class="mc-instructions-header">
                 <span class="mc-instructions-label">${approved ? 'Claim Instructions' : 'Review Details'}</span>
-                <span class="mc-case-id-badge">CASE ${escapeHtml(claim.case_number || claim.id)}</span>
+                <span class="mc-case-id-badge${approved ? '' : ' pending-badge'}">CASE ${escapeHtml(claim.case_number || claim.id)}</span>
               </div>
-              <div class="mc-steps">
-                <div class="mc-step">
-                  <div class="mc-step-num">1</div>
-                  <div class="mc-step-content">
-                    <h4 class="mc-step-title">${approved ? 'Contact the clinic or uploader' : 'Wait for vet review'}</h4>
-                    <p class="mc-step-desc">${approved ? 'Bring your proof of ownership and coordinate the safe handover.' : 'Your submitted proof and notes are visible to vet management.'}</p>
-                  </div>
+              ${approved ? `
+                <div class="mc-instruction-callout">
+                  <h4 class="mc-instruction-title">Contact the clinic or uploader</h4>
+                  <p class="mc-instruction-desc">Bring your proof of ownership and coordinate the safe handover.</p>
+                </div>
+              ` : ''}
+              <div class="mc-info-list">
+                <div class="mc-info-row">
+                  <span class="mc-info-row-label">Proof Type</span>
+                  <span class="mc-info-row-value">${escapeHtml(claim.proof_type || 'Not specified')}</span>
+                </div>
+                <div class="mc-info-row">
+                  <span class="mc-info-row-label">Notes</span>
+                  <span class="mc-info-row-value">${escapeHtml(claim.proof_notes || claim.review_notes || 'No notes provided.')}</span>
                 </div>
               </div>
               ${approved && status !== 'resolved' ? `<button type="button" class="mc-resolve-btn" onclick="handleResolved('${claim.id}')">Mark as Resolved</button>` : ''}

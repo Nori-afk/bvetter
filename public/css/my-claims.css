@@ -157,7 +157,7 @@
   background: var(--bg-page);
 }
 
-.mc-header { margin-bottom: 20px; }
+.mc-header { padding: 0 24px; margin-bottom: 20px; }
 
 .mc-title {
   font-size: 24px;
@@ -259,17 +259,22 @@
 .mc-action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
+  gap: 7px;
+  padding: 9px 16px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 600;
   font-family: 'Manrope', sans-serif;
   cursor: pointer;
-  border: none;
-  transition: all 0.2s;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
   white-space: nowrap;
 }
+
+.mc-action-btn:active { transform: scale(0.97); }
+
+.mc-action-btn svg { transition: transform 0.15s ease; }
+.mc-action-btn:hover svg { transform: translateX(2px); }
 
 .mc-action-btn.approved {
   background: var(--color-navy);
@@ -278,11 +283,12 @@
 .mc-action-btn.approved:hover { background: var(--color-navy-mid); }
 
 .mc-action-btn.pending {
-  background: var(--bg-input);
-  border: 1.5px solid var(--border-default);
+  background: #ffffff;
+  border-color: var(--border-default);
   color: var(--text-body);
 }
 .mc-action-btn.pending:hover {
+  background: var(--bg-input);
   border-color: var(--color-navy);
   color: var(--color-navy);
 }
@@ -509,6 +515,41 @@
   line-height: 1.55;
 }
 
+/* ── Rejected banner ─────────────────────────── */
+.mc-rejected-banner {
+  background: #fdf2f1;
+  border: 1.5px solid #f3c6c1;
+  border-radius: 14px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.mc-rejected-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(180, 35, 24, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mc-rejected-title {
+  font-size: 16px;
+  font-weight: 900;
+  color: #b42318;
+  margin-bottom: 4px;
+}
+
+.mc-rejected-sub {
+  font-size: 13px;
+  color: var(--text-body);
+  line-height: 1.55;
+}
+
 /* ── Pending info box ───────────────────────── */
 .mc-pending-info-box {
   display: flex;
@@ -572,109 +613,61 @@
   background: var(--color-yellow-light);
 }
 
-/* Steps */
-.mc-steps {
-  padding: 18px 20px;
-  display: flex;
-  flex-direction: column;
+/* ── Instruction callout (approved claims only) ─── */
+.mc-instruction-callout {
+  margin: 16px 20px 0;
+  padding: 12px 14px;
+  background: var(--color-green-pale);
+  border: 1px solid #c8eec8;
+  border-radius: 10px;
 }
 
-.mc-step {
+.mc-instruction-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-green-dark);
+  margin-bottom: 3px;
+}
+
+.mc-instruction-desc {
+  font-size: 12px;
+  color: var(--text-body);
+  line-height: 1.55;
+}
+
+/* ── Info list — plain data rows, not a sequence ─── */
+.mc-info-list {
+  padding: 16px 20px 20px;
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
   gap: 14px;
 }
 
-.mc-step-connector {
-  width: 2px;
-  height: 18px;
-  background: var(--border-default);
-  margin: 3px 0 3px 14px;
-}
-
-.mc-step-num {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--color-green-light);
-  color: var(--color-green-dark);
-  font-size: 12px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.mc-step-num.pending-num {
-  background: var(--border-default);
-  color: var(--text-muted);
-}
-
-.mc-step-num.active-num {
-  background: #fdf0c2;
-  color: #7a5c00;
-}
-
-.mc-step-content { flex: 1; padding-bottom: 4px; }
-
-.mc-step-title {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--text-primary);
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.mc-step-link {
-  color: var(--color-navy);
-  text-decoration: underline;
-}
-
-.mc-step-desc {
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.6;
-}
-
-.mc-in-progress-tag {
-  font-size: 10px;
-  font-weight: 700;
-  background: var(--color-yellow-light);
-  color: #7a5c00;
-  padding: 2px 8px;
-  border-radius: 20px;
-}
-
-/* Contact box inside step */
-.mc-step-contact-box {
-  margin-top: 10px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  padding: 10px 12px;
+.mc-info-row {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 4px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-light);
 }
 
-.mc-contact-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.mc-info-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
-.mc-contact-label {
-  font-size: 9px;
+.mc-info-row-label {
+  font-size: 10.5px;
   font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.6px;
   text-transform: uppercase;
-  min-width: 60px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.mc-info-row-value {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
 }
 
 .mc-contact-value {

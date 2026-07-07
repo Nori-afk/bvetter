@@ -286,6 +286,7 @@ function getVisitHistory(record) {
 
 function getVaccinationHistory(record) {
 	if (Array.isArray(record.vaccinationHistory) && record.vaccinationHistory.length) return record.vaccinationHistory;
+	if (!record.vaccineBrand && !record.vaccinationStatus) return [];
 	return [
 		{
 			id: `${record.id}-vacc-1`,
@@ -402,23 +403,23 @@ function renderPatientInfoTab(record) {
 							</div>
 							<div class="pi-field">
 								<span class="pi-label">AGE</span>
-								<span class="pi-value">${escapeHtml(record.age)}</span>
+								<span class="pi-value">${escapeHtml(record.age) || '—'}</span>
 							</div>
 						</div>
 						<div class="pi-row">
-							<div class="pi-field pi-field-full">
+							<div class="pi-field">
 								<span class="pi-label">COLOR / MARKINGS</span>
-								<span class="pi-value">${escapeHtml(record.colorMarkings)}</span>
+								<span class="pi-value">${escapeHtml(record.colorMarkings) || '—'}</span>
+							</div>
+							<div class="pi-field">
+								<span class="pi-label">SEX</span>
+								<span class="pi-value">${escapeHtml(record.sex || '—')}</span>
 							</div>
 						</div>
 						<div class="pi-row">
 							<div class="pi-field">
 								<span class="pi-label">WEIGHT</span>
-								<span class="pi-value">${escapeHtml(record.weight)}</span>
-							</div>
-							<div class="pi-field">
-								<span class="pi-label">SEX</span>
-								<span class="pi-value">${escapeHtml(record.sex || '—')}</span>
+								<span class="pi-value">${escapeHtml(record.weight) || '—'}</span>
 							</div>
 						</div>
 					</div>
@@ -542,12 +543,17 @@ function renderVisitHistoryTab(record) {
 			${visitHistory.map((visit) => `
 				<article class="history-entry history-entry-visit">
 					<div class="history-entry-top">
-						<div>
-							<h3>${escapeHtml(visit.title)}</h3>
-							<div class="history-meta">
-								<span>${escapeHtml(visit.attendingVet || record.attendingVet)}</span>
-								<span>${formatDate(visit.date)}</span>
-								<span>Follow-up: ${escapeHtml(visit.followUp || 'TBD')}</span>
+						<div class="history-entry-heading">
+							<div class="history-entry-icon">
+								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>
+							</div>
+							<div>
+								<h3>${escapeHtml(visit.title)}</h3>
+								<div class="history-meta">
+									${(visit.attendingVet || record.attendingVet) ? `<span>${escapeHtml(visit.attendingVet || record.attendingVet)}</span>` : ''}
+									<span>${formatDate(visit.date)}</span>
+									<span>Follow-up: ${escapeHtml(visit.followUp || 'TBD')}</span>
+								</div>
 							</div>
 						</div>
 						<div class="history-statuses">
@@ -557,20 +563,29 @@ function renderVisitHistoryTab(record) {
 					</div>
 					<div class="history-columns">
 						<div class="history-column">
-							<p class="history-label">Clinical Observation</p>
-							<p class="detail-paragraph">${escapeHtml(visit.symptoms || record.symptoms)}</p>
-							<p class="history-label">Clinical Diagnosis</p>
-							<p class="detail-paragraph">${escapeHtml(visit.diagnosis || record.diagnosis)}</p>
-							<p class="history-label">Treatment Plan</p>
-							<p class="detail-paragraph">${escapeHtml(visit.treatment || record.treatment)}</p>
+							<div class="detail-block">
+								<p class="history-label">Clinical Observation</p>
+								<p class="detail-paragraph">${escapeHtml(visit.symptoms || record.symptoms) || '<span class="muted">Not recorded</span>'}</p>
+							</div>
+							<div class="detail-block">
+								<p class="history-label">Clinical Diagnosis</p>
+								<p class="detail-paragraph">${escapeHtml(visit.diagnosis || record.diagnosis) || '<span class="muted">Not recorded</span>'}</p>
+							</div>
+							<div class="detail-block detail-block-last">
+								<p class="history-label">Treatment Plan</p>
+								<p class="detail-paragraph">${escapeHtml(visit.treatment || record.treatment) || '<span class="muted">Not recorded</span>'}</p>
+							</div>
 						</div>
 						<div class="history-column history-column-side">
 							<div class="vaccine-box muted-box">
 								<p class="history-label">Vaccination Update</p>
 								<p class="detail-paragraph">${escapeHtml(visit.vaccinationStatus || record.vaccinationStatus || 'No vaccinations administered this visit.')}</p>
 							</div>
-							<div class="medication-list stacked">
-								${(Array.isArray(visit.medications) ? visit.medications : []).map((medication) => `<span class="med-pill">${escapeHtml(medication)}</span>`).join('') || '<span class="muted">Not applicable</span>'}
+							<div class="muted-box">
+								<p class="history-label">Medications</p>
+								<div class="medication-list stacked">
+									${(Array.isArray(visit.medications) ? visit.medications : []).map((medication) => `<span class="med-pill">${escapeHtml(medication)}</span>`).join('') || '<span class="muted">Not applicable</span>'}
+								</div>
 							</div>
 						</div>
 					</div>
@@ -765,6 +780,17 @@ function renderList() {
 	`;
 }
 
+function getCurrentVetName() {
+	try {
+		const session = JSON.parse(sessionStorage.getItem('vbetter_session') || 'null');
+		const name = (session?.fullName || session?.name || '').trim();
+		if (!name) return 'Dr. Kizea Bien Igaya';
+		return name.startsWith('Dr.') ? name : `Dr. ${name}`;
+	} catch {
+		return 'Dr. Kizea Bien Igaya';
+	}
+}
+
 function buildBlankRecord(prefill = {}) {
 	return {
 		id: Date.now(),
@@ -793,7 +819,7 @@ function buildBlankRecord(prefill = {}) {
 		treatment: prefill.treatment || '',
 		medications: prefill.medications || [],
 		category: prefill.category || 'Routine Checkup',
-		attendingVet: prefill.attendingVet || 'Dr. Kizea Bien Igaya',
+		attendingVet: prefill.attendingVet || getCurrentVetName(),
 		vaccinationStatus: prefill.vaccinationStatus || 'Pending',
 		vaccineBrand: prefill.vaccineBrand || '',
 		history: prefill.history || []
@@ -812,6 +838,7 @@ function buildNewVisitRecord(record) {
 		treatment: '',
 		medications: [],
 		category: 'Routine Checkup',
+		attendingVet: getCurrentVetName(),
 		vaccinationStatus: '',
 		vaccineBrand: '',
 		alert: '0'
@@ -953,7 +980,7 @@ function renderAdd(record) {
 						</div>
 						<div class="field">
 							<label class="field-label" for="attending-vet">ATTENDING VETERINARIAN</label>
-							<input class="form-input" id="attending-vet" name="attendingVet" placeholder="Dr. Full Name" value="${escapeHtml(data.attendingVet)}">
+							<input class="form-input" id="attending-vet" name="attendingVet" value="${escapeHtml(data.attendingVet || getCurrentVetName())}" readonly>
 						</div>
 						<div class="field span-3">
 							<label class="field-label" for="symptoms">SYMPTOMS / CHIEF COMPLAINT</label>
@@ -979,7 +1006,9 @@ function renderAdd(record) {
 						</div>
 						<div class="field">
 							<label class="field-label" for="vaccination-status">VACCINATION STATUS</label>
-							<input class="form-input" id="vaccination-status" name="vaccinationStatus" placeholder="e.g. Up to date" value="${escapeHtml(data.vaccinationStatus)}">
+							<select class="form-input" id="vaccination-status" name="vaccinationStatus">
+								${['Up to date', 'Pending', 'Pending booster', 'Overdue', 'Completed'].map((item) => `<option ${data.vaccinationStatus === item ? 'selected' : ''}>${item}</option>`).join('')}
+							</select>
 						</div>
 						<div class="field">
 							<label class="field-label" for="vaccine-brand">VACCINE BRAND</label>
@@ -1131,6 +1160,10 @@ function renderEditModal(record) {
 							<label class="em-label" for="edit-weight">WEIGHT</label>
 							<input class="em-input" id="edit-weight" name="weight" placeholder="e.g. 12 kg" value="${escapeHtml(record.weight || '')}">
 						</div>
+						<div class="em-field em-span-2">
+							<label class="em-label" for="edit-color-markings">COLOR / MARKINGS</label>
+							<input class="em-input" id="edit-color-markings" name="colorMarkings" placeholder="e.g. Golden coat, white chest" value="${escapeHtml(record.colorMarkings || '')}">
+						</div>
 					</div>
 				</div>
 
@@ -1149,6 +1182,10 @@ function renderEditModal(record) {
 						<div class="em-field">
 							<label class="em-label" for="edit-email">EMAIL ADDRESS <span class="em-optional">optional</span></label>
 							<input class="em-input" id="edit-email" name="email" type="email" placeholder="owner@email.com" value="${escapeHtml(record.email || '')}">
+						</div>
+						<div class="em-field em-span-2">
+							<label class="em-label" for="edit-address">RESIDENTIAL ADDRESS</label>
+							<input class="em-input" id="edit-address" name="address" placeholder="e.g. 123 Harbor St., Brgy. Poblacion, Balanga City" value="${escapeHtml(record.address || '')}">
 						</div>
 					</div>
 				</div>
@@ -1255,6 +1292,7 @@ function getFormData(form) {
 		petName: String(formData.get('petName') || '').trim(),
 		species: String(formData.get('species') || '').trim(),
 		breed: String(formData.get('breed') || '').trim(),
+		dateOfBirth: String(formData.get('dateOfBirth') || '').trim(),
 		age: String(formData.get('age') || '').trim(),
 		sex: String(formData.get('sex') || '').trim(),
 		weight: String(formData.get('weight') || '').trim(),
