@@ -49,6 +49,7 @@ const DASHBOARD_ENDPOINT = `${API_BASE_REG}/dashboard/dashboard.php`;
 const MASS_VACCINATION_ENDPOINT = `${API_BASE_REG}/mass-vaccination/events.php`;
 const CHATBOT_ENDPOINT = `${API_BASE_REG}/chatbot/chatbot.php`;
 const ANNOUNCEMENTS_ENDPOINT = `${API_BASE_REG}/announcements/announcements.php`;
+const SITE_SETTINGS_ENDPOINT = `${API_BASE_REG}/site-settings/site-settings.php`;
 
 /* ── Auth Header Builder ──────────────────────
    Reads JWT token saved on login.
@@ -171,6 +172,29 @@ const api = {
       headers: authHeaders(),
       body: JSON.stringify({ action: 'delete', id })
     }).then(r => r.json()),
+
+  /**
+   * Get public site branding/profile settings (logo, color, contact info, etc.)
+   */
+  getSiteSettings: () =>
+    fetch(SITE_SETTINGS_ENDPOINT, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ action: 'get' })
+    }).then(r => r.json()),
+
+  /**
+   * Save site branding/profile settings
+   * @param {FormData} formData — text fields + optional image files
+   */
+  saveSiteSettings: (formData) => {
+    formData.append('action', 'save');
+    return fetch(SITE_SETTINGS_ENDPOINT, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body: formData
+    }).then(r => r.json());
+  },
 
   /* ══════════════════════════════════════════
      AUTH

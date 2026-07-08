@@ -25,6 +25,12 @@ let calYear, calMonth;
 let selectedVetId   = null;
 let selectedCalDate = null;   // 'YYYY-MM-DD'
 
+/* ── Time picked in the preview calendar's hour grid,
+   carried into step 3 so the owner isn't asked to pick
+   the same date/time twice. Reset whenever the grid is
+   rebuilt (new day / new vet) since availability changes. */
+let selectedPreviewSlot = null;
+
 /* ── Local calendar date as 'YYYY-MM-DD' ─────────
    toISOString() converts to UTC first, which is one day
    off from the local date for part of the day in any
@@ -204,6 +210,7 @@ function buildTimeSlots(unavailableSlots = []) {
   const grid = document.getElementById('timeGrid');
   if (!grid) return;
   grid.innerHTML = '';
+  selectedPreviewSlot = null;   // grid rebuilt — any earlier pick no longer applies
 
   ALL_TIME_SLOTS.forEach(slot => {
     const div    = document.createElement('div');
@@ -215,6 +222,7 @@ function buildTimeSlots(unavailableSlots = []) {
       div.addEventListener('click', () => {
         grid.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
         div.classList.add('selected');
+        selectedPreviewSlot = slot;
       });
     }
 
@@ -864,7 +872,14 @@ function getAverageRate(average) {
   }
 
   /* ── Page navigation wiring ─────────────── */
-  document.getElementById('btnBook')           .addEventListener('click', () => { showPage(pageBooking); goStep(1); });
+  document.getElementById('btnBook')           .addEventListener('click', () => {
+    // Carry the date already picked in the preview calendar into step 3
+    // so the owner isn't asked to choose it again.
+    const apptDateInput = document.getElementById('apptDate');
+    if (apptDateInput && selectedCalDate) apptDateInput.value = selectedCalDate;
+    showPage(pageBooking);
+    goStep(1);
+  });
   document.getElementById('btnViewAll')
   .addEventListener('click', (e) => {
     e.preventDefault();
@@ -891,13 +906,98 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
   document.getElementById('btnBookFromHistory').addEventListener('click', () => { showPage(pageBooking); goStep(1); });
 
   /* ── Step navigation wiring ─────────────── */
-  document.getElementById('s1Next')   .addEventListener('click', () => goStep(2));
+  document.getElementById('s1Next')   .addEventListener('click', () => { if (validateStep(1)) goStep(2); });
   document.getElementById('s2Back')   .addEventListener('click', () => goStep(1));
-  document.getElementById('s2Next')   .addEventListener('click', () => goStep(3));
+  document.getElementById('s2Next')   .addEventListener('click', () => { if (validateStep(2)) goStep(3); });
   document.getElementById('s3Back')   .addEventListener('click', () => goStep(2));
-  document.getElementById('s3Next')   .addEventListener('click', () => goStep(4));
+  document.getElementById('s3Next')   .addEventListener('click', () => { if (validateStep(3)) goStep(4); });
   document.getElementById('s4Back')   .addEventListener('click', () => goStep(3));
   document.getElementById('s4Confirm').addEventListener('click', submitAppointment);
+
+  /* ── Per-step inline validation ──────────────
+     Marks the missing field(s) instead of blocking
+     navigation with a popup/alert.
+  ─────────────────────────────────────────── */
+  function setGroupError(group, message) {
+    if (!group) return;
+    group.classList.add('has-error');
+    let msg = group.querySelector('.field-error-msg');
+    if (!msg) {
+      msg = document.createElement('span');
+      msg.className = 'field-error-msg';
+      group.appendChild(msg);
+    }
+    msg.textContent = message;
+  }
+
+  function clearGroupError(group) {
+    if (!group) return;
+    group.classList.remove('has-error');
+    const msg = group.querySelector('.field-error-msg');
+    if (msg) msg.remove();
+  }
+
+  function validateRequiredField(id, message) {
+    const el = document.getElementById(id);
+    if (!el) return true;
+    const group = el.closest('.form-group');
+    if (!(el.value || '').trim()) {
+      setGroupError(group, message);
+      return false;
+    }
+    clearGroupError(group);
+    return true;
+  }
+
+  function validateTimeSlotField() {
+    const slotGrid = document.querySelector('#step3 .slot-grid');
+    const group = slotGrid ? slotGrid.closest('.form-group') : null;
+    if (!document.querySelector('.slot-btn.selected')) {
+      setGroupError(group, 'Please select a time slot.');
+      return false;
+    }
+    clearGroupError(group);
+    return true;
+  }
+
+  function validateStep(n) {
+    let valid = true;
+
+    if (n === 1) {
+      if (!validateRequiredField('ownerName',     'Please enter your full name.'))        valid = false;
+      if (!validateRequiredField('ownerContact',  'Please enter your contact number.'))    valid = false;
+      if (!validateRequiredField('ownerEmail',    'Please enter your email address.'))     valid = false;
+      if (!validateRequiredField('ownerBarangay', 'Please select your barangay.'))         valid = false;
+      if (!validateRequiredField('ownerAddress',  'Please enter your complete address.'))  valid = false;
+    } else if (n === 2) {
+      if (!validateRequiredField('petName',  "Please enter your pet's name."))    valid = false;
+      if (!validateRequiredField('petType',  'Please select a pet type.'))        valid = false;
+      if (!validateRequiredField('petBreed', "Please enter your pet's breed."))   valid = false;
+      if (!validateRequiredField('petAge',   "Please enter your pet's age."))     valid = false;
+      if (!validateRequiredField('petSex',   "Please select your pet's sex."))    valid = false;
+      // petVaccDate is optional — not validated
+    } else if (n === 3) {
+      if (!validateRequiredField('visitType', 'Please select the type of visit.'))                        valid = false;
+      if (!validateRequiredField('apptDate',  'Please select a preferred date.'))                          valid = false;
+      if (!validateTimeSlotField())                                                                        valid = false;
+      if (!validateRequiredField('apptNotes', "Please describe your pet's condition or reason for visit.")) valid = false;
+    }
+
+    if (!valid) {
+      const firstError = document.querySelector('#step' + n + ' .has-error');
+      if (firstError) firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    return valid;
+  }
+
+  // Clear a field's error as soon as the user fixes it
+  document.querySelectorAll('#step1 .form-input, #step1 .form-select, #step2 .form-input, #step2 .form-select, #step3 .form-input, #step3 .form-select, #step3 .form-textarea')
+    .forEach(el => {
+      const clear = () => clearGroupError(el.closest('.form-group'));
+      el.addEventListener('input', clear);
+      el.addEventListener('change', clear);
+    });
 
   /* ── Core step switcher ──────────────────── */
   function goStep(n) {
@@ -906,13 +1006,68 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       if (el) el.style.display = (i === n) ? 'block' : 'none';
     }
     updateStepper(n);
+    if (n === 3) refreshStep3Slots();
     if (n === 4) populateReview();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  /* ── Keep step-3 time slots in sync with real availability ──
+     The slot buttons here are static markup, so without this
+     an already-confirmed slot (for this vet + date) stayed
+     clickable and a second owner could submit the same slot.
+     Reuses the same booked_slots lookup the vet-selection
+     calendar already relies on.
+  ─────────────────────────────────────────── */
+  async function refreshStep3Slots() {
+    const dateVal = document.getElementById('apptDate')?.value || '';
+    const slotButtons = document.querySelectorAll('#step3 .slot-btn');
+    if (!dateVal) {
+      slotButtons.forEach(btn => btn.classList.remove('unavailable'));
+      return;
+    }
+
+    let booked = [];
+    try {
+      const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({
+          action          : 'booked_slots',
+          veterinarian_id : selectedVetId,
+          preferred_date  : dateVal
+        })
+      });
+      const json = await res.json();
+      booked = json.success ? (json.booked || []) : [];
+    } catch (err) {
+      console.error('[step3 slots] fetch failed:', err);
+      return;
+    }
+
+    slotButtons.forEach(btn => {
+      const isBooked = booked.includes(btn.dataset.slot);
+      btn.classList.toggle('unavailable', isBooked);
+      if (isBooked && btn.classList.contains('selected')) {
+        btn.classList.remove('selected');
+      }
+    });
+
+    // Carry over the time already picked in the preview calendar —
+    // only when the date wasn't changed since, and nothing else is
+    // selected yet, so the owner doesn't have to repeat the pick.
+    if (selectedPreviewSlot && dateVal === selectedCalDate && !document.querySelector('#step3 .slot-btn.selected')) {
+      const match = document.querySelector(`#step3 .slot-btn[data-slot="${selectedPreviewSlot}"]`);
+      if (match && !match.classList.contains('unavailable')) {
+        match.classList.add('selected');
+      }
+    }
+  }
+
+  document.getElementById('apptDate')?.addEventListener('change', refreshStep3Slots);
+
   /* ── Submit appointment ──────────────────── */
   async function submitAppointment() {
-const selectedSlot = document.querySelector('.time-slot.selected');
+const selectedSlot = document.querySelector('.slot-btn.selected');
     const session = JSON.parse(
       sessionStorage.getItem('vbetter_session') ||
       sessionStorage.getItem('bvetter_user')    ||
@@ -936,7 +1091,7 @@ const selectedSlot = document.querySelector('.time-slot.selected');
       pet_vaccination_date: document.getElementById('petVaccDate')?.value         || '',
       appointment_type:     document.getElementById('visitType')?.value           || '',
       preferred_date:       document.getElementById('apptDate')?.value            || '',
-time_slot: selectedSlot ? selectedSlot.textContent.trim() : '',
+time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
       notes:                document.getElementById('apptNotes')?.value.trim()    || ''
     };
 
@@ -992,8 +1147,10 @@ time_slot: selectedSlot ? selectedSlot.textContent.trim() : '',
   /* ── Slot button selection ───────────────── */
   document.querySelectorAll('.slot-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (btn.classList.contains('unavailable')) return;
       document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
+      clearGroupError(btn.closest('.form-group'));
     });
   });
 

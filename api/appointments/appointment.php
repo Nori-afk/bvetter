@@ -305,6 +305,42 @@ function createAppointment($pdo, $data)
 
     $pdo->beginTransaction();
 
+    // Re-check the slot server-side (mirrors getBookedSlots) so a race between
+    // two owners — or a stale slot list on the client — can't double-book a
+    // vet once a prior request for the same date/time has been confirmed.
+    if ($veterinarianId > 0) {
+        $slotCheck = $pdo->prepare("
+            SELECT COUNT(*) FROM appointments
+            WHERE preferred_date = :date
+              AND time_slot = :time_slot
+              AND status IN ('confirmed', 'completed')
+              AND (veterinarian_id = :vet_id OR veterinarian_id IS NULL)
+        ");
+        $slotCheck->execute([
+            ':date' => $preferredDate,
+            ':time_slot' => $timeSlot,
+            ':vet_id' => $veterinarianId,
+        ]);
+    } else {
+        $slotCheck = $pdo->prepare("
+            SELECT COUNT(*) FROM appointments
+            WHERE preferred_date = :date
+              AND time_slot = :time_slot
+              AND status IN ('confirmed', 'completed')
+        ");
+        $slotCheck->execute([
+            ':date' => $preferredDate,
+            ':time_slot' => $timeSlot,
+        ]);
+    }
+    if ((int) $slotCheck->fetchColumn() > 0) {
+        $pdo->rollBack();
+        respond(409, [
+            'success' => false,
+            'message' => 'That time slot has just been booked. Please choose another.'
+        ]);
+    }
+
     $ownerId = findOrCreateOwner($pdo, $data);
     $petId = findOrCreatePet($pdo, $ownerId, $data);
 

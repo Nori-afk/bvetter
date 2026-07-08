@@ -598,10 +598,22 @@
 }
 
 .dash-notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   border-radius: var(--radius-md);
   background: var(--bg-input);
   border: 1px solid var(--border-default);
   padding: 10px 12px;
+}
+
+.dash-notification-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-notification-item .notif-item-delete {
+  margin: 0;
 }
 
 .dash-notification-item.unread {

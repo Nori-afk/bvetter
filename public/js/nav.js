@@ -10,12 +10,11 @@
      <script src="../js/[page].js"></script>
 
    Functions:
-   - toggleUserMenu()     — opens/closes user dropdown
-   - toggleNotifPanel()   — opens/closes notification panel
-   - markAllNotifsRead()  — clears unread state client-side
-   - dismissNotif(e, btn) — removes a single notification item
-   - clearAllNotifs()     — removes all notification items
-   - toggleMobileNav()    — opens/closes mobile nav-links menu
+   - toggleUserMenu()        — opens/closes user dropdown
+   - openNotificationModal() — builds + opens the live notification modal
+   - dismiss-notif click     — removes one notification, persisted per
+                               owner in localStorage so it stays hidden
+   - toggleMobileNav()       — opens/closes mobile nav-links menu
    NOTE: logout() and loginAs() live in auth.js
    ============================================= */
 
@@ -102,9 +101,28 @@ function closeNotifModal() {
   }
 }
 
-async function buildOwnerNotifications() {
+function getCurrentOwnerId() {
   const session = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-  const ownerId = session?.userId || session?.id || 0;
+  return session?.userId || session?.id || 0;
+}
+
+function getDismissedNotifIds(ownerId) {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(`vbetter_dismissed_notifs_${ownerId}`) || '[]'));
+  } catch {
+    return new Set();
+  }
+}
+
+function addDismissedNotifId(ownerId, id) {
+  const ids = getDismissedNotifIds(ownerId);
+  ids.add(id);
+  localStorage.setItem(`vbetter_dismissed_notifs_${ownerId}`, JSON.stringify([...ids]));
+}
+
+async function buildOwnerNotifications() {
+  const ownerId = getCurrentOwnerId();
+  const dismissed = getDismissedNotifIds(ownerId);
   const notifications = [];
 
   try {
@@ -170,8 +188,10 @@ async function buildOwnerNotifications() {
     /* report lookup failed — skip silently */
   }
 
-  if (!notifications.length) {
-    notifications.push({
+  const visible = notifications.filter((item) => !dismissed.has(item.id));
+
+  if (!visible.length) {
+    visible.push({
       id: 'empty',
       title: 'No New Notifications',
       detail: 'You are all caught up. Check back later for updates.',
@@ -180,7 +200,7 @@ async function buildOwnerNotifications() {
     });
   }
 
-  return notifications;
+  return visible;
 }
 
 function renderNotificationItems(root, items) {
@@ -189,15 +209,48 @@ function renderNotificationItems(root, items) {
   list.innerHTML = items
     .map(
       (item) => `
-        <article class="dash-notification-item ${item.read ? 'read' : 'unread'}">
-          <h4>${escapeHtmlNav(item.title)}</h4>
-          <p>${escapeHtmlNav(item.detail)}</p>
-          <small>${escapeHtmlNav(item.time)}</small>
+        <article class="dash-notification-item ${item.read ? 'read' : 'unread'}" data-notif-id="${escapeHtmlNav(item.id)}">
+          <div class="dash-notification-item-body">
+            <h4>${escapeHtmlNav(item.title)}</h4>
+            <p>${escapeHtmlNav(item.detail)}</p>
+            <small>${escapeHtmlNav(item.time)}</small>
+          </div>
+          ${item.id === 'empty' ? '' : `<button type="button" class="notif-item-delete" data-action="dismiss-notif" aria-label="Dismiss notification">&times;</button>`}
         </article>
       `
     )
     .join('');
 }
+
+/* Dismiss a single notification: hide it going forward via localStorage,
+   since notifications are rebuilt live from appointments/claims/reports
+   on every open rather than stored server-side. */
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('[data-action="dismiss-notif"]');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  const item = btn.closest('.dash-notification-item');
+  if (!item) return;
+
+  const id = item.dataset.notifId;
+  if (id) addDismissedNotifId(getCurrentOwnerId(), id);
+  item.remove();
+
+  const list = document.querySelector('.dash-notification-list');
+  if (list && !list.querySelector('.dash-notification-item')) {
+    list.innerHTML = `
+      <article class="dash-notification-item read">
+        <div class="dash-notification-item-body">
+          <h4>No New Notifications</h4>
+          <p>You are all caught up. Check back later for updates.</p>
+          <small>Just checked</small>
+        </div>
+      </article>
+    `;
+  }
+});
 
 async function openNotificationModal() {
   const root = ensureNotifModalRoot();

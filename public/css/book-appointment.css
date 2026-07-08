@@ -938,6 +938,24 @@ body {
   color: var(--text-muted);
 }
 
+.field-error-msg {
+  font-size: 10px;
+  font-weight: 600;
+  color: #d92d20;
+}
+
+.form-group.has-error .form-input,
+.form-group.has-error .form-select,
+.form-group.has-error .form-textarea {
+  border-color: #d92d20;
+}
+
+.form-group.has-error .slot-grid {
+  outline: 1.5px solid #d92d20;
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
 .select-wrap {
   position: relative;
 }
@@ -1010,6 +1028,20 @@ body {
   background: var(--color-navy);
   border-color: var(--color-navy);
   color: #fff;
+}
+
+.slot-btn.unavailable {
+  background: var(--bg-page);
+  border-color: var(--border-default);
+  color: #C0C0C0;
+  cursor: not-allowed;
+  text-decoration: line-through;
+  pointer-events: none;
+}
+
+.slot-btn.unavailable:hover {
+  border-color: var(--border-default);
+  color: #C0C0C0;
 }
 
 .form-textarea {
