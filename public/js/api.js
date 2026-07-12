@@ -220,11 +220,87 @@ const api = {
   /**
    * Logout — invalidates token on server
    */
-  logout: () =>
-    fetch(`${API_BASE}/auth/logout`, {
+  logout: () => {
+    const body = new FormData();
+    body.append('action', 'logout');
+    return fetch(`${API_BASE_REG}/auth/session.php`, {
       method: 'POST',
-      headers: authHeaders()
-    }).then(r => r.json()),
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
+  /* ══════════════════════════════════════════
+     SESSIONS — Manage Security page
+     ══════════════════════════════════════════ */
+
+  /** List the current user's own active sessions/devices */
+  listSessions: () => {
+    const body = new FormData();
+    body.append('action', 'list');
+    return fetch(`${API_BASE_REG}/auth/session.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
+  /** End one of the current user's other sessions */
+  endSession: (sessionId) => {
+    const body = new FormData();
+    body.append('action', 'end');
+    body.append('session_id', sessionId);
+    return fetch(`${API_BASE_REG}/auth/session.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
+  /** End every session except the one making this request */
+  endOtherSessions: () => {
+    const body = new FormData();
+    body.append('action', 'end_others');
+    return fetch(`${API_BASE_REG}/auth/session.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
+  /** (Admin only) list every active session, across every user account */
+  adminListSessions: () => {
+    const body = new FormData();
+    body.append('action', 'admin_list');
+    return fetch(`${API_BASE_REG}/auth/session.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
+  /** (Admin only) end any session by id, belonging to any user */
+  adminEndSession: (sessionId) => {
+    const body = new FormData();
+    body.append('action', 'admin_end');
+    body.append('session_id', sessionId);
+    return fetch(`${API_BASE_REG}/auth/session.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
+  /** (Admin only) end every session system-wide except the caller's own */
+  adminEndOtherSessions: () => {
+    const body = new FormData();
+    body.append('action', 'admin_end_others');
+    return fetch(`${API_BASE_REG}/auth/session.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
 
   /**
    * Register new account

@@ -193,7 +193,7 @@ body {
 .wm-preset-swatch.active { border-color: var(--text-primary); box-shadow: 0 0 0 2px #fff inset; }
 
 /* ── VISUAL ASSETS ── */
-.wm-assets-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; min-width: 0; }
+.wm-assets-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; min-width: 0; }
 
 .wm-asset-card {
   background: var(--bg-white); border: 1px solid var(--border);
@@ -317,6 +317,8 @@ body {
 }
 .wm-preview-title-icon svg { width: 16px; height: 16px; color: var(--primary-blue); }
 .wm-preview-controls { display: flex; align-items: center; gap: 8px; }
+.wm-preview-view-switch { display: flex; align-items: center; gap: 8px; }
+.wm-preview-divider { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
 .wm-preview-mode-btn {
   padding: 7px 16px; border-radius: var(--radius-sm);
   border: 1.5px solid var(--border); background: var(--bg-page);
@@ -382,11 +384,13 @@ body {
   border: 0; display: block;
   transform-origin: top left;
   background: #fff;
-  /* Excludes the iframe from hit-testing so wheel/scroll lands on
-     .wm-browser-content (the actual scroll container) instead of being
-     captured by the iframe's own document, which wouldn't chain the
-     scroll back out. */
-  pointer-events: none;
+  /* Clickable — links/buttons inside the preview navigate the iframe
+     in place, so admins can click through modules and see settings
+     apply everywhere, not just on the first page loaded. The embedded
+     page forwards wheel events back out to .wm-browser-content (see
+     site-settings.js) since the CSS transform above would otherwise
+     swallow them without chaining the scroll back out. */
+  pointer-events: auto;
 }
 
 /* ── ANNOUNCEMENT MODAL ── */

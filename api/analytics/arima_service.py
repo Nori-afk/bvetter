@@ -19,23 +19,36 @@ import warnings
 import time
 import numpy as np
 import pandas as pd
+import pymysql
+import pymysql.cursors
 
 from flask import Flask, request, jsonify
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from statsmodels.tsa.stattools import adfuller
 
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import mean_absolute_error, accuracy_score
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
-from imblearn.over_sampling import SMOTE
-from collections import Counter
 
 warnings.filterwarnings("ignore")
 app = Flask(__name__)
 
 EXCEL_PATH = os.path.join(os.path.dirname(__file__), "../../database/BaliwagVet_2023-2025.xlsx")
+
+# Same DB this app's PHP layer connects to (api/config/connection.php) — kept
+# overridable via env vars for deployments where the DB isn't local XAMPP.
+DB_CONFIG = {
+    "host":     os.environ.get("VBETTER_DB_HOST", "localhost"),
+    "user":     os.environ.get("VBETTER_DB_USER", "root"),
+    "password": os.environ.get("VBETTER_DB_PASS", "root"),
+    "database": os.environ.get("VBETTER_DB_NAME", "bvetter"),
+    "charset":  "utf8mb4",
+}
+
+
+def db_connect():
+    return pymysql.connect(cursorclass=pymysql.cursors.DictCursor, **DB_CONFIG)
 
 _cache    = {}
 # SPEED-7: raised 600s -> 6h. The source Excel file only changes on a service
@@ -86,6 +99,34 @@ def mape(actual, predicted):
     return round(float(np.mean(np.abs((actual[mask] - predicted[mask]) / actual[mask])) * 100), 1)
 
 
+def forecast_confidence(predicted: float, lower: float, upper: float, mape_val: float = None) -> float:
+    """
+    "Confidence" used to mean "how far past the risk threshold is the
+    predicted number" -- a distance-from-cutoff measure that reported ~100%
+    even for forecasts with 100%+ historical error and a prediction range
+    wider than the estimate itself. This instead reflects actual forecast
+    reliability, from two real signals:
+      - How wide the prediction interval is relative to the point estimate.
+        A range spanning from near-zero to several times the estimate means
+        the model doesn't actually know the answer within a useful margin.
+      - Historical accuracy (MAPE) from a real holdout test, when available.
+    Both are capped so one very sparse series can't swing to a nonsensical
+    value; a missing MAPE is treated as unknown (not assumed good).
+    """
+    predicted = max(float(predicted), 0.0)
+    ci_width  = max(float(upper) - float(lower), 0.0)
+    ci_ratio  = ci_width / max(predicted, 1.0)
+    ci_uncertainty = min(1.0, ci_ratio / 2.0)  # a range >=2x the estimate = maximally uncertain
+
+    if mape_val is not None:
+        mape_uncertainty = min(1.0, float(mape_val) / 100.0)
+        uncertainty = (ci_uncertainty + mape_uncertainty) / 2
+    else:
+        uncertainty = ci_uncertainty
+
+    return round((1 - uncertainty) * 100, 1)
+
+
 # ════════════════════════════════════════════════════════════════════════
 # ARIMA HELPERS
 # ════════════════════════════════════════════════════════════════════════
@@ -131,6 +172,61 @@ def _select_arima_order(series: pd.Series) -> tuple:
     return best_order
 
 
+def _forecast_is_runaway(series: pd.Series, forecast: list, upper_ci: list = None) -> bool:
+    """
+    True if `forecast` blows past what the series' own history could
+    plausibly support -- a sign that SARIMA/ARIMA order selection landed on
+    a numerically unstable fit rather than a real trend. AIC picks the best
+    in-sample fit, not the most stable one, so this can't be caught at
+    order-selection time; it has to be checked after the fact, against two
+    different scales:
+      - any single forecasted month far beyond the worst month ever seen
+        (catches an outright explosive per-step blowup)
+      - the SUMMED forecast -- the number actually shown to users for a
+        "year" view -- far beyond the worst rolling 12-month total ever
+        seen. This is the one that matters most in practice: seen in
+        production, a barangay whose worst year on record was 34 cases
+        forecast to 237 the next year, while no single month in that
+        12-month forecast looked obviously broken on its own (each was a
+        moderate, plausible-looking value -- only the compounded sum was
+        unrealistic).
+    """
+    hist_vals = series.dropna().values.astype(float)
+    if len(hist_vals) == 0 or not forecast:
+        return False
+
+    hist_month_max = float(hist_vals.max())
+
+    # If the series has undergone a level shift -- the recent tail sits far
+    # below the earlier history (e.g. a data-source changeover, not a
+    # seasonal dip) -- cap against that recent regime instead of the stale
+    # historical peak. Otherwise a peak that's genuinely part of this same
+    # series lets ARIMA "revert" a forecast toward a level that has no
+    # bearing on what's actually happening now, and this guard -- built to
+    # catch exactly that kind of unsupported jump -- waves it through
+    # because the jump technically stayed under the old peak.
+    tail_n = min(3, len(hist_vals))
+    recent_tail_max = float(hist_vals[-tail_n:].max()) if tail_n else hist_month_max
+    if len(hist_vals) >= 6 and hist_month_max > 0 and recent_tail_max <= hist_month_max * 0.3:
+        hist_month_max = recent_tail_max
+
+    month_cap = max(hist_month_max * 8, 15.0)
+    if max(forecast) > month_cap:
+        return True
+    if upper_ci and max(upper_ci) > month_cap * 1.5:
+        return True
+
+    rolling_annual  = series.fillna(0).rolling(12, min_periods=1).sum()
+    hist_annual_max = float(rolling_annual.max()) if not rolling_annual.empty else 0.0
+    # Floor of 8 (not the month check's 15) because this is the check that
+    # matters most for near-zero-history diseases: a barangay with a rock
+    # steady 1 case/year for 3 straight years forecast to 26+ next year is
+    # exactly the failure this guard exists for, and a floor of 15 let a
+    # 26-vs-2 case (13x its own rolling-annual history) through untouched.
+    annual_cap = max(hist_annual_max, 8.0) * 3 * (len(forecast) / 12.0)
+    return sum(forecast) > annual_cap
+
+
 def _fallback_forecast(series: pd.Series, steps: int) -> dict:
     vals = [float(v) for v in series.dropna().tail(3).values] or [0.0]
     last  = vals[-1]
@@ -158,6 +254,10 @@ def run_arima(series: pd.Series, steps: int = 3) -> dict:
         ci  = fc_obj.conf_int(alpha=0.2)
         lo  = [max(0.0, round(float(v), 1)) for v in ci.iloc[:, 0]]
         hi  = [max(0.0, round(float(v), 1)) for v in ci.iloc[:, 1]]
+
+        if _forecast_is_runaway(series, fc):
+            return _fallback_forecast(series, steps)
+
         slope = fc[-1] - fc[0]
         trend = "rising" if slope > 0.5 else ("falling" if slope < -0.5 else "stable")
         return {"forecast": fc, "lower_ci": lo, "upper_ci": hi,
@@ -451,7 +551,9 @@ def vaccination_forecast_barangay():
 
 
 # ════════════════════════════════════════════════════════════════════════
-# ALL-DISEASE HYBRID  (ARIMA + RF)
+# ALL-DISEASE HYBRID  (ARIMA forecast + RandomForestRegressor accuracy check
+# + rule-based risk thresholds — see get_all_disease_models() for why risk
+# is threshold-based rather than a trained classifier)
 # ════════════════════════════════════════════════════════════════════════
 
 FEATURE_COLS = [
@@ -461,18 +563,87 @@ FEATURE_COLS = [
     "skin_ratio", "para_ratio", "resp_ratio", "gastro_ratio",
 ]
 
-# Risk classifier excludes lag_1/lag_2/lag_3/rolling_* on purpose: risk_class is a
-# threshold on total_cases, and total_cases is nearly constant month-to-month per
-# barangay, so those history features let the RF trivially echo the threshold
-# (lag_1 alone carried 85% of feature importance, producing a misleading 100%
-# accuracy). The regressor keeps the full feature set since forecasting case counts
-# from past case counts is a legitimate task.
-CLASSIFIER_FEATURE_COLS = [
-    "month_sin", "month_cos", "month_no", "year",
-    "skin_ratio", "para_ratio", "resp_ratio", "gastro_ratio",
-]
-
 _all_disease_models = {}
+
+
+def _latest_period(df: pd.DataFrame) -> tuple:
+    if df.empty:
+        return (0, 0)
+    latest_year = int(df["year"].max())
+    latest_month = int(df.loc[df["year"] == latest_year, "month_no"].max())
+    return (latest_year, latest_month)
+
+
+def load_db_disease_monthly(after_year: int, after_month: int) -> pd.DataFrame:
+    """
+    Live continuation of Barangay_Disease_Monthly, sourced from
+    patient_visit_records instead of the frozen Excel snapshot. Only
+    returns months strictly after (after_year, after_month) — the Excel
+    sheet's own latest covered period — so a month present in both sources
+    is never double-counted.
+
+    DB rows have no risk_class (that's a label from the Excel sheet with no
+    live equivalent yet), so they're tagged is_db_sourced=True and excluded
+    from the RF risk classifier's training set in get_all_disease_models();
+    they still feed the ARIMA series and the case-count regressor.
+    """
+    cols = ["barangay", "year", "month_no", "skin_related_cases", "parasitic_cases",
+            "respiratory_cases", "gastrointestinal_cases", "total_cases",
+            "risk_class", "is_db_sourced"]
+    empty = pd.DataFrame(columns=cols)
+
+    try:
+        conn = db_connect()
+    except Exception as e:
+        print(f"[DB] disease-monthly connect failed, using Excel-only data: {e}")
+        return empty
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    YEAR(pvr.visit_date)  AS year,
+                    MONTH(pvr.visit_date) AS month_no,
+                    COALESCE(NULLIF(b.name, ''), NULLIF(op.complete_address, ''), 'Unspecified') AS barangay,
+                    pvr.disease_category  AS disease_category,
+                    COUNT(*) AS cases
+                FROM patient_visit_records pvr
+                INNER JOIN pets ON pets.id = pvr.pet_id
+                LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id
+                LEFT JOIN barangays b ON b.id = op.barangay_id
+                WHERE pvr.visit_date IS NOT NULL
+                GROUP BY year, month_no, barangay, disease_category
+            """)
+            rows = cur.fetchall()
+    except Exception as e:
+        print(f"[DB] disease-monthly query failed, using Excel-only data: {e}")
+        return empty
+    finally:
+        conn.close()
+
+    if not rows:
+        return empty
+
+    raw = pd.DataFrame(rows)
+    raw = raw[(raw["year"] > after_year) | ((raw["year"] == after_year) & (raw["month_no"] > after_month))]
+    if raw.empty:
+        return empty
+
+    bucket_map = {"Skin": "skin_related_cases", "Parasitic": "parasitic_cases",
+                  "Respiratory": "respiratory_cases", "Gastrointestinal": "gastrointestinal_cases"}
+    for col in bucket_map.values():
+        raw[col] = 0
+    for category, col in bucket_map.items():
+        mask = raw["disease_category"] == category
+        raw.loc[mask, col] = raw.loc[mask, "cases"]
+
+    grouped = raw.groupby(["barangay", "year", "month_no"], as_index=False).agg({
+        "skin_related_cases": "sum", "parasitic_cases": "sum",
+        "respiratory_cases": "sum", "gastrointestinal_cases": "sum", "cases": "sum",
+    }).rename(columns={"cases": "total_cases"})
+    grouped["risk_class"] = np.nan
+    grouped["is_db_sourced"] = True
+    return grouped
 
 
 def load_all_disease_dataframe() -> pd.DataFrame:
@@ -481,6 +652,13 @@ def load_all_disease_dataframe() -> pd.DataFrame:
     df["year"]        = df["year"].astype(int)
     df["month_no"]    = pd.to_numeric(df["month_no"], errors="coerce").fillna(1).astype(int)
     df["total_cases"] = pd.to_numeric(df["total_cases"], errors="coerce").fillna(0)
+    df["is_db_sourced"] = False
+
+    after_year, after_month = _latest_period(df)
+    db_df = load_db_disease_monthly(after_year, after_month)
+    if not db_df.empty:
+        df = pd.concat([df, db_df], ignore_index=True, sort=False)
+
     df = df.sort_values(["barangay", "year", "month_no"]).reset_index(drop=True)
     grp = df.groupby("barangay")["total_cases"]
     df["lag_1"]          = grp.shift(1)
@@ -499,6 +677,40 @@ def load_all_disease_dataframe() -> pd.DataFrame:
     return df.dropna(subset=["lag_1", "lag_2", "lag_3", "rolling_mean_3"])
 
 
+def _arima_safe_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    ARIMA/SARIMA forecasts are dominated by whatever sits at the tail of the
+    series, so a single sparse or incompletely-logged live month there can
+    crater a forecast even though it's one row out of hundreds. Real example:
+    Excel's Dec-2025 total_cases=23 for a barangay, followed directly by a
+    DB-sourced May-2026 row of 1 (Jan-Apr 2026 have no logged visits at all
+    yet, because live logging via Patient Records only recently started) --
+    the model read that as "cases collapsed to near zero", not "digitization
+    hasn't caught up". The regressor is unaffected by this (one row among
+    hundreds barely moves a 200-tree average), so it keeps using every
+    DB-sourced row unfiltered; only the ARIMA/SARIMA series needs this gate.
+
+    Rule: a DB-sourced month is trusted for ARIMA only if it's part of an
+    unbroken run immediately following the Excel snapshot's last covered
+    month for that barangay -- any gap means logging coverage isn't
+    complete enough yet, so ARIMA falls back to Excel-only for that
+    barangay until the gap closes.
+    """
+    keep_mask = ~df["is_db_sourced"]
+    for barangay, bdf in df[df["is_db_sourced"]].groupby("barangay"):
+        excel_bdf = df[(df["barangay"] == barangay) & (~df["is_db_sourced"])]
+        expected_year, expected_month = _latest_period(excel_bdf)
+        for row_idx, row in bdf.sort_values(["year", "month_no"]).iterrows():
+            expected_month += 1
+            if expected_month > 12:
+                expected_month, expected_year = 1, expected_year + 1
+            if int(row["year"]) == expected_year and int(row["month_no"]) == expected_month:
+                keep_mask.loc[row_idx] = True
+            else:
+                break
+    return df[keep_mask]
+
+
 def _build_arima_series_for_df(df: pd.DataFrame, value_col: str = "total_cases") -> dict:
     out = {}
     for barangay, bdf in df.groupby("barangay"):
@@ -515,92 +727,83 @@ def get_all_disease_models():
     global _all_disease_models
     if _all_disease_models:
         return _all_disease_models
-    print("Training All-Disease Hybrid (ARIMA + RF)…")
+    print("Training All-Disease Hybrid (ARIMA + RuleBasedThreshold)…")
     df     = load_all_disease_dataframe()
     X      = df[FEATURE_COLS].values
-    X_cls  = df[CLASSIFIER_FEATURE_COLS].values
     y_reg  = df["total_cases"].values
-    le     = LabelEncoder()
-    y_cls  = le.fit_transform(df["risk_class"].fillna("Low").astype(str))
+    n_db_rows = int(df.get("is_db_sourced", pd.Series(dtype=bool)).sum())
+    arima_df = _arima_safe_frame(df)
+    n_arima_db_rows = int(arima_df.get("is_db_sourced", pd.Series(dtype=bool)).sum())
 
-    # Stratified split (not a plain chronological cut): "Low" risk is only 6 of 891
-    # rows, all from one barangay clustered early in the sort order, so a chronological
-    # 80/20 cut placed every "Low" row in train and none in test — the class was
-    # invisible in evaluation. Stratifying on risk_class guarantees every class is
-    # represented proportionally in both splits without altering any real data.
+    # Regressor trains on the FULL history (Excel + live DB continuation) —
+    # forecasting case counts from past case counts doesn't
+    # need a risk_class label, so DB rows are safe to include here. This is
+    # only used for the reported MAE/RMSE/MAPE accuracy metrics, not for
+    # producing forecasts (ARIMA does that) or risk labels (see below).
     idx = np.arange(len(df))
-    train_idx, test_idx = train_test_split(
-        idx, test_size=0.2, random_state=42, stratify=y_cls)
+    train_idx, test_idx = train_test_split(idx, test_size=0.2, random_state=42)
 
     rf_reg = RandomForestRegressor(n_estimators=200, max_depth=10,
         min_samples_split=4, min_samples_leaf=2, random_state=42, n_jobs=-1)
     rf_reg.fit(X[train_idx], y_reg[train_idx])
-
-    # SMOTE (training data only — never touches the held-out test set) generates
-    # synthetic minority-class ("Low") samples so the classifier sees a balanced
-    # class distribution during training. "Low" has ~5 examples in the training
-    # split, so k_neighbors must be capped below that count or SMOTE raises.
-    X_cls_train, y_cls_train = X_cls[train_idx], y_cls[train_idx]
-    train_counts   = Counter(y_cls_train)
-    minority_count = min(train_counts.values())
-    smote_note      = None
-    if minority_count >= 2:
-        k = min(5, minority_count - 1)
-        X_cls_train, y_cls_train = SMOTE(random_state=42, k_neighbors=k).fit_resample(
-            X_cls_train, y_cls_train)
-        smote_note = (f"SMOTE(k_neighbors={k}) applied to training data only — "
-                       f"class counts before: {dict(train_counts)}, "
-                       f"after: {dict(Counter(y_cls_train))}.")
-    else:
-        smote_note = "SMOTE skipped — fewer than 2 minority-class training samples."
-    print(f"  {smote_note}")
-
-    rf_cls = RandomForestClassifier(n_estimators=200, max_depth=10,
-        min_samples_split=4, min_samples_leaf=2, random_state=42, n_jobs=-1)
-    rf_cls.fit(X_cls_train, y_cls_train)
     preds_test = rf_reg.predict(X[test_idx])
     mae_val  = round(float(mean_absolute_error(y_reg[test_idx], preds_test)), 2)
     rmse_val = rmse(y_reg[test_idx], preds_test)
     mape_val = mape(y_reg[test_idx], preds_test)
-    acc      = round(float(accuracy_score(y_cls[test_idx], rf_cls.predict(X_cls[test_idx]))) * 100, 1)
     importance = dict(sorted(
         {FEATURE_COLS[i]: round(float(v), 4) for i, v in enumerate(rf_reg.feature_importances_)}.items(),
         key=lambda x: x[1], reverse=True))
-    cls_importance = dict(sorted(
-        {CLASSIFIER_FEATURE_COLS[i]: round(float(v), 4) for i, v in enumerate(rf_cls.feature_importances_)}.items(),
-        key=lambda x: x[1], reverse=True))
+
+    # Risk classification used to be a RandomForestClassifier deliberately
+    # trained WITHOUT case-count features (lag_1/2/3, rolling stats), out of
+    # concern that those features let it trivially reconstruct risk_class
+    # and "inflate" accuracy to 100%. In practice, risk_class in the source
+    # data barely overlaps by case count (Low ~9, Medium 10-17, High 16-30)
+    # -- it IS essentially a threshold on volume, so hiding volume from the
+    # classifier didn't reduce overfitting, it removed the one signal that
+    # defines the label. Real-world result: a barangay with the highest
+    # case count in the whole dataset (Tiaong, consistently 21-30/month,
+    # always "High" in the source data) got classified "Low/stable" because
+    # the model could only see season + disease-mix, not volume. Replaced
+    # with the same transparent, verifiable threshold rule already used for
+    # the per-disease pipeline (_disease_risk_thresholds/_disease_risk_label)
+    # instead of an ML classifier that was trained not to know the answer.
     _all_disease_models = {
-        "df": df, "regressor": rf_reg, "classifier": rf_cls, "label_encoder": le,
-        "mae": mae_val, "rmse": rmse_val, "mape": mape_val, "accuracy": acc,
-        "importance": importance, "clf_importance": cls_importance,
-        "clf_features": CLASSIFIER_FEATURE_COLS, "trained_on": len(df),
+        "df": df, "regressor": rf_reg,
+        "mae": mae_val, "rmse": rmse_val, "mape": mape_val,
+        "importance": importance, "trained_on": len(df),
+        "db_rows_added": n_db_rows,
         "train_idx": train_idx, "test_idx": test_idx,
-        "split_method": "stratified_80_20_by_risk_class",
-        "smote_note": smote_note,
-        "classes": list(le.classes_), "arima_series": _build_arima_series_for_df(df),
-        "arima_cache": {}, "rf_model_type": "RandomForestClassifier",
+        "arima_series": _build_arima_series_for_df(arima_df),
+        "arima_cache": {}, "rf_model_type": "RuleBasedThreshold",
         "risk_note": (
-            "RF risk classifier trained on risk_class labels from Barangay_Disease_Monthly, "
-            "using only seasonal (month_sin/cos, month_no, year) and disease-mix-ratio "
-            "features — lag_1/lag_2/lag_3 and rolling total_cases stats are deliberately "
-            "excluded from the classifier because total_cases barely changes month-to-month "
-            "per barangay, which let those features trivially reconstruct the risk_class "
-            "threshold and inflate accuracy to 100%. Accuracy now reflects whether seasonality "
-            "and disease composition predict risk, independent of raw case-count history. "
-            "Test set uses a stratified 80/20 split (no synthetic rows). Training data only "
-            f"was rebalanced with SMOTE to address 'Low' class scarcity: {smote_note}"
+            "Risk classification uses simple, verifiable thresholds on case count "
+            "(< p50 = Low, p50-p75 = Medium, >= p75 = High, computed fresh from the "
+            "current cases across all barangays each request) instead of a trained "
+            "ML classifier. Source data shows risk_class barely overlaps by volume "
+            "(Low ~9 cases, Medium 10-17, High 16-30), so a threshold rule matches "
+            "the ground truth directly and can't misclassify a high-volume barangay "
+            "as low risk the way a classifier trained without volume features could. "
+            f"The regressor (used only for the MAE/RMSE/MAPE accuracy metrics below, "
+            f"not for forecasts or risk) trains on {n_db_rows} live row(s) from "
+            "patient_visit_records beyond the Excel snapshot's latest month. Of those, "
+            f"only {n_arima_db_rows} feed the ARIMA/SARIMA series -- ARIMA only trusts "
+            "a live month once it forms an unbroken run right after the Excel "
+            "snapshot's last month, since a single sparse or gap-broken month at the "
+            "tail of the series would otherwise crater the forecast (a real example: "
+            "one under-logged month misread as 'cases collapsed to near zero')."
         ),
     }
-    print(f"All-Disease model ready — MAE {mae_val}, RMSE {rmse_val}, Risk Acc {acc}%")
+    print(f"All-Disease model ready — MAE {mae_val}, RMSE {rmse_val} "
+          f"({n_db_rows} live DB rows blended into regressor/ARIMA training)")
     return _all_disease_models
 
 
 def _hybrid_predict_one_alldisease(
-    barangay_name: str, models: dict, steps: int, current_override, period: str = "year"
+    barangay_name: str, models: dict, steps: int, current_override, period: str = "year",
+    thresholds: dict = None,
 ) -> dict:
     df           = models["df"]
-    le           = models["label_encoder"]
-    rf_cls       = models["classifier"]
     arima_series = models["arima_series"]
     arima_cache  = models.setdefault("arima_cache", {})
 
@@ -628,36 +831,15 @@ def _hybrid_predict_one_alldisease(
             "order": [0, 0, 0], "trend": "stable", "model_type": "ARIMAFallback",
         }
 
-    arima_next = arima_result["forecast"][0]   # next-month for RF fusion
+    arima_next = arima_result["forecast"][0]   # next-month value, used for the fused/insight-panel number
 
-    clf_features = models.get("clf_features", CLASSIFIER_FEATURE_COLS)
-
-    # RF on current features (seasonal + disease-mix ratios only — no case-count history)
-    cur_f = latest_row[clf_features].values.reshape(1, -1)
-    current_risk_label = le.inverse_transform(rf_cls.predict(cur_f))[0]
-
-    # RF on synthetic future features — only the month rolls forward; ratios are
-    # held at their latest known values since next month's disease mix is unknown.
-    fut_f = latest_row[clf_features].values.copy().astype(float)
-    ms = clf_features.index("month_sin"); mc = clf_features.index("month_cos")
-    mn = clf_features.index("month_no")
-    nm = int(latest_row["month_no"] % 12) + 1
-    fut_f[mn] = nm; fut_f[ms] = np.sin(2 * np.pi * nm / 12); fut_f[mc] = np.cos(2 * np.pi * nm / 12)
-    fut_f = fut_f.reshape(1, -1)
-    fut_enc   = rf_cls.predict(fut_f)[0]
-    fut_proba = rf_cls.predict_proba(fut_f)[0]
-    fut_label = le.inverse_transform([fut_enc])[0]
-    proba_dict = {str(c): round(float(p), 3) for c, p in zip(models["classes"], fut_proba)}
-    confidence = round(float(max(fut_proba)) * 100, 1)
-    trend      = arima_result["trend"]
-    risk_lower = fut_label.lower()
-    agreement  = (
-        (trend == "rising"  and risk_lower in ["high", "medium"]) or
-        (trend == "stable"  and risk_lower == "medium") or
-        (trend == "falling" and risk_lower in ["low",  "medium"])
-    )
-
-    # SCALE-1: bar-chart display value — annual sum or next-month
+    # SCALE-1: bar-chart display value — annual sum or next-month. Computed
+    # before risk labeling below because risk thresholds are built from
+    # annual-scale current_cases (see the /disease-predict route) -- for
+    # period="year" the value being risk-labeled must be on that same
+    # annual scale (predicted_display), not the single next-month value
+    # (arima_next), or every barangay's forecast reads as "Low" simply
+    # because one month's count is always far smaller than an annual total.
     if period == "year":
         predicted_display = round(sum(arima_result["forecast"]), 1)
         lo_display        = round(sum(arima_result["lower_ci"]),  1)
@@ -666,6 +848,32 @@ def _hybrid_predict_one_alldisease(
         predicted_display = arima_result["forecast"][0]
         lo_display        = arima_result["lower_ci"][0]
         hi_display        = arima_result["upper_ci"][0]
+
+    # Risk label is a simple, verifiable threshold on case count -- same
+    # approach as the per-disease pipeline (_disease_risk_thresholds /
+    # _disease_risk_label) -- rather than an ML classifier. See the note in
+    # get_all_disease_models() for why: a classifier trained without
+    # case-count features can't tell a high-volume barangay from a low-volume
+    # one, which is exactly backwards for a "how risky is this" question.
+    thresholds = thresholds or {"low_max": 0, "med_max": 0}
+    current_risk_label = _disease_risk_label(current_cases, thresholds)
+    fut_label           = _disease_risk_label(predicted_display, thresholds)
+    proba_dict = {
+        "High": round(min(1.0, predicted_display / max(thresholds["med_max"], 1)), 3) if thresholds["med_max"] > 0 else 0.0,
+        "Medium": 0.0, "Low": 0.0,
+    }
+    proba_dict["Low"] = round(max(0.0, 1.0 - proba_dict["High"]), 3)
+    # No per-barangay MAPE exists for this pipeline (only one regressor MAPE
+    # for the whole model, in models["mape"]) -- use it as a shared baseline
+    # alongside this barangay's own prediction-interval width.
+    confidence = forecast_confidence(predicted_display, lo_display, hi_display, models.get("mape"))
+    trend      = arima_result["trend"]
+    risk_lower = fut_label.lower()
+    agreement  = (
+        (trend == "rising"  and risk_lower in ["high", "medium"]) or
+        (trend == "stable"  and risk_lower == "medium") or
+        (trend == "falling" and risk_lower in ["low",  "medium"])
+    )
 
     return {
         "barangay": barangay_name,
@@ -680,6 +888,8 @@ def _hybrid_predict_one_alldisease(
         "rf_future_risk": str(fut_label),
         "rf_future_proba": proba_dict,
         "rf_confidence": confidence,
+        "rf_model_type": "RuleBasedThreshold",
+        "risk_thresholds": thresholds,
         "model_agreement": agreement,
         "fused_predicted": arima_next,
         # SCALE-1: period-correct display value for bar chart
@@ -687,7 +897,7 @@ def _hybrid_predict_one_alldisease(
         "predicted_lower":  lo_display,
         "predicted_upper":  hi_display,
         "predicted_period": period,
-        "model_type": "AllDiseaseARIMA+RF",
+        "model_type": "AllDiseaseARIMA+RuleBasedThreshold",
     }
 
 
@@ -711,6 +921,88 @@ def _empty_prediction(barangay_name: str) -> dict:
 _consult_diagnosis_df = None
 
 
+def load_db_consult_rows(after_year: int, after_month: int) -> pd.DataFrame:
+    """
+    Live continuation of Consult_Diagnosis_3Y from patient_visit_records —
+    one row per visit with a non-empty diagnosis, so _load_disease_specific_df's
+    text match/contains against `diagnosis` works unchanged. Only months after
+    the Excel sheet's own latest covered period are included, so nothing is
+    double-counted.
+    """
+    cols = ["barangay", "year", "month_no", "diagnosis", "cases_reported", "is_db_sourced"]
+    empty = pd.DataFrame(columns=cols)
+
+    try:
+        conn = db_connect()
+    except Exception as e:
+        print(f"[DB] consult-diagnosis connect failed, using Excel-only data: {e}")
+        return empty
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT
+                    YEAR(pvr.visit_date)  AS year,
+                    MONTH(pvr.visit_date) AS month_no,
+                    COALESCE(NULLIF(b.name, ''), NULLIF(op.complete_address, ''), 'Unspecified') AS barangay,
+                    pvr.diagnosis AS diagnosis
+                FROM patient_visit_records pvr
+                INNER JOIN pets ON pets.id = pvr.pet_id
+                LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id
+                LEFT JOIN barangays b ON b.id = op.barangay_id
+                WHERE pvr.visit_date IS NOT NULL
+                  AND pvr.diagnosis IS NOT NULL AND pvr.diagnosis != ''
+            """)
+            rows = cur.fetchall()
+    except Exception as e:
+        print(f"[DB] consult-diagnosis query failed, using Excel-only data: {e}")
+        return empty
+    finally:
+        conn.close()
+
+    if not rows:
+        return empty
+
+    raw = pd.DataFrame(rows)
+    raw = raw[(raw["year"] > after_year) | ((raw["year"] == after_year) & (raw["month_no"] > after_month))]
+    if raw.empty:
+        return empty
+
+    raw["cases_reported"] = 1
+    raw["is_db_sourced"] = True
+    return raw[cols]
+
+
+def _trusted_db_cutoff(raw: pd.DataFrame) -> dict:
+    """
+    Same rationale as _arima_safe_frame (see that docstring), adapted to
+    this sheet's one-row-per-visit shape instead of one-row-per-month:
+    per barangay, finds the (year, month) of the last month in an unbroken
+    run of DB-sourced coverage immediately following the Excel snapshot's
+    last month. A barangay whose first live month already has a gap after
+    Excel gets no entry -- none of its DB rows are trusted for forecasting
+    until logging catches up.
+    """
+    cutoffs = {}
+    excel_only = raw[~raw["is_db_sourced"]]
+    for barangay, bdf in raw[raw["is_db_sourced"]].groupby("barangay"):
+        excel_bdf = excel_only[excel_only["barangay"] == barangay]
+        expected_year, expected_month = _latest_period(excel_bdf)
+        months_present = sorted(set(map(tuple, bdf[["year", "month_no"]].astype(int).values.tolist())))
+        last_trusted = None
+        for (yr, mo) in months_present:
+            expected_month += 1
+            if expected_month > 12:
+                expected_month, expected_year = 1, expected_year + 1
+            if (yr, mo) == (expected_year, expected_month):
+                last_trusted = (expected_year, expected_month)
+            else:
+                break
+        if last_trusted:
+            cutoffs[barangay] = last_trusted
+    return cutoffs
+
+
 def _load_consult_diagnosis_raw() -> pd.DataFrame:
     # SPEED-6: this sheet doesn't change while the service is running, but was
     # being re-read from disk (twice, via read_excel_sheet's header probe) on
@@ -725,6 +1017,24 @@ def _load_consult_diagnosis_raw() -> pd.DataFrame:
     raw["cases_reported"] = pd.to_numeric(raw["cases_reported"], errors="coerce").fillna(1)
     raw = raw[pd.to_numeric(raw["year"], errors="coerce").notna()]
     raw["year"] = raw["year"].astype(int)
+    raw["is_db_sourced"] = False
+
+    after_year, after_month = _latest_period(raw)
+    db_rows = load_db_consult_rows(after_year, after_month)
+    if not db_rows.empty:
+        raw = pd.concat([raw, db_rows], ignore_index=True, sort=False)
+
+        # Drop DB-sourced rows that aren't part of a trusted contiguous run
+        # (see _trusted_db_cutoff) -- same tail-cliff risk as the all-disease
+        # pipeline, just at per-visit granularity instead of monthly totals.
+        cutoffs = _trusted_db_cutoff(raw)
+        def _is_trusted(r):
+            if not r["is_db_sourced"]:
+                return True
+            cutoff = cutoffs.get(r["barangay"])
+            return cutoff is not None and (int(r["year"]), int(r["month_no"])) <= cutoff
+        raw = raw[raw.apply(_is_trusted, axis=1)]
+
     _consult_diagnosis_df = raw
     return raw
 
@@ -814,18 +1124,12 @@ def _run_disease_arima(series: pd.Series, steps: int, order: tuple = None, s_ord
         lo = [max(0.0, round(float(v), 1)) for v in ci.iloc[:, 0]]
         hi = [max(0.0, round(float(v), 1)) for v in ci.iloc[:, 1]]
 
-        # SANITY GUARD: seasonally-differenced models fit to short/sparse/mostly-zero
-        # count series can be numerically unstable -- they fit the observed history
-        # fine but extrapolate an explosive multiplicative pattern many steps ahead
-        # (e.g. a barangay whose worst month ever was 10 cases forecasting 80,000+
-        # cases a year out). AIC picks the best in-sample fit, not the most stable
-        # one, so this can't be caught at order-selection time. Instead, reject any
-        # forecast that blows past what the series' own history could plausibly
-        # support and fall back to the bounded weighted-moving-average estimate.
-        hist_vals = series.dropna().values.astype(float)
-        hist_max  = float(hist_vals.max()) if len(hist_vals) else 0.0
-        sane_cap  = max(hist_max * 8, 15.0)
-        if max(fc, default=0.0) > sane_cap or max(hi, default=0.0) > sane_cap * 1.5:
+        # SANITY GUARD: see _forecast_is_runaway() -- catches both an outright
+        # per-month blowup and the more subtle case where every individual
+        # month looks plausible but the summed annual forecast (the number
+        # actually shown to users) is far beyond anything the barangay's
+        # history ever supported.
+        if _forecast_is_runaway(series, fc, hi):
             return _ma_fallback(series, steps)
 
         slope = fc[-1] - fc[0]
@@ -983,11 +1287,14 @@ def predict_disease_specific(
         )
 
         risk_label   = _disease_risk_label(current_cases, thresholds)
-        future_cases = fc_result["forecast"][0]   # next-month for risk classification
-        future_risk  = _disease_risk_label(future_cases, thresholds)
-        tier         = _disease_tier(future_risk)
+        future_cases = fc_result["forecast"][0]   # next-month value, used for display/protocol text
 
-        # SCALE-2: bar-chart display value
+        # SCALE-2: bar-chart display value. Computed before future_risk below
+        # because thresholds are annual-scale current_cases-derived -- for
+        # period="year" the risk-labeled value must match that scale
+        # (predicted_display), not the single next-month value (future_cases),
+        # or every barangay reads "Low" since one month is always far smaller
+        # than an annual total.
         if period == "year":
             predicted_display = round(sum(fc_result["forecast"]), 1)
             lo_display        = round(sum(fc_result["lower_ci"]),  1)
@@ -996,6 +1303,9 @@ def predict_disease_specific(
             predicted_display = future_cases
             lo_display        = fc_result["lower_ci"][0]
             hi_display        = fc_result["upper_ci"][0]
+
+        future_risk = _disease_risk_label(predicted_display, thresholds)
+        tier        = _disease_tier(future_risk)
 
         pct_vs_avg = round(((current_cases - avg_cases) / max(1, avg_cases)) * 100)
         proba = {
@@ -1023,7 +1333,8 @@ def predict_disease_specific(
             "arima_trend": fc_result["trend"], "arima_order": fc_result["order"],
             "seasonal_order": fc_result.get("seasonal_order"), "n_obs": fc_result.get("n_obs", 0),
             "risk_class": future_risk, "rf_current_risk": risk_label, "rf_future_risk": future_risk,
-            "risk_proba": proba, "confidence": round(float(max(proba.values())) * 100, 1),
+            "risk_proba": proba,
+            "confidence": forecast_confidence(predicted_display, lo_display, hi_display, metrics["mape"]),
             "rf_model_type": "RuleBasedThreshold", "risk_thresholds": thresholds,
             # SCALE-2: period-correct bar-chart value
             "predicted_cases":      predicted_display,
@@ -1185,12 +1496,21 @@ def disease_predict():
         df       = models["df"]
         targets  = requested if requested else list(df["barangay"].unique())
         all_c    = df.groupby("barangay")["total_cases"].last().to_dict()
-        avg_c    = round(sum(all_c.values()) / max(1, len(all_c)), 1)
+        # Apply live current-case overrides before computing risk thresholds,
+        # so risk bands reflect today's actual case distribution across
+        # barangays, not just each barangay's last historical row.
+        for b, v in cc_key.items():
+            km = next((k for k in all_c if k.strip().lower() == b), None)
+            if km: all_c[km] = v
+            else:  all_c[b]  = v
+        avg_c      = round(sum(all_c.values()) / max(1, len(all_c)), 1)
+        thresholds = _disease_risk_thresholds(list(all_c.values()))
         results  = []
         for barangay in targets:
             override = cc_key.get(str(barangay).strip().lower())
             pred     = _hybrid_predict_one_alldisease(barangay, models, steps=steps,
-                                                      current_override=override, period=period)
+                                                      current_override=override, period=period,
+                                                      thresholds=thresholds)
             tier, sl = _build_all_disease_protocol(barangay, pred, avg_c, models)
             pct      = round(((pred["current_cases"] - avg_c) / max(1, avg_c)) * 100)
             results.append({
@@ -1201,7 +1521,8 @@ def disease_predict():
                 "arima_order": pred["arima_order"], "seasonal_order": None,
                 "rf_current_risk": pred["rf_current_risk"], "rf_future_risk": pred["rf_future_risk"],
                 "risk_class": pred["rf_future_risk"], "risk_proba": pred["rf_future_proba"],
-                "confidence": pred["rf_confidence"], "rf_model_type": "RandomForestClassifier",
+                "confidence": pred["rf_confidence"], "rf_model_type": "RuleBasedThreshold",
+                "risk_thresholds": thresholds,
                 "risk_note": models.get("risk_note", ""),
                 # SCALE-1: period-correct predicted_cases for bar chart
                 "predicted_cases":  pred.get("predicted_cases", pred["fused_predicted"]),
@@ -1211,15 +1532,14 @@ def disease_predict():
                 "fused_predicted": pred["fused_predicted"],
                 "model_agreement": pred["model_agreement"], "tier": tier,
                 "recommendation": (
-                    f"{barangay} — RF: {pred['rf_future_risk']} risk "
+                    f"{barangay} — Risk: {pred['rf_future_risk']} "
                     f"({pred['rf_confidence']}% conf), ARIMA: {pred['arima_trend']}, "
                     f"predicts {pred['predicted_cases']:.0f} "
                     f"({'annual' if period == 'year' else 'next-month'}) cases."
                 ),
-                "steps": sl, "model_type": "AllDiseaseARIMA+RF",
+                "steps": sl, "model_type": "AllDiseaseARIMA+RuleBasedThreshold",
                 "model_mae": models["mae"], "model_rmse": models.get("rmse"),
-                "model_mape": models.get("mape"), "model_accuracy": models["accuracy"],
-                "split_method": models.get("split_method", "time_based_80_20"),
+                "model_mape": models.get("mape"),
                 "eval_note": models.get("risk_note", ""),
             })
         results.sort(key=lambda x: (
@@ -1249,19 +1569,21 @@ def model_info():
         return jsonify({
             "success": True,
             "all_disease": {
-                "description": "All-disease barangay totals — ARIMA forecast + RF risk classification",
+                "description": "All-disease barangay totals — ARIMA forecast + rule-based risk thresholds",
                 "arima": {"method": "Auto-ARIMA (5-combo grid + ADF)", "ci_level": "80%"},
                 "random_forest": {
-                    "type": "RandomForestClassifier",
+                    "type": "RandomForestRegressor (case-count forecast accuracy only, not used for risk)",
                     "regressor_mae": models["mae"], "regressor_rmse": models.get("rmse"),
-                    "regressor_mape": models.get("mape"), "classifier_accuracy": models["accuracy"],
-                    "trained_on_rows": models["trained_on"], "split_method": models.get("split_method"),
-                    "classes": models["classes"],
+                    "regressor_mape": models.get("mape"),
+                    "trained_on_rows": models["trained_on"],
                     "regressor_features": FEATURE_COLS,
-                    "classifier_features": models.get("clf_features", CLASSIFIER_FEATURE_COLS),
                     "top_features": dict(list(models["importance"].items())[:5]),
-                    "classifier_top_features": dict(list(models.get("clf_importance", {}).items())[:5]),
                     "risk_note": models.get("risk_note", ""),
+                },
+                "risk_classification": {
+                    "type": "RuleBasedThreshold",
+                    "method": "Case-count p50/p75 thresholds across all barangays, computed fresh per request",
+                    "note": "Not a trained ML classifier — see risk_note for why.",
                 },
             },
             "disease_specific": {

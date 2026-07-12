@@ -1,0 +1,109 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - button "Toggle sidebar" [ref=e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=e7]
+    - navigation:
+      - link [ref=e8] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/index.html
+        - img "Dashboard" [ref=e9]
+      - link [ref=e10] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/appointment.html
+        - img "Appointment Management" [ref=e11]
+      - link [ref=e12] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/patient-records.html
+        - img "Patient Records" [ref=e13]
+      - link [ref=e14] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/report.html
+        - img "Report" [ref=e15]
+      - link [ref=e16] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/disease-analytics.html
+        - img "Disease Analytics" [ref=e17]
+      - link [ref=e18] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/lost-and-found.html
+        - img "Lost and Found" [ref=e19]
+      - link [ref=e20] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/chatbot-management.html
+        - img "Chatbot Management" [ref=e21]
+      - link [ref=e22] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/mass-vaccination.html
+        - img "Mass Vaccination" [ref=e23]
+  - main [ref=e24]:
+    - generic:
+      - button [ref=e496] [cursor=pointer]:
+        - img "back" [ref=e497]
+        - text: Back to Disease Analytics
+      - generic:
+        - generic [ref=e498]:
+          - heading "Selected Barangay Tiaong" [level=2] [ref=e499]:
+            - generic [ref=e500]: Selected Barangay
+            - text: Tiaong
+          - generic [ref=e501]:
+            - generic [ref=e502]:
+              - generic [ref=e503]: "310"
+              - paragraph [ref=e504]: Cases
+            - generic [ref=e505]:
+              - generic [ref=e506]: "182.7"
+              - paragraph [ref=e507]: Avg
+          - heading "Barangay Comparison – This Disease vs Average" [level=4] [ref=e508]
+          - generic [ref=e509]:
+            - generic [ref=e510]: This Barangay
+            - generic [ref=e514]: Barangay Average
+            - generic [ref=e518]: Peak Barangay
+          - heading "Predicted Case Count" [level=4] [ref=e522]
+          - generic [ref=e523]:
+            - generic [ref=e524]: Predicted Load
+            - generic [ref=e528]: Current Load
+        - generic [ref=e532]:
+          - generic [ref=e533]: Grade 4 — High Risk
+          - generic [ref=e535]:
+            - generic [ref=e536]: Basic Rule Check
+            - generic [ref=e537]: "Low: under 165 · Medium: 165–197.5 · High: 197.5 or more"
+          - generic [ref=e538]:
+            - generic [ref=e539]:
+              - generic [ref=e540]: Advanced Forecast — 3-Month Forecast
+              - generic [ref=e541]: Usually accurate within ±0.15 cases
+            - generic [ref=e542]:
+              - generic [ref=e543]:
+                - generic [ref=e544]: Next Month
+                - generic [ref=e545]: "23.8"
+                - generic [ref=e546]: 21.6 – 26
+                - generic [ref=e547]: Likely Range
+              - generic [ref=e548]:
+                - generic [ref=e549]: Month 2
+                - generic [ref=e550]: "24.8"
+                - generic [ref=e551]: 22.3 – 27.3
+                - generic [ref=e552]: Likely Range
+              - generic [ref=e553]:
+                - generic [ref=e554]: Month 3
+                - generic [ref=e555]: "25.8"
+                - generic [ref=e556]: 23.3 – 28.4
+                - generic [ref=e557]: Likely Range
+            - generic [ref=e558]: "↑ Trend: RISING"
+          - generic [ref=e559]:
+            - paragraph [ref=e560]: "Response Plan: Tiaong"
+            - paragraph [ref=e561]: "Our Advanced Forecast predicts 23.8 cases next month. Risk level: High (Low: under 165 · Medium: up to 197.5). Risk classification uses simple, verifiable thresholds on case count (< p50 = Low, p50-p75 = Medium, >= p75 = High, computed fresh from the current cases across all barangays each request) instead of a trained ML classifier. Source data shows risk_class barely overlaps by volume (Low ~9 cases, Medium 10-17, High 16-30), so a threshold rule matches the ground truth directly and can't misclassify a high-volume barangay as low risk the way a classifier trained without volume features could. The regressor (used only for the MAE/RMSE/MAPE accuracy metrics below, not for forecasts or risk) trains on 3 live row(s) from patient_visit_records beyond the Excel snapshot's latest month. Of those, only 0 feed the ARIMA/SARIMA series -- ARIMA only trusts a live month once it forms an unbroken run right after the Excel snapshot's last month, since a single sparse or gap-broken month at the tail of the series would otherwise crater the forecast (a real example: one under-logged month misread as 'cases collapsed to near zero')."
+          - generic [ref=e562]:
+            - generic [ref=e563]:
+              - generic [ref=e564]: "01"
+              - generic [ref=e565]:
+                - strong [ref=e566]: "Immediate: Field Deployment"
+                - paragraph [ref=e567]: Hybrid predicts 24 next month (RF 91.7%, ARIMA rising). Deploy to Tiaong. ARIMA trend and RF risk agree.
+            - generic [ref=e568]:
+              - generic [ref=e569]: "02"
+              - generic [ref=e570]:
+                - strong [ref=e571]: "Within 24 hrs: Regulatory Reporting"
+                - paragraph [ref=e572]: "Escalate to MHO. Risk — High: 100%, Medium: 0%, Low: 0%. CI: [22–26]."
+            - generic [ref=e573]:
+              - generic [ref=e574]: "03"
+              - generic [ref=e575]:
+                - strong [ref=e576]: "Preventive: Targeted Sanitation"
+                - paragraph [ref=e577]: "Focus on Tiaong. Current: 310 vs avg 182.7."
+            - generic [ref=e578]:
+              - generic [ref=e579]: "04"
+              - generic [ref=e580]:
+                - strong [ref=e581]: "Monitoring: Weekly Review"
+                - paragraph [ref=e582]: "Track until RF reclassifies. Forecast: [23.8, 24.8, 25.8]."
+          - generic [ref=e583]:
+            - button "Create Event" [ref=e584] [cursor=pointer]
+            - button "Back to Overview" [ref=e587] [cursor=pointer]

@@ -390,6 +390,15 @@
           <p>These matches were identified by our system based on breed, color, size, sex, and location similarity. Only you can see these matches.</p>
         </div>
 
+        <!-- Claimant info — shown for a resolved report regardless of whether a
+             match card exists, since a claim can be approved directly without
+             ever promoting a lost_found_matches row. Populated by JS. -->
+        <div class="lf-match-claimant" id="matchesClaimantBlock" style="display:none;">
+          <span class="lf-match-claimant-label">Claimed by</span>
+          <span class="lf-match-claimant-name" id="matchesClaimantName"></span>
+          <span class="lf-match-claimant-contact" id="matchesClaimantContact"></span>
+        </div>
+
         <!-- Match Card 1 — 94% -->
         <div class="lf-match-card high" data-match-id="match-001">
           <div class="lf-match-top">
@@ -536,7 +545,7 @@
           <div class="form-row" id="petNameRow">
             <div class="form-group full">
               <label>Pet Name</label>
-              <input type="text" id="petNameInput" placeholder="e.g. Max" class="form-input"/>
+              <input type="text" id="petNameInput" placeholder="e.g. Max" class="form-input" autocomplete="off"/>
             </div>
           </div>
           <div class="form-row">
@@ -804,6 +813,28 @@
           <textarea class="form-textarea" id="sightingNotesInput" maxlength="500" oninput="updateCharCounter('sightingNotesInput','sightingNotesCounter')" placeholder="Was the pet wearing a collar? What was its temperament?"></textarea>
           <span class="char-counter" id="sightingNotesCounter">0/500</span>
         </div>
+        <div class="contact-box" style="margin-bottom:20px;">
+          <div class="contact-box-header">
+            <img src="../images/icons/report-contact-inf.svg" alt="" class="contact-icon-img"/>
+            <span class="modal-section-label" style="margin:0;">YOUR CONTACT INFO (OPTIONAL)</span>
+          </div>
+          <button class="use-account-btn" onclick="toggleSightingAccountInfo(this)" type="button">
+            <div class="toggle-switch" id="sightingAccountToggle"><div class="toggle-knob"></div></div>
+            <span class="use-account-label">Use Account Information</span>
+          </button>
+          <div class="input-icon-row">
+            <img src="../images/icons/report-user.svg" alt="" class="inp-icon-img"/>
+            <input type="text" id="sightingContactName" placeholder="Full Name" class="form-input" autocomplete="off"/>
+          </div>
+          <div class="input-icon-row">
+            <img src="../images/icons/report-phone.svg" alt="" class="inp-icon-img"/>
+            <input type="tel" id="sightingContactPhone" placeholder="Mobile Number" class="form-input" autocomplete="off"/>
+          </div>
+          <div class="input-icon-row">
+            <img src="../images/icons/report-mail.svg" alt="" class="inp-icon-img"/>
+            <input type="email" id="sightingContactEmail" placeholder="Email Address" class="form-input" autocomplete="off"/>
+          </div>
+        </div>
         <div class="sighting-footer">
           <button type="button" class="btn-cancel" onclick="closeModal('sightingModal')">Cancel</button>
           <button type="button" class="btn-submit" onclick="submitSighting()">
@@ -855,14 +886,24 @@
           <span class="upload-hint">Supports JPG, PNG, PDF (Max 10MB)</span>
           <input type="file" id="claimDoc" accept=".jpg,.png,.pdf" style="display:none"/>
         </div>
-        <div class="form-row" style="margin-top:20px;">
+        <button class="use-account-btn" onclick="toggleClaimAccountInfo(this)" type="button" style="margin-top:20px;">
+          <div class="toggle-switch" id="claimAccountToggle"><div class="toggle-knob"></div></div>
+          <span class="use-account-label">Use Account Information</span>
+        </button>
+        <div class="form-row" style="margin-top:12px;">
           <div class="form-group">
             <label>FULL NAME</label>
-            <input type="text" id="claimNameInput" placeholder="Owner's Legal Name" class="form-input"/>
+            <input type="text" id="claimNameInput" placeholder="Owner's Legal Name" class="form-input" autocomplete="off"/>
           </div>
           <div class="form-group">
             <label>PHONE NUMBER</label>
-            <input type="tel" id="claimPhoneInput" placeholder="+63 9XX XXX XXXX" class="form-input"/>
+            <input type="tel" id="claimPhoneInput" placeholder="+63 9XX XXX XXXX" class="form-input" autocomplete="off"/>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group full">
+            <label>EMAIL ADDRESS</label>
+            <input type="email" id="claimEmailInput" placeholder="you@example.com" class="form-input" autocomplete="off"/>
           </div>
         </div>
       </div>
@@ -1066,5 +1107,6 @@
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
           crossorigin=""></script>
   <script src="../js/lost-found.js"></script>
+  <script src="../js/site-settings.js"></script>
 </body>
 </html>

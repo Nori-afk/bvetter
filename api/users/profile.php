@@ -86,10 +86,11 @@ function getProfile($pdo, $userId)
 
     $stmt = $pdo->prepare("
         SELECT users.id, users.full_name, users.email, users.phone_number, users.profile_photo,
-               users.education, users.specialization,
+               veterinarian_profiles.education, veterinarian_profiles.specialization,
                roles.name AS role_name, users.created_at
         FROM users
         LEFT JOIN roles ON roles.id = users.role_id
+        LEFT JOIN veterinarian_profiles ON veterinarian_profiles.user_id = users.id
         WHERE users.id = :id
         LIMIT 1
     ");
@@ -146,8 +147,15 @@ function updateProfile($pdo, $data)
     $stmt->execute([':email' => $email, ':id' => $userId]);
     if ($stmt->fetch()) respond(409, ['success' => false, 'message' => 'Email is already used by another account.']);
 
-    $stmt = $pdo->prepare('UPDATE users SET full_name = :name, email = :email, phone_number = :phone, education = :education, specialization = :specialization WHERE id = :id');
-    $stmt->execute([':name' => $fullName, ':email' => $email, ':phone' => $phone, ':education' => $education, ':specialization' => $specialization, ':id' => $userId]);
+    $stmt = $pdo->prepare('UPDATE users SET full_name = :name, email = :email, phone_number = :phone WHERE id = :id');
+    $stmt->execute([':name' => $fullName, ':email' => $email, ':phone' => $phone, ':id' => $userId]);
+
+    $stmt = $pdo->prepare('SELECT id FROM veterinarian_profiles WHERE user_id = :id LIMIT 1');
+    $stmt->execute([':id' => $userId]);
+    if ($stmt->fetch()) {
+        $stmt = $pdo->prepare('UPDATE veterinarian_profiles SET education = :education, specialization = :specialization WHERE user_id = :id');
+        $stmt->execute([':education' => $education, ':specialization' => $specialization, ':id' => $userId]);
+    }
 
     getProfile($pdo, $userId);
 }

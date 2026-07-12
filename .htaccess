@@ -13,6 +13,11 @@ ServerSignature Off
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteRule ^storage/.*\.(php[0-9]?|phtml|phar)$ - [F,L]
+
+    # Some PHP/Apache configs strip the Authorization header before it
+    # reaches $_SERVER — re-attach it so api/auth/session.php can read it.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 </IfModule>
 
 # Security headers

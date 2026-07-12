@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="/final-VBETTER/bvetter/shared/css/sidebar.css">
-    <link rel="stylesheet" href="/final-VBETTER/bvetter/vet/css/disease-analytics.css">
+    <link rel="stylesheet" href="/final-VBETTER/bvetter/vet/css/disease-analytics.css?v=20260711-2">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <!-- <script src="/final-VBETTER/bvetter/shared/js/sidebar.js" defer></script>
@@ -120,6 +120,40 @@
                 </section>
             </section>
 
+            <!-- Create Event modal: routes into whichever module actually owns the
+                 event type instead of a separate disease-analytics-only list -->
+            <div id="createEventModal" class="modal hidden" role="dialog" aria-modal="true">
+                <div class="modal-card">
+                    <h2>Create Response Event</h2>
+                    <p id="createEventContext" class="create-event-context"></p>
+                    <div class="field">
+                        <label class="field-label">Event Type</label>
+                        <label class="radio-option">
+                            <input type="radio" name="eventType" value="vaccination" checked> Vaccination Drive
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="eventType" value="announcement"> Community Announcement
+                        </label>
+                    </div>
+                    <div class="field" id="vaccineField">
+                        <label class="field-label" for="eventVaccine">Vaccine</label>
+                        <select class="form-input" id="eventVaccine">
+                            <option>Anti-Rabies</option>
+                            <option>5-in-1</option>
+                            <option>Others</option>
+                        </select>
+                    </div>
+                    <div class="field" id="announcementDateField">
+                        <label class="field-label" for="eventAnnouncementDate">Date</label>
+                        <input type="date" class="form-input" id="eventAnnouncementDate">
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-soft" id="cancelCreateEventBtn" type="button">Cancel</button>
+                        <button class="btn btn-primary" id="confirmCreateEventBtn" type="button">Create</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Insight drill-down panel -->
             <section id="insightPanel" class="panel">
                 <button class="back-btn" id="backToOverviewBtn">
@@ -183,7 +217,7 @@
     <!-- <script>VBetterAuth.requireAuth(['vet']);</script> -->
     <script src="/final-VBETTER/bvetter/shared/js/sidebar.js"></script>
     <script src="/final-VBETTER/bvetter/vet/js/vet-api.js?v=20260614-2"></script>
-    <script src="/final-VBETTER/bvetter/vet/js/disease-analytics.js?v=20260614-2"></script>
+    <script src="/final-VBETTER/bvetter/vet/js/disease-analytics.js?v=20260711-7"></script>
 
 </body>
 

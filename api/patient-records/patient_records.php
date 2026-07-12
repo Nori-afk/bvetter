@@ -91,6 +91,11 @@ function setupPatientTables($pdo)
             INDEX idx_pvr_category (category)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+    $diseaseCategoryCheck = $pdo->query("SHOW COLUMNS FROM patient_visit_records LIKE 'disease_category'")->fetch();
+    if (!$diseaseCategoryCheck) {
+        $pdo->exec("ALTER TABLE patient_visit_records ADD COLUMN disease_category VARCHAR(40) NOT NULL DEFAULT 'General/Other' AFTER category");
+        $pdo->exec("ALTER TABLE patient_visit_records ADD INDEX idx_pvr_disease_category (disease_category)");
+    }
 
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS patient_vaccination_records (
@@ -235,6 +240,7 @@ function mapVisit($row)
         'followUp' => $row['follow_up_date'] ?: 'TBD',
         'attendingVet' => $row['attending_vet'],
         'category' => $row['category'],
+        'diseaseCategory' => $row['disease_category'],
         'symptoms' => $row['symptoms'],
         'diagnosis' => $row['diagnosis'],
         'treatment' => $row['treatment'],
@@ -302,6 +308,7 @@ function mapRecord($pdo, $row)
         'treatment' => $latest['treatment'] ?? '',
         'medications' => $latest['medications'] ?? [],
         'category' => $latest['category'] ?? 'Routine Checkup',
+        'diseaseCategory' => $latest['diseaseCategory'] ?? 'General/Other',
         'attendingVet' => $latest['attendingVet'] ?? '',
         'vaccinationStatus' => $latest['vaccinationStatus'] ?? '',
         'vaccineBrand' => $vaccinations[0]['name'] ?? '',
@@ -371,9 +378,9 @@ function insertVisit($pdo, $petId, $ownerId, $data)
 {
     $stmt = $pdo->prepare("
         INSERT INTO patient_visit_records
-            (pet_id, owner_id, visit_title, visit_date, follow_up_date, symptoms, diagnosis, treatment, medications_json, category, attending_vet, vaccination_status, vaccine_brand)
+            (pet_id, owner_id, visit_title, visit_date, follow_up_date, symptoms, diagnosis, treatment, medications_json, category, disease_category, attending_vet, vaccination_status, vaccine_brand)
         VALUES
-            (:pet_id, :owner_id, :visit_title, :visit_date, :follow_up_date, :symptoms, :diagnosis, :treatment, :medications_json, :category, :attending_vet, :vaccination_status, :vaccine_brand)
+            (:pet_id, :owner_id, :visit_title, :visit_date, :follow_up_date, :symptoms, :diagnosis, :treatment, :medications_json, :category, :disease_category, :attending_vet, :vaccination_status, :vaccine_brand)
     ");
     $visitDate = clean($data['visitDate'] ?? '');
     $followUpDate = clean($data['followUpDate'] ?? '');
@@ -388,6 +395,7 @@ function insertVisit($pdo, $petId, $ownerId, $data)
         ':treatment' => clean($data['treatment'] ?? ''),
         ':medications_json' => medicationsJson($data),
         ':category' => clean($data['category'] ?? 'Routine Checkup'),
+        ':disease_category' => clean($data['diseaseCategory'] ?? 'General/Other'),
         ':attending_vet' => clean($data['attendingVet'] ?? ''),
         ':vaccination_status' => clean($data['vaccinationStatus'] ?? ''),
         ':vaccine_brand' => clean($data['vaccineBrand'] ?? ''),

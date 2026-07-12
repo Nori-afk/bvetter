@@ -599,6 +599,91 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     gap: 10px;
 }
 
+/* ── Create Event modal ──────────────────────────────────────── */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 21, 39, 0.45);
+    display: grid;
+    place-items: center;
+    /* Leaflet's own controls default to z-index 1000 in leaflet.css, and this
+       page's map overlays (.map-metrics/.map-footer-legend) use 420 -- both
+       share the modal's stacking context (no ancestor establishes an isolated
+       one), so a low z-index here rendered the modal underneath the map's own
+       UI on the Detailed Map view specifically, even though it was open. */
+    z-index: 1500;
+    padding: 16px;
+}
+
+.modal.hidden { display: none; }
+
+.modal-card {
+    width: min(440px, 100%);
+    background: var(--surface, #fff);
+    border-radius: var(--r-md, 12px);
+    padding: 24px;
+}
+
+.modal-card h2 {
+    margin: 0 0 6px;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--ink, #0F172A);
+}
+
+.create-event-context {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin: 0 0 18px;
+}
+
+.modal-card .field { margin-bottom: 16px; }
+
+.modal-card .field-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+.radio-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    color: var(--ink, #0F172A);
+    padding: 6px 0;
+    cursor: pointer;
+}
+
+.modal-card .form-input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border, #D8E0EC);
+    font: inherit;
+    font-size: 13.5px;
+    background: var(--surface, #fff);
+    color: var(--ink, #0F172A);
+}
+
+.modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.btn-soft {
+    background: var(--surface-muted, #F1F5F9);
+    color: var(--ink, #0F172A);
+}
+
+.btn-soft:hover { background: #E2E8F0; }
+
 .insight-card {
     background: var(--surface);
     border: 1px solid var(--border);

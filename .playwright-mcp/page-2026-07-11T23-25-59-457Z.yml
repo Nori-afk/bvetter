@@ -1,0 +1,234 @@
+- generic [ref=f5e2]:
+  - complementary [ref=f5e3]:
+    - img "VBetter Logo" [ref=f5e6]
+    - navigation [ref=f5e7]:
+      - link [ref=f5e8] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/index.html
+        - img "Dashboard" [ref=f5e9]
+        - generic: Dashboard
+      - link [ref=f5e10] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/appointment.html
+        - img "Appointment Management" [ref=f5e11]
+        - generic: Appointment Management
+      - link [ref=f5e12] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/patient-records.html
+        - img "Patient Records" [ref=f5e13]
+        - generic: Patient Records
+      - link [ref=f5e14] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/report.html
+        - img "Report" [ref=f5e15]
+        - generic: Report
+      - link [ref=f5e16] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/disease-analytics.html
+        - img "Disease Analytics" [ref=f5e17]
+        - generic: Disease Analytics
+      - link [ref=f5e18] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/lost-and-found.html
+        - img "Lost and Found" [ref=f5e19]
+        - generic: Lost And Found
+      - link [ref=f5e20] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/chatbot-management.html
+        - img "Chatbot Management" [ref=f5e21]
+        - generic: Chatbot Management
+      - link [ref=f5e22] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/mass-vaccination.html
+        - img "Mass Vaccination" [ref=f5e23]
+        - generic: Mass Vaccination
+    - generic [ref=f5e24]:
+      - article "Kizea igaya profile" [ref=f5e25] [cursor=pointer]:
+        - img "Kizea igaya" [ref=f5e26]
+      - button [ref=f5e27] [cursor=pointer]:
+        - img "Log Out" [ref=f5e28]
+        - generic: Log Out
+  - main [ref=f5e29]:
+    - generic [ref=f5e649]:
+      - generic [ref=f5e650]:
+        - button "Disease Analytics" [ref=f5e651] [cursor=pointer]
+        - generic [ref=f5e654]: Disease Analytics / Detailed Map View
+      - generic [ref=f5e655]:
+        - generic [ref=f5e656]:
+          - generic [ref=f5e657]:
+            - article [ref=f5e658]:
+              - heading "Total Cases" [level=5] [ref=f5e659]
+              - strong [ref=f5e660]: 4,933
+              - generic [ref=f5e661]: All diseases · Full Year 2025
+            - article [ref=f5e662]:
+              - heading "Disease Filter" [level=5] [ref=f5e663]
+              - strong [ref=f5e664]: All Diseases
+              - generic [ref=f5e665]: Currently selected
+            - article [ref=f5e666]:
+              - heading "Active Barangay" [level=5] [ref=f5e667]
+              - strong [ref=f5e668]: Tiaong
+              - generic [ref=f5e669]: Highest case count
+          - generic [ref=f5e692]:
+            - link "Leaflet" [ref=f5e693] [cursor=pointer]:
+              - /url: https://leafletjs.com
+            - text: "| © OpenStreetMap contributors"
+          - generic [ref=f5e698]:
+            - generic [ref=f5e699]: Disease Intensity
+            - text: Critical Monitor Stable
+        - complementary [ref=f5e703]:
+          - button "Action Tab" [ref=f5e705] [cursor=pointer]
+          - generic [ref=f5e706]:
+            - article [ref=f5e707] [cursor=pointer]:
+              - heading "Tiaong CRITICAL" [level=4] [ref=f5e708]:
+                - text: Tiaong
+                - generic [ref=f5e709]: CRITICAL
+              - paragraph [ref=f5e710]: All Diseases
+              - generic [ref=f5e711]: "Cases: 310 | Predicted: 315.4 Advanced Forecast"
+            - article [ref=f5e712] [cursor=pointer]:
+              - heading "Poblacion CRITICAL" [level=4] [ref=f5e713]:
+                - text: Poblacion
+                - generic [ref=f5e714]: CRITICAL
+              - paragraph [ref=f5e715]: All Diseases
+              - generic [ref=f5e716]: "Cases: 286 | Predicted: 293.5 Advanced Forecast"
+            - article [ref=f5e717] [cursor=pointer]:
+              - heading "San Jose CRITICAL" [level=4] [ref=f5e718]:
+                - text: San Jose
+                - generic [ref=f5e719]: CRITICAL
+              - paragraph [ref=f5e720]: All Diseases
+              - generic [ref=f5e721]: "Cases: 274 | Predicted: 278.1 Advanced Forecast"
+            - article [ref=f5e722] [cursor=pointer]:
+              - heading "Tangos CRITICAL" [level=4] [ref=f5e723]:
+                - text: Tangos
+                - generic [ref=f5e724]: CRITICAL
+              - paragraph [ref=f5e725]: All Diseases
+              - generic [ref=f5e726]: "Cases: 266 | Predicted: 273.7 Advanced Forecast"
+            - article [ref=f5e727] [cursor=pointer]:
+              - heading "Sulivan CRITICAL" [level=4] [ref=f5e728]:
+                - text: Sulivan
+                - generic [ref=f5e729]: CRITICAL
+              - paragraph [ref=f5e730]: All Diseases
+              - generic [ref=f5e731]: "Cases: 218 | Predicted: 216.9 Advanced Forecast"
+            - article [ref=f5e732] [cursor=pointer]:
+              - heading "Bagong Nayon CRITICAL" [level=4] [ref=f5e733]:
+                - text: Bagong Nayon
+                - generic [ref=f5e734]: CRITICAL
+              - paragraph [ref=f5e735]: All Diseases
+              - generic [ref=f5e736]: "Cases: 213 | Predicted: 217.6 Advanced Forecast"
+            - article [ref=f5e737] [cursor=pointer]:
+              - heading "Pagala CRITICAL" [level=4] [ref=f5e738]:
+                - text: Pagala
+                - generic [ref=f5e739]: CRITICAL
+              - paragraph [ref=f5e740]: All Diseases
+              - generic [ref=f5e741]: "Cases: 206 | Predicted: 210.6 Advanced Forecast"
+            - article [ref=f5e742] [cursor=pointer]:
+              - heading "Virgen Delas Flores MONITOR" [level=4] [ref=f5e743]:
+                - text: Virgen Delas Flores
+                - generic [ref=f5e744]: MONITOR
+              - paragraph [ref=f5e745]: All Diseases
+              - generic [ref=f5e746]: "Cases: 189 | Predicted: 192.9 Advanced Forecast"
+            - article [ref=f5e747] [cursor=pointer]:
+              - heading "Makinabang MONITOR" [level=4] [ref=f5e748]:
+                - text: Makinabang
+                - generic [ref=f5e749]: MONITOR
+              - paragraph [ref=f5e750]: All Diseases
+              - generic [ref=f5e751]: "Cases: 186 | Predicted: 187.8 Advanced Forecast"
+            - article [ref=f5e752] [cursor=pointer]:
+              - heading "Tibag MONITOR" [level=4] [ref=f5e753]:
+                - text: Tibag
+                - generic [ref=f5e754]: MONITOR
+              - paragraph [ref=f5e755]: All Diseases
+              - generic [ref=f5e756]: "Cases: 182 | Predicted: 183.7 Advanced Forecast"
+            - article [ref=f5e757] [cursor=pointer]:
+              - heading "Pinagbarilan MONITOR" [level=4] [ref=f5e758]:
+                - text: Pinagbarilan
+                - generic [ref=f5e759]: MONITOR
+              - paragraph [ref=f5e760]: All Diseases
+              - generic [ref=f5e761]: "Cases: 177 | Predicted: 183.3 Advanced Forecast"
+            - article [ref=f5e762] [cursor=pointer]:
+              - heading "Tarcan MONITOR" [level=4] [ref=f5e763]:
+                - text: Tarcan
+                - generic [ref=f5e764]: MONITOR
+              - paragraph [ref=f5e765]: All Diseases
+              - generic [ref=f5e766]: "Cases: 174 | Predicted: 172.4 Advanced Forecast"
+            - article [ref=f5e767] [cursor=pointer]:
+              - heading "San Roque STABLE" [level=4] [ref=f5e768]:
+                - text: San Roque
+                - generic [ref=f5e769]: STABLE
+              - paragraph [ref=f5e770]: All Diseases
+              - generic [ref=f5e771]: "Cases: 171 | Predicted: 144 Advanced Forecast"
+            - article [ref=f5e772] [cursor=pointer]:
+              - heading "Subic STABLE" [level=4] [ref=f5e773]:
+                - text: Subic
+                - generic [ref=f5e774]: STABLE
+              - paragraph [ref=f5e775]: All Diseases
+              - generic [ref=f5e776]: "Cases: 165 | Predicted: 144 Advanced Forecast"
+            - article [ref=f5e777] [cursor=pointer]:
+              - heading "Paitan STABLE" [level=4] [ref=f5e778]:
+                - text: Paitan
+                - generic [ref=f5e779]: STABLE
+              - paragraph [ref=f5e780]: All Diseases
+              - generic [ref=f5e781]: "Cases: 162 | Predicted: 163.8 Advanced Forecast"
+            - article [ref=f5e782] [cursor=pointer]:
+              - heading "Sto. Cristo STABLE" [level=4] [ref=f5e783]:
+                - text: Sto. Cristo
+                - generic [ref=f5e784]: STABLE
+              - paragraph [ref=f5e785]: All Diseases
+              - generic [ref=f5e786]: "Cases: 162 | Predicted: 163.8 Advanced Forecast"
+            - article [ref=f5e787] [cursor=pointer]:
+              - heading "Hinukay STABLE" [level=4] [ref=f5e788]:
+                - text: Hinukay
+                - generic [ref=f5e789]: STABLE
+              - paragraph [ref=f5e790]: All Diseases
+              - generic [ref=f5e791]: "Cases: 153 | Predicted: 132 Advanced Forecast"
+            - article [ref=f5e792] [cursor=pointer]:
+              - heading "Sto. Niño STABLE" [level=4] [ref=f5e793]:
+                - text: Sto. Niño
+                - generic [ref=f5e794]: STABLE
+              - paragraph [ref=f5e795]: All Diseases
+              - generic [ref=f5e796]: "Cases: 153 | Predicted: 132 Advanced Forecast"
+            - article [ref=f5e797] [cursor=pointer]:
+              - heading "Tilapayong STABLE" [level=4] [ref=f5e798]:
+                - text: Tilapayong
+                - generic [ref=f5e799]: STABLE
+              - paragraph [ref=f5e800]: All Diseases
+              - generic [ref=f5e801]: "Cases: 153 | Predicted: 156.1 Advanced Forecast"
+            - article [ref=f5e802] [cursor=pointer]:
+              - heading "Concepcion STABLE" [level=4] [ref=f5e803]:
+                - text: Concepcion
+                - generic [ref=f5e804]: STABLE
+              - paragraph [ref=f5e805]: All Diseases
+              - generic [ref=f5e806]: "Cases: 153 | Predicted: 156.1 Advanced Forecast"
+            - article [ref=f5e807] [cursor=pointer]:
+              - heading "Barangca STABLE" [level=4] [ref=f5e808]:
+                - text: Barangca
+                - generic [ref=f5e809]: STABLE
+              - paragraph [ref=f5e810]: All Diseases
+              - generic [ref=f5e811]: "Cases: 145 | Predicted: 149.2 Advanced Forecast"
+            - article [ref=f5e812] [cursor=pointer]:
+              - heading "Piel STABLE" [level=4] [ref=f5e813]:
+                - text: Piel
+                - generic [ref=f5e814]: STABLE
+              - paragraph [ref=f5e815]: All Diseases
+              - generic [ref=f5e816]: "Cases: 145 | Predicted: 149.2 Advanced Forecast"
+            - article [ref=f5e817] [cursor=pointer]:
+              - heading "Catulinan STABLE" [level=4] [ref=f5e818]:
+                - text: Catulinan
+                - generic [ref=f5e819]: STABLE
+              - paragraph [ref=f5e820]: All Diseases
+              - generic [ref=f5e821]: "Cases: 141 | Predicted: 120 Advanced Forecast"
+            - article [ref=f5e822] [cursor=pointer]:
+              - heading "Calantipay STABLE" [level=4] [ref=f5e823]:
+                - text: Calantipay
+                - generic [ref=f5e824]: STABLE
+              - paragraph [ref=f5e825]: All Diseases
+              - generic [ref=f5e826]: "Cases: 141 | Predicted: 120 Advanced Forecast"
+            - article [ref=f5e827] [cursor=pointer]:
+              - heading "Sta. Barbara STABLE" [level=4] [ref=f5e828]:
+                - text: Sta. Barbara
+                - generic [ref=f5e829]: STABLE
+              - paragraph [ref=f5e830]: All Diseases
+              - generic [ref=f5e831]: "Cases: 141 | Predicted: 120 Advanced Forecast"
+            - article [ref=f5e832] [cursor=pointer]:
+              - heading "Sabang STABLE" [level=4] [ref=f5e833]:
+                - text: Sabang
+                - generic [ref=f5e834]: STABLE
+              - paragraph [ref=f5e835]: All Diseases
+              - generic [ref=f5e836]: "Cases: 138 | Predicted: 140 Advanced Forecast"
+            - article [ref=f5e837] [cursor=pointer]:
+              - heading "Matangtubig STABLE" [level=4] [ref=f5e838]:
+                - text: Matangtubig
+                - generic [ref=f5e839]: STABLE
+              - paragraph [ref=f5e840]: All Diseases
+              - generic [ref=f5e841]: "Cases: 129 | Predicted: 128.9 Advanced Forecast"

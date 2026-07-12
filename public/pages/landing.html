@@ -121,17 +121,34 @@
   <section class="stats">
     <div class="stat-item">
       <span class="stat-label">CLINIC CAPACITY</span>
-      <span class="stat-value">24/7</span>
+      <span class="stat-value" id="statClinicCapacity">24/7</span>
     </div>
     <div class="stat-divider"></div>
     <div class="stat-item">
       <span class="stat-label">SURGERY RECOVERY</span>
-      <span class="stat-value">98.4%</span>
+      <span class="stat-value" id="statSurgeryRecovery">98.4%</span>
     </div>
     <div class="stat-divider"></div>
     <div class="stat-item">
       <span class="stat-label">SPECIALISTS</span>
-      <span class="stat-value">12</span>
+      <span class="stat-value" id="statSpecialists">12</span>
+    </div>
+  </section>
+
+  <!-- ══════════ ABOUT US ══════════
+       teamImage/about text come from Website Management → site settings;
+       see applySiteSettings() in site-settings.js. -->
+  <section class="about-section" id="about">
+    <div class="about-img-wrap">
+      <img src="" alt="Our team" class="about-team-img" id="aboutTeamImg"/>
+      <div class="about-img-placeholder" id="aboutImgPlaceholder">
+        <img src="../images/img/paw-print.svg" alt="" class="about-placeholder-paw"/>
+      </div>
+    </div>
+    <div class="about-content">
+      <span class="about-eyebrow">About Us</span>
+      <h2>Our Story</h2>
+      <p id="aboutText">Baliwag Veterinary Services has been dedicated to the health and happiness of pets in our community, combining modern diagnostics with genuine, compassionate care for every companion that walks through our doors.</p>
     </div>
   </section>
 

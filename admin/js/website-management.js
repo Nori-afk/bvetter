@@ -12,11 +12,13 @@ const DEFAULT_CONFIG = {
   logo:         null,
   heroBanner:   null,
   teamImage:    null,
-  event1Image:  null,
   about:    '',
   email:    'BaliwagtVC@gmail.com',
   phone:    '09959210640',
-  address:  'AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026'
+  address:  'AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026',
+  clinicCapacity:      '24/7',
+  surgeryRecoveryRate: '98.4%',
+  specialistsCount:    0
 };
 
 let config        = { ...DEFAULT_CONFIG };
@@ -24,14 +26,13 @@ let savedConfig    = { ...DEFAULT_CONFIG };
 let announcements  = [];
 
 /* Pending (unsaved) file uploads + removals, keyed by asset name */
-const pendingFiles  = { logo: null, 'hero-banner': null, 'team-workspace': null, 'event-1': null };
-const pendingRemove = { logo: false, 'hero-banner': false, 'team-workspace': false, 'event-1': false };
+const pendingFiles  = { logo: null, 'hero-banner': null, 'team-workspace': null };
+const pendingRemove = { logo: false, 'hero-banner': false, 'team-workspace': false };
 
 const ASSET_TO_CONFIG_KEY = {
   logo: 'logo',
   'hero-banner': 'heroBanner',
-  'team-workspace': 'teamImage',
-  'event-1': 'event1Image'
+  'team-workspace': 'teamImage'
 };
 
 /* ── Load ── */
@@ -65,18 +66,18 @@ async function saveConfig() {
   formData.append('email', document.getElementById('cp-email').value);
   formData.append('phone', document.getElementById('cp-phone').value);
   formData.append('address', document.getElementById('cp-address').value);
+  formData.append('clinicCapacity', document.getElementById('cp-clinic-capacity').value);
+  formData.append('surgeryRecoveryRate', document.getElementById('cp-surgery-recovery').value);
 
   const fileFieldMap = {
     logo: 'logo_file',
     'hero-banner': 'hero_banner_file',
-    'team-workspace': 'team_image_file',
-    'event-1': 'event1_image_file'
+    'team-workspace': 'team_image_file'
   };
   const removeFieldMap = {
     logo: 'remove_logo',
     'hero-banner': 'remove_hero_banner',
-    'team-workspace': 'remove_team_image',
-    'event-1': 'remove_event1_image'
+    'team-workspace': 'remove_team_image'
   };
 
   Object.keys(pendingFiles).forEach(key => {
@@ -136,12 +137,14 @@ function applyConfigToForm() {
 
   showOrClearAssetPreview('hero-banner',    config.heroBanner);
   showOrClearAssetPreview('team-workspace', config.teamImage);
-  showOrClearAssetPreview('event-1',        config.event1Image);
 
   document.getElementById('cp-about').value   = config.about   || '';
   document.getElementById('cp-email').value   = config.email   || '';
   document.getElementById('cp-phone').value   = config.phone   || '';
   document.getElementById('cp-address').value = config.address || '';
+  document.getElementById('cp-clinic-capacity').value  = config.clinicCapacity      || '';
+  document.getElementById('cp-surgery-recovery').value = config.surgeryRecoveryRate || '';
+  document.getElementById('cp-specialists-count').value = config.specialistsCount ?? 0;
 
   sendLivePreviewUpdate();
 }
@@ -237,12 +240,14 @@ function setupAssetInput(inputId, key) {
 
 setupAssetInput('hero-banner-input',    'hero-banner');
 setupAssetInput('team-workspace-input', 'team-workspace');
-setupAssetInput('event-1-input',        'event-1');
 
 /* ── Profile sync ── */
-['cp-about', 'cp-email', 'cp-phone', 'cp-address'].forEach(id => {
+['cp-about', 'cp-email', 'cp-phone', 'cp-address', 'cp-clinic-capacity', 'cp-surgery-recovery'].forEach(id => {
   document.getElementById(id).addEventListener('input', e => {
-    const map = { 'cp-about': 'about', 'cp-email': 'email', 'cp-phone': 'phone', 'cp-address': 'address' };
+    const map = {
+      'cp-about': 'about', 'cp-email': 'email', 'cp-phone': 'phone', 'cp-address': 'address',
+      'cp-clinic-capacity': 'clinicCapacity', 'cp-surgery-recovery': 'surgeryRecoveryRate'
+    };
     config[map[id]] = e.target.value;
     sendLivePreviewUpdate();
   });
@@ -348,6 +353,36 @@ document.getElementById('ann-modal-save').addEventListener('click', async () => 
 document.getElementById('ann-modal-cancel').addEventListener('click', () => closeModal('modal-ann'));
 document.getElementById('ann-modal-close').addEventListener('click',  () => closeModal('modal-ann'));
 
+/* ── Preview audience switch (Pet Owner / Vet) ──
+   Pet Owner points at the public landing page; Vet points at the staff
+   dashboard. Both are same-origin, so the admin's own session carries
+   into the iframe — VBetterAuth.requireAuth() lets the admin role through
+   vet/html/index.html's ['vet'] guard, no separate login needed. */
+const PREVIEW_TARGETS = {
+  owner: { src: '../../public/pages/landing.html', url: 'adminpanel.com/preview-live', fullsite: '../../public/pages/landing.html' },
+  vet:   { src: '../../vet/html/index.html',        url: 'adminpanel.com/preview-live/vet', fullsite: '../../vet/html/index.html' }
+};
+let previewRole = 'owner';
+
+function setPreviewRole(role) {
+  if (role === previewRole) return;
+  previewRole = role;
+  document.getElementById('btn-preview-owner').classList.toggle('active', role === 'owner');
+  document.getElementById('btn-preview-vet').classList.toggle('active', role === 'vet');
+
+  const target = PREVIEW_TARGETS[role];
+  document.getElementById('wm-fake-url-text').textContent = target.url;
+  document.getElementById('wm-preview-fullsite-link').href = target.fullsite;
+
+  const iframe = document.getElementById('wm-live-preview-iframe');
+  iframe.title = role === 'vet' ? 'Live preview — Vet Dashboard' : 'Live preview — Pet Owner Landing Page';
+  iframe.src = target.src;
+  // sizeLivePreview()/sendLivePreviewUpdate() re-run via the iframe's 'load' listener below.
+}
+
+document.getElementById('btn-preview-owner').addEventListener('click', () => setPreviewRole('owner'));
+document.getElementById('btn-preview-vet').addEventListener('click',   () => setPreviewRole('vet'));
+
 /* ── Live preview iframe ──
    The iframe is scaled down (CSS transform) to fit the shell's width, but a
    transform on an <iframe> breaks native wheel-event routing into its
@@ -404,6 +439,18 @@ if (livePreviewFrame) {
   });
 }
 window.addEventListener('resize', sizeLivePreview);
+
+/* Receives wheel deltas forwarded from inside the preview iframe (see
+   site-settings.js) — the iframe is clickable so links/navigation work,
+   but that means it also now captures wheel events its scaled-down
+   content can't actually scroll with, so it hands them back to us. */
+window.addEventListener('message', (event) => {
+  if (event.origin !== window.location.origin) return;
+  const msg = event.data;
+  if (!msg || msg.type !== 'vbetter-preview-scroll') return;
+  const content = document.querySelector('.wm-browser-content');
+  if (content) content.scrollBy(0, msg.deltaY);
+});
 
 /* ── Preview mode toggle ── */
 document.getElementById('btn-preview-desktop').addEventListener('click', () => {

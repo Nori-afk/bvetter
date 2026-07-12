@@ -1783,6 +1783,10 @@ body {
 
 .field { display: flex; flex-direction: column; gap: 5px; }
 
+.field-row { display: flex; gap: 8px; }
+.field-row .form-input { flex: 1 1 auto; min-width: 0; }
+.field-row select.form-input { flex: 0 0 108px; }
+
 .field-label, .field label {
     font-size: 10px;
     font-weight: 800;
@@ -2266,6 +2270,10 @@ body {
     flex-direction: column;
     gap: 5px;
 }
+
+.em-field-row { display: flex; gap: 8px; }
+.em-field-row .em-input { flex: 1 1 auto; min-width: 0; }
+.em-field-row select.em-input { flex: 0 0 108px; }
 
 .em-span-2 { grid-column: span 2; }
 

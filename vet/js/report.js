@@ -185,6 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
         var totalPages = Math.max(1, pagination.totalPages || 1);
         var page = Math.min(state.page, totalPages);
         var items = [];
+        items.push('<button type="button" class="page-btn" data-page="1" ' + (page <= 1 ? 'disabled' : '') + ' aria-label="First page">&laquo;</button>');
         items.push('<button type="button" class="page-btn" data-page="' + Math.max(1, page - 1) + '" ' + (page <= 1 ? 'disabled' : '') + ' aria-label="Previous page">&lsaquo;</button>');
         var start = Math.max(1, page - 1);
         var end   = Math.min(totalPages, start + 2);
@@ -193,6 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (end < totalPages) items.push('<span class="page-ellipsis">...</span>');
         items.push('<button type="button" class="page-btn" data-page="' + Math.min(totalPages, page + 1) + '" ' + (page >= totalPages ? 'disabled' : '') + ' aria-label="Next page">&rsaquo;</button>');
+        items.push('<button type="button" class="page-btn" data-page="' + totalPages + '" ' + (page >= totalPages ? 'disabled' : '') + ' aria-label="Last page">&raquo;</button>');
         ui.pagination.innerHTML = items.join('');
     }
 

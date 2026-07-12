@@ -675,7 +675,7 @@ body {
 
 .history-header {
   display: grid;
-  grid-template-columns: 140px 1fr 100px 160px 120px;
+  grid-template-columns: 140px 1fr 100px 130px 140px 120px;
   padding: 12px 20px;
   background: var(--bg-input);
   border-bottom: 1px solid var(--border-default);
@@ -688,10 +688,15 @@ body {
 
 .history-row {
   display: grid;
-  grid-template-columns: 140px 1fr 100px 160px 120px;
+  grid-template-columns: 140px 1fr 100px 130px 140px 120px;
   padding: 16px 20px;
   border-bottom: 1px solid var(--border-light);
   align-items: center;
+}
+
+.history-claimant {
+  font-size: 13px;
+  color: var(--text-primary);
 }
 
 .history-row:last-child {
@@ -2853,6 +2858,54 @@ body {
   gap: 10px;
 }
 
+.lf-match-actions.resolved {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.lf-match-resolved-badge {
+  padding: 12px;
+  text-align: center;
+  background: var(--color-green-pale);
+  border: 1.5px solid #c8eec8;
+  border-radius: var(--radius-md);
+  color: var(--color-green-dark);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.lf-match-claimant {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+}
+
+.lf-match-claimant-label {
+  color: var(--text-muted);
+}
+
+.lf-match-claimant-name {
+  font-weight: 700;
+  color: var(--color-navy);
+}
+
+.lf-match-claimant-contact {
+  color: var(--text-body);
+}
+
+.lf-match-claimant-contact::before {
+  content: '\00b7';
+  margin-right: 6px;
+  color: var(--text-muted);
+}
+
 .lfd-btn-notmine {
   padding:       12px;
   background:    #ffffff;
@@ -2970,9 +3023,9 @@ body {
   /* Report history reflows into stacked cards — the fixed
      140px/100px/160px/120px columns don't fit until well
      past 1024px, so this drops as low as tablet needs it.
-     Each row has 5 direct <span> children in a fixed order
-     (date, pet, type tag, status, action) — date/pet/action
-     get their own line, the two small badges (type + status)
+     Each row has 6 direct <span> children in a fixed order
+     (date, pet, type tag, status, claimed by, action) — date/pet/action
+     get their own line, the small badges (type + status + claimant)
      share a line since they're not forced full-width. */
   .history-header { display: none; }
 
@@ -2986,7 +3039,7 @@ body {
 
   .history-row > span:nth-child(1),
   .history-row > span:nth-child(2),
-  .history-row > span:nth-child(5) {
+  .history-row > span:nth-child(6) {
     flex-basis: 100%;
   }
 
@@ -2994,7 +3047,7 @@ body {
 
   .history-pet { font-size: 14px; }
 
-  .history-row > span:nth-child(5) {
+  .history-row > span:nth-child(6) {
     padding-top: 4px;
     border-top: 1px solid var(--border-light);
     text-align: right;

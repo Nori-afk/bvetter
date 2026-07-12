@@ -63,7 +63,8 @@ function report_columns($category)
             ['key' => 'riskClass', 'label' => 'Risk Class'],
         ],
         'mass_vaccination' => [
-            ['key' => 'date', 'label' => 'Month'],
+            ['key' => 'date', 'label' => 'Date'],
+            ['key' => 'barangay', 'label' => 'Barangay'],
             ['key' => 'dogsVaccinated', 'label' => 'Dogs Vaccinated'],
             ['key' => 'catsVaccinated', 'label' => 'Cats Vaccinated'],
             ['key' => 'totalVaccinated', 'label' => 'Total Vaccinated'],
@@ -217,7 +218,7 @@ function db_patient_rows($pdo){
     
 }
 
-function consultation_rows()
+function excel_consultation_rows()
 {
     $sourceRows = array_values(array_filter(bv_sheet_rows('Consult_Diagnosis_3Y'), fn($row) => !empty($row['consultation_id'])));
     return array_map(function ($row) {
@@ -234,7 +235,55 @@ function consultation_rows()
     }, $sourceRows);
 }
 
-function disease_rows()
+function db_consultation_rows($pdo)
+{
+    if (!bv_table_exists($pdo, 'patient_visit_records') || !bv_table_exists($pdo, 'pets')) return [];
+
+    $barangayJoin = bv_table_exists($pdo, 'owner_profiles') && bv_table_exists($pdo, 'barangays')
+        ? 'LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id LEFT JOIN barangays b ON b.id = op.barangay_id'
+        : '';
+    $barangayExpr = $barangayJoin ? "COALESCE(NULLIF(b.name, ''), NULLIF(op.complete_address, ''), 'N/A')" : "'N/A'";
+
+    try {
+        $rows = $pdo->query("
+            SELECT
+                pvr.id,
+                pvr.visit_date,
+                pvr.diagnosis,
+                pvr.disease_category,
+                pets.species,
+                {$barangayExpr} AS barangay
+            FROM patient_visit_records pvr
+            INNER JOIN pets ON pets.id = pvr.pet_id
+            {$barangayJoin}
+            WHERE pvr.diagnosis IS NOT NULL AND pvr.diagnosis != ''
+            ORDER BY pvr.visit_date DESC, pvr.id DESC
+        ")->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
+
+    return array_map(function ($row) {
+        return [
+            'consultationId' => 'PVR-' . str_pad((string) $row['id'], 5, '0', STR_PAD_LEFT),
+            'date' => $row['visit_date'] ?: '',
+            'barangay' => $row['barangay'] ?: 'N/A',
+            'animalGroup' => $row['species'] ?: 'N/A',
+            'diagnosis' => $row['diagnosis'] ?: '',
+            'diseaseCategory' => $row['disease_category'] ?: 'General/Other',
+            'riskLevel' => 'N/A',
+            'cases' => 1,
+        ];
+    }, $rows);
+}
+
+function consultation_rows($pdo = null)
+{
+    $dbRows = $pdo ? db_consultation_rows($pdo) : [];
+    return array_merge($dbRows, excel_consultation_rows());
+}
+
+function excel_disease_rows()
 {
     $sourceRows = array_values(array_filter(bv_sheet_rows('Barangay_Disease_Monthly'), fn($row) => !empty($row['year']) && !empty($row['month_no']) && bv_clean($row['barangay'] ?? '') !== ''));
     return array_map(function ($row) {
@@ -252,12 +301,121 @@ function disease_rows()
     }, $sourceRows);
 }
 
-function vaccination_rows()
+function db_disease_rows($pdo)
+{
+    if (!bv_table_exists($pdo, 'patient_visit_records') || !bv_table_exists($pdo, 'pets')) return [];
+
+    $barangayJoin = bv_table_exists($pdo, 'owner_profiles') && bv_table_exists($pdo, 'barangays')
+        ? 'LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id LEFT JOIN barangays b ON b.id = op.barangay_id'
+        : '';
+    $barangayExpr = $barangayJoin ? "COALESCE(NULLIF(b.name, ''), NULLIF(op.complete_address, ''), 'Unspecified')" : "'Unspecified'";
+
+    try {
+        $rows = $pdo->query("
+            SELECT
+                YEAR(pvr.visit_date) AS yr,
+                MONTH(pvr.visit_date) AS mo,
+                {$barangayExpr} AS barangay,
+                pvr.disease_category,
+                COUNT(*) AS cases
+            FROM patient_visit_records pvr
+            INNER JOIN pets ON pets.id = pvr.pet_id
+            {$barangayJoin}
+            WHERE pvr.visit_date IS NOT NULL
+            GROUP BY yr, mo, barangay, pvr.disease_category
+        ")->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
+
+    // Fold per-category counts into one row per (year, month, barangay).
+    $grouped = [];
+    foreach ($rows as $row) {
+        $key = $row['yr'] . '-' . $row['mo'] . '-' . $row['barangay'];
+        if (!isset($grouped[$key])) {
+            $grouped[$key] = [
+                'date' => bv_date_from_parts((int) $row['yr'], (int) $row['mo']),
+                'barangay' => $row['barangay'],
+                'skinRelatedCases' => 0,
+                'parasiticCases' => 0,
+                'respiratoryCases' => 0,
+                'gastrointestinalCases' => 0,
+                'totalCases' => 0,
+            ];
+        }
+        $cases = (int) $row['cases'];
+        $grouped[$key]['totalCases'] += $cases;
+        switch ($row['disease_category']) {
+            case 'Skin': $grouped[$key]['skinRelatedCases'] += $cases; break;
+            case 'Parasitic': $grouped[$key]['parasiticCases'] += $cases; break;
+            case 'Respiratory': $grouped[$key]['respiratoryCases'] += $cases; break;
+            case 'Gastrointestinal': $grouped[$key]['gastrointestinalCases'] += $cases; break;
+            // 'General/Other' still counts toward totalCases but no specific bucket.
+        }
+    }
+
+    return array_values(array_map(function ($row) {
+        $buckets = [
+            'Skin' => $row['skinRelatedCases'],
+            'Parasitic' => $row['parasiticCases'],
+            'Respiratory' => $row['respiratoryCases'],
+            'Gastrointestinal' => $row['gastrointestinalCases'],
+        ];
+        arsort($buckets);
+        $topBucket = array_key_first($buckets);
+        $row['dominantCaseGroup'] = $buckets[$topBucket] > 0 ? $topBucket : 'General/Other';
+        // No ground-truth risk model for DB-sourced rows yet — left honestly
+        // unclassified rather than guessing (see item 4: ARIMA/risk pipeline).
+        $row['riskClass'] = 'N/A';
+        return $row;
+    }, $grouped));
+}
+
+function disease_rows($pdo = null)
+{
+    $dbRows = $pdo ? db_disease_rows($pdo) : [];
+    return array_merge($dbRows, excel_disease_rows());
+}
+
+function db_vaccination_rows($pdo)
+{
+    if (!bv_table_exists($pdo, 'mass_vaccination_events')) return [];
+
+    try {
+        $rows = $pdo->query("
+            SELECT event_date, barangay, vaccine, status, total_vaccinated, dogs_count, cats_count, others_count
+            FROM mass_vaccination_events
+            WHERE status = 'Completed'
+            ORDER BY event_date DESC
+        ")->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
+
+    return array_map(function ($row) {
+        $dogs = (int) $row['dogs_count'];
+        $cats = (int) $row['cats_count'];
+        $others = (int) $row['others_count'];
+        $total = $row['total_vaccinated'] !== null ? (int) $row['total_vaccinated'] : ($dogs + $cats + $others);
+        return [
+            'date' => substr((string) $row['event_date'], 0, 10),
+            'barangay' => $row['barangay'] ?: 'N/A',
+            'dogsVaccinated' => $dogs,
+            'catsVaccinated' => $cats,
+            'totalVaccinated' => $total,
+            'clientsServed' => $total,
+            'sourceBasis' => $row['vaccine'] ?: 'N/A',
+        ];
+    }, $rows);
+}
+
+function excel_vaccination_rows()
 {
     $sourceRows = array_values(array_filter(bv_sheet_rows('Combined_Rabies_3Years'), fn($row) => !empty($row['year']) && !empty($row['month_no'])));
     return array_map(function ($row) {
         return [
             'date' => bv_date_from_parts($row['year'] ?? 0, $row['month_no'] ?? 1),
+            'barangay' => 'N/A',
             'dogsVaccinated' => (int) ($row['dogs_vaccinated'] ?? 0),
             'catsVaccinated' => (int) ($row['cats_vaccinated'] ?? 0),
             'totalVaccinated' => (int) ($row['total_vaccinated'] ?? 0),
@@ -265,6 +423,12 @@ function vaccination_rows()
             'sourceBasis' => $row['source_basis'] ?? '',
         ];
     }, $sourceRows);
+}
+
+function vaccination_rows($pdo = null)
+{
+    $dbRows = $pdo ? db_vaccination_rows($pdo) : [];
+    return array_merge($dbRows, excel_vaccination_rows());
 }
 
 function lost_found_rows($pdo)
@@ -306,9 +470,9 @@ function lost_found_rows($pdo)
 
 function rows_for_category($pdo, $category)
 {
-    if ($category === 'consultation_summary') return consultation_rows();
-    if ($category === 'disease_incidence') return disease_rows();
-    if ($category === 'mass_vaccination') return vaccination_rows();
+    if ($category === 'consultation_summary') return consultation_rows($pdo);
+    if ($category === 'disease_incidence') return disease_rows($pdo);
+    if ($category === 'mass_vaccination') return vaccination_rows($pdo);
     if ($category === 'lost_found') return lost_found_rows($pdo);
 
     $dbRows = db_patient_rows($pdo);
@@ -336,7 +500,7 @@ function report_metrics($pdo, $filteredRows, $category)
     // ── All Patient & Consultation Summary ──────────────────────────────
     if (in_array($category, ['all_patient', 'consultation_summary'])) {
         $allRows = $category === 'consultation_summary'
-            ? consultation_rows()
+            ? consultation_rows($pdo)
             : (db_patient_rows($pdo) ?: dataset_patient_rows());
 
         $now       = latest_month_in($allRows, fn($r) => bv_row_date($r));
@@ -394,7 +558,7 @@ function report_metrics($pdo, $filteredRows, $category)
 
     // ── Disease Incidence ───────────────────────────────────────────────
     if ($category === 'disease_incidence') {
-        $allRows = disease_rows();
+        $allRows = disease_rows($pdo);
 
         $now       = latest_month_in($allRows, fn($r) => $r['date'] ?? '');
         $lastMonth = prev_month($now);
@@ -451,7 +615,7 @@ function report_metrics($pdo, $filteredRows, $category)
 
     // ── Mass Vaccination ────────────────────────────────────────────────
     if ($category === 'mass_vaccination') {
-        $allRows = vaccination_rows();
+        $allRows = vaccination_rows($pdo);
 
         $now       = latest_month_in($allRows, fn($r) => $r['date'] ?? '');
         $lastMonth = prev_month($now);

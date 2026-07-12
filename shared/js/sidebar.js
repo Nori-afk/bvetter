@@ -35,8 +35,8 @@
        (book-appointment.html); account-avatar.png is the generic
        silhouette already used as the pet-owner default. */
     const DEFAULT_AVATARS = {
-        vet:   '/bvetter/public/images/img/vet-profile.png',
-        admin: '/bvetter/public/images/img/account-avatar.png'
+        vet:   '/final-VBETTER/bvetter/public/images/img/vet-profile.png',
+        admin: '/final-VBETTER/bvetter/public/images/img/account-avatar.png'
     };
 
     const ACTIVE_ICON_CAPABLE = new Set([
@@ -150,7 +150,7 @@
         '</div>' +
         '</article>' +
         '<button type="button" class="nav-item logout-item" id="sidebar-logout-btn" title="Log Out">' +
-        '<img src="/bvetter/shared/images/sidebar/logout.svg" class="nav-icon" alt="Log Out">' +
+        '<img src="/final-VBETTER/bvetter/shared/images/sidebar/logout.svg" class="nav-icon" alt="Log Out">' +
         '<span class="nav-label">Log Out</span>' +
         '</button>';
 

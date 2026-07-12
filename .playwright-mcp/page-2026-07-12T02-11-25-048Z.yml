@@ -1,0 +1,93 @@
+- generic [active] [ref=f1e1]:
+  - navigation [ref=f1e2]:
+    - generic [ref=f1e3]:
+      - img "Baliwag City Vet" [ref=f1e4]
+      - button "Toggle navigation" [ref=f1e5] [cursor=pointer]: ☰
+      - list:
+        - listitem [ref=f1e6]:
+          - link "Home" [ref=f1e7] [cursor=pointer]:
+            - /url: landing.html
+        - listitem [ref=f1e8]:
+          - link "Book An Appointment" [ref=f1e9] [cursor=pointer]:
+            - /url: book-appointment.html
+        - listitem [ref=f1e10]:
+          - link "Lost And Found" [ref=f1e11] [cursor=pointer]:
+            - /url: lost-found.html
+    - generic [ref=f1e12]:
+      - button [ref=f1e13] [cursor=pointer]:
+        - img "Notifications" [ref=f1e14]
+      - generic [ref=f1e16] [cursor=pointer]:
+        - generic [ref=f1e17]: Pet Owner
+        - img "User" [ref=f1e19]
+  - generic [ref=f1e21]:
+    - generic [ref=f1e22]:
+      - generic [ref=f1e23]: COMMUNITY SUPPORT
+      - heading "Lost & Found Hub" [level=1] [ref=f1e24]
+      - paragraph [ref=f1e25]: Helping our community reunite pets with their families. If you've lost a companion or found a pet in your neighborhood, let's work together to bring them home.
+    - generic [ref=f1e26]:
+      - button "Report a Lost Pet" [ref=f1e27] [cursor=pointer]
+      - button "Report Found Pet" [ref=f1e28] [cursor=pointer]
+  - generic [ref=f1e30]:
+    - generic [ref=f1e31]:
+      - generic [ref=f1e32]: Success Rate
+      - generic [ref=f1e33]: 84%
+      - generic [ref=f1e34]: Pets reunited in the last 30 days thanks to the Vetra community.
+    - generic [ref=f1e35]:
+      - generic [ref=f1e36]: Reunited
+      - generic [ref=f1e37]: "142"
+    - generic [ref=f1e38]:
+      - generic [ref=f1e39]: Active Alerts
+      - generic [ref=f1e40]: "28"
+  - generic [ref=f1e41]:
+    - generic [ref=f1e42]:
+      - button "All Reports" [ref=f1e43] [cursor=pointer]
+      - button "Lost" [ref=f1e44] [cursor=pointer]
+      - button "Found" [ref=f1e45] [cursor=pointer]
+      - button "My Reports" [ref=f1e46] [cursor=pointer]
+      - button "My Claims" [ref=f1e47] [cursor=pointer]
+    - generic [ref=f1e48]: Filter
+  - generic [ref=f1e50]:
+    - generic [ref=f1e52]:
+      - generic [ref=f1e53]: Found
+      - generic [ref=f1e55]:
+        - generic [ref=f1e56]:
+          - generic [ref=f1e57]: Found Pet Report
+          - generic [ref=f1e58]: Dog - aspin
+        - generic [ref=f1e59]:
+          - generic [ref=f1e60]: Catulinan, Baliwag
+          - generic [ref=f1e62]: Jul 11, 2026
+        - button "View Details" [ref=f1e64] [cursor=pointer]
+    - button "Load More" [ref=f1e66] [cursor=pointer]
+  - text: ·
+  - contentinfo [ref=f1e67]:
+    - generic [ref=f1e68]:
+      - generic [ref=f1e69]:
+        - heading "Baliwag Veterinary Services" [level=3] [ref=f1e70]
+        - paragraph [ref=f1e71]: Leading the future of veterinary medicine through precision technology and heartfelt dedication.
+      - generic [ref=f1e72]:
+        - heading "QUICK LINKS" [level=4] [ref=f1e73]
+        - list [ref=f1e74]:
+          - listitem [ref=f1e75]:
+            - link "Privacy Policy" [ref=f1e76] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f1e77]:
+            - link "Terms of Service" [ref=f1e78] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f1e79]:
+            - link "Emergency Care" [ref=f1e80] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f1e81]:
+            - link "Careers" [ref=f1e82] [cursor=pointer]:
+              - /url: "#"
+      - generic [ref=f1e83]:
+        - heading "CONTACT" [level=4] [ref=f1e84]
+        - paragraph [ref=f1e85]: AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026
+        - paragraph [ref=f1e86]: BaliwagtVC@gmail.com
+        - paragraph [ref=f1e87]: "09959210640"
+    - generic [ref=f1e88]:
+      - generic [ref=f1e89]: © 2026 Baliwag Veterinary Services. Precision in Medicine, Vitality in Life
+      - generic [ref=f1e90]:
+        - link "f" [ref=f1e91] [cursor=pointer]:
+          - /url: "#"
+        - link "in" [ref=f1e92] [cursor=pointer]:
+          - /url: "#"

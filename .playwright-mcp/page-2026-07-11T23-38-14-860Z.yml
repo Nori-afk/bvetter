@@ -1,0 +1,395 @@
+- generic [active] [ref=f12e1]:
+  - navigation "Main navigation" [ref=f12e2]:
+    - img "VBetter" [ref=f12e5]
+    - navigation [ref=f12e6]:
+      - link [ref=f12e7] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/admin/pages/index.html
+        - img "Dashboard" [ref=f12e8]
+        - generic: Dashboard
+      - link [ref=f12e9] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/appointment.html
+        - img "Appointment Management" [ref=f12e10]
+        - generic: Appointment Management
+      - link [ref=f12e11] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/patient-records.html
+        - img "Patient Records" [ref=f12e12]
+        - generic: Patient Records
+      - link [ref=f12e13] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/report.html
+        - img "Report" [ref=f12e14]
+        - generic: Report
+      - link [ref=f12e15] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/disease-analytics.html
+        - img "Disease Analytics" [ref=f12e16]
+        - generic: Disease Analytics
+      - link [ref=f12e17] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/lost-and-found.html
+        - img "Lost and Found" [ref=f12e18]
+        - generic: Lost And Found
+      - link [ref=f12e19] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/chatbot-management.html
+        - img "Chatbot Management" [ref=f12e20]
+        - generic: Chatbot Management
+      - link [ref=f12e21] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/mass-vaccination.html
+        - img "Mass Vaccination" [ref=f12e22]
+        - generic: Mass Vaccination
+      - generic [ref=f12e23]: Administration
+      - link [ref=f12e24] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/admin/pages/account-management.html
+        - img "Account Management" [ref=f12e25]
+        - generic: Account Management
+      - link [ref=f12e26] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/admin/pages/website-management.html
+        - img "Website Management" [ref=f12e27]
+        - generic: Website Management
+    - generic [ref=f12e28]:
+      - article "Admin profile" [ref=f12e29] [cursor=pointer]:
+        - generic [ref=f12e30]: A
+      - button [ref=f12e31] [cursor=pointer]:
+        - img "Log Out" [ref=f12e32]
+        - generic: Log Out
+  - main [ref=f12e33]:
+    - generic [ref=f12e34]:
+      - generic [ref=f12e35]:
+        - heading "Website Management" [level=1] [ref=f12e36]
+        - paragraph [ref=f12e37]: Customize the public landing page — update branding, content, and visuals. Changes save to site config and reflect live on the public site.
+      - generic [ref=f12e38]:
+        - button "Discard" [ref=f12e39] [cursor=pointer]
+        - button "Save Changes" [ref=f12e40] [cursor=pointer]
+    - generic [ref=f12e43]:
+      - generic [ref=f12e44]:
+        - generic [ref=f12e45]:
+          - generic [ref=f12e46]:
+            - generic [ref=f12e47]: Company Logo
+            - generic [ref=f12e53]: SVG, PNG, JPG
+          - generic [ref=f12e61] [cursor=pointer]:
+            - generic [ref=f12e62]: Upload your company logo.
+            - paragraph [ref=f12e63]: Recommended size 512×512px. Appears in the navbar and browser tab.
+            - generic [ref=f12e64]: Upload Logo
+        - generic [ref=f12e67]:
+          - generic [ref=f12e68]: Brand Colors
+          - generic [ref=f12e74]:
+            - generic [ref=f12e75]: Primary Brand Color
+            - generic [ref=f12e76]:
+              - textbox [ref=f12e77] [cursor=pointer]: "#002a58"
+              - textbox "#000000" [ref=f12e78]: "#002A58"
+            - generic [ref=f12e79]: Presets
+            - generic [ref=f12e80]:
+              - generic "Navy" [ref=f12e81] [cursor=pointer]
+              - generic "Green" [ref=f12e82] [cursor=pointer]
+              - generic "Amber" [ref=f12e83] [cursor=pointer]
+              - generic "Red" [ref=f12e84] [cursor=pointer]
+              - generic "Purple" [ref=f12e85] [cursor=pointer]
+              - generic "Pink" [ref=f12e86] [cursor=pointer]
+      - generic [ref=f12e87]:
+        - generic [ref=f12e88]: Visual Assets
+        - generic [ref=f12e96]:
+          - generic [ref=f12e97] [cursor=pointer]:
+            - generic [ref=f12e98]: No image uploaded
+            - generic [ref=f12e104]:
+              - generic [ref=f12e105]: Hero Banner
+              - generic [ref=f12e106]: Main homepage landing visual (1920×1080)
+              - generic [ref=f12e107]:
+                - generic [ref=f12e108]: Upload
+                - button "Remove" [ref=f12e109]
+          - generic [ref=f12e110] [cursor=pointer]:
+            - generic [ref=f12e111]: No image uploaded
+            - generic [ref=f12e115]:
+              - generic [ref=f12e116]: Team Workspace
+              - generic [ref=f12e117]: Background for the About section
+              - generic [ref=f12e118]:
+                - generic [ref=f12e119]: Upload
+                - button "Remove" [ref=f12e120]
+          - generic [ref=f12e121] [cursor=pointer]:
+            - generic [ref=f12e122]: No image uploaded
+            - generic [ref=f12e126]:
+              - generic [ref=f12e127]: Event 1 Image
+              - generic [ref=f12e128]: Photo for Vaccine Event card
+              - generic [ref=f12e129]:
+                - generic [ref=f12e130]: Upload
+                - button "Remove" [ref=f12e131]
+      - generic [ref=f12e132]:
+        - generic [ref=f12e133]:
+          - generic [ref=f12e134]: Announcements
+          - generic [ref=f12e139]:
+            - generic [ref=f12e140]:
+              - generic [ref=f12e141]:
+                - generic [ref=f12e145]:
+                  - generic [ref=f12e146]: nice
+                  - generic [ref=f12e147]: Scheduled on Jul 8, 2026
+                - generic [ref=f12e148]:
+                  - button "Edit" [ref=f12e149] [cursor=pointer]
+                  - button "Delete" [ref=f12e152] [cursor=pointer]
+              - generic [ref=f12e155]:
+                - generic [ref=f12e159]:
+                  - generic [ref=f12e160]: Clinic Wellness Advisory
+                  - generic [ref=f12e161]: Scheduled on Jun 15, 2026
+                - generic [ref=f12e162]:
+                  - button "Edit" [ref=f12e163] [cursor=pointer]
+                  - button "Delete" [ref=f12e166] [cursor=pointer]
+              - generic [ref=f12e169]:
+                - generic [ref=f12e173]:
+                  - generic [ref=f12e174]: vaccines
+                  - generic [ref=f12e175]: Scheduled on Jun 5, 2026
+                - generic [ref=f12e176]:
+                  - button "Edit" [ref=f12e177] [cursor=pointer]
+                  - button "Delete" [ref=f12e180] [cursor=pointer]
+              - generic [ref=f12e183]:
+                - generic [ref=f12e187]:
+                  - generic [ref=f12e188]: asdasdasda
+                  - generic [ref=f12e189]: Scheduled on —
+                - generic [ref=f12e190]:
+                  - button "Edit" [ref=f12e191] [cursor=pointer]
+                  - button "Delete" [ref=f12e194] [cursor=pointer]
+            - button "Add New Announcement" [ref=f12e197] [cursor=pointer]
+        - generic [ref=f12e199]:
+          - generic [ref=f12e200]: Company Profile
+          - generic [ref=f12e205]:
+            - generic [ref=f12e206]:
+              - generic [ref=f12e207]: About Us
+              - textbox "About Us" [ref=f12e208]:
+                - /placeholder: Tell your customers about your company mission...
+            - generic [ref=f12e209]:
+              - generic [ref=f12e210]:
+                - generic [ref=f12e211]: Contact Email
+                - textbox "Contact Email" [ref=f12e212]:
+                  - /placeholder: clinic@gmail.com
+                  - text: BaliwagtVC@gmail.com
+              - generic [ref=f12e213]:
+                - generic [ref=f12e214]: Support Phone
+                - textbox "Support Phone" [ref=f12e215]:
+                  - /placeholder: +63 9XX XXX XXXX
+                  - text: "09959210640"
+            - generic [ref=f12e216]:
+              - generic [ref=f12e217]: Physical Address
+              - textbox "Physical Address" [ref=f12e219]:
+                - /placeholder: Building, Street, City, Province
+                - text: AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026
+      - generic [ref=f12e220]:
+        - generic [ref=f12e221]:
+          - generic [ref=f12e222]: Quick Preview
+          - generic [ref=f12e227]:
+            - group "Preview audience" [ref=f12e228]:
+              - button "Pet Owner" [ref=f12e229] [cursor=pointer]
+              - button "Vet" [ref=f12e230] [cursor=pointer]
+            - button "Desktop" [ref=f12e232] [cursor=pointer]
+            - button "Mobile" [ref=f12e233] [cursor=pointer]
+            - link "View full site" [ref=f12e234] [cursor=pointer]:
+              - /url: ../../public/pages/landing.html
+        - generic [ref=f12e237]:
+          - generic [ref=f12e238]: adminpanel.com/preview-live
+          - iframe [ref=f12e249]:
+            - generic [ref=f13e1]:
+              - navigation [ref=f13e2]:
+                - generic [ref=f13e3]:
+                  - img "Baliwag City Vet" [ref=f13e4]
+                  - list [ref=f13e5]:
+                    - listitem [ref=f13e6]:
+                      - link "Home" [ref=f13e7] [cursor=pointer]:
+                        - /url: landing.html
+                    - listitem [ref=f13e8]:
+                      - link "Book An Appointment" [ref=f13e9] [cursor=pointer]:
+                        - /url: book-appointment.html
+                    - listitem [ref=f13e10]:
+                      - link "Lost And Found" [ref=f13e11] [cursor=pointer]:
+                        - /url: lost-found.html
+                - generic [ref=f13e12]:
+                  - button [ref=f13e13] [cursor=pointer]:
+                    - img "Notifications" [ref=f13e14]
+                  - generic [ref=f13e16] [cursor=pointer]:
+                    - generic [ref=f13e17]:
+                      - generic [ref=f13e18]: Admin
+                      - generic [ref=f13e19]: Administrator
+                    - img "User" [ref=f13e20]
+              - generic [ref=f13e21]:
+                - generic [ref=f13e22]:
+                  - generic [ref=f13e23]: Baliwag Veterinary Clinic
+                  - heading [level=1] [ref=f13e24]:
+                    - text: Compassion Meets
+                    - generic [ref=f13e25]: Clinical Precision
+                  - paragraph [ref=f13e26]: Redefining veterinary excellence with world-class diagnostics and a deep-rooted empathy for your companion's vitality.
+                  - generic [ref=f13e27]:
+                    - link [ref=f13e28] [cursor=pointer]:
+                      - /url: ./login.html
+                    - link "Our Specialties" [ref=f13e31] [cursor=pointer]:
+                      - /url: "#"
+                - generic [ref=f13e33]:
+                  - img "Dog" [ref=f13e34]
+                  - generic [ref=f13e37]:
+                    - generic [ref=f13e38]: VITALITY SCORE
+                    - generic [ref=f13e39]: Optimized Recovery Plans
+              - generic [ref=f13e40]:
+                - generic [ref=f13e41]:
+                  - generic [ref=f13e42]: CLINIC CAPACITY
+                  - generic [ref=f13e43]: 24/7
+                - generic [ref=f13e44]:
+                  - generic [ref=f13e45]: SURGERY RECOVERY
+                  - generic [ref=f13e46]: 98.4%
+                - generic [ref=f13e47]:
+                  - generic [ref=f13e48]: SPECIALISTS
+                  - generic [ref=f13e49]: "12"
+              - generic [ref=f13e50]:
+                - generic [ref=f13e51]:
+                  - generic [ref=f13e52]:
+                    - heading "Upcoming Health Events" [level=2] [ref=f13e53]
+                    - paragraph [ref=f13e54]: Stay proactive with our community wellness initiatives.
+                  - generic [ref=f13e55]:
+                    - button "←" [ref=f13e56] [cursor=pointer]
+                    - button "→" [ref=f13e57] [cursor=pointer]
+                - generic [ref=f13e59]:
+                  - generic [ref=f13e60]:
+                    - generic [ref=f13e61]:
+                      - generic [ref=f13e62]: Upcoming Event
+                      - img "nice" [ref=f13e63]
+                    - generic [ref=f13e64]:
+                      - generic [ref=f13e65]: Spay & Neuter
+                      - heading "nice" [level=3] [ref=f13e66]
+                      - paragraph [ref=f13e67]: adadsa
+                      - generic [ref=f13e68]:
+                        - generic [ref=f13e69]: Jul 8, 2026
+                        - generic [ref=f13e70]: SM
+                  - generic [ref=f13e71]:
+                    - generic [ref=f13e72]:
+                      - generic [ref=f13e73]: Upcoming Event
+                      - img "Clinic Wellness Advisory" [ref=f13e74]
+                    - generic [ref=f13e75]:
+                      - generic [ref=f13e76]: Community Advisory
+                      - heading "Clinic Wellness Advisory" [level=3] [ref=f13e77]
+                      - paragraph [ref=f13e78]: Bring updated vaccination records during upcoming community visits.
+                      - generic [ref=f13e79]:
+                        - generic [ref=f13e80]: Jun 15, 2026
+                        - generic [ref=f13e81]: Baliwag City Veterinary Services
+                  - generic [ref=f13e82]:
+                    - generic [ref=f13e83]:
+                      - generic [ref=f13e84]: Upcoming Event
+                      - img "vaccines" [ref=f13e85]
+                    - generic [ref=f13e86]:
+                      - generic [ref=f13e87]: Health & Wellness
+                      - heading "vaccines" [level=3] [ref=f13e88]
+                      - paragraph [ref=f13e89]: asdad
+                      - generic [ref=f13e90]:
+                        - generic [ref=f13e91]: Jun 5, 2026
+                        - generic [ref=f13e92]: SM
+                  - generic [ref=f13e93]:
+                    - generic [ref=f13e94]:
+                      - generic [ref=f13e95]: Upcoming Event
+                      - img "asdasdasda" [ref=f13e96]
+                    - generic [ref=f13e97]:
+                      - generic [ref=f13e98]: Preventative Care
+                      - heading "asdasdasda" [level=3] [ref=f13e99]
+                      - paragraph [ref=f13e100]: adasd
+                      - generic [ref=f13e101]:
+                        - generic [ref=f13e102]: Date TBA
+                        - generic [ref=f13e103]: Baliwag City Veterinary Services
+                  - generic [ref=f13e104]:
+                    - generic [ref=f13e105]:
+                      - generic [ref=f13e106]: Completed
+                      - img "Anti-Rabies - Pinagbarilan" [ref=f13e107]
+                    - generic [ref=f13e108]:
+                      - generic [ref=f13e109]: Anti-Rabies
+                      - heading "Anti-Rabies - Pinagbarilan" [level=3] [ref=f13e110]
+                      - paragraph [ref=f13e111]: Community vaccination event managed by the veterinary clinic.
+                      - generic [ref=f13e112]:
+                        - generic [ref=f13e113]: July 9, 2026
+                        - generic [ref=f13e114]: Pinagbarilan
+                  - generic [ref=f13e115]:
+                    - generic [ref=f13e116]:
+                      - generic [ref=f13e117]: Completed
+                      - img "5-in-1 - Sto. Niño" [ref=f13e118]
+                    - generic [ref=f13e119]:
+                      - generic [ref=f13e120]: 5-in-1
+                      - heading "5-in-1 - Sto. Niño" [level=3] [ref=f13e121]
+                      - paragraph [ref=f13e122]: Community vaccination event managed by the veterinary clinic.
+                      - generic [ref=f13e123]:
+                        - generic [ref=f13e124]: July 4, 2026
+                        - generic [ref=f13e125]: Sto. Niño
+                  - generic [ref=f13e126]:
+                    - generic [ref=f13e127]:
+                      - generic [ref=f13e128]: Completed
+                      - img "Anti-Rabies - Pinagbarilan" [ref=f13e129]
+                    - generic [ref=f13e130]:
+                      - generic [ref=f13e131]: Anti-Rabies
+                      - heading "Anti-Rabies - Pinagbarilan" [level=3] [ref=f13e132]
+                      - paragraph [ref=f13e133]: Community vaccination event managed by the veterinary clinic.
+                      - generic [ref=f13e134]:
+                        - generic [ref=f13e135]: June 17, 2026
+                        - generic [ref=f13e136]: Pinagbarilan
+                  - generic [ref=f13e137]:
+                    - generic [ref=f13e138]:
+                      - generic [ref=f13e139]: Completed
+                      - img "Anti-Rabies - Paitan" [ref=f13e140]
+                    - generic [ref=f13e141]:
+                      - generic [ref=f13e142]: Anti-Rabies
+                      - heading "Anti-Rabies - Paitan" [level=3] [ref=f13e143]
+                      - paragraph [ref=f13e144]: Community vaccination event managed by the veterinary clinic.
+                      - generic [ref=f13e145]:
+                        - generic [ref=f13e146]: June 13, 2026
+                        - generic [ref=f13e147]: Paitan
+              - generic [ref=f13e157]:
+                - generic [ref=f13e158]:
+                  - generic [ref=f13e159]:
+                    - heading "Lost & Found Community" [level=2] [ref=f13e160]: Lost & FoundCommunity
+                    - paragraph [ref=f13e161]: Our integrated network helps reunite elite companions with their families through real-time pet tracking and alerts.
+                  - link "Visit Lost & Found →" [ref=f13e162] [cursor=pointer]:
+                    - /url: lost-found.html
+                - generic [ref=f13e163]:
+                  - generic [ref=f13e164]:
+                    - generic [ref=f13e165]:
+                      - generic [ref=f13e166]: lost
+                      - img "asda" [ref=f13e167]
+                    - generic [ref=f13e168]:
+                      - generic [ref=f13e169]: asda
+                      - generic [ref=f13e170]: Bagong Nayon
+                  - generic [ref=f13e171] [cursor=pointer]:
+                    - img "report" [ref=f13e173]
+                    - generic [ref=f13e174]: Report a Pet
+              - generic [ref=f13e175]:
+                - heading "Meet Our Specialists" [level=2] [ref=f13e176]
+                - paragraph [ref=f13e177]: The experts behind our clinical precision.
+                - generic [ref=f13e178]:
+                  - generic [ref=f13e181]:
+                    - generic [ref=f13e182]: Anne Hallegado
+                    - generic [ref=f13e183]: Veterinarian
+                    - paragraph [ref=f13e184]: hallegado2004@gmail.com
+                  - generic [ref=f13e185]:
+                    - img "Kizea igaya" [ref=f13e187]
+                    - generic [ref=f13e188]:
+                      - generic [ref=f13e189]: Kizea igaya
+                      - generic [ref=f13e190]: Veterinarian
+                      - paragraph [ref=f13e191]: admin@test.com
+              - contentinfo [ref=f13e192]:
+                - generic [ref=f13e193]:
+                  - generic [ref=f13e194]:
+                    - heading "Baliwag Veterinary Services" [level=3] [ref=f13e195]
+                    - paragraph [ref=f13e196]: Leading the future of veterinary medicine through precision technology and heartfelt dedication.
+                  - generic [ref=f13e197]:
+                    - heading "QUICK LINKS" [level=4] [ref=f13e198]
+                    - list [ref=f13e199]:
+                      - listitem [ref=f13e200]:
+                        - link "Privacy Policy" [ref=f13e201] [cursor=pointer]:
+                          - /url: "#"
+                      - listitem [ref=f13e202]:
+                        - link "Terms of Service" [ref=f13e203] [cursor=pointer]:
+                          - /url: "#"
+                      - listitem [ref=f13e204]:
+                        - link "Emergency Care" [ref=f13e205] [cursor=pointer]:
+                          - /url: "#"
+                      - listitem [ref=f13e206]:
+                        - link "Careers" [ref=f13e207] [cursor=pointer]:
+                          - /url: "#"
+                  - generic [ref=f13e208]:
+                    - heading "CONTACT" [level=4] [ref=f13e209]
+                    - paragraph [ref=f13e210]: AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026
+                    - paragraph [ref=f13e211]: BaliwagtVC@gmail.com
+                    - paragraph [ref=f13e212]: "09959210640"
+                - generic [ref=f13e213]:
+                  - generic [ref=f13e214]: © 2026 Baliwag Veterinary Services. Precision in Medicine, Vitality in Life
+                  - generic [ref=f13e215]:
+                    - link "f" [ref=f13e216] [cursor=pointer]:
+                      - /url: "#"
+                    - link "in" [ref=f13e217] [cursor=pointer]:
+                      - /url: "#"
+              - button "Open Vet Assistant" [ref=f13e218] [cursor=pointer]:
+                - img "Vet Assistant" [ref=f13e220]
+  - generic: Changes saved successfully

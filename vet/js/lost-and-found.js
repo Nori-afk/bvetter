@@ -167,7 +167,9 @@ function normalizeClaim(claim) {
 		barangay: claim.barangay_name || '',
 		uploadedAt: claim.created_at || '',
 		contact: claim.claimant_phone || '',
-		image: claim.photo_path || FALLBACK_IMAGE
+		image: claim.photo_path || FALLBACK_IMAGE,
+		finderName: claim.finder_name || 'Unknown',
+		finderContact: claim.finder_phone || claim.finder_email || 'No contact provided'
 	};
 }
 
@@ -813,7 +815,16 @@ function buildClaimModal(claim) {
 					<div class="field"><label>Submitted</label><p>${escapeHtml(claim.uploadedAt || '')}</p></div>
 				</div>
 
-				<span class="section-title">02. Claimant Information</span>
+				<span class="section-title">02. Found/Uploaded By</span>
+				<div class="uploader">
+					<div class="profile-initial">${getInitials(claim.finderName)}</div>
+					<div>
+						<strong>${escapeHtml(claim.finderName)}</strong><br>
+						<small>${escapeHtml(claim.finderContact)}</small>
+					</div>
+				</div>
+
+				<span class="section-title">03. Claimant Information</span>
 				<div class="uploader">
 					<div class="profile-initial">${getInitials(claim.title)}</div>
 					<div>

@@ -534,7 +534,7 @@ function disease_analytics_data($pdo)
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-function patient_volume_series($pdo, string $range = 'monthly'): array
+function patient_volume_monthly_rows($pdo): array
 {
     $rabiesRows = bv_sheet_rows('Combined_Rabies_3Years');
     $monthly    = [];
@@ -543,38 +543,97 @@ function patient_volume_series($pdo, string $range = 'monthly'): array
         $monthNo = (int) ($row['month_no'] ?? 0);
         if (!$year || !$monthNo) continue;
         $key = sprintf('%04d-%02d', $year, $monthNo);
-        if (!isset($monthly[$key])) {
-            $monthly[$key] = [
-                'period' => $key,
-                'label'  => substr((string) ($row['month'] ?? ''), 0, 3) . ' ' . substr((string) $year, -2),
-                'value'  => 0,
-            ];
-        }
-        $monthly[$key]['value'] += (int) ($row['clients_served'] ?? 0);
+        $monthly[$key] = ($monthly[$key] ?? 0) + (int) ($row['clients_served'] ?? 0);
     }
 
     if (bv_table_exists($pdo, 'appointments')) {
         try {
             $rows = $pdo->query("
                 SELECT DATE_FORMAT(preferred_date,'%Y-%m') AS period,
-                       DATE_FORMAT(preferred_date,'%b %y') AS label,
                        COUNT(*) AS value
                 FROM appointments
                 WHERE preferred_date IS NOT NULL
-                GROUP BY YEAR(preferred_date), MONTH(preferred_date), period, label
+                GROUP BY YEAR(preferred_date), MONTH(preferred_date), period
             ")->fetchAll();
             foreach ($rows as $row) {
-                $key = $row['period'];
-                if (!isset($monthly[$key])) {
-                    $monthly[$key] = ['period' => $key, 'label' => $row['label'], 'value' => 0];
-                }
-                $monthly[$key]['value'] += (int) ($row['value'] ?? 0);
+                $monthly[$row['period']] = ($monthly[$row['period']] ?? 0) + (int) ($row['value'] ?? 0);
             }
         } catch (Throwable $e) {}
     }
 
-    ksort($monthly);
-    $rows = array_values($monthly);
+    /* Build a continuous run of calendar months ending at the current month,
+     * filling any month with no data as 0. Slicing straight off $monthly
+     * would silently skip months that have no rows (e.g. the historical
+     * dataset ends in Dec 2025 and live appointments only start again in
+     * May 2026), making the chart's x-axis jump straight from "Dec 25" to
+     * "May 26" as if they were adjacent — a misleading, wrong-looking date
+     * sequence. */
+    $windowSize = 12;
+    $rows = [];
+    $cursor = new DateTime('first day of this month');
+    $cursor->modify('-' . ($windowSize - 1) . ' months');
+    for ($i = 0; $i < $windowSize; $i++) {
+        $key = $cursor->format('Y-m');
+        $rows[] = [
+            'period' => $key,
+            'label'  => $cursor->format('M'),
+            'value'  => $monthly[$key] ?? 0,
+        ];
+        $cursor->modify('+1 month');
+    }
+    return $rows;
+}
+
+function patient_volume_weekly_rows($pdo): array
+{
+    /* The historical dataset (Combined_Rabies_3Years) only has month-level
+     * granularity, so it can't honestly contribute to a week-by-week view —
+     * weekly volume comes from live appointments only. Bucket by real
+     * calendar week (Mon–Sun) rather than reusing the monthly buckets, so
+     * "Weekly" actually shows weeks instead of the same months as
+     * "Monthly" under a shorter slice. */
+    $daily = [];
+    if (bv_table_exists($pdo, 'appointments')) {
+        try {
+            $stmt = $pdo->query("
+                SELECT DATE(preferred_date) AS d, COUNT(*) AS value
+                FROM appointments
+                WHERE preferred_date IS NOT NULL
+                GROUP BY DATE(preferred_date)
+            ");
+            foreach ($stmt->fetchAll() as $row) {
+                $daily[$row['d']] = (int) $row['value'];
+            }
+        } catch (Throwable $e) {}
+    }
+
+    $weeks     = 8;
+    $weekStart = new DateTime('monday this week');
+    $weekStart->modify('-' . ($weeks - 1) . ' weeks');
+
+    $rows = [];
+    for ($i = 0; $i < $weeks; $i++) {
+        $sum    = 0;
+        $cursor = clone $weekStart;
+        for ($d = 0; $d < 7; $d++) {
+            $sum += $daily[$cursor->format('Y-m-d')] ?? 0;
+            $cursor->modify('+1 day');
+        }
+        $rows[] = [
+            'period' => $weekStart->format('Y-m-d'),
+            'label'  => $weekStart->format('M j'),
+            'value'  => $sum,
+        ];
+        $weekStart->modify('+1 week');
+    }
+    return $rows;
+}
+
+function patient_volume_series($pdo, string $range = 'monthly'): array
+{
+    $rows = strtolower($range) === 'weekly'
+        ? patient_volume_weekly_rows($pdo)
+        : patient_volume_monthly_rows($pdo);
 
     $rf          = analytics_post('/patient-volume-predict', ['series' => $rows, 'range' => $range], 30);
     $predictions = $rf['success'] && is_array($rf['data']) ? $rf['data'] : [];
@@ -589,7 +648,7 @@ function patient_volume_series($pdo, string $range = 'monthly'): array
     }
     unset($row);
 
-    return strtolower($range) === 'weekly' ? array_slice($rows, -8) : array_slice($rows, -12);
+    return $rows;
 }
 
 function vet_dashboard($pdo, string $patientRange = 'monthly', string $disease = '')

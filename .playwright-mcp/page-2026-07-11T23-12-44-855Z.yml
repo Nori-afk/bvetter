@@ -1,0 +1,68 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - img "VBetter Logo" [ref=e6]
+    - navigation [ref=e7]:
+      - link [ref=e8] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/index.html
+        - img "Dashboard" [ref=e9]
+        - generic: Dashboard
+      - link [ref=e10] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/appointment.html
+        - img "Appointment Management" [ref=e11]
+        - generic: Appointment Management
+      - link [ref=e12] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/patient-records.html
+        - img "Patient Records" [ref=e13]
+        - generic: Patient Records
+      - link [ref=e14] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/report.html
+        - img "Report" [ref=e15]
+        - generic: Report
+      - link [ref=e16] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/disease-analytics.html
+        - img "Disease Analytics" [ref=e17]
+        - generic: Disease Analytics
+      - link [ref=e18] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/lost-and-found.html
+        - img "Lost and Found" [ref=e19]
+        - generic: Lost And Found
+      - link [ref=e20] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/chatbot-management.html
+        - img "Chatbot Management" [ref=e21]
+        - generic: Chatbot Management
+      - link [ref=e22] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/mass-vaccination.html
+        - img "Mass Vaccination" [ref=e23]
+        - generic: Mass Vaccination
+    - generic [ref=e24]:
+      - article "Unknown profile" [ref=e25] [cursor=pointer]:
+        - generic [ref=e26]: U
+      - button [ref=e27] [cursor=pointer]:
+        - img "Log Out" [ref=e28]
+        - generic: Log Out
+  - main [ref=e29]:
+    - generic [ref=e30]:
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - heading "Disease Analytics" [level=1] [ref=e33]
+          - paragraph [ref=e34]: View reports and auto-triggered insights here.
+        - generic [ref=e35]:
+          - combobox "Select period" [ref=e36] [cursor=pointer]:
+            - option "Yearly" [selected]
+            - option "Monthly"
+          - combobox "Select disease" [ref=e37] [cursor=pointer]
+          - button "View Detailed Map" [ref=e38] [cursor=pointer]
+      - complementary [ref=e60]:
+        - heading "Data Sources" [level=3] [ref=e61]
+        - list [ref=e62]:
+          - listitem [ref=e63]
+          - listitem [ref=e65]
+          - listitem [ref=e67]
+        - button "Refresh All Sources" [ref=e69] [cursor=pointer]
+      - generic [ref=e70]:
+        - heading "Actual Disease Cases per Barangay" [level=3] [ref=e72]
+        - heading "Predicted Disease Cases per Barangay" [level=3] [ref=e95]
+      - heading "Insights" [level=3] [ref=e118]
+      - generic [ref=e135]:
+        - heading "Response Events" [level=3] [ref=e136]
+        - paragraph [ref=e137]: Events created from an Insight or the Detailed Map's "Create Event" button appear here.

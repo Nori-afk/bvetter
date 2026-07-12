@@ -48,7 +48,6 @@ function setupSiteSettings($pdo)
             logo_path VARCHAR(255) NULL,
             hero_banner_path VARCHAR(255) NULL,
             team_image_path VARCHAR(255) NULL,
-            event1_image_path VARCHAR(255) NULL,
             about_text TEXT NULL,
             contact_email VARCHAR(190) NULL,
             contact_phone VARCHAR(40) NULL,
@@ -64,21 +63,43 @@ function setupSiteSettings($pdo)
             (1, '#002A58', '', 'BaliwagtVC@gmail.com', '09959210640',
              'AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026')
     ");
+
+    $clinicCapacityCheck = $pdo->query("SHOW COLUMNS FROM site_settings LIKE 'clinic_capacity'")->fetch();
+    if (!$clinicCapacityCheck) {
+        $pdo->exec("ALTER TABLE site_settings ADD COLUMN clinic_capacity VARCHAR(20) NOT NULL DEFAULT '24/7' AFTER address");
+    }
+
+    $surgeryRecoveryCheck = $pdo->query("SHOW COLUMNS FROM site_settings LIKE 'surgery_recovery_rate'")->fetch();
+    if (!$surgeryRecoveryCheck) {
+        $pdo->exec("ALTER TABLE site_settings ADD COLUMN surgery_recovery_rate VARCHAR(20) NOT NULL DEFAULT '98.4%' AFTER clinic_capacity");
+    }
 }
 
-function formatSettings($row)
+function activeSpecialistsCount($pdo)
+{
+    $stmt = $pdo->query("
+        SELECT COUNT(*) FROM users u
+        INNER JOIN roles r ON r.id = u.role_id
+        WHERE r.name = 'veterinarian' AND u.account_status = 'active'
+    ");
+    return (int) $stmt->fetchColumn();
+}
+
+function formatSettings($row, $specialistsCount)
 {
     return [
-        'primaryColor' => $row['primary_color'],
-        'logo'         => $row['logo_path'],
-        'heroBanner'   => $row['hero_banner_path'],
-        'teamImage'    => $row['team_image_path'],
-        'event1Image'  => $row['event1_image_path'],
-        'about'        => $row['about_text'],
-        'email'        => $row['contact_email'],
-        'phone'        => $row['contact_phone'],
-        'address'      => $row['address'],
-        'updatedAt'    => $row['updated_at'],
+        'primaryColor'        => $row['primary_color'],
+        'logo'                => $row['logo_path'],
+        'heroBanner'          => $row['hero_banner_path'],
+        'teamImage'           => $row['team_image_path'],
+        'about'               => $row['about_text'],
+        'email'               => $row['contact_email'],
+        'phone'               => $row['contact_phone'],
+        'address'             => $row['address'],
+        'clinicCapacity'      => $row['clinic_capacity'],
+        'surgeryRecoveryRate' => $row['surgery_recovery_rate'],
+        'specialistsCount'    => $specialistsCount,
+        'updatedAt'           => $row['updated_at'],
     ];
 }
 
@@ -89,7 +110,7 @@ function getSettings($pdo)
 
     respond(200, [
         'success' => true,
-        'data' => formatSettings($row)
+        'data' => formatSettings($row, activeSpecialistsCount($pdo))
     ]);
 }
 
@@ -158,21 +179,24 @@ function saveSettings($pdo, $data)
         'contact_email = :contact_email',
         'contact_phone = :contact_phone',
         'address = :address',
+        'clinic_capacity = :clinic_capacity',
+        'surgery_recovery_rate = :surgery_recovery_rate',
     ];
 
     $params = [
-        ':primary_color'  => clean($data['primary_color'] ?? '') ?: '#002A58',
-        ':about_text'     => clean($data['about'] ?? ''),
-        ':contact_email'  => nullableClean($data['email'] ?? ''),
-        ':contact_phone'  => nullableClean($data['phone'] ?? ''),
-        ':address'        => nullableClean($data['address'] ?? ''),
+        ':primary_color'          => clean($data['primary_color'] ?? '') ?: '#002A58',
+        ':about_text'             => clean($data['about'] ?? ''),
+        ':contact_email'          => nullableClean($data['email'] ?? ''),
+        ':contact_phone'          => nullableClean($data['phone'] ?? ''),
+        ':address'                => nullableClean($data['address'] ?? ''),
+        ':clinic_capacity'        => clean($data['clinicCapacity'] ?? '') ?: '24/7',
+        ':surgery_recovery_rate'  => clean($data['surgeryRecoveryRate'] ?? '') ?: '98.4%',
     ];
 
     $imageFields = [
         'logo'         => ['upload' => 'logo_file',        'column' => 'logo_path',         'remove' => 'remove_logo'],
         'hero_banner'  => ['upload' => 'hero_banner_file',  'column' => 'hero_banner_path',  'remove' => 'remove_hero_banner'],
         'team_image'   => ['upload' => 'team_image_file',   'column' => 'team_image_path',   'remove' => 'remove_team_image'],
-        'event1_image' => ['upload' => 'event1_image_file', 'column' => 'event1_image_path', 'remove' => 'remove_event1_image'],
     ];
 
     foreach ($imageFields as $prefix => $field) {

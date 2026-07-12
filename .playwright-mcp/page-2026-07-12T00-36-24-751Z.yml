@@ -1,0 +1,228 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - img "Baliwag City Vet" [ref=e4]
+      - button "Toggle navigation" [ref=e5] [cursor=pointer]: ☰
+      - list:
+        - listitem [ref=e6]:
+          - link "Home" [ref=e7] [cursor=pointer]:
+            - /url: landing.html
+        - listitem [ref=e8]:
+          - link "Book An Appointment" [ref=e9] [cursor=pointer]:
+            - /url: book-appointment.html
+        - listitem [ref=e10]:
+          - link "Lost And Found" [ref=e11] [cursor=pointer]:
+            - /url: lost-found.html
+    - generic [ref=e12]:
+      - link "Register" [ref=e13] [cursor=pointer]:
+        - /url: login.html
+      - link "Login" [ref=e14] [cursor=pointer]:
+        - /url: login.html
+  - generic [ref=e15]:
+    - generic [ref=e16]:
+      - generic [ref=e17]: Baliwag Veterinary Clinic
+      - heading [level=1] [ref=e18]:
+        - text: Compassion Meets
+        - generic [ref=e19]: Clinical Precision
+      - paragraph [ref=e20]: Redefining veterinary excellence with world-class diagnostics and a deep-rooted empathy for your companion's vitality.
+      - generic [ref=e21]:
+        - link [ref=e22] [cursor=pointer]:
+          - /url: ./login.html
+        - link "Our Specialties" [ref=e25] [cursor=pointer]:
+          - /url: "#"
+    - generic [ref=e27]:
+      - img "Dog" [ref=e28]
+      - generic [ref=e31]:
+        - generic [ref=e32]: VITALITY SCORE
+        - generic [ref=e33]: Optimized Recovery Plans
+  - generic [ref=e34]:
+    - generic [ref=e35]:
+      - generic [ref=e36]: CLINIC CAPACITY
+      - generic [ref=e37]: 24/7
+    - generic [ref=e38]:
+      - generic [ref=e39]: SURGERY RECOVERY
+      - generic [ref=e40]: 98.4%
+    - generic [ref=e41]:
+      - generic [ref=e42]: SPECIALISTS
+      - generic [ref=e43]: "12"
+  - generic [ref=e44]:
+    - img "Our team" [ref=e46]
+    - generic [ref=e48]:
+      - text: About Us
+      - heading "Our Story" [level=2] [ref=e49]
+      - paragraph [ref=e50]: Baliwag Veterinary Services has been dedicated to the health and happiness of pets in our community, combining modern diagnostics with genuine, compassionate care for every companion that walks through our doors.
+  - generic [ref=e51]:
+    - generic [ref=e52]:
+      - generic [ref=e53]:
+        - heading "Upcoming Health Events" [level=2] [ref=e54]
+        - paragraph [ref=e55]: Stay proactive with our community wellness initiatives.
+      - generic [ref=e56]:
+        - button "←" [ref=e57] [cursor=pointer]
+        - button "→" [ref=e58] [cursor=pointer]
+    - generic [ref=e60]:
+      - generic [ref=e61]:
+        - generic [ref=e62]:
+          - generic [ref=e63]: Upcoming Event
+          - 'img "Disease Response: All Diseases in Tiaong" [ref=e64]'
+        - generic [ref=e65]:
+          - generic [ref=e66]: Community Advisory
+          - 'heading "Disease Response: All Diseases in Tiaong" [level=3] [ref=e67]'
+          - paragraph [ref=e68]: "Community advisory for All Diseases cases in Tiaong. Risk level: Grade 4 — High Risk. Please observe preventive measures and report symptoms in pets to your barangay vet team."
+          - generic [ref=e69]:
+            - generic [ref=e70]: Jul 12, 2026
+            - generic [ref=e71]: Tiaong
+      - generic [ref=e72]:
+        - generic [ref=e73]:
+          - generic [ref=e74]: Upcoming Event
+          - img "nice" [ref=e75]
+        - generic [ref=e76]:
+          - generic [ref=e77]: Spay & Neuter
+          - heading "nice" [level=3] [ref=e78]
+          - paragraph [ref=e79]: adadsa
+          - generic [ref=e80]:
+            - generic [ref=e81]: Jul 8, 2026
+            - generic [ref=e82]: SM
+      - generic [ref=e83]:
+        - generic [ref=e84]:
+          - generic [ref=e85]: Upcoming Event
+          - img "Clinic Wellness Advisory" [ref=e86]
+        - generic [ref=e87]:
+          - generic [ref=e88]: Community Advisory
+          - heading "Clinic Wellness Advisory" [level=3] [ref=e89]
+          - paragraph [ref=e90]: Bring updated vaccination records during upcoming community visits.
+          - generic [ref=e91]:
+            - generic [ref=e92]: Jun 15, 2026
+            - generic [ref=e93]: Baliwag City Veterinary Services
+      - generic [ref=e94]:
+        - generic [ref=e95]:
+          - generic [ref=e96]: Upcoming Event
+          - img "vaccines" [ref=e97]
+        - generic [ref=e98]:
+          - generic [ref=e99]: Health & Wellness
+          - heading "vaccines" [level=3] [ref=e100]
+          - paragraph [ref=e101]: asdad
+          - generic [ref=e102]:
+            - generic [ref=e103]: Jun 5, 2026
+            - generic [ref=e104]: SM
+      - generic [ref=e105]:
+        - generic [ref=e106]:
+          - generic [ref=e107]: Upcoming Event
+          - img "asdasdasda" [ref=e108]
+        - generic [ref=e109]:
+          - generic [ref=e110]: Preventative Care
+          - heading "asdasdasda" [level=3] [ref=e111]
+          - paragraph [ref=e112]: adasd
+          - generic [ref=e113]:
+            - generic [ref=e114]: Date TBA
+            - generic [ref=e115]: Baliwag City Veterinary Services
+      - generic [ref=e116]:
+        - generic [ref=e117]:
+          - generic [ref=e118]: Completed
+          - img "Anti-Rabies - Pinagbarilan" [ref=e119]
+        - generic [ref=e120]:
+          - generic [ref=e121]: Anti-Rabies
+          - heading "Anti-Rabies - Pinagbarilan" [level=3] [ref=e122]
+          - paragraph [ref=e123]: Community vaccination event managed by the veterinary clinic.
+          - generic [ref=e124]:
+            - generic [ref=e125]: July 9, 2026
+            - generic [ref=e126]: Pinagbarilan
+      - generic [ref=e127]:
+        - generic [ref=e128]:
+          - generic [ref=e129]: Completed
+          - img "5-in-1 - Sto. Niño" [ref=e130]
+        - generic [ref=e131]:
+          - generic [ref=e132]: 5-in-1
+          - heading "5-in-1 - Sto. Niño" [level=3] [ref=e133]
+          - paragraph [ref=e134]: Community vaccination event managed by the veterinary clinic.
+          - generic [ref=e135]:
+            - generic [ref=e136]: July 4, 2026
+            - generic [ref=e137]: Sto. Niño
+      - generic [ref=e138]:
+        - generic [ref=e139]:
+          - generic [ref=e140]: Completed
+          - img "Anti-Rabies - Pinagbarilan" [ref=e141]
+        - generic [ref=e142]:
+          - generic [ref=e143]: Anti-Rabies
+          - heading "Anti-Rabies - Pinagbarilan" [level=3] [ref=e144]
+          - paragraph [ref=e145]: Community vaccination event managed by the veterinary clinic.
+          - generic [ref=e146]:
+            - generic [ref=e147]: June 17, 2026
+            - generic [ref=e148]: Pinagbarilan
+  - generic [ref=e158]:
+    - generic [ref=e159]:
+      - generic [ref=e160]:
+        - heading "Lost & Found Community" [level=2] [ref=e161]: Lost & FoundCommunity
+        - paragraph [ref=e162]: Our integrated network helps reunite elite companions with their families through real-time pet tracking and alerts.
+      - link "Visit Lost & Found →" [ref=e163] [cursor=pointer]:
+        - /url: lost-found.html
+    - generic [ref=e164]:
+      - generic [ref=e165]:
+        - generic [ref=e166]:
+          - generic [ref=e167]: Lost
+          - img "Max" [ref=e168]
+        - generic [ref=e169]:
+          - generic [ref=e170]: Max (Beagle)
+          - generic [ref=e171]: Tangos
+      - generic [ref=e172]:
+        - generic [ref=e173]:
+          - generic [ref=e174]: Found
+          - img "Ginger Cat" [ref=e175]
+        - generic [ref=e176]:
+          - generic [ref=e177]: Ginger Cat
+          - generic [ref=e178]: Baliwag City Clinic
+      - generic [ref=e179]:
+        - generic [ref=e180]:
+          - generic [ref=e181]: Lost
+          - img "Bella" [ref=e182]
+        - generic [ref=e183]:
+          - generic [ref=e184]: Bella (Poodle)
+          - generic [ref=e185]: Maasim
+      - generic [ref=e186] [cursor=pointer]:
+        - img "report" [ref=e188]
+        - generic [ref=e189]: Report a Pet
+  - generic [ref=e190]:
+    - heading "Meet Our Specialists" [level=2] [ref=e191]
+    - paragraph [ref=e192]: The experts behind our clinical precision.
+    - generic [ref=e193]:
+      - generic [ref=e196]:
+        - generic [ref=e197]: Dr. Aris V.
+        - generic [ref=e198]: MEDICAL DIRECTOR
+        - paragraph [ref=e199]: Dedicated to advancing diagnostic accuracy through innovative laboratory integration and compassionate animal advocacy.
+      - generic [ref=e202]:
+        - generic [ref=e203]: Dr. Elena M.
+        - generic [ref=e204]: HEAD OF SURGERY
+        - paragraph [ref=e205]: Specializing in minimally invasive procedures and post-operative recovery protocols for optimal patient outcomes.
+  - contentinfo [ref=e206]:
+    - generic [ref=e207]:
+      - generic [ref=e208]:
+        - heading "Baliwag Veterinary Services" [level=3] [ref=e209]
+        - paragraph [ref=e210]: Leading the future of veterinary medicine through precision technology and heartfelt dedication.
+      - generic [ref=e211]:
+        - heading "QUICK LINKS" [level=4] [ref=e212]
+        - list [ref=e213]:
+          - listitem [ref=e214]:
+            - link "Privacy Policy" [ref=e215] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=e216]:
+            - link "Terms of Service" [ref=e217] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=e218]:
+            - link "Emergency Care" [ref=e219] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=e220]:
+            - link "Careers" [ref=e221] [cursor=pointer]:
+              - /url: "#"
+      - generic [ref=e222]:
+        - heading "CONTACT" [level=4] [ref=e223]
+        - paragraph [ref=e224]: AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026
+        - paragraph [ref=e225]: BaliwagtVC@gmail.com
+        - paragraph [ref=e226]: "09959210640"
+    - generic [ref=e227]:
+      - generic [ref=e228]: © 2026 Baliwag Veterinary Services. Precision in Medicine, Vitality in Life
+      - generic [ref=e229]:
+        - link "f" [ref=e230] [cursor=pointer]:
+          - /url: "#"
+        - link "in" [ref=e231] [cursor=pointer]:
+          - /url: "#"
+  - button "Open Vet Assistant" [ref=e232] [cursor=pointer]:
+    - img "Vet Assistant" [ref=e234]

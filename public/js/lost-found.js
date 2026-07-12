@@ -144,11 +144,33 @@ function populateSharedOptions() {
   document.getElementById('sightingBarangayInput')?.addEventListener('change', updateSightingMapFromBarangay);
 }
 
+let myReportClaimants = {};
+
 async function loadMyReports() {
   const grid = document.querySelector('.my-reports-grid');
   if (grid) grid.innerHTML = '<div class="empty-state">Loading your reports...</div>';
   const result = await api.getMyReports();
   myReports = result.success ? (result.data || []) : [];
+
+  myReportClaimants = {};
+  try {
+    const session = sessionUser();
+    if (session?.userId) {
+      const claimsResult = await api.getClaims({ report_owner_id: session.userId });
+      (claimsResult.success ? (claimsResult.data || []) : []).forEach((claim) => {
+        if (['approved', 'resolved'].includes(claim.status)) {
+          myReportClaimants[claim.report_id] = {
+            name: claim.claimant_name || 'Unknown',
+            phone: claim.claimant_phone || '',
+            email: claim.claimant_email || ''
+          };
+        }
+      });
+    }
+  } catch (error) {
+    /* claimant lookup failed — history table will just omit the column value */
+  }
+
   renderMyReports();
 }
 
@@ -254,16 +276,18 @@ function renderHistory(reports) {
 
   table.innerHTML = `
     <div class="history-header">
-      <span>DATE</span><span>PET NAME</span><span>TYPE</span><span>FINAL STATUS</span><span>ACTION</span>
+      <span>DATE</span><span>PET NAME</span><span>TYPE</span><span>FINAL STATUS</span><span>CLAIMED BY</span><span>ACTION</span>
     </div>
     ${reports.map((report) => {
       const type = normalizeType(report.type);
+      const claimant = myReportClaimants[report.id]?.name;
       return `
         <div class="history-row">
           <span class="history-date">${escapeHtml(formatDate(report.date || report.created_at))}</span>
           <span class="history-pet"><img src="${escapeHtml(reportImage(report))}" alt="" class="history-pet-img"/> ${escapeHtml(report.petName || report.title || 'Unknown')}</span>
           <span><span class="type-tag ${type}-tag">${escapeHtml(report.type)}</span></span>
           <span><span class="final-status ${report.status === 'resolved' ? 'reunited' : 'pending'}">${escapeHtml(report.status)}</span></span>
+          <span class="history-claimant">${escapeHtml(claimant || '—')}</span>
           <span><button type="button" class="btn-view-case" onclick="openMyReportMatches('${report.id}')">View Case</button></span>
         </div>
       `;
@@ -302,9 +326,21 @@ function closeModal(id) {
   el.classList.remove('open');
   document.body.style.overflow = '';
   destroyDetailMap();
+  if (id === 'reportModal') {
+    const petNameInput = document.getElementById('petNameInput');
+    if (petNameInput) petNameInput.value = '';
+  }
   if (id === 'sightingModal') {
     destroySightingMap();
     resetSightingPhotoPreview();
+    document.getElementById('sightingAccountToggle')?.classList.remove('on');
+    ['sightingContactName', 'sightingContactPhone', 'sightingContactEmail'].forEach((fieldId) => {
+      const field = document.getElementById(fieldId);
+      if (field) field.value = '';
+    });
+  }
+  if (id === 'claimModal') {
+    document.getElementById('claimAccountToggle')?.classList.remove('on');
   }
 
   // reset upload preview
@@ -351,6 +387,10 @@ function openModal(type) {
   if (title) title.textContent = isLost ? 'Report Lost Pet' : 'Report Found Pet';
   if (submitText) submitText.textContent = isLost ? 'Submit Lost Pet Report' : 'Submit Found Pet Report';
   if (petNameRow) petNameRow.style.display = isLost ? 'block' : 'none';
+  if (!isLost) {
+    const petNameInput = document.getElementById('petNameInput');
+    if (petNameInput) petNameInput.value = '';
+  }
   if (petDetailsLabel) petDetailsLabel.textContent = isLost ? 'PET DETAILS' : 'ANIMAL DETAILS';
   if (incidentLabel) incidentLabel.textContent = isLost ? 'INCIDENT DETAILS' : 'WHERE AND WHEN FOUND';
   if (dateLostLabel) dateLostLabel.textContent = isLost ? 'Date Lost' : 'Date Found';
@@ -457,7 +497,7 @@ async function submitReport() {
     }
 
     const formData = new FormData();
-    const petName = document.getElementById('petNameInput')?.value.trim() || '';
+    const petName = currentReportType === 'lost' ? (document.getElementById('petNameInput')?.value.trim() || '') : '';
     if (currentReportType === 'lost' && petName.length < 2) throw new Error('Pet name is required for lost pet reports (min. 2 characters).');
 
     const incidentDate = requiredValue('incidentDateInput', 'Date');
@@ -472,7 +512,7 @@ async function submitReport() {
     const photo = document.getElementById('petPhoto')?.files?.[0];
     assertValidPhoto(photo, 'Pet photo', ['image/jpeg', 'image/png', 'image/webp']);
 
-    formData.append('pet_name', petName);
+    if (currentReportType === 'lost') formData.append('pet_name', petName);
     formData.append('species', requiredValue('speciesInput', 'Type'));
     formData.append('breed', requiredValue('breedInput', 'Breed'));
     formData.append('sex', document.querySelector('#reportModal .sex-btn.active')?.textContent.trim() || 'Male');
@@ -562,7 +602,10 @@ function buildMatchCard(match, index, report) {
 		.map((reason) => `<span class="lf-sim-tag">${escapeHtml(reason)}</span>`)
 		.join('');
  
-	// Action buttons — hide claim button for already-resolved matches
+	// Action buttons — hide claim button for already-resolved matches. Claimant
+	// info for a resolved report is shown once at the panel level (see
+	// matchesClaimantBlock in openMyReportMatches), not per-card, since a claim
+	// can be approved directly without ever promoting this specific match row.
 	const actionsHtml = isResolved
 		? `<div class="lf-match-resolved-badge">✓ Resolved Match</div>`
 		: `
@@ -647,7 +690,7 @@ function buildMatchCard(match, index, report) {
 			${simTagsHtml ? `<div class="lf-match-similarity-tags">${simTagsHtml}</div>` : ''}
  
 			<!-- Actions -->
-			<div class="lf-match-actions">${actionsHtml}</div>
+			<div class="lf-match-actions${isResolved ? ' resolved' : ''}">${actionsHtml}</div>
  
 		</div>
 	`;
@@ -655,21 +698,36 @@ function buildMatchCard(match, index, report) {
 async function openMyReportMatches(reportId) {
 	// Find the owner's report for name/breed fallbacks
 	const report = myReports.find((item) => String(item.id) === String(reportId));
- 
+
 	// Update the panel subtitle with the pet's name
 	const nameEl = document.getElementById('matchesPetName');
 	if (nameEl) {
 		nameEl.textContent = report?.petName || report?.title || `Report #${reportId}`;
 	}
- 
+
+	// Claimant info is shown once at the panel level, independent of whether any
+	// match card exists — a claim can be approved directly (without ever
+	// promoting a lost_found_matches row), so this can't rely on match data.
+	const claimant = myReportClaimants[reportId];
+	const claimantBlock = document.getElementById('matchesClaimantBlock');
+	if (claimantBlock) {
+		if (claimant) {
+			document.getElementById('matchesClaimantName').textContent = claimant.name;
+			document.getElementById('matchesClaimantContact').textContent = claimant.phone || claimant.email || '';
+			claimantBlock.style.display = 'flex';
+		} else {
+			claimantBlock.style.display = 'none';
+		}
+	}
+
 	// Grab the panel body and remove any previously rendered match cards
 	const body = document.querySelector('#matchesPanel .matches-panel-body');
 	if (body) body.querySelectorAll('.lf-match-card').forEach((card) => card.remove());
- 
+
 	// Show a subtle loading state while fetching
 	const emptyEl = document.getElementById('noMatchesState');
 	if (emptyEl) emptyEl.style.display = 'none';
- 
+
 	// Fetch matches for this specific report
 	let matches = [];
 	try {
@@ -678,9 +736,26 @@ async function openMyReportMatches(reportId) {
 	} catch (err) {
 		console.error('Failed to load matches:', err);
 	}
- 
-	// Show empty state if no matches returned
-	if (emptyEl) emptyEl.style.display = matches.length ? 'none' : 'flex';
+
+	// Show empty state if no matches returned. For an already-resolved report,
+	// swap the "still searching" copy for a resolved message so it doesn't read
+	// as if the case is still open.
+	if (emptyEl) {
+		emptyEl.style.display = matches.length ? 'none' : 'flex';
+		if (!matches.length) {
+			const titleEl = emptyEl.querySelector('h3');
+			const descEl = emptyEl.querySelector('p');
+			if (report?.status === 'resolved') {
+				if (titleEl) titleEl.textContent = 'Case Resolved';
+				if (descEl) descEl.textContent = claimant
+					? 'This report has been resolved and the pet was claimed.'
+					: 'This report has been marked as resolved.';
+			} else {
+				if (titleEl) titleEl.textContent = 'No More Matches';
+				if (descEl) descEl.textContent = 'The system will notify you when new found pets are reported in your area.';
+			}
+		}
+	}
  
 	// Build and inject all match cards before the empty-state element
 	if (matches.length && body) {
@@ -773,6 +848,13 @@ async function submitSighting() {
   formData.append('lng', document.getElementById('sightingLngInput')?.value || '');
   formData.append('notes', notes);
   if (photo) formData.append('photo', photo);
+
+  const sightingContactName = document.getElementById('sightingContactName')?.value.trim();
+  const sightingContactPhone = document.getElementById('sightingContactPhone')?.value.trim();
+  const sightingContactEmail = document.getElementById('sightingContactEmail')?.value.trim();
+  if (sightingContactName) formData.append('contact_name', sightingContactName);
+  if (sightingContactPhone) formData.append('contact_phone', sightingContactPhone);
+  if (sightingContactEmail) formData.append('contact_email', sightingContactEmail);
 
   const result = await api.submitSighting(formData);
   if (!result.success) {
@@ -1038,11 +1120,13 @@ async function submitClaim() {
 
   const modal = document.getElementById('claimModal');
   const formData = new FormData();
-  let claimantName, claimantPhone, file;
+  let claimantName, claimantPhone, claimantEmail, file;
   try {
     claimantName = requiredValue('claimNameInput', 'Full name');
     claimantPhone = requiredValue('claimPhoneInput', 'Phone number', 1);
     assertValidPhone(claimantPhone, 'Phone number');
+    claimantEmail = requiredValue('claimEmailInput', 'Email address', 1);
+    assertValidEmail(claimantEmail, 'Email address');
     file = document.getElementById('claimDoc')?.files?.[0];
     if (!file) throw new Error('Please upload a proof of ownership document.');
     assertValidPhoto(file, 'Proof document', ['image/jpeg', 'image/png', 'application/pdf']);
@@ -1053,6 +1137,7 @@ async function submitClaim() {
 
   formData.append('claimant_name', claimantName);
   formData.append('claimant_phone', claimantPhone);
+  formData.append('claimant_email', claimantEmail);
   formData.append('proof_type', modal.querySelector('.proof-option.active')?.textContent.trim() || 'Photo Evidence');
   formData.append('proof_file', file);
 
@@ -1083,6 +1168,64 @@ function toggleAccountInfo() {
   document.getElementById('contactName').value = isOn ? (session?.name || '') : '';
   document.getElementById('contactPhone').value = isOn ? (session?.phone || '') : '';
   document.getElementById('contactEmail').value = isOn ? (session?.email || '') : '';
+}
+
+async function toggleSightingAccountInfo() {
+  const toggle = document.getElementById('sightingAccountToggle');
+  const isOn = toggle.classList.toggle('on');
+  const session = sessionUser();
+  if (!isOn) {
+    document.getElementById('sightingContactName').value = '';
+    document.getElementById('sightingContactPhone').value = '';
+    document.getElementById('sightingContactEmail').value = '';
+    return;
+  }
+
+  document.getElementById('sightingContactName').value = session?.name || '';
+  document.getElementById('sightingContactPhone').value = session?.phone || '';
+  document.getElementById('sightingContactEmail').value = session?.email || '';
+
+  // sessionStorage can be stale (e.g. session created before the account's
+  // email was set/changed), so pull the current profile from the server too.
+  try {
+    const result = await api.getProfile();
+    if (result?.success && toggle.classList.contains('on')) {
+      document.getElementById('sightingContactName').value = result.data.fullName || session?.name || '';
+      document.getElementById('sightingContactPhone').value = result.data.phone || session?.phone || '';
+      document.getElementById('sightingContactEmail').value = result.data.email || session?.email || '';
+    }
+  } catch {
+    // Keep the session-derived values already filled in above.
+  }
+}
+
+async function toggleClaimAccountInfo() {
+  const toggle = document.getElementById('claimAccountToggle');
+  const isOn = toggle.classList.toggle('on');
+  const session = sessionUser();
+  if (!isOn) {
+    document.getElementById('claimNameInput').value = '';
+    document.getElementById('claimPhoneInput').value = '';
+    document.getElementById('claimEmailInput').value = '';
+    return;
+  }
+
+  document.getElementById('claimNameInput').value = session?.name || '';
+  document.getElementById('claimPhoneInput').value = session?.phone || '';
+  document.getElementById('claimEmailInput').value = session?.email || '';
+
+  // sessionStorage can be stale (e.g. session created before the account's
+  // email was set/changed), so pull the current profile from the server too.
+  try {
+    const result = await api.getProfile();
+    if (result?.success && toggle.classList.contains('on')) {
+      document.getElementById('claimNameInput').value = result.data.fullName || session?.name || '';
+      document.getElementById('claimPhoneInput').value = result.data.phone || session?.phone || '';
+      document.getElementById('claimEmailInput').value = result.data.email || session?.email || '';
+    }
+  } catch {
+    // Keep the session-derived values already filled in above.
+  }
 }
 
 function toggleFilterPanel() {

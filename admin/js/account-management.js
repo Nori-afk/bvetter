@@ -442,6 +442,7 @@ function openVerifyModal(id) {
     const fullLink   = document.getElementById('verify-fullsize-link');
 
     const docPath = user.idImage || '';
+    console.log(docPath);
     const isPdf   = /\.pdf($|\?)/i.test(docPath) || /\.pdf$/i.test(user.proofName || '');
 
     if (idImg)     idImg.hidden = true;

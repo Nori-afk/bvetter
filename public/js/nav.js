@@ -120,9 +120,30 @@ function addDismissedNotifId(ownerId, id) {
   localStorage.setItem(`vbetter_dismissed_notifs_${ownerId}`, JSON.stringify([...ids]));
 }
 
+function getReadNotifIds(ownerId) {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(`vbetter_read_notifs_${ownerId}`) || '[]'));
+  } catch {
+    return new Set();
+  }
+}
+
+function addReadNotifId(ownerId, id) {
+  const ids = getReadNotifIds(ownerId);
+  ids.add(id);
+  localStorage.setItem(`vbetter_read_notifs_${ownerId}`, JSON.stringify([...ids]));
+}
+
+function markAllNotifRead(ownerId, ids) {
+  const readIds = getReadNotifIds(ownerId);
+  ids.forEach((id) => readIds.add(id));
+  localStorage.setItem(`vbetter_read_notifs_${ownerId}`, JSON.stringify([...readIds]));
+}
+
 async function buildOwnerNotifications() {
   const ownerId = getCurrentOwnerId();
   const dismissed = getDismissedNotifIds(ownerId);
+  const read = getReadNotifIds(ownerId);
   const notifications = [];
 
   try {
@@ -138,12 +159,13 @@ async function buildOwnerNotifications() {
       .filter((appt) => ['pending', 'confirmed'].includes(appt.status))
       .slice(0, 3)
       .forEach((appt) => {
+        const id = `appt-${appt.id}`;
         notifications.push({
-          id: `appt-${appt.id}`,
+          id,
           title: appt.status === 'pending' ? 'Appointment Awaiting Confirmation' : 'Upcoming Appointment',
           detail: `${appt.pet?.name || appt.patient || 'Your pet'} — ${formatNotifDate(appt.preferred_date)}${appt.time_slot ? ` at ${appt.time_slot}` : ''}`,
-          time: 'Live from appointments',
-          read: false
+          time: formatNotifDate(appt.created_at || appt.preferred_date) || 'Just now',
+          read: read.has(id)
         });
       });
   } catch (error) {
@@ -156,36 +178,95 @@ async function buildOwnerNotifications() {
       .filter((claim) => claim.status !== 'pending')
       .slice(0, 3)
       .forEach((claim) => {
+        const id = `claim-${claim.id}`;
         const label = claim.status === 'approved' ? 'Claim Approved' : claim.status === 'rejected' ? 'Claim Rejected' : 'Claim Resolved';
         notifications.push({
-          id: `claim-${claim.id}`,
+          id,
           title: label,
           detail: `Your claim for ${claim.pet_name || 'a pet'}${claim.report_case ? ` (${claim.report_case})` : ''} was ${claim.status}.`,
-          time: 'Live from claims',
-          read: false
+          time: formatNotifDate(claim.reviewed_at || claim.updated_at || claim.created_at) || 'Just now',
+          read: read.has(id)
         });
       });
   } catch (error) {
     /* claims lookup failed — skip silently */
   }
 
+  let myReports = [];
   try {
     const reportsRes = await lostFoundRequest('list', { status: 'all', owner_id: ownerId });
-    (reportsRes?.data || [])
+    myReports = reportsRes?.data || [];
+    myReports
       .filter((report) => ['active', 'rejected', 'resolved'].includes(report.status))
       .slice(0, 3)
       .forEach((report) => {
+        const id = `report-${report.id}`;
         const label = report.status === 'active' ? 'Report Approved' : report.status === 'rejected' ? 'Report Rejected' : 'Report Resolved';
         notifications.push({
-          id: `report-${report.id}`,
+          id,
           title: label,
           detail: `Your ${(report.type || '').toLowerCase()} report for ${report.petName || 'a pet'} is now ${report.status}.`,
-          time: 'Live from lost & found',
-          read: false
+          time: formatNotifDate(report.resolved_at || report.updated_at || report.created_at) || 'Just now',
+          read: read.has(id)
         });
       });
   } catch (error) {
     /* report lookup failed — skip silently */
+  }
+
+  try {
+    const myLostReports = myReports.filter((report) => (report.type || '').toLowerCase() === 'lost' && report.status === 'active');
+    const matchResults = await Promise.all(
+      myLostReports.map((report) => lostFoundRequest('matches', { report_id: report.id }).catch(() => null))
+    );
+    matchResults
+      .flatMap((result, idx) => (result?.data || []).map((match) => ({ match, report: myLostReports[idx] })))
+      .filter(({ match }) => match.status === 'suggested')
+      .slice(0, 3)
+      .forEach(({ match, report }) => {
+        const id = `match-${match.id}`;
+        notifications.push({
+          id,
+          title: 'New Potential Match Found',
+          detail: `A possible match (${match.confidence}% confidence) was found for ${report.petName || report.title || 'your lost pet'}.`,
+          time: formatNotifDate(match.createdAt) || 'Just now',
+          read: read.has(id)
+        });
+      });
+  } catch (error) {
+    /* matches lookup failed — skip silently */
+  }
+
+  try {
+    const incomingClaimsRes = await lostFoundRequest('list_claims', { report_owner_id: ownerId });
+    (incomingClaimsRes?.data || [])
+      .filter((claim) => claim.status === 'pending')
+      .slice(0, 3)
+      .forEach((claim) => {
+        const id = `claim-in-${claim.id}`;
+        notifications.push({
+          id,
+          title: 'New Claim on Your Found Report',
+          detail: `Someone submitted a claim for ${claim.pet_name || 'a pet'}${claim.report_case ? ` (${claim.report_case})` : ''}.`,
+          time: formatNotifDate(claim.created_at) || 'Just now',
+          read: read.has(id)
+        });
+      });
+    (incomingClaimsRes?.data || [])
+      .filter((claim) => ['approved', 'resolved'].includes(claim.status))
+      .slice(0, 3)
+      .forEach((claim) => {
+        const id = `claim-out-${claim.id}`;
+        notifications.push({
+          id,
+          title: 'Your Found Pet Was Claimed',
+          detail: `${claim.claimant_name || 'A claimant'} was approved for ${claim.pet_name || 'the pet'}${claim.report_case ? ` (${claim.report_case})` : ''} you posted.`,
+          time: formatNotifDate(claim.reviewed_at || claim.updated_at || claim.created_at) || 'Just now',
+          read: read.has(id)
+        });
+      });
+  } catch (error) {
+    /* incoming claims lookup failed — skip silently */
   }
 
   const visible = notifications.filter((item) => !dismissed.has(item.id));
@@ -220,6 +301,27 @@ function renderNotificationItems(root, items) {
       `
     )
     .join('');
+
+  const header = root.querySelector('.dash-modal-header h2');
+  if (header) {
+    const unreadCount = items.filter((item) => !item.read && item.id !== 'empty').length;
+    header.textContent = `Notification${unreadCount ? ` (${unreadCount})` : ''}`;
+  }
+
+  list.querySelectorAll('.dash-notification-item').forEach((element) => {
+    element.addEventListener('click', () => {
+      const id = element.dataset.notifId;
+      if (!id || id === 'empty') return;
+      addReadNotifId(getCurrentOwnerId(), id);
+      element.classList.remove('unread');
+      element.classList.add('read');
+      const header2 = root.querySelector('.dash-modal-header h2');
+      if (header2) {
+        const unreadCount = list.querySelectorAll('.dash-notification-item.unread').length;
+        header2.textContent = `Notification${unreadCount ? ` (${unreadCount})` : ''}`;
+      }
+    });
+  });
 }
 
 /* Dismiss a single notification: hide it going forward via localStorage,
@@ -250,6 +352,12 @@ document.addEventListener('click', function (e) {
       </article>
     `;
   }
+
+  const header = document.querySelector('.dash-modal-header h2');
+  if (header && list) {
+    const unreadCount = list.querySelectorAll('.dash-notification-item.unread').length;
+    header.textContent = `Notification${unreadCount ? ` (${unreadCount})` : ''}`;
+  }
 });
 
 async function openNotificationModal() {
@@ -258,8 +366,9 @@ async function openNotificationModal() {
     <div class="dash-modal-overlay" role="dialog" aria-modal="true">
       <section class="dash-modal-shell dash-modal-mini">
         <header class="dash-modal-header">
-          <h2>Notifications</h2>
+          <h2>Notification</h2>
           <div class="dash-modal-header-actions">
+            <button type="button" class="dash-header-action" id="mark-all-read-btn">Mark all as read</button>
             <button type="button" class="dash-close-btn" data-modal-close>&times;</button>
           </div>
         </header>
@@ -283,6 +392,20 @@ async function openNotificationModal() {
 
   const items = await buildOwnerNotifications();
   if (!root.hidden) renderNotificationItems(root, items);
+
+  const markAllBtn = document.getElementById('mark-all-read-btn');
+  if (markAllBtn) {
+    markAllBtn.addEventListener('click', () => {
+      const ids = items.filter((item) => item.id !== 'empty').map((item) => item.id);
+      markAllNotifRead(getCurrentOwnerId(), ids);
+      root.querySelectorAll('.dash-notification-item').forEach((element) => {
+        element.classList.remove('unread');
+        element.classList.add('read');
+      });
+      const header = root.querySelector('.dash-modal-header h2');
+      if (header) header.textContent = 'Notification';
+    });
+  }
 }
 
 document.addEventListener('DOMContentLoaded', function () {

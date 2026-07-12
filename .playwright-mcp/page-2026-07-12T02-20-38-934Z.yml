@@ -1,0 +1,84 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - img "Baliwag City Vet" [ref=e4]
+      - button "Toggle navigation" [ref=e5] [cursor=pointer]: ☰
+      - list:
+        - listitem [ref=e6]:
+          - link "Home" [ref=e7] [cursor=pointer]:
+            - /url: landing.html
+        - listitem [ref=e8]:
+          - link "Book An Appointment" [ref=e9] [cursor=pointer]:
+            - /url: book-appointment.html
+        - listitem [ref=e10]:
+          - link "Lost And Found" [ref=e11] [cursor=pointer]:
+            - /url: lost-found.html
+    - generic [ref=e12]:
+      - button [ref=e13] [cursor=pointer]:
+        - img "Notifications" [ref=e14]
+      - generic [ref=e16] [cursor=pointer]:
+        - generic [ref=e17]: Pet Owner
+        - img "User" [ref=e19]
+  - generic [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e23]: COMMUNITY SUPPORT
+      - heading "Lost & Found Hub" [level=1] [ref=e24]
+      - paragraph [ref=e25]: Helping our community reunite pets with their families. If you've lost a companion or found a pet in your neighborhood, let's work together to bring them home.
+    - generic [ref=e26]:
+      - button "Report a Lost Pet" [ref=e27] [cursor=pointer]
+      - button "Report Found Pet" [ref=e28] [cursor=pointer]
+  - generic [ref=e30]:
+    - generic [ref=e31]:
+      - generic [ref=e32]: Success Rate
+      - generic [ref=e33]: 84%
+      - generic [ref=e34]: Pets reunited in the last 30 days thanks to the Vetra community.
+    - generic [ref=e35]:
+      - generic [ref=e36]: Reunited
+      - generic [ref=e37]: "142"
+    - generic [ref=e38]:
+      - generic [ref=e39]: Active Alerts
+      - generic [ref=e40]: "28"
+  - generic [ref=e41]:
+    - generic [ref=e42]:
+      - button "All Reports" [ref=e43] [cursor=pointer]
+      - button "Lost" [ref=e44] [cursor=pointer]
+      - button "Found" [ref=e45] [cursor=pointer]
+      - button "My Reports" [ref=e46] [cursor=pointer]
+      - button "My Claims" [ref=e47] [cursor=pointer]
+    - generic [ref=e48]: Filter
+  - generic [ref=e50]:
+    - generic [ref=e51]: Loading reports...
+    - button "Load More" [ref=e54] [cursor=pointer]
+  - text: ·
+  - contentinfo [ref=e55]:
+    - generic [ref=e56]:
+      - generic [ref=e57]:
+        - heading "Baliwag Veterinary Services" [level=3] [ref=e58]
+        - paragraph [ref=e59]: Leading the future of veterinary medicine through precision technology and heartfelt dedication.
+      - generic [ref=e60]:
+        - heading "QUICK LINKS" [level=4] [ref=e61]
+        - list [ref=e62]:
+          - listitem [ref=e63]:
+            - link "Privacy Policy" [ref=e64] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=e65]:
+            - link "Terms of Service" [ref=e66] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=e67]:
+            - link "Emergency Care" [ref=e68] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=e69]:
+            - link "Careers" [ref=e70] [cursor=pointer]:
+              - /url: "#"
+      - generic [ref=e71]:
+        - heading "CONTACT" [level=4] [ref=e72]
+        - paragraph [ref=e73]: AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026
+        - paragraph [ref=e74]: BaliwagtVC@gmail.com
+        - paragraph [ref=e75]: "09959210640"
+    - generic [ref=e76]:
+      - generic [ref=e77]: © 2026 Baliwag Veterinary Services. Precision in Medicine, Vitality in Life
+      - generic [ref=e78]:
+        - link "f" [ref=e79] [cursor=pointer]:
+          - /url: "#"
+        - link "in" [ref=e80] [cursor=pointer]:
+          - /url: "#"

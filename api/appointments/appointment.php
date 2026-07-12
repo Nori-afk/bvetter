@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../config/mailer.php';
 
 function respond($statusCode, $payload)
 {
@@ -407,10 +408,43 @@ function updateAppointmentStatus($pdo, $data)
         ':id' => $appointmentId,
     ]);
 
+    if ($status === 'confirmed') {
+        notifyOwnerAppointmentConfirmed($pdo, $appointmentId);
+    }
+
     respond(200, [
         'success' => true,
         'message' => 'Appointment status updated.'
     ]);
+}
+
+function notifyOwnerAppointmentConfirmed($pdo, $appointmentId)
+{
+    $stmt = $pdo->prepare('
+        SELECT appointments.preferred_date, appointments.time_slot,
+               owners.id AS owner_id, owners.full_name AS owner_name, owners.email AS owner_email
+        FROM appointments
+        INNER JOIN users owners ON owners.id = appointments.owner_id
+        WHERE appointments.id = :id
+        LIMIT 1
+    ');
+    $stmt->execute([':id' => (int) $appointmentId]);
+    $row = $stmt->fetch();
+    if (!$row || !$row['owner_email']) return;
+
+    $ownerId = (int) $row['owner_id'];
+    if (!userWantsNotification($pdo, $ownerId, 'appointment_reminders')) return;
+
+    $subject = 'VBetter – Your appointment is confirmed';
+    $body = notificationEmailWrapper(
+        'Appointment Confirmed',
+        "<p>Your appointment on <strong>{$row['preferred_date']}</strong> at
+           <strong>{$row['time_slot']}</strong> has been confirmed.</p>",
+        null,
+        ['label' => 'View', 'url' => APP_URL . '/public/pages/book-appointment.html']
+    );
+
+    sendAppMail($row['owner_email'], clean($row['owner_name'] ?? ''), $subject, $body);
 }
 
 function rescheduleAppointment($pdo, $data)
@@ -709,16 +743,16 @@ function getCommonCases($pdo, $data)
     $cases = [];
     if ($vetName) {
         $stmt = $pdo->prepare("
-            SELECT category, COUNT(*) AS total
+            SELECT diagnosis, COUNT(*) AS total
             FROM patient_visit_records
             WHERE attending_vet = :vetName
-              AND category IS NOT NULL AND category <> ''
-            GROUP BY category
+              AND diagnosis IS NOT NULL AND diagnosis <> ''
+            GROUP BY diagnosis
             ORDER BY total DESC
             LIMIT 4
         ");
         $stmt->execute([':vetName' => $vetName]);
-        $cases = array_column($stmt->fetchAll(), 'category');
+        $cases = array_column($stmt->fetchAll(), 'diagnosis');
     }
 
     respond(200, [

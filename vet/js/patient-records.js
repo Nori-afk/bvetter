@@ -1,5 +1,31 @@
 ﻿const STORAGE_KEY = 'vbetter.patient-records';
 
+const DIAGNOSIS_OPTIONS = [
+	'Avian Influenza', 'Canine Distemper', 'Coccidiosis', 'Dental Disease', 'Ear Infection',
+	'Ear Mites', 'Ehrlichiosis', 'Enterotoxemia', 'Feline Immunodeficiency Virus (FIV)',
+	'Feline Leukemia Virus (FeLV)', 'Feline Lower Urinary Tract Disease', 'Feline Panleukopenia',
+	'Feline Respiratory Complex (Cat Flu)', 'Flea Allergy Dermatitis', 'Flea Infestation',
+	'Foot Rot', 'Foot-and-Mouth Disease', 'Fowl Pox', 'Gastroenteritis', 'Gastrointestinal Stasis',
+	'Heartworm', 'Heat Stroke', 'Hemorrhagic Septicemia', 'Infectious Bronchitis',
+	'Infectious Bursal Disease', 'Intestinal Parasites', 'Kennel Cough', 'Leptospirosis', 'Mange',
+	"Marek's Disease", 'Mastitis', 'Newcastle Disease', 'Parasite Infection', 'Parasitic Infection',
+	'Pneumonia', 'Pyometra', 'Rabies (Suspected)', 'Respiratory Infection', 'Ringworm',
+	'Skin Infection', 'Upper Respiratory Infection', 'Urinary Tract Infection'
+];
+const DIAGNOSIS_OTHER = 'Other / Not Listed';
+
+function parseAge(ageStr) {
+	const match = String(ageStr || '').match(/(\d+(?:\.\d+)?)\s*(year|month)/i);
+	if (!match) return { value: '', unit: 'Years' };
+	return { value: match[1], unit: /month/i.test(match[2]) ? 'Months' : 'Years' };
+}
+
+function formatAge(value, unit) {
+	const num = String(value || '').trim();
+	if (!num) return '';
+	return `${num} ${unit === 'Months' ? 'Months' : 'Years'}`;
+}
+
 function appBasePath() {
 	const script = document.currentScript || Array.from(document.scripts).find((item) => item.src && item.src.includes('/vet/js/patient-records.js'));
 	const path = script?.src ? new URL(script.src).pathname : window.location.pathname;
@@ -494,6 +520,10 @@ function renderPatientInfoTab(record) {
 								<span class="lv-data-val">${escapeHtml(record.category) || '—'}</span>
 							</div>
 							<div class="lv-data-row">
+								<span class="lv-data-key">Disease Category</span>
+								<span class="lv-data-val">${escapeHtml(record.diseaseCategory) || '—'}</span>
+							</div>
+							<div class="lv-data-row">
 								<span class="lv-data-key">Diagnosis</span>
 								<span class="lv-data-val">${escapeHtml(record.diagnosis) || '—'}</span>
 							</div>
@@ -819,6 +849,7 @@ function buildBlankRecord(prefill = {}) {
 		treatment: prefill.treatment || '',
 		medications: prefill.medications || [],
 		category: prefill.category || 'Routine Checkup',
+		diseaseCategory: prefill.diseaseCategory || 'General/Other',
 		attendingVet: prefill.attendingVet || getCurrentVetName(),
 		vaccinationStatus: prefill.vaccinationStatus || 'Pending',
 		vaccineBrand: prefill.vaccineBrand || '',
@@ -838,6 +869,7 @@ function buildNewVisitRecord(record) {
 		treatment: '',
 		medications: [],
 		category: 'Routine Checkup',
+		diseaseCategory: 'General/Other',
 		attendingVet: getCurrentVetName(),
 		vaccinationStatus: '',
 		vaccineBrand: '',
@@ -902,8 +934,13 @@ function renderAdd(record) {
 							<input class="form-input" id="breed" name="breed" placeholder="e.g. Golden Retriever" value="${escapeHtml(data.breed)}">
 						</div>
 						<div class="field">
-							<label class="field-label" for="age">AGE</label>
-							<input class="form-input" id="age" name="age" placeholder="e.g. 2 years old" value="${escapeHtml(data.age)}">
+							<label class="field-label" for="age-value">AGE</label>
+							<div class="field-row">
+								<input class="form-input" id="age-value" name="ageValue" type="number" min="0" step="1" placeholder="e.g. 2" value="${escapeHtml(parseAge(data.age).value)}">
+								<select class="form-input" id="age-unit" name="ageUnit">
+									${['Years', 'Months'].map((item) => `<option ${parseAge(data.age).unit === item ? 'selected' : ''}>${item}</option>`).join('')}
+								</select>
+							</div>
 						</div>
 						<div class="field">
 							<label class="field-label" for="sex">SEX</label>
@@ -988,7 +1025,12 @@ function renderAdd(record) {
 						</div>
 						<div class="field span-3">
 							<label class="field-label" for="diagnosis">DIAGNOSIS</label>
-							<textarea class="form-textarea" id="diagnosis" name="diagnosis" placeholder="Final or differential diagnosis...">${escapeHtml(data.diagnosis)}</textarea>
+							<select class="form-input" id="diagnosis" name="diagnosis">
+								<option value="" ${!data.diagnosis ? 'selected' : ''} disabled>Select a diagnosis...</option>
+								${DIAGNOSIS_OPTIONS.map((item) => `<option ${data.diagnosis === item ? 'selected' : ''}>${item}</option>`).join('')}
+								<option value="${DIAGNOSIS_OTHER}" ${data.diagnosis && !DIAGNOSIS_OPTIONS.includes(data.diagnosis) ? 'selected' : ''}>${DIAGNOSIS_OTHER}</option>
+							</select>
+							<input class="form-input" id="diagnosis-other" name="diagnosisOther" placeholder="Specify diagnosis..." value="${data.diagnosis && !DIAGNOSIS_OPTIONS.includes(data.diagnosis) ? escapeHtml(data.diagnosis) : ''}" ${data.diagnosis && !DIAGNOSIS_OPTIONS.includes(data.diagnosis) ? '' : 'hidden'} style="margin-top:6px;">
 						</div>
 						<div class="field span-3">
 							<label class="field-label" for="treatment">TREATMENT PROVIDED</label>
@@ -1002,6 +1044,12 @@ function renderAdd(record) {
 							<label class="field-label" for="category">CASE CATEGORY</label>
 							<select class="form-input" id="category" name="category">
 								${['Routine Checkup', 'Vaccination', 'Dermatology', 'Emergency', 'Surgery Follow-up'].map((item) => `<option ${data.category === item ? 'selected' : ''}>${item}</option>`).join('')}
+							</select>
+						</div>
+						<div class="field">
+							<label class="field-label" for="disease-category">DISEASE CATEGORY</label>
+							<select class="form-input" id="disease-category" name="diseaseCategory">
+								${['General/Other', 'Skin', 'Parasitic', 'Respiratory', 'Gastrointestinal'].map((item) => `<option ${data.diseaseCategory === item ? 'selected' : ''}>${item}</option>`).join('')}
 							</select>
 						</div>
 						<div class="field">
@@ -1146,8 +1194,13 @@ function renderEditModal(record) {
 							<input class="em-input" id="edit-dob" name="dateOfBirth" type="date" value="${escapeHtml(record.dateOfBirth || '')}">
 						</div>
 						<div class="em-field">
-							<label class="em-label" for="edit-age">AGE</label>
-							<input class="em-input" id="edit-age" name="age" placeholder="e.g. 2 years old" value="${escapeHtml(record.age)}">
+							<label class="em-label" for="edit-age-value">AGE</label>
+							<div class="em-field-row">
+								<input class="em-input" id="edit-age-value" name="ageValue" type="number" min="0" step="1" placeholder="e.g. 2" value="${escapeHtml(parseAge(record.age).value)}">
+								<select class="em-input" id="edit-age-unit" name="ageUnit">
+									${['Years', 'Months'].map((item) => `<option ${parseAge(record.age).unit === item ? 'selected' : ''}>${item}</option>`).join('')}
+								</select>
+							</div>
 						</div>
 						<div class="em-field">
 							<label class="em-label" for="edit-sex">SEX</label>
@@ -1288,12 +1341,17 @@ function getFormData(form) {
 		.map((item) => item.trim())
 		.filter(Boolean);
 
+	const diagnosisChoice = String(formData.get('diagnosis') || '').trim();
+	const diagnosis = diagnosisChoice === DIAGNOSIS_OTHER
+		? String(formData.get('diagnosisOther') || '').trim()
+		: diagnosisChoice;
+
 	return {
 		petName: String(formData.get('petName') || '').trim(),
 		species: String(formData.get('species') || '').trim(),
 		breed: String(formData.get('breed') || '').trim(),
 		dateOfBirth: String(formData.get('dateOfBirth') || '').trim(),
-		age: String(formData.get('age') || '').trim(),
+		age: formatAge(formData.get('ageValue'), String(formData.get('ageUnit') || '').trim()),
 		sex: String(formData.get('sex') || '').trim(),
 		weight: String(formData.get('weight') || '').trim(),
 		colorMarkings: String(formData.get('colorMarkings') || '').trim(),
@@ -1305,10 +1363,11 @@ function getFormData(form) {
 		visitDate: String(formData.get('visitDate') || '').trim(),
 		followUpDate: String(formData.get('followUpDate') || '').trim(),
 		symptoms: String(formData.get('symptoms') || '').trim(),
-		diagnosis: String(formData.get('diagnosis') || '').trim(),
+		diagnosis,
 		treatment: String(formData.get('treatment') || '').trim(),
 		medications,
 		category: String(formData.get('category') || '').trim(),
+		diseaseCategory: String(formData.get('diseaseCategory') || '').trim(),
 		attendingVet: String(formData.get('attendingVet') || '').trim(),
 		vaccinationStatus: String(formData.get('vaccinationStatus') || '').trim(),
 		vaccineBrand: String(formData.get('vaccineBrand') || '').trim(),
@@ -1370,6 +1429,15 @@ function bindModeSpecificHandlers() {
 
 	if (form) {
 		form.addEventListener('submit', handleAddSubmit);
+	}
+
+	const diagnosisSelect = document.getElementById('diagnosis');
+	const diagnosisOther = document.getElementById('diagnosis-other');
+	if (diagnosisSelect && diagnosisOther) {
+		diagnosisSelect.addEventListener('change', () => {
+			diagnosisOther.hidden = diagnosisSelect.value !== DIAGNOSIS_OTHER;
+			if (!diagnosisOther.hidden) diagnosisOther.focus();
+		});
 	}
 }
 

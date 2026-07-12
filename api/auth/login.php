@@ -15,6 +15,11 @@ if ($requestMethod !== 'POST') {
 }
 
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../config/email_verification.php';
+require_once __DIR__ . '/../config/session.php';
+
+ensureEmailVerificationSchema($pdo);
+ensureSessionSchema($pdo);
 
 function respond($statusCode, $payload)
 {
@@ -43,6 +48,7 @@ try {
             users.password_hash,
             users.account_status,
             users.profile_photo,
+            users.email_verified_at,
             roles.name AS role_name,
             owner_profiles.verification_status
         FROM users
@@ -77,10 +83,19 @@ try {
         ]);
     }
 
+    if (in_array($user['role_name'], ['veterinarian', 'admin'], true) && $user['email_verified_at'] === null) {
+        respond(403, [
+            'success' => false,
+            'message' => 'Please verify your email address before logging in. Check your inbox for the verification link.'
+        ]);
+    }
+
     $token = bin2hex(random_bytes(32));
 
     $updateLogin = $pdo->prepare('UPDATE users SET last_login_at = NOW() WHERE id = :id');
     $updateLogin->execute([':id' => $user['id']]);
+
+    recordLoginSession($pdo, (int) $user['id'], $token);
 
     $frontendRole = $user['role_name'];
     if ($frontendRole === 'pet_owner') {

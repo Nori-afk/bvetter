@@ -174,6 +174,14 @@ function buildDetailPanel(claim) {
               ` : ''}
               <div class="mc-info-list">
                 <div class="mc-info-row">
+                  <span class="mc-info-row-label">Found/Uploaded By</span>
+                  <span class="mc-info-row-value">${escapeHtml(claim.finder_name || 'Unknown')}</span>
+                </div>
+                <div class="mc-info-row">
+                  <span class="mc-info-row-label">Uploader Contact</span>
+                  <span class="mc-info-row-value">${escapeHtml(claim.finder_phone || claim.finder_email || 'No contact provided')}</span>
+                </div>
+                <div class="mc-info-row">
                   <span class="mc-info-row-label">Proof Type</span>
                   <span class="mc-info-row-value">${escapeHtml(claim.proof_type || 'Not specified')}</span>
                 </div>
@@ -182,7 +190,10 @@ function buildDetailPanel(claim) {
                   <span class="mc-info-row-value">${escapeHtml(claim.proof_notes || claim.review_notes || 'No notes provided.')}</span>
                 </div>
               </div>
-              ${approved && status !== 'resolved' ? `<button type="button" class="mc-resolve-btn" onclick="handleResolved('${claim.id}')">Mark as Resolved</button>` : ''}
+              ${approved && status !== 'resolved' ? `
+                <p class="mc-resolve-warning">Only mark as resolved after you've physically received the pet from the finder.</p>
+                <button type="button" class="mc-resolve-btn" onclick="handleResolved('${claim.id}')">Mark as Resolved</button>
+              ` : ''}
             </div>
             <div class="mc-detail-right">
               <div class="mc-found-pet-card">
@@ -238,6 +249,9 @@ function closeModalOutside(event, id) {
 }
 
 async function handleResolved(claimId) {
+  const confirmed = confirm("Only mark this claim as resolved after you've physically received the pet from the finder. Continue?");
+  if (!confirmed) return;
+
   const panelId = `detailClaim${claimId}`;
   closeDetail(panelId);
   const result = await api.resolveClaim(claimId);

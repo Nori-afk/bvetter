@@ -1,0 +1,75 @@
+- generic [ref=f3e2]:
+  - complementary [ref=f3e3]:
+    - generic [ref=f3e4]:
+      - button "Toggle sidebar" [ref=f3e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=f3e7]
+    - navigation:
+      - link [ref=f3e8] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/index.html
+        - img "Dashboard" [ref=f3e9]
+      - link [ref=f3e10] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/appointment.html
+        - img "Appointment Management" [ref=f3e11]
+      - link [ref=f3e12] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/patient-records.html
+        - img "Patient Records" [ref=f3e13]
+      - link [ref=f3e14] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/report.html
+        - img "Report" [ref=f3e15]
+      - link [ref=f3e16] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/disease-analytics.html
+        - img "Disease Analytics" [ref=f3e17]
+      - link [ref=f3e18] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/lost-and-found.html
+        - img "Lost and Found" [ref=f3e19]
+      - link [ref=f3e20] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/chatbot-management.html
+        - img "Chatbot Management" [ref=f3e21]
+      - link [ref=f3e22] [cursor=pointer]:
+        - /url: /final-VBETTER/bvetter/vet/html/mass-vaccination.html
+        - img "Mass Vaccination" [ref=f3e23]
+  - main [ref=f3e24]:
+    - generic:
+      - generic [ref=f3e25]:
+        - generic [ref=f3e26]:
+          - heading "Disease Analytics" [level=1] [ref=f3e27]
+          - paragraph [ref=f3e28]: View reports and auto-triggered insights here.
+        - generic:
+          - combobox "Select period" [ref=f3e29] [cursor=pointer]:
+            - option "Yearly" [selected]
+            - option "Monthly"
+          - combobox "Select disease" [ref=f3e30] [cursor=pointer]
+          - button "View Detailed Map" [ref=f3e31] [cursor=pointer]
+      - complementary [ref=f3e52]:
+        - heading "Data Sources" [level=3] [ref=f3e53]
+        - list [ref=f3e54]:
+          - listitem [ref=f3e55]
+          - listitem [ref=f3e57]
+          - listitem [ref=f3e59]
+        - button "Refresh All Sources" [ref=f3e61] [cursor=pointer]
+      - generic:
+        - heading "Actual Disease Cases per Barangay" [level=3] [ref=f3e63]
+        - heading "Predicted Disease Cases per Barangay" [level=3] [ref=f3e81]
+      - generic [ref=f3e98]:
+        - heading "Insights" [level=3]
+    - dialog:
+      - generic:
+        - heading "Create Response Event" [level=2]
+        - paragraph
+        - generic:
+          - text: Event Type
+          - generic [ref=f3e114]:
+            - radio "Vaccination Drive" [checked] [ref=f3e115]
+            - text: Vaccination Drive
+          - generic [ref=f3e116]:
+            - radio "Community Announcement" [ref=f3e117]
+            - text: Community Announcement
+        - generic:
+          - text: Vaccine
+          - combobox "Vaccine" [ref=f3e118] [cursor=pointer]:
+            - option "Anti-Rabies" [selected]
+            - option "5-in-1"
+            - option "Others"
+        - generic:
+          - button "Cancel" [ref=f3e119] [cursor=pointer]
+          - button "Create" [ref=f3e120] [cursor=pointer]

@@ -576,6 +576,11 @@
   align-items: start;
 }
 
+.mc-detail-left,
+.mc-detail-right {
+  min-width: 0;
+}
+
 /* ── Left column — instructions ─────────────── */
 .mc-detail-left {
   background: #ffffff;
@@ -668,15 +673,27 @@
   font-size: 13px;
   color: var(--text-primary);
   line-height: 1.5;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .mc-contact-value {
   font-size: 12px;
   font-weight: 700;
   color: var(--text-primary);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .mc-contact-value.phone-link { color: var(--color-navy); }
+
+.mc-resolve-warning {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8px 14px 0;
+  margin: 0;
+}
 
 /* Resolve button — full-width at bottom of left card */
 .mc-resolve-btn {

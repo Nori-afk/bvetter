@@ -58,7 +58,13 @@ function isAllDiseasesSelected(disease) {
 // plain-language labels so non-technical users aren't shown statistics jargon.
 function friendlyModelLabel(modelType) {
     const s = String(modelType || '').toLowerCase();
-    if (s.includes('movingaverage') || s.includes('wma')) return 'Basic Estimate';
+    // Checked first, regardless of whether the name also contains "arima":
+    // any *Fallback model_type means the real model's forecast was rejected
+    // (thin data, or the runaway-forecast sanity guard) and a simpler,
+    // more conservative estimate was used instead -- e.g. "ARIMAFallback"
+    // would otherwise match the "arima" check below and get labeled "Smart
+    // Forecast", which is exactly backwards from what it should signal.
+    if (s.includes('fallback') || s.includes('movingaverage') || s.includes('wma')) return 'Basic Estimate';
     if (s.includes('arima') && (s.includes('rf') || s.includes('alldisease'))) return 'Advanced Forecast';
     if (s.includes('sarima') || s.includes('arima')) return 'Smart Forecast';
     return 'Forecast';
@@ -140,6 +146,87 @@ async function diseaseRiskRequest(barangays, currentCasesByBarangay, disease, pe
         return { ok: result.success, data: result.data || [], error: result.success ? null : result.error };
     } catch (e) {
         return { ok: false, data: [], error: e.message };
+    }
+}
+
+// "Create Event" doesn't have its own storage -- it routes into whichever
+// existing module actually owns that kind of event, so it shows up where
+// vets already look for it instead of a third, disconnected list:
+//   - Vaccination Drive -> Mass Vaccination's events (api/mass-vaccination/events.php)
+//   - Community Announcement -> the Announcements feature (api/announcements/announcements.php)
+const createEventContext = { barangay: '', disease: '', riskClassification: '' };
+
+function openCreateEventModal(barangay, disease, riskClassification) {
+    createEventContext.barangay           = barangay || '';
+    createEventContext.disease            = disease || '';
+    createEventContext.riskClassification = riskClassification || '';
+
+    const ctxEl = document.getElementById('createEventContext');
+    if (ctxEl) ctxEl.textContent = `${createEventContext.barangay} — ${createEventContext.disease}`;
+
+    document.getElementsByName('eventType').forEach(r => { r.checked = r.value === 'vaccination'; });
+    toggleVaccineField();
+    const dateInput = document.getElementById('eventAnnouncementDate');
+    if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
+    document.getElementById('createEventModal')?.classList.remove('hidden');
+}
+
+function closeCreateEventModal() {
+    document.getElementById('createEventModal')?.classList.add('hidden');
+}
+
+function toggleVaccineField() {
+    const selected      = document.querySelector('input[name="eventType"]:checked')?.value;
+    const vaccineField  = document.getElementById('vaccineField');
+    const dateField     = document.getElementById('announcementDateField');
+    if (vaccineField) vaccineField.style.display = selected === 'vaccination'  ? '' : 'none';
+    if (dateField)    dateField.style.display    = selected === 'announcement' ? '' : 'none';
+}
+
+async function submitCreateEvent() {
+    const btn   = document.getElementById('confirmCreateEventBtn');
+    const type  = document.querySelector('input[name="eventType"]:checked')?.value || 'vaccination';
+    const { barangay, disease, riskClassification } = createEventContext;
+    const today = new Date().toISOString().slice(0, 10);
+
+    if (btn) { btn.disabled = true; btn.dataset.originalText = btn.textContent; btn.textContent = 'Creating…'; }
+    try {
+        let result, successMsg;
+        if (type === 'vaccination') {
+            const vaccine = document.getElementById('eventVaccine')?.value || 'Others';
+            const res = await fetch('/final-VBETTER/bvetter/api/mass-vaccination/events.php', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
+                body: JSON.stringify({ action: 'create', date: today, barangay, vaccine }),
+            });
+            result = await res.json();
+            successMsg = `Vaccination drive scheduled in Mass Vaccination: ${barangay} — ${vaccine}`;
+        } else {
+            const title = `Disease Response: ${disease} in ${barangay}`;
+            const description = `Community advisory for ${disease} cases in ${barangay}.` +
+                (riskClassification ? ` Risk level: ${riskClassification}.` : '') +
+                ' Please observe preventive measures and report symptoms in pets to your barangay vet team.';
+            const eventDate = document.getElementById('eventAnnouncementDate')?.value || today;
+            const res = await fetch('/final-VBETTER/bvetter/api/announcements/announcements.php', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
+                body: JSON.stringify({
+                    action: 'create', title, description,
+                    category: 'Community Advisory', event_date: eventDate, location: barangay, status: 'published',
+                }),
+            });
+            result = await res.json();
+            successMsg = `Announcement published: ${title}`;
+        }
+
+        if (result.success) {
+            alert(successMsg);
+            closeCreateEventModal();
+        } else {
+            alert(`Could not create event: ${result.message || 'Unknown error.'}`);
+        }
+    } catch (e) {
+        alert(`Could not create event: ${e.message}`);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = btn.dataset.originalText; }
     }
 }
 
@@ -315,7 +402,6 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
     const critical   = rfData.filter(r => r.tier === 'critical').length;
     const monitor    = rfData.filter(r => r.tier === 'monitor').length;
     const firstRf    = rfData[0] || {};
-    const isRuleBased= firstRf.rf_model_type === 'RuleBasedThreshold';
 
     diseaseAnalyticsData.kpis[2] = {
         label: 'High Risk Barangays',
@@ -323,19 +409,21 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
         trend: `${critical} critical · ${monitor} monitoring`,
     };
 
-    if (isRuleBased) {
-        diseaseAnalyticsData.kpis[3] = {
-            label: 'Forecast Accuracy',
-            value: firstRf.model_mae != null ? `Within ±${firstRf.model_mae} cases` : 'N/A',
-            trend: [friendlyModelLabel(firstRf.model_type), firstRf.eval_note || ''].filter(Boolean).join(' · ') || 'Automatic risk check',
-        };
-    } else {
-        diseaseAnalyticsData.kpis[3] = {
-            label: 'Forecast Accuracy',
-            value: firstRf.model_accuracy != null ? `${firstRf.model_accuracy}%` : 'N/A',
-            trend: firstRf.model_mae != null ? `Usually within ±${firstRf.model_mae} cases` : '',
-        };
-    }
+    // Average error margin across every barangay shown, not just whichever
+    // one happens to sort first -- accuracy varies a lot barangay to
+    // barangay (e.g. one barangay ±3.9 cases vs another ±2.8 for the same
+    // disease), so showing a single borrowed barangay's number as "Forecast
+    // Accuracy" for the whole page was misleading.
+    const maeValues = rfData.map(r => r.model_mae).filter(v => v != null && !Number.isNaN(v));
+    const avgMae    = maeValues.length ? (maeValues.reduce((a, b) => a + b, 0) / maeValues.length) : null;
+
+    diseaseAnalyticsData.kpis[3] = {
+        label: 'Forecast Accuracy',
+        value: avgMae != null ? `Within ±${avgMae.toFixed(1)} cases` : 'N/A',
+        trend: avgMae != null
+            ? [friendlyModelLabel(firstRf.model_type), `avg across ${maeValues.length} barangays`].filter(Boolean).join(' · ')
+            : 'Automatic risk check',
+    };
 }
 
 /* ── Event binding ──────────────────────────────────────────── */
@@ -374,6 +462,13 @@ function bindEvents() {
     document.getElementById('periodFilter')?.addEventListener('change', reloadWithCurrentFilters);
     document.getElementById('refreshSourcesBtn')?.addEventListener('click', () => {
         document.getElementById('refreshSourcesBtn').textContent = 'Refreshed ' + new Date().toLocaleTimeString();
+    });
+
+    document.getElementsByName('eventType').forEach(r => r.addEventListener('change', toggleVaccineField));
+    document.getElementById('cancelCreateEventBtn')?.addEventListener('click', closeCreateEventModal);
+    document.getElementById('confirmCreateEventBtn')?.addEventListener('click', submitCreateEvent);
+    document.getElementById('createEventModal')?.addEventListener('click', (ev) => {
+        if (ev.target.id === 'createEventModal') closeCreateEventModal();
     });
 }
 
@@ -582,9 +677,17 @@ function renderInsightPanel() {
     }
 
     // ── Model badge ───────────────────────────────────────────────
+    // insight.model_type is only ever set once a real prediction (from
+    // Python or the PHP fallback) has merged in — see _mergeRFResults().
+    // If it's missing, the panel is still showing the PHP placeholder,
+    // which means the analytics service never answered.
+    const isOffline   = !insight.model_type;
     const isRuleBased = insight.rf_model_type === 'RuleBasedThreshold';
+    let offlineWarningHtml = '';
     let modelBadgeHtml = '';
-    if (isRuleBased && insight.risk_thresholds) {
+    if (isOffline) {
+        offlineWarningHtml = `<div class="fallback-warning">⚠ Analytics service offline — showing basic info only for ${insight.barangay} until the forecast service reconnects.</div>`;
+    } else if (isRuleBased && insight.risk_thresholds) {
         const t = insight.risk_thresholds;
         modelBadgeHtml = `
             <div class="ip-model-row">
@@ -592,7 +695,7 @@ function renderInsightPanel() {
                 <span class="ip-model-text">Low: under ${t.low_max} · Medium: ${t.low_max}–${t.med_max} · High: ${t.med_max} or more</span>
             </div>
         `;
-    } else if (!isRuleBased) {
+    } else {
         modelBadgeHtml = `
             <div class="ip-model-row">
                 <span class="ip-model-badge">Advanced Forecast</span>
@@ -610,6 +713,7 @@ function renderInsightPanel() {
         <div class="ip-risk-header">
             <span class="ip-risk-chip ip-risk-${tierClass}">${protocol.classification}</span>
         </div>
+        ${offlineWarningHtml}
         ${modelBadgeHtml}
         ${forecastHtml}
         <div class="ip-protocol-block">
@@ -638,7 +742,7 @@ function renderInsightPanel() {
     `;
 
     document.getElementById('createEventBtn').addEventListener('click', () => {
-        alert(`Event created: ${insight.barangay} — ${insight.disease}`);
+        openCreateEventModal(insight.barangay, insight.disease, protocol.classification);
     });
     document.getElementById('backOverviewBtn2').addEventListener('click', () => switchPanel('overviewPanel'));
 }
@@ -714,7 +818,7 @@ function refreshMapLayers() {
     const heatPoints = hotspots.map(s => [s.lat, s.lng, s.intensity]);
 
     state.heatLayer = L.heatLayer(heatPoints, {
-        radius: 45, blur: 30, minOpacity: 0.5,
+        radius: 65, blur: 40, minOpacity: 0.5,
         gradient: { 0.3: '#6ec7ff', 0.55: '#fff27a', 0.75: '#ff9248', 1.0: '#e53030' },
     }).addTo(state.map);
 
@@ -833,7 +937,7 @@ function showHotspotAction(hotspot) {
         </section>
     `;
     document.getElementById('createMapEventBtn').addEventListener('click', () => {
-        alert(`Event created: ${hotspot.barangay} — ${hotspot.disease}`);
+        openCreateEventModal(hotspot.barangay, hotspot.disease, classification);
     });
     document.getElementById('backToMapOverviewBtn').addEventListener('click', () => {
         state.mapActionMode = false;
