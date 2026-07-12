@@ -78,50 +78,6 @@ function ensureResetTable(PDO $pdo): void
     ");
 }
 
-/* ── shared email branding ──────────────────────────────── */
-
-function emailShell(string $innerHtml): string
-{
-    $year = date('Y');
-    return "
-        <table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='background:#f4f6f8;'>
-          <tr>
-            <td align='center' style='padding:32px 16px;'>
-              <table role='presentation' width='560' cellpadding='0' cellspacing='0' style='max-width:560px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;font-family:-apple-system,\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif;'>
-                <tr>
-                  <td style='padding:26px 36px 18px;text-align:center;border-bottom:1px solid #edeff2;'>
-                    <div style='font-size:15px;font-weight:800;color:#1a1a1a;'>Baliwag City Veterinary Services</div>
-                    <div style='font-size:11px;color:#9aa1ab;margin-top:2px;'>VBetter Portal</div>
-                  </td>
-                </tr>
-                <tr>
-                  <td style='padding:36px 36px 8px;'>
-                    {$innerHtml}
-                  </td>
-                </tr>
-                <tr><td style='padding:8px 36px 0;'><div style='border-top:1px solid #edeff2;'></div></td></tr>
-                <tr>
-                  <td style='padding:20px 36px;'>
-                    <p style='margin:0;font-size:12px;line-height:1.6;color:#9aa1ab;text-align:center;'>
-                      This is an automated message from a <strong>no-reply</strong> mailbox &mdash; replies to this email are not monitored.<br>
-                      Need help? Contact us at <a href='mailto:vbetter141@gmail.com' style='color:#00963a;text-decoration:none;'>vbetter141@gmail.com</a>
-                    </p>
-                  </td>
-                </tr>
-                <tr>
-                  <td style='background:#fafbfc;padding:22px 36px;text-align:center;border-top:1px solid #edeff2;'>
-                    <div style='font-size:12px;color:#aab0b9;font-weight:600;'>Baliwag City Veterinary Services</div>
-                    <div style='font-size:11px;color:#c1c6cd;margin-top:4px;'>Baliwag City, Bulacan, Philippines</div>
-                    <div style='font-size:11px;color:#c1c6cd;margin-top:10px;'>&copy; {$year} Baliwag City Veterinary Services. All rights reserved.</div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-    ";
-}
-
 /* ── send OTP via email ─────────────────────────────────── */
 function sendEmailOtp(PDO $pdo): never
 {
@@ -155,43 +111,41 @@ function sendEmailOtp(PDO $pdo): never
     // Use PHPMailer instead of mail()
     try {
         $mail = new PHPMailer(true);
+        $mail->CharSet    = PHPMailer::CHARSET_UTF8;
         $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';
+        $mail->Host       = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'vbetter141@gmail.com';
-        $mail->Password   = 'adftcbfxjkydawvs';
+        $mail->Username   = getenv('SMTP_USER') ?: '';
+        $mail->Password   = getenv('SMTP_PASS') ?: '';
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;
+        $mail->Port       = (int) (getenv('SMTP_PORT') ?: 587);
 
-        $mail->setFrom('vbetter141@gmail.com', 'Baliwag City Veterinary Services');
+        $mail->setFrom(getenv('SMTP_FROM') ?: $mail->Username, 'VBetter');
         $mail->addAddress($email);
         $mail->isHTML(true);
-        $mail->CharSet = PHPMailer::CHARSET_UTF8;
-        $mail->Subject = 'Baliwag City Veterinary Services - Your Email Verification Code';
+        $mail->Subject = 'VBetter – Your Email Verification Code';
 
-        $inner = "
-            <div style='font-size:11px;font-weight:700;color:#00963a;letter-spacing:0.1em;text-transform:uppercase;'>Email Verification</div>
-            <h1 style='margin:10px 0 14px;font-size:21px;line-height:1.3;color:#1a1a1a;font-weight:700;'>Verify your email address</h1>
-            <p style='margin:0 0 22px;font-size:14.5px;line-height:1.65;color:#565f6b;'>
-                Hi there,<br>
-                Please use the verification code below to confirm this email address. The code expires in <strong>10 minutes</strong>.
-            </p>
-            <table role='presentation' cellpadding='0' cellspacing='0' style='margin:0 auto 22px;'>
-                <tr>
-                    <td style='background:#f2faf4;border:1px solid #cdeed6;border-radius:10px;padding:18px 30px;text-align:center;'>
-                        <span style='font-size:32px;font-weight:800;letter-spacing:10px;color:#00802b;font-family:\"Courier New\",monospace;'>{$otp}</span>
-                    </td>
-                </tr>
-            </table>
-            <p style='margin:0 0 4px;font-size:13px;color:#8a93a3;text-align:center;'>
-                Didn't request this code? You can safely ignore this email.
-            </p>
+        $logoPath = __DIR__ . '/../../public/images/logos/logo-color.png';
+        if (is_file($logoPath)) {
+            $mail->addEmbeddedImage($logoPath, 'logo', 'logo.png');
+        }
+
+        $mail->Body    = "
+            <div style='font-family:sans-serif;max-width:480px;margin:auto;padding:32px;
+                        border:1px solid #eee;border-radius:12px;text-align:center;'>
+                <img src='cid:logo' alt='Baliwag City Vet' style='height:56px;margin-bottom:20px;'>
+                <h2 style='color:#00B928;margin-bottom:8px;'>Email Verification</h2>
+                <p style='color:#555;'>Use the code below to verify your email address.
+                   It expires in <strong>10 minutes</strong>.</p>
+                <div style='font-size:36px;font-weight:800;letter-spacing:10px;text-align:center;
+                            background:#f4f4f4;padding:20px;border-radius:8px;margin:24px 0;'>
+                    {$otp}
+                </div>
+                <p style='color:#999;font-size:12px;'>
+                    If you did not request this, please ignore this email.
+                </p>
+            </div>
         ";
-
-        $mail->Body    = emailShell($inner);
-        $mail->AltBody = "Your Baliwag City Veterinary Services verification code is: {$otp}\n"
-                        . "This code expires in 10 minutes.\n\n"
-                        . "This is an automated message from a no-reply mailbox. If you did not request this, please ignore this email.";
 
         $mail->send();
 
@@ -247,8 +201,8 @@ function sendPhoneOtp(PDO $pdo): never
     ]);
 
     // ── Semaphore SMS ────────────────────────────────────────
-    $apiKey     = '82bf322b4bb59a4e6649ebf93e13ae66';   // ← paste your key here
-    $senderName = 'VBETTER';                  // ← your approved sender name
+    $apiKey     = getenv('SEMAPHORE_API_KEY') ?: '';
+    $senderName = getenv('SEMAPHORE_SENDER_NAME') ?: 'VBETTER';
 
     $payload = http_build_query([
         'apikey'      => $apiKey,
@@ -391,48 +345,49 @@ function forgotPassword(PDO $pdo): never
     // Build reset URL – adjust base URL to match your deployment
 $resetUrl = APP_URL . '/public/pages/reset-password.html?token='
           . urlencode($token);
-    $subject = 'Baliwag City Veterinary Services - Password Reset Request';
+    $subject = 'VBetter – Password Reset Request';
     $name    = htmlspecialchars($user['full_name'], ENT_QUOTES);
-    $inner   = "
-        <div style='font-size:11px;font-weight:700;color:#00963a;letter-spacing:0.1em;text-transform:uppercase;'>Password Reset</div>
-        <h1 style='margin:10px 0 14px;font-size:21px;line-height:1.3;color:#1a1a1a;font-weight:700;'>Reset your password</h1>
-        <p style='margin:0 0 22px;font-size:14.5px;line-height:1.65;color:#565f6b;'>
-            Hi <strong>{$name}</strong>,<br>
-            We received a request to reset your Baliwag City Veterinary Services password. Click the button below to choose a new one &mdash; this link expires in <strong>1 hour</strong>.
-        </p>
-        <table role='presentation' cellpadding='0' cellspacing='0' style='margin:0 auto 22px;'>
-            <tr>
-                <td style='border-radius:8px;background:#00963a;'>
-                    <a href='{$resetUrl}' style='display:inline-block;padding:14px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;'>Reset My Password</a>
-                </td>
-            </tr>
-        </table>
-        <p style='margin:0 0 4px;font-size:13px;color:#8a93a3;text-align:center;'>
-            Didn't request this? You can safely ignore this email &mdash; your password will remain unchanged.
-        </p>
+    $body    = "
+        <div style='font-family:sans-serif;max-width:480px;margin:auto;padding:32px;border:1px solid #eee;border-radius:12px;text-align:center;'>
+            <img src='cid:logo' alt='Baliwag City Vet' style='height:56px;margin-bottom:20px;'>
+            <h2 style='color:#00B928;margin-bottom:8px;'>Password Reset</h2>
+            <p>Hi <strong>{$name}</strong>,</p>
+            <p style='color:#555;'>We received a request to reset your VBetter password.
+               Click the button below — the link expires in <strong>1 hour</strong>.</p>
+            <div style='text-align:center;margin:32px 0;'>
+                <a href='{$resetUrl}'
+                   style='background:#00B928;color:#fff;padding:14px 32px;border-radius:8px;
+                          text-decoration:none;font-weight:700;font-size:15px;'>
+                    Reset My Password
+                </a>
+            </div>
+            <p style='color:#999;font-size:12px;'>
+                If you did not request a password reset, you can safely ignore this email.
+            </p>
+        </div>
     ";
 
     try {
         $mail = new PHPMailer(true);
+        $mail->CharSet    = PHPMailer::CHARSET_UTF8;
         $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';
+        $mail->Host       = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'vbetter141@gmail.com';
-        $mail->Password   = 'adftcbfxjkydawvs';
+        $mail->Username   = getenv('SMTP_USER') ?: '';
+        $mail->Password   = getenv('SMTP_PASS') ?: '';
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;
+        $mail->Port       = (int) (getenv('SMTP_PORT') ?: 587);
 
-        $mail->setFrom('vbetter141@gmail.com', 'Baliwag City Veterinary Services');
+        $mail->setFrom(getenv('SMTP_FROM') ?: $mail->Username, 'VBetter');
         $mail->addAddress($email, $user['full_name']);
         $mail->isHTML(true);
-        $mail->CharSet = PHPMailer::CHARSET_UTF8;
         $mail->Subject = $subject;
+        $mail->Body    = $body;
 
-        $mail->Body    = emailShell($inner);
-        $mail->AltBody = "Hi {$user['full_name']},\n\n"
-                        . "We received a request to reset your Baliwag City Veterinary Services password. "
-                        . "Open this link within 1 hour to choose a new one:\n{$resetUrl}\n\n"
-                        . "This is an automated message from a no-reply mailbox. If you did not request this, please ignore this email.";
+        $logoPath = __DIR__ . '/../../public/images/logos/logo-color.png';
+        if (is_file($logoPath)) {
+            $mail->addEmbeddedImage($logoPath, 'logo', 'logo.png');
+        }
 
         $mail->send();
 
@@ -490,14 +445,6 @@ function resetPassword(PDO $pdo): never
         respond(422, ['success' => false, 'message' => 'Reset link has expired. Please request a new one.']);
     }
 
-    $stmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = :id LIMIT 1');
-    $stmt->execute([':id' => $row['user_id']]);
-    $currentHash = $stmt->fetchColumn();
-
-    if ($currentHash !== false && password_verify($password, $currentHash)) {
-        respond(422, ['success' => false, 'message' => 'New password must be different from your old password.']);
-    }
-
     $pdo->beginTransaction();
 
     $pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id')
@@ -536,4 +483,4 @@ try {
         'message' => 'Server error. Please try again.',
         'error'   => $e->getMessage(),
     ]);
-}
+}

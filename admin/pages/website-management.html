@@ -210,27 +210,6 @@
               <input type="file" id="team-workspace-input" accept="image/*"/>
             </div>
 
-            <!-- Event 1 -->
-            <div class="wm-asset-card" onclick="triggerAssetUpload('event-1-input')">
-              <div class="wm-asset-thumb-placeholder" id="event-1-placeholder">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                  <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                <span>No image uploaded</span>
-              </div>
-              <img class="wm-asset-img-preview" id="event-1-preview" alt="Event Image"/>
-              <div class="wm-asset-info">
-                <span class="wm-asset-name">Event 1 Image</span>
-                <span class="wm-asset-desc">Photo for Vaccine Event card</span>
-                <div class="wm-asset-actions">
-                  <label class="wm-asset-btn wm-asset-btn-primary" for="event-1-input">Upload</label>
-                  <button class="wm-asset-btn wm-asset-btn-ghost" type="button" onclick="event.stopPropagation();clearAsset('event-1')">Remove</button>
-                </div>
-              </div>
-              <input type="file" id="event-1-input" accept="image/*"/>
-            </div>
-
           </div>
         </div>
       </section>
@@ -284,7 +263,7 @@
                 <input class="wm-input" type="tel" id="cp-phone" placeholder="+63 9XX XXX XXXX"/>
               </div>
             </div>
-            <div class="wm-form-group">
+            <div class="wm-form-group" style="margin-bottom:14px;">
               <label class="wm-label" for="cp-address">Physical Address</label>
               <div style="position:relative;">
                 <input class="wm-input" type="text" id="cp-address" placeholder="Building, Street, City, Province" style="padding-right:36px;"/>
@@ -293,6 +272,21 @@
                   <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                 </svg>
               </div>
+            </div>
+            <div class="wm-two-col">
+              <div class="wm-form-group">
+                <label class="wm-label" for="cp-clinic-capacity">Clinic Capacity (homepage stat)</label>
+                <input class="wm-input" type="text" id="cp-clinic-capacity" placeholder="24/7"/>
+              </div>
+              <div class="wm-form-group">
+                <label class="wm-label" for="cp-surgery-recovery">Surgery Recovery Rate (homepage stat)</label>
+                <input class="wm-input" type="text" id="cp-surgery-recovery" placeholder="98.4%"/>
+              </div>
+            </div>
+            <div class="wm-form-group" style="margin-top:14px;">
+              <label class="wm-label" for="cp-specialists-count">Specialists (homepage stat)</label>
+              <input class="wm-input" type="text" id="cp-specialists-count" placeholder="0" disabled/>
+              <span style="font-size:12px;color:var(--text-tertiary);">Counted automatically from active veterinarian accounts — update it in Account Management.</span>
             </div>
           </div>
         </section>
@@ -309,9 +303,14 @@
             Quick Preview
           </div>
           <div class="wm-preview-controls">
+            <div class="wm-preview-view-switch" role="group" aria-label="Preview audience">
+              <button class="wm-preview-mode-btn active" id="btn-preview-owner" type="button">Pet Owner</button>
+              <button class="wm-preview-mode-btn" id="btn-preview-vet" type="button">Vet</button>
+            </div>
+            <span class="wm-preview-divider" aria-hidden="true"></span>
             <button class="wm-preview-mode-btn active" id="btn-preview-desktop" type="button">Desktop</button>
             <button class="wm-preview-mode-btn" id="btn-preview-mobile" type="button">Mobile</button>
-            <a href="../../public/pages/landing.html" target="_blank" class="wm-preview-fullsite">
+            <a href="../../public/pages/landing.html" target="_blank" id="wm-preview-fullsite-link" class="wm-preview-fullsite">
               View full site
               <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
@@ -332,47 +331,18 @@
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
               </svg>
-              <span class="wm-fake-url-text">adminpanel.com/preview-live</span>
+              <span class="wm-fake-url-text" id="wm-fake-url-text">adminpanel.com/preview-live</span>
             </div>
           </div>
-          <!-- Static landing page mockup -->
+          <!-- Live preview: real Pet Owner landing page, rendered in an iframe -->
           <div class="wm-browser-content">
-            <div class="wm-preview-mockup">
-              <div class="wm-mock-nav">
-                <div class="wm-mock-nav-logo">
-                  <div class="wm-mock-nav-logo-icon">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                    </svg>
-                  </div>
-                  <span class="wm-mock-nav-wordmark">VBetter</span>
-                </div>
-                <div class="wm-mock-nav-links">
-                  <div class="wm-mock-nav-link"></div>
-                  <div class="wm-mock-nav-link"></div>
-                  <div class="wm-mock-nav-link"></div>
-                </div>
-                <div class="wm-mock-nav-btn"></div>
-              </div>
-              <div class="wm-mock-hero">
-                <div class="wm-mock-hero-text">
-                  <div class="wm-mock-h1"></div>
-                  <div class="wm-mock-h1-sub"></div>
-                  <div class="wm-mock-p"></div>
-                  <div class="wm-mock-p2"></div>
-                  <div class="wm-mock-cta">
-                    <div class="wm-mock-cta-btn"></div>
-                    <div class="wm-mock-cta-btn2"></div>
-                  </div>
-                </div>
-                <div class="wm-mock-hero-img"></div>
-              </div>
-              <div class="wm-mock-services">
-                <div class="wm-mock-service-card"></div>
-                <div class="wm-mock-service-card"></div>
-                <div class="wm-mock-service-card"></div>
-                <div class="wm-mock-service-card"></div>
-              </div>
+            <div class="wm-preview-frame-wrap" id="wm-preview-frame-wrap">
+              <iframe
+                id="wm-live-preview-iframe"
+                class="wm-preview-iframe"
+                src="../../public/pages/landing.html"
+                title="Live preview — Pet Owner Landing Page"
+                loading="lazy"></iframe>
             </div>
           </div>
         </div>
@@ -433,7 +403,8 @@
   <script src="../../shared/js/auth.js"></script>
   <script>VBetterAuth.requireAuth(['admin']);</script>
   <script src="../../shared/js/sidebar.js"></script>
+  <script src="../../public/js/api.js"></script>
   <script src="../js/website-management.js"></script>
 
 </body>
-</html>
+</html>

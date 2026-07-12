@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 require_once __DIR__ . '/../../config/connection.php';
+require_once __DIR__ . '/../config/email_verification.php';
 
 function respond($statusCode, $payload)
 {
@@ -304,6 +305,8 @@ function createUser($pdo)
         $profilePhoto = '/bvetter/storage/profile/' . $fileName;
     }
 
+    ensureEmailVerificationSchema($pdo);
+
     $pdo->beginTransaction();
 
     $insertUser = $pdo->prepare('
@@ -358,9 +361,13 @@ function createUser($pdo)
 
     $pdo->commit();
 
+    $emailSent = sendEmailVerificationLink($pdo, $userId, $email, $fullName);
+
     respond(201, [
         'success' => true,
-        'message' => 'Account created successfully.',
+        'message' => $emailSent
+            ? 'Account created successfully. A verification link was sent to ' . $email . '.'
+            : 'Account created successfully, but the verification email could not be sent. Please ask the user to use "Forgot password" once you resend it.',
         'user_id' => $userId
     ]);
 }

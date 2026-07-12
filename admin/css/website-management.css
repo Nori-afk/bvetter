@@ -193,7 +193,7 @@ body {
 .wm-preset-swatch.active { border-color: var(--text-primary); box-shadow: 0 0 0 2px #fff inset; }
 
 /* ── VISUAL ASSETS ── */
-.wm-assets-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; min-width: 0; }
+.wm-assets-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; min-width: 0; }
 
 .wm-asset-card {
   background: var(--bg-white); border: 1px solid var(--border);
@@ -317,6 +317,8 @@ body {
 }
 .wm-preview-title-icon svg { width: 16px; height: 16px; color: var(--primary-blue); }
 .wm-preview-controls { display: flex; align-items: center; gap: 8px; }
+.wm-preview-view-switch { display: flex; align-items: center; gap: 8px; }
+.wm-preview-divider { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
 .wm-preview-mode-btn {
   padding: 7px 16px; border-radius: var(--radius-sm);
   border: 1.5px solid var(--border); background: var(--bg-page);
@@ -365,52 +367,30 @@ body {
 
 .wm-browser-content {
   width: 100%; height: 460px; background: #F0F2F5;
-  display: flex; align-items: center; justify-content: center;
-  transition: height 0.3s ease; position: relative; overflow: hidden;
+  transition: height 0.3s ease; position: relative;
+  overflow-y: auto; overflow-x: hidden;
 }
 .wm-browser-shell.mobile-mode .wm-browser-content { height: 540px; }
 
-.wm-preview-mockup {
-  width: 100%; height: 100%;
-  display: flex; flex-direction: column;
-  overflow: hidden; pointer-events: none; user-select: none;
+/* Live iframe preview — real landing.html scaled to the shell's width.
+   The wrap's height is set in JS to match the scaled page height, and
+   .wm-browser-content (fixed height, overflow-y:auto) scrolls natively
+   over it — the iframe itself never scrolls internally, since a CSS
+   transform on the iframe breaks wheel-event routing into its document. */
+.wm-preview-frame-wrap {
+  width: 100%; position: relative;
 }
-.wm-mock-nav {
-  background: #002A58; height: 52px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 32px;
-}
-.wm-mock-nav-logo { display: flex; align-items: center; gap: 10px; }
-.wm-mock-nav-logo-icon {
-  width: 32px; height: 32px; border-radius: 8px;
-  background: rgba(255,255,255,0.15);
-  display: flex; align-items: center; justify-content: center;
-}
-.wm-mock-nav-logo-icon svg { width: 16px; height: 16px; color: #fff; }
-.wm-mock-nav-wordmark { font-size: 14px; font-weight: 800; color: #fff; letter-spacing: 0.2px; }
-.wm-mock-nav-links { display: flex; gap: 22px; }
-.wm-mock-nav-link { width: 40px; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.18); }
-.wm-mock-nav-btn  { width: 72px; height: 28px; border-radius: 6px; background: var(--secondary-light-green); }
-.wm-mock-hero {
-  background: linear-gradient(120deg, #002A58 0%, #004080 60%, #006B50 100%);
-  flex: 1; display: flex; align-items: center; padding: 0 32px; gap: 32px;
-  min-height: 0;
-}
-.wm-mock-hero-text { flex: 1; display: flex; flex-direction: column; gap: 10px; }
-.wm-mock-h1       { width: 60%; height: 22px; border-radius: 5px; background: rgba(255,255,255,0.90); }
-.wm-mock-h1-sub   { width: 45%; height: 14px; border-radius: 4px; background: rgba(255,255,255,0.50); }
-.wm-mock-p        { width: 75%; height: 8px;  border-radius: 3px; background: rgba(255,255,255,0.30); }
-.wm-mock-p2       { width: 55%; height: 8px;  border-radius: 3px; background: rgba(255,255,255,0.20); }
-.wm-mock-cta      { display: flex; gap: 10px; margin-top: 4px; }
-.wm-mock-cta-btn  { width: 88px; height: 30px; border-radius: 7px; background: var(--secondary-light-green); }
-.wm-mock-cta-btn2 { width: 88px; height: 30px; border-radius: 7px; background: rgba(255,255,255,0.18); }
-.wm-mock-hero-img { width: 200px; height: 140px; border-radius: 12px; background: rgba(255,255,255,0.12); flex-shrink: 0; }
-.wm-mock-services {
-  background: #fff; padding: 18px 32px; display: flex; gap: 14px; flex-shrink: 0;
-}
-.wm-mock-service-card {
-  flex: 1; height: 56px; border-radius: 8px;
-  background: #F0F2F5; border: 1px solid #E2E8F0;
+.wm-preview-iframe {
+  border: 0; display: block;
+  transform-origin: top left;
+  background: #fff;
+  /* Clickable — links/buttons inside the preview navigate the iframe
+     in place, so admins can click through modules and see settings
+     apply everywhere, not just on the first page loaded. The embedded
+     page forwards wheel events back out to .wm-browser-content (see
+     site-settings.js) since the CSS transform above would otherwise
+     swallow them without chaining the scroll back out. */
+  pointer-events: auto;
 }
 
 /* ── ANNOUNCEMENT MODAL ── */
@@ -486,4 +466,4 @@ input[type="file"] { display: none; }
   .wm-brand-row { grid-template-columns: 1fr; }
   .wm-hero { flex-direction: column; align-items: flex-start; }
 }
-@media (max-width: 600px) { .wm-assets-grid { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .wm-assets-grid { grid-template-columns: 1fr; } }

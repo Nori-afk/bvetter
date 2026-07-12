@@ -47,7 +47,8 @@ function profileStats($pdo, $userId, $roleName)
 {
     $stats = [
         'patientsToday' => 0,
-        'totalPatients' => 0,
+        'surgeriesPerformed' => 0,
+        'avgTreatmentTime' => '45m',
         'satisfactionRate' => '0.0',
     ];
 
@@ -63,7 +64,7 @@ function profileStats($pdo, $userId, $roleName)
             $stmt->execute();
             $stats['patientsToday'] = (int) $stmt->fetchColumn();
 
-            $stats['totalPatients'] = (int) $pdo->query("SELECT COUNT(DISTINCT pet_id) FROM patient_visit_records")->fetchColumn();
+            $stats['surgeriesPerformed'] = (int) $pdo->query("SELECT COUNT(*) FROM patient_visit_records WHERE LOWER(category) LIKE '%surgery%'")->fetchColumn();
 
             if (function_exists('bv_table_exists') && bv_table_exists($pdo, 'reviews')) {
                 $stmt = $pdo->prepare('SELECT ROUND(AVG(rating), 1) FROM reviews WHERE veterinarian_id = :id');
@@ -85,10 +86,11 @@ function getProfile($pdo, $userId)
 
     $stmt = $pdo->prepare("
         SELECT users.id, users.full_name, users.email, users.phone_number, users.profile_photo,
-               users.education, users.specialization,
+               veterinarian_profiles.education, veterinarian_profiles.specialization,
                roles.name AS role_name, users.created_at
         FROM users
         LEFT JOIN roles ON roles.id = users.role_id
+        LEFT JOIN veterinarian_profiles ON veterinarian_profiles.user_id = users.id
         WHERE users.id = :id
         LIMIT 1
     ");
@@ -145,8 +147,15 @@ function updateProfile($pdo, $data)
     $stmt->execute([':email' => $email, ':id' => $userId]);
     if ($stmt->fetch()) respond(409, ['success' => false, 'message' => 'Email is already used by another account.']);
 
-    $stmt = $pdo->prepare('UPDATE users SET full_name = :name, email = :email, phone_number = :phone, education = :education, specialization = :specialization WHERE id = :id');
-    $stmt->execute([':name' => $fullName, ':email' => $email, ':phone' => $phone, ':education' => $education, ':specialization' => $specialization, ':id' => $userId]);
+    $stmt = $pdo->prepare('UPDATE users SET full_name = :name, email = :email, phone_number = :phone WHERE id = :id');
+    $stmt->execute([':name' => $fullName, ':email' => $email, ':phone' => $phone, ':id' => $userId]);
+
+    $stmt = $pdo->prepare('SELECT id FROM veterinarian_profiles WHERE user_id = :id LIMIT 1');
+    $stmt->execute([':id' => $userId]);
+    if ($stmt->fetch()) {
+        $stmt = $pdo->prepare('UPDATE veterinarian_profiles SET education = :education, specialization = :specialization WHERE user_id = :id');
+        $stmt->execute([':education' => $education, ':specialization' => $specialization, ':id' => $userId]);
+    }
 
     getProfile($pdo, $userId);
 }

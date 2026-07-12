@@ -1,44 +1,66 @@
 /**
  * VBetter – Account Management JS
- * [BACKEND] Replace MOCK_USERS with real API calls.
+ * Backed by api.allUsers() / api.accountRoles() / api.createAccountUser()
+ * / api.approveUser() / api.rejectUser() / api.deleteUser() / api.updateUserStatus()
+ * (all hitting api/admin/account-management.php).
+ *
+ * No Edit feature here on purpose — users manage their own profile via
+ * account-settings.html and reset their own password via the forgot-password
+ * flow, so admin-side editing was dropped rather than left half-wired.
  */
 
 'use strict';
 
-/* ── Mock data ──────────────────────────────────────────────── */
-const MOCK_USERS = [
-    { id: 'U-001', name: 'Dr. Sarah Smith',      email: 'sarah.s@vetclinic.com',        role: 'vet',   roleLabel: 'Veterinarian I',   status: 'active',   created: '2023-01-15', phone: '09171234567', barangay: 'Poblacion', avatar: '' },
-    { id: 'U-002', name: 'Mark Johnson',          email: 'm.johnson@vetclinic.com',      role: 'vet',   roleLabel: 'Veterinarian II',  status: 'blocked',  created: '2023-03-10', phone: '09991234567', barangay: 'Tangos',    avatar: '' },
-    { id: 'U-003', name: 'Dr. Alan Grant',        email: 'a.grant@vetclinic.com',        role: 'vet',   roleLabel: 'Veterinarian III', status: 'active',   created: '2023-05-01', phone: '09181234567', barangay: 'San Jose',  avatar: '' },
-    { id: 'U-004', name: 'Mark Ivan Villaster',   email: 'Markivanvillaster@gmail.com',  role: 'owner', roleLabel: 'Pet Owner',        status: 'pending',  created: '2023-05-01', phone: '09271234567', barangay: 'Tangos',    avatar: '', idImage: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Sport_template_blank.svg/320px-Sport_template_blank.svg.png' },
-    { id: 'U-005', name: 'Maria Santos',          email: 'maria@mail.com',               role: 'owner', roleLabel: 'Pet Owner',        status: 'active',   created: '2024-04-02', phone: '09361234567', barangay: 'San Roque', avatar: '' },
-    { id: 'U-006', name: 'Juan dela Cruz',        email: 'juan@mail.com',                role: 'owner', roleLabel: 'Pet Owner',        status: 'inactive', created: '2024-05-20', phone: '09051234567', barangay: 'Wawa',      avatar: '' },
-    { id: 'U-007', name: 'Admin User',            email: 'admin@vbetter.ph',             role: 'admin', roleLabel: 'Administrator',    status: 'active',   created: '2024-01-01', phone: '09201234567', barangay: 'Poblacion', avatar: '' },
-    { id: 'U-008', name: 'Dr. Kizea Bien Igaya',  email: 'vet@vbetter.ph',               role: 'vet',   roleLabel: 'Veterinarian III', status: 'active',   created: '2024-01-10', phone: '09991010101', barangay: 'San Jose',  avatar: '' },
-];
-
 const PAGE_SIZE = 5;
-let allUsers      = [...MOCK_USERS];
-let filteredUsers = [...allUsers];
+let allUsers      = [];
+let filteredUsers = [];
 let currentTab    = 'all';
 let currentPage   = 1;
-let pendingDeleteId = null;
-let pendingVerifyId = null;
+let pendingDeleteId  = null;
+let pendingVerifyId  = null;
+let pendingUnblockId = null;
 
 /* ── Init ───────────────────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', () => {
-    updateKPIs();
-    renderTable();
+document.addEventListener('DOMContentLoaded', async () => {
     wireTabs();
     wireSearch();
     wireAddModal();
-    wireEditModal();
     wireUnblockModal();
     wireDeleteModal();
     wireVerifyModal();
     wirePagination();
     wireCloseButtons();
+
+    await Promise.all([loadRoles(), loadUsers()]);
 });
+
+/* ── Load real data ─────────────────────────────────────────── */
+async function loadUsers() {
+    const tbody = document.getElementById('user-table-body');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="am-loading-cell">Loading users…</td></tr>';
+
+    const result = await api.allUsers().catch(() => ({ success: false }));
+    if (!result.success) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="am-loading-cell">Could not load users.</td></tr>';
+        return;
+    }
+
+    allUsers = result.data || [];
+    updateKPIs();
+    applyFilters();
+}
+
+async function loadRoles() {
+    const select = document.getElementById('add-acc-role');
+    if (!select) return;
+
+    const result = await api.accountRoles().catch(() => ({ success: false }));
+    if (!result.success) return;
+
+    select.innerHTML = '<option value="">Select role…</option>' + result.data.map((role) =>
+        `<option value="${role.id}" data-frontend-role="${role.frontendRole}">${role.label}</option>`
+    ).join('');
+}
 
 /* ── Generic close buttons ─────────────────────────────────── */
 function wireCloseButtons() {
@@ -108,11 +130,7 @@ function renderTable() {
 
         const statusEl = `<span class="am-status ${u.status}"><span class="am-status-dot"></span>${capitalize(u.status)}</span>`;
 
-        // Action buttons
         let actionsEl = `
-            <button class="am-btn-edit" onclick="openEditModal('${u.id}')" title="Edit user">
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-            </button>
             <button class="am-btn-delete" onclick="openDeleteModal('${u.id}')" title="Delete user">
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#E53E3E" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m5 0V4a1 1 0 011-1h2a1 1 0 011 1v2"/></svg>
             </button>`;
@@ -190,6 +208,8 @@ function wireAddModal() {
     const pwToggle   = overlay?.querySelector('.dash-pw-toggle');
     const photoInput = document.getElementById('add-acc-photo');
     const photoCircle= document.getElementById('add-acc-preview');
+    const roleSelect = document.getElementById('add-acc-role');
+    const vetFields  = document.getElementById('add-acc-vet-fields');
 
     const CAMERA_SVG = '<svg width="26" height="26" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>';
 
@@ -204,14 +224,14 @@ function wireAddModal() {
     }
 
     function resetForm() {
-        ['add-acc-name','add-acc-phone','add-acc-email','add-acc-password'].forEach(id => {
+        ['add-acc-name','add-acc-phone','add-acc-email','add-acc-password','add-acc-license','add-acc-specialization','add-acc-education','add-acc-clinic'].forEach(id => {
             const el = document.getElementById(id);
             if (el) { el.value = ''; el.classList.remove('dash-error'); }
         });
-        const roleEl = document.getElementById('add-acc-role');
+        if (roleSelect)  roleSelect.value = '';
         const statusEl = document.getElementById('add-acc-status');
-        if (roleEl)   roleEl.value = '';
         if (statusEl) statusEl.value = 'active';
+        if (vetFields) vetFields.hidden = true;
         overlay?.querySelectorAll('.dash-field-error').forEach(e => e.remove());
         if (photoCircle) photoCircle.innerHTML = CAMERA_SVG;
         if (photoInput)  photoInput.value = '';
@@ -241,6 +261,13 @@ function wireAddModal() {
         reader.readAsDataURL(file);
     });
 
+    // Show vet-only fields when the selected role is "veterinarian"
+    roleSelect?.addEventListener('change', () => {
+        const option = roleSelect.selectedOptions[0];
+        const isVet = option?.dataset.frontendRole === 'vet';
+        if (vetFields) vetFields.hidden = !isVet;
+    });
+
     // Validation
     function validate() {
         overlay?.querySelectorAll('.dash-field-error').forEach(e => e.remove());
@@ -259,7 +286,7 @@ function wireAddModal() {
         }
 
         const name  = document.getElementById('add-acc-name')?.value.trim();
-        const role  = document.getElementById('add-acc-role')?.value;
+        const role  = roleSelect?.value;
         const email = document.getElementById('add-acc-email')?.value.trim();
         const pw    = document.getElementById('add-acc-password')?.value;
 
@@ -272,123 +299,91 @@ function wireAddModal() {
         else if (pw.length < 8)
                     err('add-acc-password', 'Minimum 8 characters.');
 
+        const isVet = roleSelect?.selectedOptions[0]?.dataset.frontendRole === 'vet';
+        if (isVet) {
+            ['add-acc-license', 'add-acc-specialization', 'add-acc-education', 'add-acc-clinic'].forEach(id => {
+                if (!document.getElementById(id)?.value.trim()) err(id, 'Required for veterinarian accounts.');
+            });
+        }
+
         return ok;
     }
 
-    submitBtn?.addEventListener('click', () => {
+    submitBtn?.addEventListener('click', async () => {
         if (!validate()) return;
 
-        const name   = document.getElementById('add-acc-name').value.trim();
-        const email  = document.getElementById('add-acc-email').value.trim();
-        const role   = document.getElementById('add-acc-role').value;
-        const status = document.getElementById('add-acc-status').value;
-        const phone  = document.getElementById('add-acc-phone')?.value.trim();
+        const formData = new FormData();
+        formData.append('full_name', document.getElementById('add-acc-name').value.trim());
+        formData.append('email', document.getElementById('add-acc-email').value.trim());
+        formData.append('password', document.getElementById('add-acc-password').value);
+        formData.append('phone_number', document.getElementById('add-acc-phone')?.value.trim() || '');
+        formData.append('role_id', roleSelect.value);
+        formData.append('account_status', document.getElementById('add-acc-status')?.value || 'active');
 
-        const roleLabels = { admin: 'Administrator', vet: 'Veterinarian I', owner: 'Pet Owner' };
+        if (roleSelect.selectedOptions[0]?.dataset.frontendRole === 'vet') {
+            formData.append('license_number', document.getElementById('add-acc-license').value.trim());
+            formData.append('specialization', document.getElementById('add-acc-specialization').value.trim());
+            formData.append('education', document.getElementById('add-acc-education').value.trim());
+            formData.append('clinic_location', document.getElementById('add-acc-clinic').value.trim());
+        }
 
-        allUsers.unshift({
-            id:        `U-${String(Date.now()).slice(-5)}`,
-            name, email, role, phone: phone || '—',
-            roleLabel: roleLabels[role] || capitalize(role),
-            status:    status || 'active',
-            created:   new Date().toISOString().slice(0, 10),
-            barangay:  '—',
-            avatar:    ''
-        });
+        if (photoInput?.files[0]) formData.append('profile_photo', photoInput.files[0]);
+
+        submitBtn.disabled = true;
+        const result = await api.createAccountUser(formData).catch(() => ({ success: false }));
+        submitBtn.disabled = false;
+
+        if (!result.success) {
+            alert(result.message || 'Could not create account.');
+            return;
+        }
 
         closeModal();
-        updateKPIs();
-        applyFilters();
+        await loadUsers();
     });
-}
-
-/* ── EDIT USER MODAL ────────────────────────────────────────── */
-function wireEditModal() {
-    document.getElementById('edit-submit')?.addEventListener('click', () => {
-        const id = document.getElementById('edit-user-id')?.value;
-        const user = allUsers.find(u => u.id === id);
-        if (!user) return;
-
-        user.name   = document.getElementById('edit-name')?.value.trim() || user.name;
-        user.email  = document.getElementById('edit-email')?.value.trim() || user.email;
-        user.phone  = document.getElementById('edit-phone')?.value.trim() || user.phone;
-        user.role   = document.getElementById('edit-role')?.value || user.role;
-        user.status = document.getElementById('edit-status')?.value || user.status;
-
-        const roleLabels = { admin: 'Administrator', vet: 'Veterinarian I', owner: 'Pet Owner' };
-        user.roleLabel = roleLabels[user.role];
-
-        document.getElementById('modal-edit').hidden = true;
-        updateKPIs();
-        applyFilters();
-    });
-
-    wirePhotoPreview('edit-photo-input', 'edit-photo-preview');
-}
-
-function openEditModal(id) {
-    const user = allUsers.find(u => u.id === id);
-    if (!user) return;
-
-    document.getElementById('edit-user-id').value = id;
-    document.getElementById('edit-name').value    = user.name;
-    document.getElementById('edit-email').value   = user.email;
-    document.getElementById('edit-phone').value   = user.phone || '';
-    setSelectValue('edit-role',   user.role);
-    setSelectValue('edit-status', user.status);
-
-    document.getElementById('modal-edit').hidden = false;
 }
 
 /* ── UNBLOCK MODAL ──────────────────────────────────────────── */
 function wireUnblockModal() {
-    document.getElementById('unblock-confirm-btn')?.addEventListener('click', () => {
-        const id = document.getElementById('unblock-user-id')?.value;
-        const user = allUsers.find(u => u.id === id);
-        if (!user) return;
-        user.status = 'active';
+    document.getElementById('unblock-confirm-btn')?.addEventListener('click', async () => {
+        if (!pendingUnblockId) return;
+        const result = await api.updateUserStatus(pendingUnblockId, 'active').catch(() => ({ success: false }));
+        if (!result.success) {
+            alert(result.message || 'Could not unblock this account.');
+            return;
+        }
+        pendingUnblockId = null;
         document.getElementById('modal-unblock').hidden = true;
-        updateKPIs();
-        applyFilters();
+        await loadUsers();
     });
-
-    document.getElementById('unblock-save-btn')?.addEventListener('click', () => {
-        const id = document.getElementById('unblock-user-id')?.value;
-        const user = allUsers.find(u => u.id === id);
-        if (!user) return;
-        user.phone  = document.getElementById('unblock-phone')?.value.trim() || user.phone;
-        user.status = document.getElementById('unblock-status')?.value || user.status;
-        document.getElementById('modal-unblock').hidden = true;
-        updateKPIs();
-        applyFilters();
-    });
-
-    wirePhotoPreview('unblock-photo-input', 'unblock-photo-preview');
 }
 
 function openUnblockModal(id) {
     const user = allUsers.find(u => u.id === id);
     if (!user) return;
+    pendingUnblockId = id;
 
     document.getElementById('unblock-user-id').value = id;
-    document.getElementById('unblock-name').value    = user.name;
-    document.getElementById('unblock-email').value   = user.email;
-    document.getElementById('unblock-phone').value   = user.phone || '';
-    setSelectValue('unblock-role',   user.role);
-    setSelectValue('unblock-status', user.status);
+    setEl('unblock-name',  user.name);
+    setEl('unblock-role',  user.roleLabel || capitalize(user.role));
+    setEl('unblock-phone', user.phone || '—');
+    setEl('unblock-email', user.email);
 
     document.getElementById('modal-unblock').hidden = false;
 }
 
 /* ── DELETE MODAL ───────────────────────────────────────────── */
 function wireDeleteModal() {
-    document.getElementById('delete-confirm-btn')?.addEventListener('click', () => {
+    document.getElementById('delete-confirm-btn')?.addEventListener('click', async () => {
         if (!pendingDeleteId) return;
-        allUsers = allUsers.filter(u => u.id !== pendingDeleteId);
+        const result = await api.deleteUser(pendingDeleteId).catch(() => ({ success: false }));
+        if (!result.success) {
+            alert(result.message || 'Could not delete this account.');
+            return;
+        }
         pendingDeleteId = null;
         document.getElementById('modal-delete').hidden = true;
-        updateKPIs();
-        applyFilters();
+        await loadUsers();
     });
 }
 
@@ -406,24 +401,28 @@ function openDeleteModal(id) {
 
 /* ── VERIFY MODAL ───────────────────────────────────────────── */
 function wireVerifyModal() {
-    document.getElementById('verify-approve-btn')?.addEventListener('click', () => {
+    document.getElementById('verify-approve-btn')?.addEventListener('click', async () => {
         if (!pendingVerifyId) return;
-        const user = allUsers.find(u => u.id === pendingVerifyId);
-        if (user) user.status = 'active';
+        const result = await api.approveUser(pendingVerifyId).catch(() => ({ success: false }));
+        if (!result.success) {
+            alert(result.message || 'Could not approve this account.');
+            return;
+        }
         pendingVerifyId = null;
         document.getElementById('modal-verify').hidden = true;
-        updateKPIs();
-        applyFilters();
+        await loadUsers();
     });
 
-    document.getElementById('verify-reject-btn')?.addEventListener('click', () => {
+    document.getElementById('verify-reject-btn')?.addEventListener('click', async () => {
         if (!pendingVerifyId) return;
-        const user = allUsers.find(u => u.id === pendingVerifyId);
-        if (user) user.status = 'inactive';
+        const result = await api.rejectUser(pendingVerifyId).catch(() => ({ success: false }));
+        if (!result.success) {
+            alert(result.message || 'Could not reject this account.');
+            return;
+        }
         pendingVerifyId = null;
         document.getElementById('modal-verify').hidden = true;
-        updateKPIs();
-        applyFilters();
+        await loadUsers();
     });
 }
 
@@ -436,44 +435,63 @@ function openVerifyModal(id) {
     setEl('verify-email',    user.email);
     setEl('verify-barangay', user.barangay || '—');
 
-    const idImg = document.getElementById('verify-id-img');
-    if (idImg) {
-        idImg.src = user.idImage || 'https://placehold.co/500x300?text=No+ID+Uploaded';
+    const idImg     = document.getElementById('verify-id-img');
+    const pdfBox     = document.getElementById('verify-id-pdf');
+    const pdfName    = document.getElementById('verify-id-pdf-name');
+    const emptyState = document.getElementById('verify-id-empty');
+    const fullLink   = document.getElementById('verify-fullsize-link');
+
+    const docPath = user.idImage || '';
+    console.log(docPath);
+    const isPdf   = /\.pdf($|\?)/i.test(docPath) || /\.pdf$/i.test(user.proofName || '');
+
+    if (idImg)     idImg.hidden = true;
+    if (pdfBox)    pdfBox.hidden = true;
+    if (emptyState) { emptyState.hidden = true; emptyState.textContent = 'No document was uploaded.'; }
+
+    if (!docPath) {
+        if (emptyState) emptyState.hidden = false;
+        if (fullLink) { fullLink.removeAttribute('href'); fullLink.style.pointerEvents = 'none'; fullLink.style.opacity = '0.5'; }
+    } else if (isPdf) {
+        if (pdfBox) pdfBox.hidden = false;
+        if (pdfName) pdfName.textContent = user.proofName || 'Uploaded document.pdf';
+        if (fullLink) { fullLink.href = docPath; fullLink.style.pointerEvents = ''; fullLink.style.opacity = ''; }
+    } else {
+        if (idImg) {
+            idImg.hidden = false;
+            idImg.onerror = () => {
+                idImg.hidden = true;
+                if (emptyState) {
+                    emptyState.hidden = false;
+                    emptyState.textContent = 'Document file is missing from storage.';
+                }
+            };
+            idImg.src = docPath;
+        }
+        if (fullLink) { fullLink.href = docPath; fullLink.style.pointerEvents = ''; fullLink.style.opacity = ''; }
     }
 
     document.getElementById('modal-verify').hidden = false;
 }
 
 /* ── Actions ────────────────────────────────────────────────── */
-function handleReject(id) {
+async function handleReject(id) {
     const user = allUsers.find(u => u.id === id);
     if (!user) return;
     if (!confirm(`Reject application for ${user.name}?`)) return;
-    allUsers = allUsers.filter(u => u.id !== id);
-    updateKPIs();
-    applyFilters();
-}
 
-/* ── Photo preview helper ───────────────────────────────────── */
-function wirePhotoPreview(inputId, previewId) {
-    const input   = document.getElementById(inputId);
-    const preview = document.getElementById(previewId);
-    if (!input || !preview) return;
-
-    input.addEventListener('change', () => {
-        const file = input.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = e => {
-            preview.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" alt="Preview">`;
-        };
-        reader.readAsDataURL(file);
-    });
+    const result = await api.rejectUser(id).catch(() => ({ success: false }));
+    if (!result.success) {
+        alert(result.message || 'Could not reject this account.');
+        return;
+    }
+    await loadUsers();
 }
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 function roleClass(label) {
     const map = {
+        'Veterinarian':     'am-role-vet',
         'Veterinarian I':   'am-role-vet-i',
         'Veterinarian II':  'am-role-vet-ii',
         'Veterinarian III': 'am-role-vet-iii',
@@ -481,7 +499,7 @@ function roleClass(label) {
         'Administrator':    'am-role-admin',
         'vet':              'am-role-vet',
         'owner':            'am-role-owner',
-        'admin':            'am-role-admin',
+        'admin':             'am-role-admin',
     };
     return map[label] || 'am-role-vet';
 }
@@ -495,23 +513,4 @@ function formatDate(dateStr) {
 function setEl(id, value) {
     const el = document.getElementById(id);
     if (el) el.textContent = value;
-}
-
-function setSelectValue(selectId, value) {
-    const el = document.getElementById(selectId);
-    if (!el) return;
-    for (let opt of el.options) {
-        if (opt.value === value) { opt.selected = true; break; }
-    }
-}
-
-function clearFormById(textIds = [], selectIds = []) {
-    textIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
-    selectIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.selectedIndex = 0;
-    });
 }

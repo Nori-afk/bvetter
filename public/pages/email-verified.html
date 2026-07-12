@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>VBetter – Email Verification</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Manrope', sans-serif;
+            background: #f0faf2;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .ev-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 40px 36px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 4px 24px rgba(0,0,0,.08);
+            text-align: center;
+        }
+
+        .ev-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .ev-logo-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #00B928;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ev-logo span {
+            font-weight: 800;
+            font-size: 18px;
+            color: #111;
+        }
+
+        .ev-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .ev-icon.success { background: #e6faea; }
+        .ev-icon.error   { background: #fef2f2; }
+
+        h1 {
+            font-size: 20px;
+            font-weight: 800;
+            color: #111;
+            margin-bottom: 8px;
+        }
+
+        .ev-sub {
+            font-size: 13.5px;
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 28px;
+        }
+
+        .ev-btn {
+            display: inline-block;
+            width: 100%;
+            height: 46px;
+            line-height: 46px;
+            background: #00B928;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            text-decoration: none;
+            letter-spacing: .5px;
+            transition: background .2s;
+        }
+
+        .ev-btn:hover { background: #00a022; }
+    </style>
+</head>
+<body>
+
+<div class="ev-card">
+    <div class="ev-logo">
+        <div class="ev-logo-circle">
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+        </div>
+        <span>VBetter</span>
+    </div>
+
+    <div class="ev-icon" id="ev-icon"></div>
+    <h1 id="ev-title">Checking your link…</h1>
+    <p class="ev-sub" id="ev-sub"></p>
+
+    <a class="ev-btn" href="/bvetter/public/pages/login.html">Go to Login</a>
+</div>
+
+<script>
+    const STATUS = {
+        success: {
+            icon: 'success',
+            title: 'Email Verified',
+            sub: 'Your email address has been verified. You can now log in to your account.',
+            svg: '<svg width="30" height="30" fill="none" viewBox="0 0 24 24" stroke="#00B928" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
+        },
+        used: {
+            icon: 'success',
+            title: 'Already Verified',
+            sub: 'This link has already been used. Your email is verified — go ahead and log in.',
+            svg: '<svg width="30" height="30" fill="none" viewBox="0 0 24 24" stroke="#00B928" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
+        },
+        expired: {
+            icon: 'error',
+            title: 'Link Expired',
+            sub: 'This verification link has expired. Please ask an administrator to resend your verification email.',
+            svg: '<svg width="30" height="30" fill="none" viewBox="0 0 24 24" stroke="#c0392b" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+        },
+        invalid: {
+            icon: 'error',
+            title: 'Invalid Link',
+            sub: 'This verification link is invalid. Please check the link in your email or contact an administrator.',
+            svg: '<svg width="30" height="30" fill="none" viewBox="0 0 24 24" stroke="#c0392b" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+        }
+    };
+
+    const params = new URLSearchParams(window.location.search);
+    const status = STATUS[params.get('status')] || STATUS.invalid;
+
+    document.getElementById('ev-icon').className = 'ev-icon ' + status.icon;
+    document.getElementById('ev-icon').innerHTML  = status.svg;
+    document.getElementById('ev-title').textContent = status.title;
+    document.getElementById('ev-sub').textContent   = status.sub;
+</script>
+</body>
+</html>

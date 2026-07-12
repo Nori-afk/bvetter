@@ -143,6 +143,7 @@ body {
 	flex-direction: column;
 	gap: 3px;
 	transition: box-shadow 0.18s;
+	min-width: 0;
 }
 
 .metric-card:hover {
@@ -241,6 +242,24 @@ body {
 
 .chart-card {
 	min-height: 250px;
+	/* Grid items don't shrink below their content's intrinsic width by
+	   default — without this, the wide chart-scroll-inner/table content
+	   below blows out the whole grid (and page) instead of scrolling
+	   inside its own container. */
+	min-width: 0;
+}
+
+/* Wraps the wide, many-category bar charts (barangay breakdowns) so they
+   can scroll horizontally on narrow screens instead of squashing every
+   bar/label unreadably. No-op at tablet/desktop — .chart-scroll-inner
+   only gets a forced min-width in the mobile media query below. */
+.chart-scroll {
+	width: 100%;
+}
+
+.chart-scroll-inner {
+	width: 100%;
+	height: 100%;
 }
 
 .chart-skeleton {
@@ -968,77 +987,6 @@ tr[data-event-id]:hover {
 	font-size: 14px;
 }
 
-@media (max-width: 1024px) {
-	.mass-vacc-main {
-		padding: 16px;
-	}
-
-	.metric-grid {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-
-	.chart-grid,
-	.detail-grid {
-		grid-template-columns: 1fr;
-	}
-
-	.span-2 {
-		grid-column: auto;
-	}
-
-	.detail-header h2 {
-		font-size: 22px;
-	}
-
-	.card-head h3,
-	.metric-card h2 {
-		font-size: 22px;
-        font-weight: normal;
-	}
-
-	.metric-value {
-		font-size: 36px;
-	}
-}
-
-@media (max-width: 768px) {
-	.mass-vacc-main,
-	.sidebar.expanded ~ .mass-vacc-main {
-		margin-left: 0;
-		width: 100%;
-		padding-top: 12px;
-	}
-
-	#vaccinatedPerBarangayChart,
-	#predictedAnimalsChart,
-	#vaccineTypesChart,
-	#vaccinesNeededChart {
-		height: 230px !important;
-	}
-
-	.hero {
-		flex-direction: column;
-		align-items: flex-start;
-	}
-
-	.metric-grid {
-		grid-template-columns: 1fr;
-	}
-
-	.species-grid,
-	.modal-actions {
-		grid-template-columns: 1fr;
-	}
-
-	.progress-row {
-		grid-template-columns: 1fr;
-		gap: 6px;
-	}
-
-	.progress-row strong {
-		justify-self: start;
-	}
-}
 .arima-forecast {
     margin-bottom: 24px;
     padding: 20px 24px;
@@ -1241,3 +1189,209 @@ tr[data-event-id]:hover {
 .mv-bk-trend.mv-trend-rising  { color: #B91C1C; }
 .mv-bk-trend.mv-trend-falling { color: #166534; }
 .mv-bk-trend.mv-trend-stable  { color: #475569; }
+
+/* =============================================
+   RESPONSIVE — breakpoints follow the shared scale
+   used across public/vet/admin pages:
+
+     Tablet:  max-width: 1024px
+     Sidebar collapse: max-width: 768px
+                        (matches shared/css/sidebar.css,
+                        where the sidebar itself switches
+                        to its horizontal mobile bar)
+     Mobile:  max-width: 480px
+   ============================================= */
+
+/* ── Tablet: 769px – 1024px ─────────────────── */
+@media (max-width: 1024px) {
+	.mass-vacc-main { padding: 16px; }
+
+	.hero { padding: 24px 26px; }
+
+	.metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+	.chart-grid,
+	.detail-grid { grid-template-columns: 1fr; }
+
+	.span-2 { grid-column: auto; }
+
+	.detail-header h2 { font-size: 22px; }
+
+	.card-head h3,
+	.metric-card h2 {
+		font-size: 22px;
+		font-weight: normal;
+	}
+
+	.metric-value { font-size: 36px; }
+
+	.mv-arima-header { align-items: flex-start; }
+
+	.mv-fc-grid,
+	.mv-breakdown-grid,
+	.forecast-band { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+}
+
+/* ── Sidebar collapses to a horizontal bar here — reset the
+     content shell's reserved margin/width to match ────────── */
+@media (max-width: 768px) {
+	/* Sidebar switches to an in-flow horizontal bar at this width (see
+	   shared/css/sidebar.css) — stack it above the content instead of
+	   letting the flex row squeeze both side by side. */
+	.main-holder { flex-direction: column; }
+
+	.mass-vacc-main,
+	.sidebar.expanded ~ .mass-vacc-main {
+		margin-left: 0;
+		width: 100%;
+		padding-top: 12px;
+	}
+
+	#vaccinatedPerBarangayChart,
+	#predictedAnimalsChart,
+	#vaccineTypesChart,
+	#vaccinesNeededChart { height: 230px !important; }
+
+	.hero { flex-direction: column; align-items: flex-start; }
+
+	.metric-grid { grid-template-columns: 1fr; }
+
+	.species-grid,
+	.modal-actions { grid-template-columns: 1fr; }
+
+	.progress-row { grid-template-columns: 1fr; gap: 6px; }
+
+	.progress-row strong { justify-self: start; }
+
+	.detail-header {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+	}
+
+	.mv-fc-grid,
+	.mv-breakdown-grid,
+	.forecast-band { grid-template-columns: repeat(2, 1fr); }
+
+	/* Recent Vaccination Events — the 5-column table stops fitting
+	   readably well before phone width, so it reflows into stacked
+	   mini-cards (one per event) instead of scrolling sideways. */
+	.table-card table,
+	.table-card tbody,
+	.table-card tr,
+	.table-card td { display: block; width: 100%; min-width: 0; }
+
+	.table-card thead { display: none; }
+
+	.table-card tr[data-event-id] {
+		border: 1px solid #e8eef8;
+		border-radius: 10px;
+		padding: 12px 14px;
+		margin-bottom: 10px;
+	}
+
+	.table-card tr[data-event-id]:last-child { margin-bottom: 0; }
+
+	.table-card td {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 6px 0;
+		border-bottom: none;
+	}
+
+	.table-card td::before {
+		content: attr(data-label);
+		font-size: 10.5px;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: #94A3B8;
+		flex-shrink: 0;
+	}
+}
+
+/* ── Mobile: up to 480px ─────────────────────── */
+@media (max-width: 480px) {
+	.mass-vacc-main { padding: 12px 12px 32px; }
+
+	.hero { padding: 20px 18px; border-radius: 14px; }
+
+	.hero h1 { font-size: 20px; }
+
+	.hero p { font-size: 12px; }
+
+	.hero .btn-primary { width: 100%; justify-content: center; }
+
+	/* KPI cards: 2-up instead of 1 full-width card per row */
+	.metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+
+	.metric-card { padding: 12px 14px; }
+
+	.metric-card h2 { font-size: 9.5px; }
+
+	.metric-value { font-size: 22px; }
+
+	.card { padding: 16px; }
+
+	.card-head { flex-wrap: wrap; gap: 8px; }
+
+	.dropdown { max-width: 100%; }
+
+	#vaccinatedPerBarangayChart,
+	#predictedAnimalsChart,
+	#vaccineTypesChart,
+	#vaccinesNeededChart { height: 200px !important; }
+
+	/* Barangay bar charts: scroll horizontally instead of squashing
+	   every bar/label unreadable — see .chart-scroll in the base rules. */
+	.chart-scroll {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		margin: 0 -4px;
+		padding: 0 4px 6px;
+		scrollbar-width: thin;
+		scrollbar-color: var(--mv-line) transparent;
+	}
+
+	.chart-scroll::-webkit-scrollbar { height: 4px; }
+	.chart-scroll::-webkit-scrollbar-thumb { background: var(--mv-line); border-radius: 4px; }
+	.chart-scroll::-webkit-scrollbar-track { background: transparent; }
+
+	.chart-scroll-inner { min-width: 640px; }
+
+	.back-link { width: 100%; justify-content: center; }
+
+	.detail-header h2 { font-size: 19px; }
+
+	.info-list div {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 2px;
+	}
+
+	.modal-card { padding: 22px 18px; width: 100%; }
+
+	.modal-header-block { gap: 10px; }
+
+	.modal-header-icon { width: 34px; height: 34px; }
+
+	.summary-details { font-size: 13px; }
+
+	.summary-row { padding: 11px 14px; }
+
+	.mv-arima-card { padding: 16px 16px; }
+
+	.mv-arima-header { flex-direction: column; align-items: flex-start; }
+
+	.mv-trend-pill { align-self: flex-start; }
+
+	.mv-fc-grid,
+	.mv-breakdown-grid,
+	.forecast-band { grid-template-columns: 1fr; }
+
+	.mv-fc-card,
+	.mv-breakdown-card,
+	.forecast-col { flex-direction: row; justify-content: space-between; text-align: left; padding: 10px 12px; }
+}

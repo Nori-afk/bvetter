@@ -13,6 +13,7 @@ if ($method !== 'POST') {
 }
 
 require_once __DIR__ . '/../../config/connection.php';
+require_once __DIR__ . '/../config/mailer.php';
 
 function respond($statusCode, $payload)
 {
@@ -579,6 +580,8 @@ function reportRowToArray($row)
         'contact' => $row['contact_phone'],
         'email' => $row['contact_email'],
         'created_at' => $row['created_at'],
+        'updated_at' => $row['updated_at'] ?? $row['created_at'],
+        'resolved_at' => $row['resolved_at'] ?? null,
     ];
 }
 
@@ -735,6 +738,9 @@ function createReport($pdo, $data)
     if ($type === 'lost' && !$petName) {
         respond(422, ['success' => false, 'message' => 'Pet name is required for lost pet reports.']);
     }
+    if ($type !== 'lost') {
+        $petName = null;
+    }
     if (!$contactName || !$contactPhone) {
         respond(422, ['success' => false, 'message' => 'Contact name and phone are required.']);
     }
@@ -784,6 +790,10 @@ function createReport($pdo, $data)
     $reportId = (int) $pdo->lastInsertId();
     rebuildMatchesForReport($pdo, $reportId);
 
+    if ($status === 'active') {
+        notifyReportOwnerActive($pdo, $ownerId, $reportId);
+    }
+
     respond(201, [
         'success' => true,
         'message' => $status === 'active' ? 'Report published.' : 'Report submitted for vet review.',
@@ -817,7 +827,13 @@ function updateReportStatus($pdo, $data, $status)
         ':id' => $id,
     ]);
 
-    if ($status === 'active') rebuildMatchesForReport($pdo, $id);
+    if ($status === 'active') {
+        rebuildMatchesForReport($pdo, $id);
+        $ownerStmt = $pdo->prepare('SELECT owner_id FROM lost_found_reports WHERE id = :id LIMIT 1');
+        $ownerStmt->execute([':id' => $id]);
+        $ownerId = (int) ($ownerStmt->fetchColumn() ?: 0);
+        notifyReportOwnerActive($pdo, $ownerId, $id);
+    }
 
     respond(200, ['success' => true, 'message' => 'Report status updated.']);
 }
@@ -827,6 +843,54 @@ function fetchReportForMatch($pdo, $id)
     $stmt = $pdo->prepare('SELECT * FROM lost_found_reports WHERE id = :id LIMIT 1');
     $stmt->execute([':id' => $id]);
     return $stmt->fetch();
+}
+
+function reportPhotoAbsolutePath($photoPath)
+{
+    if (!$photoPath) return null;
+    $marker = '/storage/';
+    $pos = strpos($photoPath, $marker);
+    if ($pos === false) return null;
+    return dirname(dirname(__DIR__)) . substr($photoPath, $pos);
+}
+
+function notifyReportOwnerActive($pdo, $ownerId, $reportId)
+{
+    $ownerId = (int) $ownerId;
+    if ($ownerId <= 0 || !userWantsNotification($pdo, $ownerId, 'lost_found_alerts')) {
+        return;
+    }
+
+    $stmt = $pdo->prepare('SELECT case_number, report_type, pet_name, photo_path FROM lost_found_reports WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => (int) $reportId]);
+    $report = $stmt->fetch();
+    if (!$report) return;
+
+    $userStmt = $pdo->prepare('SELECT full_name, email FROM users WHERE id = :id LIMIT 1');
+    $userStmt->execute([':id' => $ownerId]);
+    $user = $userStmt->fetch();
+    if (!$user || !$user['email']) return;
+
+    $label = $report['report_type'] === 'lost' ? 'lost pet' : 'found pet';
+    $subject = 'VBetter – Your ' . $label . ' report is now live';
+
+    $embeds = [];
+    $photoCid = null;
+    $photoAbsolute = reportPhotoAbsolutePath($report['photo_path'] ?? null);
+    if ($photoAbsolute && is_file($photoAbsolute)) {
+        $photoCid = 'pet_photo';
+        $embeds[] = ['path' => $photoAbsolute, 'cid' => $photoCid];
+    }
+
+    $body = notificationEmailWrapper(
+        'Report Published',
+        "<p>Your {$label} report" . ($report['pet_name'] ? " for <strong>" . htmlspecialchars($report['pet_name']) . "</strong>" : '') . "
+           (case #{$report['case_number']}) is now live and visible to the community.</p>",
+        $photoCid,
+        ['label' => 'View', 'url' => APP_URL . '/public/pages/lost-found.html?tab=myreports']
+    );
+
+    sendAppMail($user['email'], nullableClean($user['full_name'] ?? ''), $subject, $body, $embeds);
 }
 
 function userContactFromAccount($pdo, $data)
@@ -968,16 +1032,29 @@ function listMatches($pdo, $data)
 {
     $reportId = (int) ($data['report_id'] ?? $data['id'] ?? 0);
     $includeResolved = (int) ($data['include_resolved'] ?? 0) === 1;
+
+    // A "suggested" match is only actionable while every party involved is still
+    // active. An "approved" match only ever exists once every party involved has
+    // been flipped to resolved together (see updateMatchStatus()) — so the two
+    // states must never mix, otherwise a stale "suggested" candidate for an
+    // already-closed case would keep showing live Claim/Dismiss buttons.
+    $activeBranch = "(lost_found_matches.status = 'suggested'"
+        . " AND lost.status = 'active'"
+        . " AND (lost_found_matches.found_report_id IS NULL OR found.status = 'active')"
+        . " AND (lost_found_matches.sighting_id IS NULL OR sightings.status = 'active'))";
+    $resolvedBranch = "(lost_found_matches.status = 'approved'"
+        . " AND lost.status = 'resolved'"
+        . " AND (lost_found_matches.found_report_id IS NULL OR found.status = 'resolved')"
+        . " AND (lost_found_matches.sighting_id IS NULL OR sightings.status = 'resolved'))";
+
     $where = [
-        $includeResolved ? "lost_found_matches.status IN ('suggested','approved')" : "lost_found_matches.status = 'suggested'",
-        "lost.status = 'active'",
-        "(lost_found_matches.found_report_id IS NULL OR found.status = 'active')",
-        "(lost_found_matches.sighting_id IS NULL OR sightings.status = 'active')",
+        $includeResolved ? "($activeBranch OR $resolvedBranch)" : $activeBranch,
     ];
     $params = [];
     if ($reportId > 0) {
         $report = fetchReportForMatch($pdo, $reportId);
-        if (!$report || $report['status'] !== 'active') {
+        $allowedStatuses = $includeResolved ? ['active', 'resolved'] : ['active'];
+        if (!$report || !in_array($report['status'], $allowedStatuses, true)) {
             respond(200, ['success' => true, 'data' => []]);
         }
         if ($report['report_type'] === 'lost') {
@@ -1011,6 +1088,7 @@ function listMatches($pdo, $data)
             'confidence' => (int) $row['confidence'],
             'reasons' => json_decode((string) $row['reasons_json'], true) ?: [],
             'status' => $row['status'],
+            'createdAt' => $row['created_at'],
             'lost' => [
                 'reportId' => (int) $row['lost_report_id'],
                 'caseId' => $row['lost_case'],
@@ -1096,6 +1174,7 @@ function createSighting($pdo, $data)
     }
     $sightingDate = normalizeDate($data['sighting_date'] ?? $data['date'] ?? '');
     assertDateNotFuture($sightingDate, 'Sighting date');
+    $accountContact = userContactFromAccount($pdo, $data);
 
     $insert = $pdo->prepare("
         INSERT INTO lost_found_sightings
@@ -1121,9 +1200,9 @@ function createSighting($pdo, $data)
         ':notes' => $sightingNotes,
         ':photo_path' => $photoPath,
         ':image_features' => ($features = imageFeatures($absolutePhoto)) ? json_encode($features) : null,
-        ':contact_name' => nullableClean($data['contact_name'] ?? $data['uploader'] ?? ''),
-        ':contact_phone' => nullableClean($data['contact_phone'] ?? $data['contact'] ?? ''),
-        ':contact_email' => nullableClean($data['contact_email'] ?? $data['email'] ?? ''),
+        ':contact_name' => nullableClean($data['contact_name'] ?? $data['uploader'] ?? '') ?: ($accountContact['name'] ?? null),
+        ':contact_phone' => nullableClean($data['contact_phone'] ?? $data['contact'] ?? '') ?: ($accountContact['phone'] ?? null),
+        ':contact_email' => nullableClean($data['contact_email'] ?? $data['email'] ?? '') ?: ($accountContact['email'] ?? null),
     ]);
 
     $sightingId = (int) $pdo->lastInsertId();
@@ -1157,6 +1236,10 @@ function updateSightingStatus($pdo, $data, $status)
     $id = (int) ($data['id'] ?? $data['sighting_id'] ?? 0);
     if ($id <= 0) respond(422, ['success' => false, 'message' => 'Invalid sighting id.']);
 
+    $sightingInfoStmt = $pdo->prepare('SELECT submitted_by_user_id, contact_email, contact_name, case_number FROM lost_found_sightings WHERE id = :id LIMIT 1');
+    $sightingInfoStmt->execute([':id' => $id]);
+    $sightingInfo = $sightingInfoStmt->fetch();
+
     $stmt = $pdo->prepare('UPDATE lost_found_sightings SET status = :status, reviewed_by_user_id = :user_id, reviewed_at = NOW(), review_notes = :notes WHERE id = :id');
     $stmt->execute([
         ':status' => $status,
@@ -1168,6 +1251,22 @@ function updateSightingStatus($pdo, $data, $status)
     if ($status === 'active') {
         $lostReports = $pdo->query("SELECT id FROM lost_found_reports WHERE report_type = 'lost' AND status = 'active'")->fetchAll();
         foreach ($lostReports as $row) rebuildSightingMatches($pdo, (int) $row['id']);
+    }
+
+    if ($sightingInfo && in_array($status, ['active', 'rejected'], true)) {
+        $submitterId = (int) ($sightingInfo['submitted_by_user_id'] ?? 0);
+        $submitterEmail = nullableClean($sightingInfo['contact_email'] ?? '');
+        if ($submitterEmail && userWantsNotification($pdo, $submitterId, 'lost_found_alerts')) {
+            $verb = $status === 'active' ? 'approved' : 'rejected';
+            $subject = 'VBetter – Your sighting report has been ' . $verb;
+            $body = notificationEmailWrapper(
+                'Sighting Update',
+                "<p>Your sighting report (case #{$sightingInfo['case_number']}) has been <strong>{$verb}</strong>.</p>",
+                null,
+                ['label' => 'View', 'url' => APP_URL . '/public/pages/lost-found.html']
+            );
+            sendAppMail($submitterEmail, nullableClean($sightingInfo['contact_name'] ?? ''), $subject, $body);
+        }
     }
 
     respond(200, ['success' => true, 'message' => 'Sighting status updated.']);
@@ -1184,6 +1283,7 @@ function createClaim($pdo, $data)
     if ($reportId <= 0) respond(422, ['success' => false, 'message' => 'Report id is required for claims.']);
 
     [$proofPath] = saveUpload('proof_file', 'lost_found_claims', false);
+    $accountContact = userContactFromAccount($pdo, $data);
     $stmt = $pdo->prepare("
         INSERT INTO lost_found_claims
             (case_number, report_id, claimant_user_id, claimant_name, claimant_phone, claimant_email, proof_type, proof_notes, proof_file_path)
@@ -1194,9 +1294,9 @@ function createClaim($pdo, $data)
         ':case_number' => generateCaseNumber('CLM'),
         ':report_id' => $reportId,
         ':claimant_user_id' => (int) ($data['user_id'] ?? $data['owner_id'] ?? 0) ?: null,
-        ':claimant_name' => nullableClean($data['claimant_name'] ?? $data['contact_name'] ?? ''),
-        ':claimant_phone' => nullableClean($data['claimant_phone'] ?? $data['contact_phone'] ?? ''),
-        ':claimant_email' => nullableClean($data['claimant_email'] ?? $data['contact_email'] ?? ''),
+        ':claimant_name' => nullableClean($data['claimant_name'] ?? $data['contact_name'] ?? '') ?: ($accountContact['name'] ?? null),
+        ':claimant_phone' => nullableClean($data['claimant_phone'] ?? $data['contact_phone'] ?? '') ?: ($accountContact['phone'] ?? null),
+        ':claimant_email' => nullableClean($data['claimant_email'] ?? $data['contact_email'] ?? '') ?: ($accountContact['email'] ?? null),
         ':proof_type' => nullableClean($data['proof_type'] ?? ''),
         ':proof_notes' => nullableClean($data['proof_notes'] ?? $data['notes'] ?? ''),
         ':proof_file_path' => $proofPath,
@@ -1209,10 +1309,22 @@ function listClaims($pdo, $data, $management = false)
 {
     $where = [];
     $params = [];
-    $userId = (int) ($data['user_id'] ?? $data['owner_id'] ?? 0);
-    if (!$management && $userId > 0) {
-        $where[] = 'lost_found_claims.claimant_user_id = :user_id';
-        $params[':user_id'] = $userId;
+
+    // report_owner_id ("claims on reports I posted") and the claimant filter
+    // ("claims I submitted") are mutually exclusive query intents. lostFoundForm()
+    // auto-appends owner_id/user_id from the session to every request, so both
+    // would otherwise apply together and silently exclude any claim submitted by
+    // someone other than the current user.
+    $reportOwnerId = (int) ($data['report_owner_id'] ?? 0);
+    if ($reportOwnerId > 0) {
+        $where[] = 'lost_found_reports.owner_id = :report_owner_id';
+        $params[':report_owner_id'] = $reportOwnerId;
+    } else {
+        $userId = (int) ($data['user_id'] ?? $data['owner_id'] ?? 0);
+        if (!$management && $userId > 0) {
+            $where[] = 'lost_found_claims.claimant_user_id = :user_id';
+            $params[':user_id'] = $userId;
+        }
     }
 
     $status = clean($data['status'] ?? '');
@@ -1223,7 +1335,9 @@ function listClaims($pdo, $data, $management = false)
 
     $sql = "
         SELECT lost_found_claims.*, lost_found_reports.case_number AS report_case, lost_found_reports.pet_name,
-               lost_found_reports.photo_path, lost_found_reports.barangay_name
+               lost_found_reports.photo_path, lost_found_reports.barangay_name, lost_found_reports.owner_id AS report_owner_id,
+               lost_found_reports.contact_name AS finder_name, lost_found_reports.contact_phone AS finder_phone,
+               lost_found_reports.contact_email AS finder_email
         FROM lost_found_claims
         INNER JOIN lost_found_reports ON lost_found_reports.id = lost_found_claims.report_id
     ";
@@ -1239,6 +1353,17 @@ function updateClaimStatus($pdo, $data, $status)
 {
     $id = (int) ($data['id'] ?? $data['claim_id'] ?? 0);
     if ($id <= 0) respond(422, ['success' => false, 'message' => 'Invalid claim id.']);
+
+    $claimInfoStmt = $pdo->prepare("
+        SELECT lost_found_claims.claimant_user_id, lost_found_claims.claimant_email, lost_found_claims.claimant_name,
+               lost_found_reports.case_number, lost_found_reports.pet_name
+        FROM lost_found_claims
+        INNER JOIN lost_found_reports ON lost_found_reports.id = lost_found_claims.report_id
+        WHERE lost_found_claims.id = :id
+        LIMIT 1
+    ");
+    $claimInfoStmt->execute([':id' => $id]);
+    $claimInfo = $claimInfoStmt->fetch();
 
     $pdo->beginTransaction();
     $stmt = $pdo->prepare('UPDATE lost_found_claims SET status = :status, reviewed_by_user_id = :user_id, reviewed_at = NOW(), review_notes = :notes WHERE id = :id');
@@ -1292,6 +1417,24 @@ function updateClaimStatus($pdo, $data, $status)
     }
 
     $pdo->commit();
+
+    if ($claimInfo && in_array($status, ['approved', 'rejected'], true)) {
+        $claimantId = (int) ($claimInfo['claimant_user_id'] ?? 0);
+        $claimantEmail = nullableClean($claimInfo['claimant_email'] ?? '');
+        if ($claimantEmail && userWantsNotification($pdo, $claimantId, 'lost_found_alerts')) {
+            $verb = $status === 'approved' ? 'approved' : 'rejected';
+            $subject = 'VBetter – Your claim has been ' . $verb;
+            $petLabel = $claimInfo['pet_name'] ? " for <strong>" . htmlspecialchars($claimInfo['pet_name']) . "</strong>" : '';
+            $body = notificationEmailWrapper(
+                'Claim Update',
+                "<p>Your claim{$petLabel} (case #{$claimInfo['case_number']}) has been <strong>{$verb}</strong>.</p>",
+                null,
+                ['label' => 'View', 'url' => APP_URL . '/public/pages/my-claims.html']
+            );
+            sendAppMail($claimantEmail, nullableClean($claimInfo['claimant_name'] ?? ''), $subject, $body);
+        }
+    }
+
     respond(200, ['success' => true, 'message' => 'Claim updated.']);
 }
 

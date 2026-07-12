@@ -400,11 +400,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tableBody = document.getElementById('event-table-body');
         tableBody.innerHTML = state.events.map(e => `
             <tr data-event-id="${sanitize(e.id)}">
-                <td>${sanitize(e.dateLabel)}</td>
-                <td>${sanitize(e.barangay)}</td>
-                <td>${sanitize(e.vaccine)}</td>
-                <td>${formatNumber(e.totalVaccinated)}</td>
-                <td><span class="status-pill ${statusClass(e.status)}">${sanitize(e.status)}</span></td>
+                <td data-label="Date">${sanitize(e.dateLabel)}</td>
+                <td data-label="Barangay">${sanitize(e.barangay)}</td>
+                <td data-label="Vaccine">${sanitize(e.vaccine)}</td>
+                <td data-label="Total Vaccinated">${formatNumber(e.totalVaccinated)}</td>
+                <td data-label="Status"><span class="status-pill ${statusClass(e.status)}">${sanitize(e.status)}</span></td>
             </tr>
         `).join('');
     };

@@ -54,6 +54,22 @@ function isAllDiseasesSelected(disease) {
     return d === '' || d === 'all diseases' || d === 'all';
 }
 
+// Converts internal model identifiers (ARIMA, SARIMA, WMA, RF, etc.) into
+// plain-language labels so non-technical users aren't shown statistics jargon.
+function friendlyModelLabel(modelType) {
+    const s = String(modelType || '').toLowerCase();
+    // Checked first, regardless of whether the name also contains "arima":
+    // any *Fallback model_type means the real model's forecast was rejected
+    // (thin data, or the runaway-forecast sanity guard) and a simpler,
+    // more conservative estimate was used instead -- e.g. "ARIMAFallback"
+    // would otherwise match the "arima" check below and get labeled "Smart
+    // Forecast", which is exactly backwards from what it should signal.
+    if (s.includes('fallback') || s.includes('movingaverage') || s.includes('wma')) return 'Basic Estimate';
+    if (s.includes('arima') && (s.includes('rf') || s.includes('alldisease'))) return 'Advanced Forecast';
+    if (s.includes('sarima') || s.includes('arima')) return 'Smart Forecast';
+    return 'Forecast';
+}
+
 function animateBars(container) {
     const fills = container.querySelectorAll('.bar-fill[data-w]');
     requestAnimationFrame(function () {
@@ -130,6 +146,87 @@ async function diseaseRiskRequest(barangays, currentCasesByBarangay, disease, pe
         return { ok: result.success, data: result.data || [], error: result.success ? null : result.error };
     } catch (e) {
         return { ok: false, data: [], error: e.message };
+    }
+}
+
+// "Create Event" doesn't have its own storage -- it routes into whichever
+// existing module actually owns that kind of event, so it shows up where
+// vets already look for it instead of a third, disconnected list:
+//   - Vaccination Drive -> Mass Vaccination's events (api/mass-vaccination/events.php)
+//   - Community Announcement -> the Announcements feature (api/announcements/announcements.php)
+const createEventContext = { barangay: '', disease: '', riskClassification: '' };
+
+function openCreateEventModal(barangay, disease, riskClassification) {
+    createEventContext.barangay           = barangay || '';
+    createEventContext.disease            = disease || '';
+    createEventContext.riskClassification = riskClassification || '';
+
+    const ctxEl = document.getElementById('createEventContext');
+    if (ctxEl) ctxEl.textContent = `${createEventContext.barangay} — ${createEventContext.disease}`;
+
+    document.getElementsByName('eventType').forEach(r => { r.checked = r.value === 'vaccination'; });
+    toggleVaccineField();
+    const dateInput = document.getElementById('eventAnnouncementDate');
+    if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
+    document.getElementById('createEventModal')?.classList.remove('hidden');
+}
+
+function closeCreateEventModal() {
+    document.getElementById('createEventModal')?.classList.add('hidden');
+}
+
+function toggleVaccineField() {
+    const selected      = document.querySelector('input[name="eventType"]:checked')?.value;
+    const vaccineField  = document.getElementById('vaccineField');
+    const dateField     = document.getElementById('announcementDateField');
+    if (vaccineField) vaccineField.style.display = selected === 'vaccination'  ? '' : 'none';
+    if (dateField)    dateField.style.display    = selected === 'announcement' ? '' : 'none';
+}
+
+async function submitCreateEvent() {
+    const btn   = document.getElementById('confirmCreateEventBtn');
+    const type  = document.querySelector('input[name="eventType"]:checked')?.value || 'vaccination';
+    const { barangay, disease, riskClassification } = createEventContext;
+    const today = new Date().toISOString().slice(0, 10);
+
+    if (btn) { btn.disabled = true; btn.dataset.originalText = btn.textContent; btn.textContent = 'Creating…'; }
+    try {
+        let result, successMsg;
+        if (type === 'vaccination') {
+            const vaccine = document.getElementById('eventVaccine')?.value || 'Others';
+            const res = await fetch('/bvetter/api/mass-vaccination/events.php', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
+                body: JSON.stringify({ action: 'create', date: today, barangay, vaccine }),
+            });
+            result = await res.json();
+            successMsg = `Vaccination drive scheduled in Mass Vaccination: ${barangay} — ${vaccine}`;
+        } else {
+            const title = `Disease Response: ${disease} in ${barangay}`;
+            const description = `Community advisory for ${disease} cases in ${barangay}.` +
+                (riskClassification ? ` Risk level: ${riskClassification}.` : '') +
+                ' Please observe preventive measures and report symptoms in pets to your barangay vet team.';
+            const eventDate = document.getElementById('eventAnnouncementDate')?.value || today;
+            const res = await fetch('/bvetter/api/announcements/announcements.php', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
+                body: JSON.stringify({
+                    action: 'create', title, description,
+                    category: 'Community Advisory', event_date: eventDate, location: barangay, status: 'published',
+                }),
+            });
+            result = await res.json();
+            successMsg = `Announcement published: ${title}`;
+        }
+
+        if (result.success) {
+            alert(successMsg);
+            closeCreateEventModal();
+        } else {
+            alert(`Could not create event: ${result.message || 'Unknown error.'}`);
+        }
+    } catch (e) {
+        alert(`Could not create event: ${e.message}`);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = btn.dataset.originalText; }
     }
 }
 
@@ -214,16 +311,16 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
         if (isRuleBased) {
             const thr = rf.risk_thresholds || {};
             protocolDesc = (
-                `${modelType} predicts ${arimaForecast[0] ?? '?'} cases next month. ` +
-                `Rule-based risk: ${rf.risk_class || 'N/A'} ` +
-                `(p50≤${thr.low_max ?? '?'}, p75≤${thr.med_max ?? '?'}). ` +
+                `Our ${friendlyModelLabel(modelType)} predicts ${arimaForecast[0] ?? '?'} cases next month. ` +
+                `Risk level: ${rf.risk_class || 'N/A'} ` +
+                `(Low: under ${thr.low_max ?? '?'} · Medium: up to ${thr.med_max ?? '?'}). ` +
                 `${rf.eval_note || ''}`
             );
         } else {
             protocolDesc = (
-                `ARIMA predicts ${arimaForecast[0] ?? '?'} cases next month. ` +
-                `RF Risk: ${rf.risk_class || 'N/A'} (${rf.confidence || 0}% conf). ` +
-                `MAE: ${rf.model_mae ?? 'N/A'}.`
+                `Our Advanced Forecast predicts ${arimaForecast[0] ?? '?'} cases next month. ` +
+                `Risk level: ${rf.risk_class || 'N/A'} (${rf.confidence || 0}% confidence). ` +
+                `Typically accurate within ±${rf.model_mae ?? 'N/A'} cases.`
             );
         }
 
@@ -266,7 +363,7 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
                 classification: rf.tier === 'critical' ? 'Grade 4 — High Risk'
                                : rf.tier === 'monitor'  ? 'Grade 3 — Medium Risk'
                                :                          'Grade 2 — Low Risk',
-                title:       (isRuleBased ? 'Rule-Based Protocol: ' : 'RF-Driven Protocol: ') + rf.barangay,
+                title:       (isRuleBased ? 'Response Plan: ' : 'Advanced Response Plan: ') + rf.barangay,
                 description: protocolDesc,
                 steps:       rf.steps || [],
             },
@@ -305,30 +402,28 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
     const critical   = rfData.filter(r => r.tier === 'critical').length;
     const monitor    = rfData.filter(r => r.tier === 'monitor').length;
     const firstRf    = rfData[0] || {};
-    const isRuleBased= firstRf.rf_model_type === 'RuleBasedThreshold';
 
     diseaseAnalyticsData.kpis[2] = {
-        label: isRuleBased ? 'High Risk Barangays' : 'High Risk Barangays (RF)',
+        label: 'High Risk Barangays',
         value: String(critical),
         trend: `${critical} critical · ${monitor} monitoring`,
     };
 
-    if (isRuleBased) {
-        const mae  = firstRf.model_mae  != null ? `MAE: ${firstRf.model_mae}`   : 'MAE: N/A';
-        const rmse = firstRf.model_rmse != null ? `RMSE: ${firstRf.model_rmse}` : '';
-        const mape = firstRf.model_mape != null ? `MAPE: ${firstRf.model_mape}%` : '';
-        diseaseAnalyticsData.kpis[3] = {
-            label: firstRf.model_type || 'Disease Model',
-            value: [mae, rmse].filter(Boolean).join(' · ') || 'N/A',
-            trend: [mape, firstRf.eval_note || ''].filter(Boolean).join(' · ') || 'Rule-based risk classification',
-        };
-    } else {
-        diseaseAnalyticsData.kpis[3] = {
-            label: 'RF Model Accuracy',
-            value: firstRf.model_accuracy != null ? `${firstRf.model_accuracy}%` : 'N/A',
-            trend: firstRf.model_mae != null ? `MAE: ${firstRf.model_mae} cases` : '',
-        };
-    }
+    // Average error margin across every barangay shown, not just whichever
+    // one happens to sort first -- accuracy varies a lot barangay to
+    // barangay (e.g. one barangay ±3.9 cases vs another ±2.8 for the same
+    // disease), so showing a single borrowed barangay's number as "Forecast
+    // Accuracy" for the whole page was misleading.
+    const maeValues = rfData.map(r => r.model_mae).filter(v => v != null && !Number.isNaN(v));
+    const avgMae    = maeValues.length ? (maeValues.reduce((a, b) => a + b, 0) / maeValues.length) : null;
+
+    diseaseAnalyticsData.kpis[3] = {
+        label: 'Forecast Accuracy',
+        value: avgMae != null ? `Within ±${avgMae.toFixed(1)} cases` : 'N/A',
+        trend: avgMae != null
+            ? [friendlyModelLabel(firstRf.model_type), `avg across ${maeValues.length} barangays`].filter(Boolean).join(' · ')
+            : 'Automatic risk check',
+    };
 }
 
 /* ── Event binding ──────────────────────────────────────────── */
@@ -368,6 +463,13 @@ function bindEvents() {
     document.getElementById('refreshSourcesBtn')?.addEventListener('click', () => {
         document.getElementById('refreshSourcesBtn').textContent = 'Refreshed ' + new Date().toLocaleTimeString();
     });
+
+    document.getElementsByName('eventType').forEach(r => r.addEventListener('change', toggleVaccineField));
+    document.getElementById('cancelCreateEventBtn')?.addEventListener('click', closeCreateEventModal);
+    document.getElementById('confirmCreateEventBtn')?.addEventListener('click', submitCreateEvent);
+    document.getElementById('createEventModal')?.addEventListener('click', (ev) => {
+        if (ev.target.id === 'createEventModal') closeCreateEventModal();
+    });
 }
 
 /* ── Panel switching ────────────────────────────────────────── */
@@ -406,7 +508,7 @@ function renderOverview() {
     document.getElementById('predictionBanner').innerHTML = `
         <div class="prediction">
             <span>Predicted</span>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#B45309;opacity:0.7"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            <img src="/bvetter/vet/images/shares.svg" alt="">
         </div>
         <strong>${pred.total}</strong>
         <span>${pred.label}</span>
@@ -427,11 +529,11 @@ function renderOverview() {
         if (allDiseases) {
             // JS-FIX-2: "12-Month Sum" is accurate; "×12" was misleading
             predCard.querySelector('h3').textContent = isMonthly
-                ? 'ARIMA+RF Forecast — Next Month'
-                : 'ARIMA+RF Forecast — Projected Annual (12-Month Sum)';
+                ? 'Advanced Forecast — Next Month'
+                : 'Advanced Forecast — Projected Annual (12-Month Sum)';
         } else {
             const firstInsight = diseaseAnalyticsData.insights?.[0];
-            const modelLabel   = firstInsight?.model_type || 'Disease Forecast';
+            const modelLabel   = friendlyModelLabel(firstInsight?.model_type);
             predCard.querySelector('h3').textContent = isMonthly
                 ? `${modelLabel} — Next Month`
                 : `${modelLabel} — Projected Annual (12-Month Sum)`;
@@ -484,10 +586,10 @@ function renderBarChart(targetId, rows, chartType) {
     let warning = '';
     if (chartType === 'predicted' && hasFallback) {
         warning = allDiseases
-            ? `<div class="fallback-warning">Analytics service unavailable — showing +12% estimate, not ARIMA+RF forecast.</div>`
+            ? `<div class="fallback-warning">Prediction service unavailable — showing a simple +12% estimate instead of the advanced forecast.</div>`
             : isWMA
-                ? `<div class="fallback-warning">Sparse data — using Weighted Moving Average (3-period) with 80% bootstrap CI.</div>`
-                : `<div class="fallback-warning">Showing ${modelType || 'disease-specific'} forecast estimate.</div>`;
+                ? `<div class="fallback-warning">Not enough historical data — showing a basic short-term average with an estimated likely range.</div>`
+                : `<div class="fallback-warning">Showing a ${friendlyModelLabel(modelType).toLowerCase()} estimate.</div>`;
     }
 
     root.innerHTML = warning + rows.map((item, index) => {
@@ -495,15 +597,17 @@ function renderBarChart(targetId, rows, chartType) {
         let badge = '';
         if (chartType === 'predicted') {
             const src = (item.source || '').toLowerCase();
-            if (src.includes('sarima'))                          badge = `<span class="source-badge model">SARIMA</span>`;
-            else if (src.includes('arima'))                     badge = `<span class="source-badge model">ARIMA</span>`;
-            else if (src.includes('moving') || src.includes('wma')) badge = `<span class="source-badge wma">WMA</span>`;
-            else if (src.includes('alldisease') || src.includes('rf')) badge = `<span class="source-badge model">ARIMA+RF</span>`;
-            else                                                 badge = `<span class="source-badge fallback">est.</span>`;
+            if (src.includes('sarima') || src.includes('arima')) {
+                badge = (src.includes('alldisease') || src.includes('rf'))
+                    ? `<span class="source-badge model">Advanced Forecast</span>`
+                    : `<span class="source-badge model">Smart Forecast</span>`;
+            }
+            else if (src.includes('moving') || src.includes('wma')) badge = `<span class="source-badge wma">Basic Estimate</span>`;
+            else                                                 badge = `<span class="source-badge fallback">Estimate</span>`;
         }
-        // JS-FIX-3: CI tooltip on predicted bars
+        // JS-FIX-3: likely-range tooltip on predicted bars
         const ciAttr = (chartType === 'predicted' && item.upper > 0)
-            ? ` title="80% CI: ${item.lower ?? '?'} – ${item.upper ?? '?'}"` : '';
+            ? ` title="Likely Range: ${item.lower ?? '?'} – ${item.upper ?? '?'}"` : '';
         return `
             <div class="bar-row" style="animation-delay:${index * 22}ms"${ciAttr}>
                 <span>${item.barangay}</span>
@@ -545,15 +649,8 @@ function renderInsightPanel() {
     let forecastHtml = '';
     if (insight.forecast?.length) {
         const months    = ['Next Month', 'Month 2', 'Month 3'];
-        const modelType = insight.model_type || '';
-        const orderStr  = insight.seasonal_order?.some(v => v > 0)
-            ? `(${insight.arima_order?.join(',')})×S(${insight.seasonal_order.slice(0,3).join(',')})`
-            : (insight.arima_order?.some(v => v > 0) ? `(${insight.arima_order.join(',')})` : '');
-        const metaParts = [
-            insight.model_mae  != null ? `MAE ${insight.model_mae}`   : '',
-            insight.model_rmse != null ? `RMSE ${insight.model_rmse}` : '',
-            insight.model_mape != null ? `MAPE ${insight.model_mape}%`: ''
-        ].filter(Boolean).join(' · ');
+        const modelLabel = friendlyModelLabel(insight.model_type);
+        const metaParts = insight.model_mae != null ? `Usually accurate within ±${insight.model_mae} cases` : '';
 
         const trend     = (insight.trend || 'stable').toLowerCase();
         const trendIcon = trend === 'rising' ? '↑' : trend === 'falling' ? '↓' : '→';
@@ -561,7 +658,7 @@ function renderInsightPanel() {
         forecastHtml = `
             <div class="ip-forecast">
                 <div class="ip-forecast-header">
-                    <span class="ip-forecast-title">${modelType}${orderStr} — 3-Month Forecast</span>
+                    <span class="ip-forecast-title">${modelLabel} — 3-Month Forecast</span>
                     ${metaParts ? `<span class="ip-forecast-meta">${metaParts}</span>` : ''}
                 </div>
                 <div class="ip-forecast-grid">
@@ -570,7 +667,7 @@ function renderInsightPanel() {
                             <span class="ip-fc-label">${months[i] || 'Month ' + (i + 1)}</span>
                             <span class="ip-fc-val">${val}</span>
                             <span class="ip-fc-range">${insight.lower_ci?.[i] ?? '–'} – ${insight.upper_ci?.[i] ?? '–'}</span>
-                            <span class="ip-fc-ci">80% CI</span>
+                            <span class="ip-fc-ci">Likely Range</span>
                         </div>
                     `).join('')}
                 </div>
@@ -580,20 +677,28 @@ function renderInsightPanel() {
     }
 
     // ── Model badge ───────────────────────────────────────────────
+    // insight.model_type is only ever set once a real prediction (from
+    // Python or the PHP fallback) has merged in — see _mergeRFResults().
+    // If it's missing, the panel is still showing the PHP placeholder,
+    // which means the analytics service never answered.
+    const isOffline   = !insight.model_type;
     const isRuleBased = insight.rf_model_type === 'RuleBasedThreshold';
+    let offlineWarningHtml = '';
     let modelBadgeHtml = '';
-    if (isRuleBased && insight.risk_thresholds) {
+    if (isOffline) {
+        offlineWarningHtml = `<div class="fallback-warning">⚠ Analytics service offline — showing basic info only for ${insight.barangay} until the forecast service reconnects.</div>`;
+    } else if (isRuleBased && insight.risk_thresholds) {
         const t = insight.risk_thresholds;
         modelBadgeHtml = `
             <div class="ip-model-row">
-                <span class="ip-model-badge">Rule-Based</span>
-                <span class="ip-model-text">Thresholds: Low &lt; ${t.low_max} · Medium ${t.low_max}–${t.med_max} · High ≥ ${t.med_max}</span>
+                <span class="ip-model-badge">Basic Rule Check</span>
+                <span class="ip-model-text">Low: under ${t.low_max} · Medium: ${t.low_max}–${t.med_max} · High: ${t.med_max} or more</span>
             </div>
         `;
-    } else if (!isRuleBased) {
+    } else {
         modelBadgeHtml = `
             <div class="ip-model-row">
-                <span class="ip-model-badge">ARIMA+RF</span>
+                <span class="ip-model-badge">Advanced Forecast</span>
                 <span class="ip-model-text">${insight.rf_risk_class || 'N/A'} Risk · ${insight.rf_confidence ?? 'N/A'}% confidence</span>
             </div>
         `;
@@ -608,6 +713,7 @@ function renderInsightPanel() {
         <div class="ip-risk-header">
             <span class="ip-risk-chip ip-risk-${tierClass}">${protocol.classification}</span>
         </div>
+        ${offlineWarningHtml}
         ${modelBadgeHtml}
         ${forecastHtml}
         <div class="ip-protocol-block">
@@ -636,7 +742,7 @@ function renderInsightPanel() {
     `;
 
     document.getElementById('createEventBtn').addEventListener('click', () => {
-        alert(`Event created: ${insight.barangay} — ${insight.disease}`);
+        openCreateEventModal(insight.barangay, insight.disease, protocol.classification);
     });
     document.getElementById('backOverviewBtn2').addEventListener('click', () => switchPanel('overviewPanel'));
 }
@@ -672,11 +778,13 @@ function renderHotspotList() {
     list.innerHTML = (diseaseAnalyticsData.map?.hotspots || []).map(hotspot => {
         const src = (hotspot.pred_source || '').toLowerCase();
         let badge = '';
-        if (src.includes('sarima'))                        badge = `<span class="source-badge model">SARIMA</span>`;
-        else if (src.includes('arima'))                    badge = `<span class="source-badge model">ARIMA</span>`;
-        else if (src.includes('moving') || src.includes('wma')) badge = `<span class="source-badge wma">WMA</span>`;
-        else if (src.includes('rf') || src.includes('alldisease')) badge = `<span class="source-badge model">ARIMA+RF</span>`;
-        else                                               badge = `<span class="source-badge fallback">est.</span>`;
+        if (src.includes('sarima') || src.includes('arima')) {
+            badge = (src.includes('rf') || src.includes('alldisease'))
+                ? `<span class="source-badge model">Advanced Forecast</span>`
+                : `<span class="source-badge model">Smart Forecast</span>`;
+        }
+        else if (src.includes('moving') || src.includes('wma')) badge = `<span class="source-badge wma">Basic Estimate</span>`;
+        else                                               badge = `<span class="source-badge fallback">Estimate</span>`;
         return `
             <article class="hotspot-item" data-hotspot-id="${hotspot.id}">
                 <h4>
@@ -710,7 +818,7 @@ function refreshMapLayers() {
     const heatPoints = hotspots.map(s => [s.lat, s.lng, s.intensity]);
 
     state.heatLayer = L.heatLayer(heatPoints, {
-        radius: 45, blur: 30, minOpacity: 0.5,
+        radius: 65, blur: 40, minOpacity: 0.5,
         gradient: { 0.3: '#6ec7ff', 0.55: '#fff27a', 0.75: '#ff9248', 1.0: '#e53030' },
     }).addTo(state.map);
 
@@ -777,14 +885,14 @@ function showHotspotAction(hotspot) {
                     ⚠ Rule-Based Risk (${insight.model_type || 'DiseaseSpecific'}) —
                     ${insight.rf_risk_class || 'N/A'} risk
                     ${insight.pred_source?.includes('fallback')
-                        ? '<span class="source-badge fallback">est.</span>'
-                        : `<span class="source-badge model">${insight.model_type || 'ARIMA'}</span>`}
-                    <br><small>p50≤${t.low_max ?? '?'} · p75≤${t.med_max ?? '?'}</small>
+                        ? '<span class="source-badge fallback">Estimate</span>'
+                        : `<span class="source-badge model">${friendlyModelLabel(insight.model_type)}</span>`}
+                    <br><small>Low: under ${t.low_max ?? '?'} · Medium: up to ${t.med_max ?? '?'}</small>
                 </div>`;
         } else {
             modelBadge = `
                 <div class="rf-badge">
-                    🤖 ARIMA+RF — ${insight.rf_risk_class || 'N/A'} Risk ·
+                    Advanced Forecast — ${insight.rf_risk_class || 'N/A'} Risk ·
                     ${insight.rf_confidence ?? 'N/A'}% confidence
                 </div>`;
         }
@@ -829,7 +937,7 @@ function showHotspotAction(hotspot) {
         </section>
     `;
     document.getElementById('createMapEventBtn').addEventListener('click', () => {
-        alert(`Event created: ${hotspot.barangay} — ${hotspot.disease}`);
+        openCreateEventModal(hotspot.barangay, hotspot.disease, classification);
     });
     document.getElementById('backToMapOverviewBtn').addEventListener('click', () => {
         state.mapActionMode = false;
@@ -907,4 +1015,4 @@ async function initDiseaseAnalytics() {
     renderMapPanel();
 }
 
-document.addEventListener('DOMContentLoaded', initDiseaseAnalytics);
+document.addEventListener('DOMContentLoaded', initDiseaseAnalytics);

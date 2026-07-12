@@ -15,7 +15,7 @@
    - populateReview / goStep(5): replace with
      api.bookAppointment(data)
    - pageHistory: replace static rows with
-     api.getAppointments()
+     api.getAppointments()  
    ============================================= */
 
 /* ── Calendar state ──────────────────────────── */
@@ -25,8 +25,34 @@ let calYear, calMonth;
 let selectedVetId   = null;
 let selectedCalDate = null;   // 'YYYY-MM-DD'
 
+/* ── Time picked in the preview calendar's hour grid,
+   carried into step 3 so the owner isn't asked to pick
+   the same date/time twice. Reset whenever the grid is
+   rebuilt (new day / new vet) since availability changes. */
+let selectedPreviewSlot = null;
+
+/* ── Local calendar date as 'YYYY-MM-DD' ─────────
+   toISOString() converts to UTC first, which is one day
+   off from the local date for part of the day in any
+   timezone ahead of UTC (e.g. early morning in PH, UTC+8).
+   That off-by-one let yesterday's date pass the "min" /
+   past-date checks below, so use local Y/M/D instead.
+─────────────────────────────────────────────────── */
+function toLocalIsoDate(date = new Date()) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function buildCalendar(year, month) {
-  calYear  = year;
+  const vaccDate = document.getElementById("petVaccDate");
+  const today_input = toLocalIsoDate();
+  const apptDate = document.getElementById("apptDate");
+  apptDate.min = today_input;
+  vaccDate.min = today_input;
+
+  calYear = year;
   calMonth = month;
 
   const MONTH_NAMES = [
@@ -38,8 +64,11 @@ function buildCalendar(year, month) {
   document.querySelector('.cal-month').textContent =
     `${MONTH_NAMES[month]} ${year}`;
 
-  const grid  = document.querySelector('.cal-grid');
+  const grid = document.querySelector('.cal-grid');
   const today = new Date();
+
+  // Remove time so only the date is compared
+  today.setHours(0, 0, 0, 0);
 
   // Rebuild grid: labels + day cells
   grid.innerHTML = DAY_LABELS
@@ -59,24 +88,38 @@ function buildCalendar(year, month) {
 
   for (let d = 1; d <= daysInMonth; d++) {
     const cell = document.createElement('div');
+
+    const cellDate = new Date(year, month, d);
+    cellDate.setHours(0, 0, 0, 0);
+
+    const isPast = cellDate < today;
+
     const isToday =
       d === today.getDate() &&
       month === today.getMonth() &&
-      year  === today.getFullYear();
-    cell.className   = 'cal-day' + (isToday ? ' today' : '');
+      year === today.getFullYear();
+
+    cell.className = 'cal-day';
+
+    if (isToday) cell.classList.add('today');
+    if (isPast) cell.classList.add('disabled');
+
     cell.textContent = d;
 
-    cell.addEventListener('click', () => {
-      grid.querySelectorAll('.cal-day').forEach(c => c.classList.remove('today'));
-      cell.classList.add('today');
+    // Only allow clicking today and future dates
+    if (!isPast) {
+      cell.addEventListener('click', () => {
+        grid.querySelectorAll('.cal-day').forEach(c => c.classList.remove('today'));
 
-      // Zero-pad month/day for YYYY-MM-DD
-      const mm = String(month + 1).padStart(2, '0');
-      const dd = String(d).padStart(2, '0');
-      selectedCalDate = `${year}-${mm}-${dd}`;
+        cell.classList.add('today');
 
-      fetchAndBuildSlots();   // refresh available hours for this date + vet
-    });
+        const mm = String(month + 1).padStart(2, '0');
+        const dd = String(d).padStart(2, '0');
+        selectedCalDate = `${year}-${mm}-${dd}`;
+
+        fetchAndBuildSlots();
+      });
+    }
 
     grid.appendChild(cell);
   }
@@ -86,6 +129,7 @@ function buildCalendar(year, month) {
 // Init calendar to current month and set today as the selected date
 (function initCalendar() {
   const now = new Date();
+
   buildCalendar(now.getFullYear(), now.getMonth());
 
   // Set today as the default selected date so slots load on page open
@@ -96,14 +140,26 @@ function buildCalendar(year, month) {
   const calBtns = document.querySelectorAll('.cal-btn');
 
   calBtns[0].addEventListener('click', () => {
-    let m = calMonth - 1, y = calYear;
-    if (m < 0) { m = 11; y--; }
+    let m = calMonth - 1;
+    let y = calYear;
+
+    if (m < 0) {
+      m = 11;
+      y--;
+    }
+
     buildCalendar(y, m);
   });
 
   calBtns[1].addEventListener('click', () => {
-    let m = calMonth + 1, y = calYear;
-    if (m > 11) { m = 0; y++; }
+    let m = calMonth + 1;
+    let y = calYear;
+
+    if (m > 11) {
+      m = 0;
+      y++;
+    }
+
     buildCalendar(y, m);
   });
 })();
@@ -154,6 +210,7 @@ function buildTimeSlots(unavailableSlots = []) {
   const grid = document.getElementById('timeGrid');
   if (!grid) return;
   grid.innerHTML = '';
+  selectedPreviewSlot = null;   // grid rebuilt — any earlier pick no longer applies
 
   ALL_TIME_SLOTS.forEach(slot => {
     const div    = document.createElement('div');
@@ -165,6 +222,7 @@ function buildTimeSlots(unavailableSlots = []) {
       div.addEventListener('click', () => {
         grid.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
         div.classList.add('selected');
+        selectedPreviewSlot = slot;
       });
     }
 
@@ -178,6 +236,8 @@ buildTimeSlots();
 
 
 function updateVetProfile(vet) {
+  replaceContent()
+  console.log(vet)
   const avatarSrc = getAvatarUrl(vet.avatar);
 
   // FIX: profile image src was never set
@@ -193,7 +253,7 @@ function updateVetProfile(vet) {
   set('profile-rating',       vet.rating,               '4.9');
   set('profile-review-count', `(${vet.review_count || 124} reviews)`);
   set('stat-experience-val',  vet.experience_years  ? `${vet.experience_years}+ Years`   : '12+ Years');
-  set('stat-patients-val',    vet.patients_served   ? `${vet.patients_served} Served`    : '2.4k');
+  // stat-patients-val is populated by replaceContent() (completed appointment count for this vet)
   set('stat-rating-val',      vet.rating_percentage ? `${vet.rating_percentage}%`        : '98%');
   set('edu-tag',              vet.education,            'DVM, Cornell University');
   set('section-desc',         vet.bio,                  '');
@@ -240,8 +300,9 @@ async function fetchVets() {
       item.classList.add('active');
       selectedVetId = vet.id;          // track selected vet
       updateVetProfile(vet);
-      fetchAndBuildSlots();    
+      fetchAndBuildSlots();
       loadVetFeedback(vet.id);        // refresh slots for new vet + current date
+      loadCommonCases(vet.id);
     });
 
     container.appendChild(item);
@@ -251,8 +312,9 @@ async function fetchVets() {
   if (VetAccounts.data.length > 0) {
     selectedVetId = VetAccounts.data[0].id;
     updateVetProfile(VetAccounts.data[0]);
-    fetchAndBuildSlots();   
+    fetchAndBuildSlots();
     loadVetFeedback(VetAccounts.data[0].id);// now both selectedVetId + selectedCalDate are set
+    loadCommonCases(VetAccounts.data[0].id);
   }
 }
 async function loadRecentHistory() {
@@ -318,11 +380,11 @@ async function loadRecentHistory() {
         `;
       }
 //  const icons = {
-//   Consultation: "../images/icons/consultation.svg",
+//   Consultation: "../images/icons/chatbot-consultation.png",
 //   Vaccination: "../images/icons/syringe.svg",
-//   Surgery: "../images/icons/surgery.svg",
-//   Grooming: "../images/icons/grooming.svg",
-//   "Check-up": "../images/icons/checkup.svg"
+//   Surgery: "../images/icons/icon-surgeon.svg",
+//   Grooming: "../images/icons/icon-vitality.svg",
+//   "Check-up": "../images/icons/icon-doctor.svg"
 // };
 
 // json.data.slice(0, 5).forEach(appt => {
@@ -400,6 +462,32 @@ async function submitReview(appointmentId, rating, comment) {
     alert('Failed to submit review.');
   }
 }
+async function replaceContent(){
+   try {
+    const res = await fetch('/bvetter/api/appointments/appointment.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'get_total',
+        veterinarian_id: selectedVetId
+      })
+    });
+
+    const json = await res.json();
+    console.log(json)
+
+    if (json.success) {
+      document.getElementById('stat-patients-val').textContent = json.data;
+      loadAppointmentHistory(); // refresh history
+    } else {
+      alert(json.message || 'Failed to submit review.');
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Failed to submit review.');
+  }
+}
+
 const ratingModalState = { appointmentId: null, value: 0 };
 
 function openReviewForm(appointmentId, currentRating = '', currentComment = '') {
@@ -524,7 +612,7 @@ initRatingStars();async function loadAppointmentHistory() {
               '${(appt.review_comment || '').replace(/'/g, "\\'")}'
             )"
             style="cursor:pointer;">
-            <img src="../images/icons/rate.svg" alt="" class="star-xs"/>
+            <img src="../images/icons/rating.svg" alt="" class="star-xs"/>
             ${appt.owner_rating} Rated
           </span>
         `;
@@ -595,8 +683,16 @@ async function loadVetFeedback(vetId) {
     }
 
     // Get latest review (or first one)
-    const review = json.data[0];
+    const review = json.data.reduce((highest, current) =>
+  current.rating > highest.rating ? current : highest
+);
+    const averageRating =
+    json.data.reduce((sum, item) => sum + item.rating, 0) / json.data.length;
 
+
+    document.getElementById('profile-rating').textContent=    `${averageRating.toFixed(1)} out of 5`;
+    document.getElementById('stat-rating-val').textContent=getAverageRate(averageRating);
+    document.getElementById('profile-review-count').textContent = "("+ json.data.length + ' reviews )';
     // Update reviewer info
     document.getElementById('feedback-name').textContent =
       review.owner_name || 'Anonymous';
@@ -623,10 +719,137 @@ async function loadVetFeedback(vetId) {
     console.error('Failed to load vet feedback:', err);
   }
 }
+
+const COMMON_CASE_ICONS = ['vet-symptom-1.svg', 'vet-symptom-3.svg', 'vet-symptom-2.svg', 'vet-symptom-4.svg'];
+
+async function loadCommonCases(vetId) {
+  const section = document.getElementById('commonCasesSection');
+  const grid = document.getElementById('symptomsGrid');
+  if (!section || !grid) return;
+
+  let cases = [];
+
+  try {
+    const res = await fetch('/bvetter/api/appointments/appointment.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'common_cases',
+        veterinarian_id: vetId
+      })
+    });
+
+    const json = await res.json();
+    if (json.success && Array.isArray(json.data)) {
+      cases = json.data;
+    }
+  } catch (err) {
+    console.error('Failed to load common cases:', err);
+  }
+
+  if (cases.length === 0) {
+    section.style.display = 'none';
+    grid.innerHTML = '';
+    return;
+  }
+
+  section.style.display = '';
+  grid.innerHTML = cases.map((label, i) => `
+    <div class="symptom-item">
+      <div class="symptom-icon"><img src="../images/icons/${COMMON_CASE_ICONS[i % COMMON_CASE_ICONS.length]}" alt=""/></div>
+      ${escapeHtml(label)}
+    </div>
+  `).join('');
+}
+
+async function openReviewsModal() {
+  const overlay = document.getElementById('reviewsModalOverlay');
+  const list = document.getElementById('reviewsModalList');
+  if (!overlay || !list) return;
+
+  list.innerHTML = '<div class="feedback-text">Loading reviews...</div>';
+  overlay.classList.add('active');
+
+  try {
+    const res = await fetch('/bvetter/api/appointments/appointment.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'vet_reviews',
+        veterinarian_id: selectedVetId
+      })
+    });
+
+    const json = await res.json();
+
+    if (!json.success || !json.data || json.data.length === 0) {
+      list.innerHTML = '<div class="feedback-text">This veterinarian has not received feedback yet.</div>';
+      return;
+    }
+
+    list.innerHTML = json.data.map(review => {
+      const rating = parseInt(review.rating || 0);
+      const stars = '<img src="../images/icons/rate.svg" alt="star" class="star-sm"/>'.repeat(rating);
+      return `
+        <div class="feedback-card">
+          <div class="feedback-user">
+            <div class="feedback-avatar"></div>
+            <div class="feedback-user-info">
+              <div class="feedback-name">${escapeHtml(review.owner_name || 'Anonymous')}</div>
+              <div class="feedback-pet">Pet: ${escapeHtml(review.pet_name || 'Unknown Pet')} (${escapeHtml(review.species || '')})</div>
+            </div>
+            <div class="feedback-stars">${stars}</div>
+          </div>
+          <div class="feedback-text">"${escapeHtml(review.comment || 'No comment provided')}"</div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Failed to load reviews:', err);
+    list.innerHTML = '<div class="feedback-text">Failed to load reviews.</div>';
+  }
+}
+
+function closeReviewsModal() {
+  const overlay = document.getElementById('reviewsModalOverlay');
+  if (overlay) overlay.classList.remove('active');
+}
+
 fetchVets();
 loadRecentHistory();
 
-
+function getAverageRate(average) {
+  if (average >= 5.0) {
+    return '100%';
+  }
+  else if (average >= 4.5) {
+    return '95%';
+  }
+  else if (average >= 4.0) {
+    return '90%';
+  }
+  else if (average >= 3.5) {
+    return '85%';
+  }
+  else if (average >= 3.0) {
+    return '80%';
+  }
+  else if (average >= 2.5) {
+    return '75%';
+  }
+  else if (average >= 2.0) {
+    return '70%';
+  }
+  else if (average >= 1.5) {
+    return '65%';
+  }
+  else if (average >= 1.0) {
+    return '60%';
+  }
+  else {
+    return '0%';
+  }
+}
 /* ── Page + booking form logic ───────────────── */
 (function () {
   'use strict';
@@ -634,7 +857,6 @@ loadRecentHistory();
   /* ── Page references ─────────────────────── */
   const pageVet     = document.getElementById('pageVet');
   const pageBooking = document.getElementById('pageBooking');
-  console.log(document.getElementById('btnViewAll'));
   const pageHistory = document.getElementById('pageHistory');
 
   /* ── Switch between 3 main page views ─────── */
@@ -650,12 +872,28 @@ loadRecentHistory();
   }
 
   /* ── Page navigation wiring ─────────────── */
-  document.getElementById('btnBook')           .addEventListener('click', () => { showPage(pageBooking); goStep(1); });
+  document.getElementById('btnBook')           .addEventListener('click', () => {
+    // Carry the date already picked in the preview calendar into step 3
+    // so the owner isn't asked to choose it again.
+    const apptDateInput = document.getElementById('apptDate');
+    if (apptDateInput && selectedCalDate) apptDateInput.value = selectedCalDate;
+    showPage(pageBooking);
+    goStep(1);
+  });
   document.getElementById('btnViewAll')
   .addEventListener('click', (e) => {
     e.preventDefault();
     showPage(pageHistory);
     loadAppointmentHistory();
+  });
+  document.getElementById('btnSeeAllReviews')
+  .addEventListener('click', (e) => {
+    e.preventDefault();
+    openReviewsModal();
+  });
+  document.getElementById('btnCloseReviews')   .addEventListener('click', closeReviewsModal);
+  document.getElementById('reviewsModalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'reviewsModalOverlay') closeReviewsModal();
   });
   document.getElementById('btnBackToVet')      .addEventListener('click', (e) => { e.preventDefault(); showPage(pageVet); });
   document.getElementById('btnBackHome')       .addEventListener('click', () => showPage(pageVet));
@@ -668,13 +906,98 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
   document.getElementById('btnBookFromHistory').addEventListener('click', () => { showPage(pageBooking); goStep(1); });
 
   /* ── Step navigation wiring ─────────────── */
-  document.getElementById('s1Next')   .addEventListener('click', () => goStep(2));
+  document.getElementById('s1Next')   .addEventListener('click', () => { if (validateStep(1)) goStep(2); });
   document.getElementById('s2Back')   .addEventListener('click', () => goStep(1));
-  document.getElementById('s2Next')   .addEventListener('click', () => goStep(3));
+  document.getElementById('s2Next')   .addEventListener('click', () => { if (validateStep(2)) goStep(3); });
   document.getElementById('s3Back')   .addEventListener('click', () => goStep(2));
-  document.getElementById('s3Next')   .addEventListener('click', () => goStep(4));
+  document.getElementById('s3Next')   .addEventListener('click', () => { if (validateStep(3)) goStep(4); });
   document.getElementById('s4Back')   .addEventListener('click', () => goStep(3));
   document.getElementById('s4Confirm').addEventListener('click', submitAppointment);
+
+  /* ── Per-step inline validation ──────────────
+     Marks the missing field(s) instead of blocking
+     navigation with a popup/alert.
+  ─────────────────────────────────────────── */
+  function setGroupError(group, message) {
+    if (!group) return;
+    group.classList.add('has-error');
+    let msg = group.querySelector('.field-error-msg');
+    if (!msg) {
+      msg = document.createElement('span');
+      msg.className = 'field-error-msg';
+      group.appendChild(msg);
+    }
+    msg.textContent = message;
+  }
+
+  function clearGroupError(group) {
+    if (!group) return;
+    group.classList.remove('has-error');
+    const msg = group.querySelector('.field-error-msg');
+    if (msg) msg.remove();
+  }
+
+  function validateRequiredField(id, message) {
+    const el = document.getElementById(id);
+    if (!el) return true;
+    const group = el.closest('.form-group');
+    if (!(el.value || '').trim()) {
+      setGroupError(group, message);
+      return false;
+    }
+    clearGroupError(group);
+    return true;
+  }
+
+  function validateTimeSlotField() {
+    const slotGrid = document.querySelector('#step3 .slot-grid');
+    const group = slotGrid ? slotGrid.closest('.form-group') : null;
+    if (!document.querySelector('.slot-btn.selected')) {
+      setGroupError(group, 'Please select a time slot.');
+      return false;
+    }
+    clearGroupError(group);
+    return true;
+  }
+
+  function validateStep(n) {
+    let valid = true;
+
+    if (n === 1) {
+      if (!validateRequiredField('ownerName',     'Please enter your full name.'))        valid = false;
+      if (!validateRequiredField('ownerContact',  'Please enter your contact number.'))    valid = false;
+      if (!validateRequiredField('ownerEmail',    'Please enter your email address.'))     valid = false;
+      if (!validateRequiredField('ownerBarangay', 'Please select your barangay.'))         valid = false;
+      if (!validateRequiredField('ownerAddress',  'Please enter your complete address.'))  valid = false;
+    } else if (n === 2) {
+      if (!validateRequiredField('petName',  "Please enter your pet's name."))    valid = false;
+      if (!validateRequiredField('petType',  'Please select a pet type.'))        valid = false;
+      if (!validateRequiredField('petBreed', "Please enter your pet's breed."))   valid = false;
+      if (!validateRequiredField('petAge',   "Please enter your pet's age."))     valid = false;
+      if (!validateRequiredField('petSex',   "Please select your pet's sex."))    valid = false;
+      // petVaccDate is optional — not validated
+    } else if (n === 3) {
+      if (!validateRequiredField('visitType', 'Please select the type of visit.'))                        valid = false;
+      if (!validateRequiredField('apptDate',  'Please select a preferred date.'))                          valid = false;
+      if (!validateTimeSlotField())                                                                        valid = false;
+      if (!validateRequiredField('apptNotes', "Please describe your pet's condition or reason for visit.")) valid = false;
+    }
+
+    if (!valid) {
+      const firstError = document.querySelector('#step' + n + ' .has-error');
+      if (firstError) firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    return valid;
+  }
+
+  // Clear a field's error as soon as the user fixes it
+  document.querySelectorAll('#step1 .form-input, #step1 .form-select, #step2 .form-input, #step2 .form-select, #step3 .form-input, #step3 .form-select, #step3 .form-textarea')
+    .forEach(el => {
+      const clear = () => clearGroupError(el.closest('.form-group'));
+      el.addEventListener('input', clear);
+      el.addEventListener('change', clear);
+    });
 
   /* ── Core step switcher ──────────────────── */
   function goStep(n) {
@@ -683,13 +1006,68 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       if (el) el.style.display = (i === n) ? 'block' : 'none';
     }
     updateStepper(n);
+    if (n === 3) refreshStep3Slots();
     if (n === 4) populateReview();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  /* ── Keep step-3 time slots in sync with real availability ──
+     The slot buttons here are static markup, so without this
+     an already-confirmed slot (for this vet + date) stayed
+     clickable and a second owner could submit the same slot.
+     Reuses the same booked_slots lookup the vet-selection
+     calendar already relies on.
+  ─────────────────────────────────────────── */
+  async function refreshStep3Slots() {
+    const dateVal = document.getElementById('apptDate')?.value || '';
+    const slotButtons = document.querySelectorAll('#step3 .slot-btn');
+    if (!dateVal) {
+      slotButtons.forEach(btn => btn.classList.remove('unavailable'));
+      return;
+    }
+
+    let booked = [];
+    try {
+      const res = await fetch('/bvetter/api/appointments/appointment.php', {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({
+          action          : 'booked_slots',
+          veterinarian_id : selectedVetId,
+          preferred_date  : dateVal
+        })
+      });
+      const json = await res.json();
+      booked = json.success ? (json.booked || []) : [];
+    } catch (err) {
+      console.error('[step3 slots] fetch failed:', err);
+      return;
+    }
+
+    slotButtons.forEach(btn => {
+      const isBooked = booked.includes(btn.dataset.slot);
+      btn.classList.toggle('unavailable', isBooked);
+      if (isBooked && btn.classList.contains('selected')) {
+        btn.classList.remove('selected');
+      }
+    });
+
+    // Carry over the time already picked in the preview calendar —
+    // only when the date wasn't changed since, and nothing else is
+    // selected yet, so the owner doesn't have to repeat the pick.
+    if (selectedPreviewSlot && dateVal === selectedCalDate && !document.querySelector('#step3 .slot-btn.selected')) {
+      const match = document.querySelector(`#step3 .slot-btn[data-slot="${selectedPreviewSlot}"]`);
+      if (match && !match.classList.contains('unavailable')) {
+        match.classList.add('selected');
+      }
+    }
+  }
+
+  document.getElementById('apptDate')?.addEventListener('change', refreshStep3Slots);
+
   /* ── Submit appointment ──────────────────── */
   async function submitAppointment() {
-const selectedSlot = document.querySelector('.time-slot.selected');
+const selectedSlot = document.querySelector('.slot-btn.selected');
     const session = JSON.parse(
       sessionStorage.getItem('vbetter_session') ||
       sessionStorage.getItem('bvetter_user')    ||
@@ -713,7 +1091,7 @@ const selectedSlot = document.querySelector('.time-slot.selected');
       pet_vaccination_date: document.getElementById('petVaccDate')?.value         || '',
       appointment_type:     document.getElementById('visitType')?.value           || '',
       preferred_date:       document.getElementById('apptDate')?.value            || '',
-time_slot: selectedSlot ? selectedSlot.textContent.trim() : '',
+time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
       notes:                document.getElementById('apptNotes')?.value.trim()    || ''
     };
 
@@ -724,6 +1102,12 @@ time_slot: selectedSlot ? selectedSlot.textContent.trim() : '',
     ];
     if (required.some(k => !payload[k])) {
       alert('Please complete all required appointment fields.');
+      return;
+    }
+
+    const todayIso = toLocalIsoDate();
+    if (payload.preferred_date < todayIso) {
+      alert('Please select a date that has not yet passed.');
       return;
     }
 
@@ -763,8 +1147,10 @@ time_slot: selectedSlot ? selectedSlot.textContent.trim() : '',
   /* ── Slot button selection ───────────────── */
   document.querySelectorAll('.slot-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (btn.classList.contains('unavailable')) return;
       document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
+      clearGroupError(btn.closest('.form-group'));
     });
   });
 
@@ -860,4 +1246,4 @@ function formatDate(dateString) {
     day: 'numeric',
     year: 'numeric'
   });
-}
+}

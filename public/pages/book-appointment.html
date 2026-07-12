@@ -40,64 +40,10 @@
       </ul>
     </div>
     <div class="nav-right nav-right-auth">
-      <div class="nav-notif-wrap">
-        <button type="button" class="nav-notif-btn" onclick="toggleNotifPanel()">
-          <img src="../images/icons/icon-bell.svg" alt="Notifications" class="nav-notif-icon"/>
-          <span class="nav-notif-dot"></span>
-        </button>
-        <!-- TODO backend: replace static items with api.getNotifications(); wire markAllNotifsRead() to api.markAllRead() -->
-        <div class="notif-panel" id="notifPanel">
-          <div class="notif-panel-head">
-            <span class="notif-panel-title">Notifications</span>
-            <div class="notif-panel-actions">
-              <button type="button" class="notif-mark-read" onclick="markAllNotifsRead()">Mark all as read</button>
-              <button type="button" class="notif-clear-all" onclick="clearAllNotifs()">Clear all</button>
-            </div>
-          </div>
-          <div class="notif-panel-list">
-            <div class="notif-panel-item unread">
-              <a href="lost-found.html" class="notif-item-link">
-                <div class="notif-item-icon-wrap green">
-                  <img src="../images/icons/notif-report-found.svg" alt="" class="notif-item-icon"/>
-                </div>
-                <div class="notif-item-body">
-                  <div class="notif-item-title">Lost Pet Found Near Sector 4</div>
-                  <div class="notif-item-desc">A Border Collie matching your watch profile was found.</div>
-                  <div class="notif-item-time">2 hours ago</div>
-                </div>
-              </a>
-              <button type="button" class="notif-item-delete" aria-label="Dismiss notification" onclick="dismissNotif(event, this)">&times;</button>
-            </div>
-            <div class="notif-panel-item unread">
-              <a href="book-appointment.html" class="notif-item-link">
-                <div class="notif-item-icon-wrap blue">
-                  <img src="../images/icons/notif-appointment-confirmed.svg" alt="" class="notif-item-icon"/>
-                </div>
-                <div class="notif-item-body">
-                  <div class="notif-item-title">Appointment Confirmed</div>
-                  <div class="notif-item-desc">Dr. Aris will see 'Max' tomorrow at 10:30 AM.</div>
-                  <div class="notif-item-time">Yesterday</div>
-                </div>
-              </a>
-              <button type="button" class="notif-item-delete" aria-label="Dismiss notification" onclick="dismissNotif(event, this)">&times;</button>
-            </div>
-            <div class="notif-panel-item">
-              <a href="my-claims.html" class="notif-item-link">
-                <div class="notif-item-icon-wrap blue">
-                  <img src="../images/icons/notif-updates.svg" alt="" class="notif-item-icon"/>
-                </div>
-                <div class="notif-item-body">
-                  <div class="notif-item-title">Claim Approved</div>
-                  <div class="notif-item-desc">Your insurance claim #CL-2091 has been processed.</div>
-                  <div class="notif-item-time">2 days ago</div>
-                </div>
-              </a>
-              <button type="button" class="notif-item-delete" aria-label="Dismiss notification" onclick="dismissNotif(event, this)">&times;</button>
-            </div>
-          </div>
-          <a href="notification-settings.html" class="notif-panel-footer">View All Notifications</a>
-        </div>
-      </div>
+      <button class="nav-notif-btn" id="notification-icon-btn">
+        <img src="../images/icons/icon-bell.svg" alt="Notifications" class="nav-notif-icon"/>
+        <span class="nav-notif-dot"></span>
+      </button>
       <div class="nav-user-pill" onclick="toggleUserMenu()">
         <div class="nav-user-info">
           <span class="nav-user-name"></span>
@@ -191,29 +137,14 @@
            
           </div>
 
-          <div class="section-title" id="section-symptoms">Common Symptoms Treated</div>
-          <div class="symptoms-grid">
-            <div class="symptom-item">
-              <div class="symptom-icon"><img src="../images/icons/vet-symptom-1.svg" alt=""/></div>
-              Acute Trauma
-            </div>
-            <div class="symptom-item">
-              <div class="symptom-icon"><img src="../images/icons/vet-symptom-3.svg" alt=""/></div>
-              Joint Issues
-            </div>
-            <div class="symptom-item">
-              <div class="symptom-icon"><img src="../images/icons/vet-symptom-2.svg" alt=""/></div>
-              Post-Op Care
-            </div>
-            <div class="symptom-item">
-              <div class="symptom-icon"><img src="../images/icons/vet-symptom-4.svg" alt=""/></div>
-              Internal Pain
-            </div>
+          <div id="commonCasesSection">
+            <div class="section-title" id="section-symptoms">Common Cases Handled</div>
+            <div class="symptoms-grid" id="symptomsGrid"></div>
           </div>
 
           <div class="feedback-header">
             <div class="section-title" id="section-feedback" style="margin-bottom:0;">Patient Feedback</div>
-            <a href="#" class="see-all">See All</a>
+            <a href="#" class="see-all" id="btnSeeAllReviews">See All</a>
           </div>
           <div class="feedback-card">
             <div class="feedback-user">
@@ -232,6 +163,17 @@
             </div>
             <div class="feedback-text" id="comment">"Dr. Clara was amazing with Buster's leg surgery. Extremely professional and communicative throughout the process."</div>
           </div>
+        </div>
+      </div>
+
+      <!-- All Reviews Modal -->
+      <div class="reviews-modal-overlay" id="reviewsModalOverlay">
+        <div class="reviews-modal">
+          <div class="reviews-modal-header">
+            <div class="section-title" style="margin-bottom:0;">All Reviews</div>
+            <button type="button" class="reviews-modal-close" id="btnCloseReviews" aria-label="Close">&times;</button>
+          </div>
+          <div class="reviews-modal-list" id="reviewsModalList"></div>
         </div>
       </div>
 
@@ -403,7 +345,7 @@
             <label class="form-label">Pet Type *</label>
             <div class="select-wrap">
               <select class="form-select" id="petType">
-                <option>Dog</option><option>Cat</option><option>Bird</option><option>Other</option>
+                <option>Dog</option><option>Cat</option><option>Other</option>
               </select>
               <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
@@ -426,8 +368,9 @@
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Last Vaccination Date *</label>
+            <label class="form-label">Last Vaccination Date</label>
             <input type="date" class="form-input" id="petVaccDate"/>
+            <span class="field-hint">Optional — leave blank if unknown</span>
           </div>
         </div>
         <div class="step-nav">
@@ -472,7 +415,7 @@
               <button class="slot-btn" data-slot="10:00 AM">10:00 AM</button>
               <button class="slot-btn" data-slot="11:00 AM">11:00 AM</button>
               <button class="slot-btn" data-slot="1:00 PM">1:00 PM</button>
-              <button class="slot-btn selected" data-slot="2:00 PM">2:00 PM</button>
+              <button class="slot-btn" data-slot="2:00 PM">2:00 PM</button>
               <button class="slot-btn" data-slot="3:00 PM">3:00 PM</button>
               <button class="slot-btn" data-slot="4:00 PM">4:00 PM</button>
             </div>
@@ -575,18 +518,7 @@
         <p>Review past visits, medical summaries, and help us improve with your feedback.</p>
       </div>
       <div class="hist-hero-art">
-        <svg class="hist-hero-img" viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <rect x="8" y="18" width="94" height="80" rx="10" stroke="rgba(255,255,255,0.18)" stroke-width="3"/>
-          <rect x="8" y="18" width="94" height="24" rx="10" fill="rgba(255,255,255,0.10)"/>
-          <line x1="8" y1="42" x2="102" y2="42" stroke="rgba(255,255,255,0.18)" stroke-width="2"/>
-          <rect x="22" y="54" width="28" height="6" rx="3" fill="rgba(255,255,255,0.25)"/>
-          <rect x="22" y="66" width="40" height="6" rx="3" fill="rgba(255,255,255,0.18)"/>
-          <rect x="22" y="78" width="22" height="6" rx="3" fill="rgba(255,255,255,0.18)"/>
-          <circle cx="82" cy="72" r="14" fill="rgba(16,185,129,0.28)" stroke="rgba(16,185,129,0.6)" stroke-width="2"/>
-          <polyline points="74,72 80,78 90,66" stroke="rgba(255,255,255,0.85)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <line x1="30" y1="18" x2="30" y2="10" stroke="rgba(255,255,255,0.3)" stroke-width="3" stroke-linecap="round"/>
-          <line x1="80" y1="18" x2="80" y2="10" stroke="rgba(255,255,255,0.3)" stroke-width="3" stroke-linecap="round"/>
-        </svg>
+        <img src="../images/icons/book-edit.svg" alt="" class="hist-hero-img"/>
       </div>
     </div>
   </div>
@@ -606,7 +538,7 @@
 
         <div class="empty-state" id="histEmpty">
           <div class="empty-icon-wrap">
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.35;" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <img src="../images/icons/icon-calendar.svg" alt="no records" class="empty-icon-img"/>
           </div>
           <div class="empty-title">No Records Yet</div>
           <div class="empty-desc">You haven't made any appointments yet.<br/>Book your first visit with one of our veterinarians to get started.</div>
@@ -687,7 +619,7 @@
                 <span class="status-dot"></span>Completed
               </span>
               <span class="rated-badge">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="#CA8A04" stroke="none" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <img src="../images/icons/rating.svg" alt="" class="star-xs"/>
                 4.8 Rated
               </span>
             </div>
@@ -703,7 +635,7 @@
           <div class="health-num" id="complted-visit">0</div>
           <div class="health-desc">Completed Visits</div>
           <div class="health-ontime">
-            <svg class="ontime-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <img src="../images/icons/icon-success.svg" alt="" class="ontime-icon"/>
             100% On-time
           </div>
         </div>
@@ -713,7 +645,7 @@
 
     <div class="hist-back-wrap">
       <button class="btn-back-step" id="btnHistBack">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        <img src="../images/icons/icon-left-arrow.svg" alt="" class="btn-icon-sm"/>
         Back
       </button>
     </div>
@@ -797,6 +729,6 @@
   <script src="../js/nav.js"></script>
   <script src="../js/api.js"></script>
   <script src="../js/book-appointment.js"></script>
-     <script src="../js/landing.js"></script>
+  <script src="../js/site-settings.js"></script>
 </body>
 </html>

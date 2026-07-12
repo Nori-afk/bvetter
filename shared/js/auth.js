@@ -4,9 +4,9 @@
  * Single source of truth for authentication + role routing.
  *
  * ROLES
- *   'vet'   → /vet/html/index.html
+ *   'vet'   → /bvetter/vet/html/index.html
  *   'admin' → /admin/pages/index.html
- *   'owner' → /public/pages/landing.html
+ *   'owner' → /bvetter/public/pages/landing.html
  *
  * [BACKEND] markers = replace with real fetch() calls later.
  * ─────────────────────────────────────────────────────────────
@@ -24,6 +24,8 @@ const ROLE_ROUTES = {
 };
 
 const LOGIN_PAGE = '/bvetter/public/pages/login.html';
+const SESSION_API = '/bvetter/api/auth/session.php';
+const SESSION_CHECK_INTERVAL_MS = 30000;
 
 /* ── Session helpers ────────────────────────────────────────── */
 function getSession() {
@@ -40,6 +42,54 @@ function setSession(session) {
 
 function clearSession() {
     sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem('bvetter_token');
+    sessionStorage.removeItem('bvetter_user');
+}
+
+/**
+ * Asks the server whether this device's session is still valid.
+ * Called on every protected page load and polled while the page stays
+ * open, so an admin ending a session from Manage Security actually logs
+ * the other device out — not just a local-storage flag.
+ */
+async function verifySessionWithServer() {
+    const token = sessionStorage.getItem('bvetter_token');
+    if (!token) return;
+
+    try {
+        const body = new FormData();
+        body.append('action', 'check');
+        const res = await fetch(SESSION_API, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body
+        });
+        const data = await res.json();
+        if (!data.valid) {
+            clearSession();
+            window.location.replace(LOGIN_PAGE);
+        }
+    } catch {
+        // Network hiccup — don't force a logout over a dropped request.
+    }
+}
+
+let sessionPollingStarted = false;
+function startSessionPolling() {
+    if (sessionPollingStarted) return;
+    sessionPollingStarted = true;
+    verifySessionWithServer();
+    setInterval(verifySessionWithServer, SESSION_CHECK_INTERVAL_MS);
+
+    // Background tabs get their setInterval throttled by the browser (can
+    // stretch well past 30s), so a revoked session might not visibly log
+    // the tab out until the timer eventually fires. Re-check immediately
+    // whenever the tab regains focus/visibility so switching back to it
+    // reflects the current state right away instead of needing a refresh.
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') verifySessionWithServer();
+    });
+    window.addEventListener('focus', verifySessionWithServer);
 }
 
 /* ── Public API ─────────────────────────────────────────────── */
@@ -50,9 +100,22 @@ function getCurrentUser() {
 }
 
 /** Logs out and redirects to login */
-function logout() {
+async function logout() {
+    const token = sessionStorage.getItem('bvetter_token');
+    if (token) {
+        try {
+            const body = new FormData();
+            body.append('action', 'logout');
+            await fetch(SESSION_API, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token },
+                body
+            });
+        } catch {
+            // Best-effort — still clear locally and redirect even if this fails.
+        }
+    }
     clearSession();
-    // [BACKEND] POST /api/auth/logout
     window.location.href = LOGIN_PAGE;
 }
 
@@ -72,6 +135,8 @@ function requireAuth(allowedRoles = []) {
         return;
     }
 
+    startSessionPolling();
+
     // Admin can access any protected page (except owner-only public pages)
     if (session.role === 'admin') return;
 
@@ -84,7 +149,7 @@ function requireAuth(allowedRoles = []) {
 /**
  * Login attempt.
  * [BACKEND] Replace mock with:
- *   const res = await fetch('/api/auth/login', { method:'POST', ... });
+ *   const res = await fetch('/bvetter/api/auth/login', { method:'POST', ... });
  *   const data = await res.json(); // { userId, role, name, token }
  */
 async function login(email, password) {
@@ -138,4 +203,16 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = { getCurrentUser, requireAuth, login, logout, redirectToDashboard, autoRoute, getSession };
 } else {
     window.VBetterAuth = { getCurrentUser, requireAuth, login, logout, redirectToDashboard, autoRoute, getSession };
+}
+
+/**
+ * Start enforcing session revocation the moment this script loads on any
+ * page — not only pages that remember to call requireAuth(). Several pages
+ * (e.g. public/pages/landing.html, most vet/html/*.html) never call it or
+ * have the call commented out, which meant a session an admin ended from
+ * Manage Security was only actually enforced on the couple of pages that
+ * did call it (e.g. vet/html/index.html) — everyone else stayed logged in.
+ */
+if (typeof window !== 'undefined' && getSession()) {
+    startSessionPolling();
 }
