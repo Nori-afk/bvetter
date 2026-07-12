@@ -161,24 +161,6 @@
         });
     }
 
-    function getFilteredDatasetRows(range) {
-        var rows    = (state.vaccinationDataset?.by_month) || [];
-        var now     = new Date();
-        var nowYear = now.getFullYear();
-        var nowMonth= now.getMonth() + 1; // 1-based
-        if (!rows.length) return [];
-        if (range === 'This Month')    return rows.filter(r => r.year === nowYear && r.month_no === nowMonth);
-        if (range === 'Last 3 Months') {
-            var cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 3);
-            return rows.filter(r => {
-                var d = new Date(r.year + '-' + String(r.month_no).padStart(2,'0') + '-01');
-                return d >= cutoff;
-            });
-        }
-        if (range === 'This Year') return rows.filter(r => r.year === nowYear);
-        return rows;
-    }
-
     // ── Build a live DB totals map per barangay from filtered events ─────
     // Returns { [barangay]: { dogs, cats, others, total } }
     // IMPORTANT: dogs/cats/others are ONLY set when the vet explicitly entered
@@ -499,58 +481,32 @@
         var hasDbData        = Object.keys(dbBarangayTotals).length > 0;
 
         // ── Chart 1: Vaccinated per Barangay
-        // PRIMARY:  Excel Barangay_Disease_Monthly (historical baseline)
-        // MERGED:   DB events for the selected range added on top per barangay
-        // FALLBACK: DB events only → diseaseCasesByBarangay proxy
+        // by_barangay and dbBarangayTotals both read from mass_vaccination_events
+        // (the former all-time, the latter scoped to `range`) — they are the same
+        // source at different time windows, so they must never be added together.
+        // PRIMARY:  dbBarangayTotals, scoped to the selected range
+        // FALLBACK: by_barangay all-time totals, when the range has no events yet
+        // LAST RESORT: diseaseCasesByBarangay proxy, when there is no DB data at all
         destroyChart('vaccinatedPerBarangay');
         {
             var labels = [], dogsD = [], catsD = [], otherD = [];
             var dbDogsD = [], dbCatsD = [], dbOtherD = [];
-            var hasExcel = false;
 
-            if (state.vaccinationDataset?.by_barangay?.length) {
-                hasExcel = true;
-                // Scale Excel barangay totals by the filtered period ratio
-                var allMonths  = state.vaccinationDataset.by_month || [];
-                var filtMonths = getFilteredDatasetRows(range);
-                var totalAll   = allMonths.reduce((s, r) => s + r.total_vaccinated, 0) || 1;
-                var totalFilt  = filtMonths.reduce((s, r) => s + r.total_vaccinated, 0);
-                var ratio      = totalAll > 0 ? totalFilt / totalAll : 1;
-
-                state.vaccinationDataset.by_barangay.forEach(r => {
-                    labels.push(r.barangay);
-                    dogsD.push(Math.round(r.dogs_vaccinated   * ratio));
-                    catsD.push(Math.round(r.cats_vaccinated   * ratio));
-                    otherD.push(Math.round(r.others_vaccinated * ratio));
-
-                    // Add any live DB totals for this barangay on top
-                    var db = dbBarangayTotals[r.barangay] || { dogs: 0, cats: 0, others: 0 };
-                    dbDogsD.push(db.dogs);
-                    dbCatsD.push(db.cats);
-                    dbOtherD.push(db.others);
-                });
-
-                // Also add barangays that exist ONLY in DB (new events not in Excel yet)
-                Object.keys(dbBarangayTotals).forEach(barangay => {
-                    if (!labels.includes(barangay)) {
-                        labels.push(barangay);
-                        dogsD.push(0); catsD.push(0); otherD.push(0);
-                        var db = dbBarangayTotals[barangay];
-                        dbDogsD.push(db.dogs);
-                        dbCatsD.push(db.cats);
-                        dbOtherD.push(db.others);
-                    }
-                });
-
-            } else if (hasDbData) {
-                // No Excel — DB only
+            if (hasDbData) {
                 Object.keys(dbBarangayTotals).forEach(barangay => {
                     labels.push(barangay);
                     var db = dbBarangayTotals[barangay];
-                    dogsD.push(0); catsD.push(0); otherD.push(0);
-                    dbDogsD.push(db.dogs);
-                    dbCatsD.push(db.cats);
-                    dbOtherD.push(db.others);
+                    dogsD.push(db.dogs); catsD.push(db.cats); otherD.push(db.others);
+                    dbDogsD.push(0); dbCatsD.push(0); dbOtherD.push(0);
+                });
+
+            } else if (state.vaccinationDataset?.by_barangay?.length) {
+                state.vaccinationDataset.by_barangay.forEach(r => {
+                    labels.push(r.barangay);
+                    dogsD.push(r.dogs_vaccinated);
+                    catsD.push(r.cats_vaccinated);
+                    otherD.push(r.others_vaccinated);
+                    dbDogsD.push(0); dbCatsD.push(0); dbOtherD.push(0);
                 });
 
             } else if (state.dashboardData?.diseaseCasesByBarangay) {
@@ -887,18 +843,20 @@
         }
 
         // ── Chart 4: Vaccines Needed per Barangay
-        // SOURCE: ARIMA forecast distributed across Excel barangays
+        // SOURCE: single municipal ARIMA forecast (real per-barangay history is too
+        //         sparse to fit independent models), distributed across barangays
+        //         by their real historical vaccination share.
         // ADJUSTMENT: When DB events have actual data, boost the ARIMA total by
         //             the ratio of (DB actuals / previous ARIMA forecast) so the
         //             predicted need scales with real-world uptake.
-        // FALLBACK: Excel predicted values, scaled by DB activity ratio
+        // FALLBACK: disease-case-derived predicted values, scaled by DB activity ratio
         destroyChart('vaccinesNeeded');
         {
             var tvN   = state.arimaData?.total_vaccinated || {};
             var multi = range === 'Last 3 Months' ? 3 : range === 'This Year' ? 12 : 1;
 
             // ── Build the full barangay list from ALL available sources ────────────
-            // Priority: vaccinationDataset.by_barangay (Excel, most complete) →
+            // Priority: vaccinationDataset.by_barangay (real all-time DB totals) →
             //           diseaseCasesByBarangay (dashboard Excel) →
             //           DB event barangays
             var barangayBaseMap = {}; // { barangay: { actual, predicted } }

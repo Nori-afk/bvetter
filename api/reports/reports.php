@@ -415,7 +415,7 @@ function excel_vaccination_rows()
     return array_map(function ($row) {
         return [
             'date' => bv_date_from_parts($row['year'] ?? 0, $row['month_no'] ?? 1),
-            'barangay' => 'N/A',
+            'barangay' => 'Citywide (All Barangays)',
             'dogsVaccinated' => (int) ($row['dogs_vaccinated'] ?? 0),
             'catsVaccinated' => (int) ($row['cats_vaccinated'] ?? 0),
             'totalVaccinated' => (int) ($row['total_vaccinated'] ?? 0),
@@ -428,7 +428,17 @@ function excel_vaccination_rows()
 function vaccination_rows($pdo = null)
 {
     $dbRows = $pdo ? db_vaccination_rows($pdo) : [];
-    return array_merge($dbRows, excel_vaccination_rows());
+
+    // Excel's monthly totals are a citywide rollup of the same barangay records
+    // now in the DB (verified: identical totals for overlapping months). Keep
+    // Excel only for months with no real DB coverage yet, to avoid double-counting.
+    $dbMonths = array_unique(array_map(fn($r) => substr($r['date'], 0, 7), $dbRows));
+    $excelRows = array_values(array_filter(
+        excel_vaccination_rows(),
+        fn($r) => !in_array(substr($r['date'], 0, 7), $dbMonths, true)
+    ));
+
+    return array_merge($dbRows, $excelRows);
 }
 
 function lost_found_rows($pdo)

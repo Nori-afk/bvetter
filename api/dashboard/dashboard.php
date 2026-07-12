@@ -866,7 +866,7 @@ function admin_dashboard($pdo)
     ];
 }
 
-function mass_vaccination_dataset_data()
+function mass_vaccination_dataset_data($pdo)
 {
     $rabiesRows = bv_sheet_rows('Combined_Rabies_3Years');
     $latestYear = bv_latest_dataset_year();
@@ -890,22 +890,67 @@ function mass_vaccination_dataset_data()
         $byMonth[$key]['clients_served']   += (int) ($row['clients_served']   ?? 0);
     }
 
-    ksort($byMonth);
-    $byMonth = array_values($byMonth);
+    $barangayVacc = [];
+    $dbMonthly    = [];
+    try {
+        $rows = $pdo->query("
+            SELECT barangay,
+                   SUM(dogs_count) AS dogs_vaccinated,
+                   SUM(cats_count) AS cats_vaccinated,
+                   SUM(others_count) AS others_vaccinated,
+                   SUM(COALESCE(total_vaccinated, dogs_count + cats_count + others_count)) AS total_vaccinated
+            FROM mass_vaccination_events
+            WHERE status = 'Completed'
+            GROUP BY barangay
+            ORDER BY total_vaccinated DESC
+        ")->fetchAll();
+        foreach ($rows as $row) {
+            $barangayVacc[] = [
+                'barangay'          => $row['barangay'],
+                'dogs_vaccinated'   => (int) $row['dogs_vaccinated'],
+                'cats_vaccinated'   => (int) $row['cats_vaccinated'],
+                'others_vaccinated' => (int) $row['others_vaccinated'],
+                'total_vaccinated'  => (int) $row['total_vaccinated'],
+            ];
+        }
 
-    $barangayRows   = bv_sheet_rows('Barangay_Disease_Monthly');
-    $latestBarangay = array_values(array_filter($barangayRows, fn($r) => (int) ($r['year'] ?? 0) === $latestYear));
-    $barangayCounts = bv_sum_by($latestBarangay, 'barangay', 'total_cases');
-    $barangayVacc   = [];
-    foreach ($barangayCounts as $barangay => $cases) {
-        $barangayVacc[] = [
-            'barangay'          => $barangay,
-            'dogs_vaccinated'   => (int) round($cases * 0.35),
-            'cats_vaccinated'   => (int) round($cases * 0.20),
-            'others_vaccinated' => (int) round($cases * 0.05),
-            'total_vaccinated'  => (int) round($cases * 0.60),
+        // Excel's monthly totals are a citywide rollup of the same barangay
+        // records now in the DB (verified: identical totals for overlapping
+        // months). Replace Excel's row with the real DB sum for any month
+        // that has DB coverage, instead of double-counting both.
+        $monthlyRows = $pdo->query("
+            SELECT DATE_FORMAT(event_date, '%Y-%m') AS ym,
+                   SUM(dogs_count) AS dogs_vaccinated,
+                   SUM(cats_count) AS cats_vaccinated,
+                   SUM(COALESCE(total_vaccinated, dogs_count + cats_count + others_count)) AS total_vaccinated
+            FROM mass_vaccination_events
+            WHERE status = 'Completed'
+            GROUP BY ym
+        ")->fetchAll();
+        foreach ($monthlyRows as $row) {
+            $dbMonthly[$row['ym']] = $row;
+        }
+    } catch (Throwable $e) {
+        $barangayVacc = [];
+        $dbMonthly    = [];
+    }
+
+    foreach ($dbMonthly as $ym => $sums) {
+        [$year, $monthNo] = array_map('intval', explode('-', $ym));
+        $byMonth[$ym] = [
+            'year' => $year, 'month_no' => $monthNo,
+            'month' => $byMonth[$ym]['month'] ?? date('F', mktime(0, 0, 0, $monthNo, 1)),
+            'period' => $ym,
+            'dogs_vaccinated'  => (int) $sums['dogs_vaccinated'],
+            'cats_vaccinated'  => (int) $sums['cats_vaccinated'],
+            'total_vaccinated' => (int) $sums['total_vaccinated'],
+            'clients_served'   => (int) $sums['total_vaccinated'],
+            'source_basis'     => 'mass_vaccination_events (live records)',
         ];
     }
+
+    ksort($byMonth);
+    $byMonth = array_values($byMonth);
 
     $latestYearRows = array_values(array_filter($byMonth, fn($r) => $r['year'] === $latestYear));
     return [
@@ -960,7 +1005,7 @@ if ($scope === 'disease_risk_prediction' || $scope === 'disease-risk-prediction'
 }
 
 if ($scope === 'mass_vaccination_dataset') {
-    bv_json_response(200, ['success' => true, 'data' => mass_vaccination_dataset_data()]);
+    bv_json_response(200, ['success' => true, 'data' => mass_vaccination_dataset_data($pdo)]);
 }
 
 if ($scope === 'vaccination_forecast' || $scope === 'vaccination-forecast') {
