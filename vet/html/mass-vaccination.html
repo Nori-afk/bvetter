@@ -116,7 +116,7 @@
                                 <option>This Year</option>
                             </select>
                         </div>
-                        <canvas id="vaccinatedPerBarangayChart"></canvas>
+                        <div class="chart-scroll"><div class="chart-scroll-inner"><canvas id="vaccinatedPerBarangayChart"></canvas></div></div>
                     </article>
                     <article class="card chart-card">
                         <div class="card-head">
@@ -137,7 +137,7 @@
                         <div class="card-head">
                             <h3>Number of Vaccines Needed per Barangay</h3>
                         </div>
-                        <canvas id="vaccinesNeededChart"></canvas>
+                        <div class="chart-scroll"><div class="chart-scroll-inner"><canvas id="vaccinesNeededChart"></canvas></div></div>
                     </article>
                 </section>
 
@@ -166,7 +166,8 @@
             <!-- Event detail panel -->
             <section id="mass-vacc-detail" class="panel" aria-label="Mass Vaccination Event Detail">
                 <button id="back-to-dashboard" class="back-link" type="button">
-                    ← Back to Mass Vaccination
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    Back to Mass Vaccination
                 </button>
 
                 <header class="detail-header">
@@ -265,38 +266,119 @@
         aria-labelledby="create-event-heading">
         <div class="modal-card">
             <button id="close-create-event" class="modal-close" type="button" aria-label="Close modal">×</button>
-            <h2 id="create-event-heading">Create Mass Vaccination Event</h2>
-            <form id="create-event-form">
+            <div class="modal-header-block">
+                <div class="modal-header-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/>
+                        <line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                        <line x1="12" y1="14" x2="12" y2="18"/>
+                        <line x1="10" y1="16" x2="14" y2="16"/>
+                    </svg>
+                </div>
+                <div>
+                    <h2 id="create-event-heading">Create Mass Vaccination Event</h2>
+                    <p class="modal-subtitle">Schedule a new community vaccination drive</p>
+                </div>
+            </div>
+            <form id="create-event-form" novalidate>
                 <div class="field">
                     <label class="field-label" for="event-date">DATE *</label>
                     <input class="form-input" id="event-date" name="date" type="date" required>
+                    <span class="field-error" id="date-error"></span>
                 </div>
 
                 <div class="field">
                     <label class="field-label" for="event-barangay">BARANGAY *</label>
-                    <select class="form-input" id="event-barangay" name="barangay" required>
+                    <div class="custom-select" id="barangay-select-wrap">
+                        <button type="button" class="form-input custom-select-trigger" id="barangay-trigger" aria-haspopup="listbox" aria-expanded="false">
+                            <span class="custom-select-value placeholder">Select Barangay…</span>
+                            <svg class="custom-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="custom-select-panel" id="barangay-panel" role="listbox" hidden></div>
+                    </div>
+                    <select class="visually-hidden-select" id="event-barangay" name="barangay">
                         <option value="">Select Barangay…</option>
                     </select>
+                    <span class="field-error" id="barangay-error"></span>
                 </div>
 
                 <div class="field">
                     <label class="field-label" for="event-vaccine">VACCINE TYPE *</label>
-                    <select class="form-input" id="event-vaccine" name="vaccine" required>
-                        <option value="">Select Vaccine…</option>
+                    <div class="custom-select" id="vaccine-select-wrap">
+                        <button type="button" class="form-input custom-select-trigger" id="vaccine-trigger" aria-haspopup="listbox" aria-expanded="false">
+                            <span class="custom-select-value">Anti-Rabies</span>
+                            <svg class="custom-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="custom-select-panel" id="vaccine-panel" role="listbox" hidden></div>
+                    </div>
+                    <select class="visually-hidden-select" id="event-vaccine" name="vaccine">
                         <option>Anti-Rabies</option>
                         <option>5-in-1</option>
                         <option>Others</option>
                     </select>
                 </div>
 
+                <div class="field" id="other-vaccine-field" hidden>
+                    <label class="field-label" for="event-vaccine-other">SPECIFY VACCINE *</label>
+                    <input class="form-input" id="event-vaccine-other" name="vaccine_other" type="text" placeholder="e.g. Bordetella, Distemper">
+                    <span class="field-error" id="vaccine-other-error"></span>
+                </div>
+
                 <div class="modal-actions">
-                    <button id="cancel-create-event" type="button" class="btn btn-outline">Cancel</button>
-                    <button type="submit" class="btn btn-success">Create Event</button>
+                    <button id="cancel-create-event" type="button" class="btn btn-outline">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        Create Event
+                    </button>
                 </div>
             </form>
         </div>
     </div>
-    
+
+    <!-- Event created — summary modal -->
+    <div id="event-created-modal" class="modal hidden" role="dialog" aria-modal="true"
+        aria-labelledby="event-created-heading">
+        <div class="modal-card summary-card">
+            <button id="close-event-created" class="modal-close" type="button" aria-label="Close modal">×</button>
+            <div class="summary-check">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h2 id="event-created-heading">Event Created!</h2>
+            <p class="summary-sub">Your mass vaccination event has been scheduled successfully.</p>
+            <div class="summary-details">
+                <div class="summary-row">
+                    <span class="summary-label">Event ID</span>
+                    <span class="summary-value" id="summary-id">—</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Date</span>
+                    <span class="summary-value" id="summary-date">—</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Barangay</span>
+                    <span class="summary-value" id="summary-barangay">—</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Vaccine</span>
+                    <span class="summary-value" id="summary-vaccine">—</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Status</span>
+                    <span class="summary-value summary-status" id="summary-status">—</span>
+                </div>
+            </div>
+            <button id="summary-done-btn" type="button" class="btn btn-success summary-done-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Done
+            </button>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/final-VBETTER/bvetter/shared/js/sidebar.js"></script>
     <script src="/final-VBETTER/bvetter/vet/js/mass-vaccination.js"></script>

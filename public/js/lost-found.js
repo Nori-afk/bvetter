@@ -9,7 +9,7 @@ let currentReportId = null;
 let currentClaimReportId = null;
 
 const FALLBACK_IMAGE = '../images/img/upload-pet.png';
-const PET_TYPES = ['Dog', 'Cat', 'Other'];
+const PET_TYPES = ['Dog', 'Cat'];
 const DEFAULT_COORDS = [14.9577, 120.9055];
 let barangays = [];
 let reportMap = null;

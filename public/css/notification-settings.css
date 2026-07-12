@@ -424,6 +424,390 @@ body {
 }
 
 /* =============================================
+   QUIET HOURS MODAL
+   ============================================= */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.modal-overlay.open {
+  display: flex;
+}
+
+.modal-box {
+  background: #fff;
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  max-width: 380px;
+  width: 100%;
+  box-shadow: var(--shadow-modal);
+  animation: qhModalPop 0.2s ease-out;
+}
+
+.qh-modal-box {
+  max-width: 480px;
+}
+
+@keyframes qhModalPop {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.modal-box-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.modal-box-head h3 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  font-family: 'Manrope', sans-serif;
+  color: #111827;
+}
+
+.modal-box-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 20px;
+  line-height: 1;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.modal-box-close:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.modal-box-desc {
+  font-size: 13px;
+  font-weight: 400;
+  color: #6b7280;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+/* ── Quiet-hours night panel ─────────────────── */
+.qh-night-card {
+  position: relative;
+  background: var(--color-navy);
+  border-radius: var(--radius-lg);
+  padding: 20px 20px 18px;
+  margin-bottom: 24px;
+}
+
+.qh-night-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.qh-night-head-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: 'Manrope', sans-serif;
+}
+
+.qh-night-duration {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  font-family: 'Manrope', sans-serif;
+  background: rgba(255, 255, 255, 0.12);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+}
+
+/* ── Time range row ───────────────────────────── */
+.qh-range-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.qh-time-group {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.qh-time-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.qh-time-inputs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  height: 44px;
+  padding: 0 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.qh-time-inputs:focus-within {
+  border-color: var(--color-green);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Visually hidden but still focusable/readable — the real value
+   source of truth; the visible control is the custom dropdown below. */
+.visually-hidden-select {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.qh-num-select {
+  position: relative;
+}
+
+.qh-num-trigger {
+  border: none;
+  background: transparent;
+  font-size: 19px;
+  font-weight: 700;
+  font-family: 'Manrope', sans-serif;
+  color: #fff;
+  letter-spacing: -0.02em;
+  padding: 4px 6px;
+  cursor: pointer;
+  outline: none;
+  text-align: center;
+  width: 40px;
+  border-radius: 6px;
+  transition: background 120ms ease;
+}
+
+.qh-num-trigger:hover,
+.qh-num-select.open .qh-num-trigger {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.qh-num-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: 64px;
+  max-height: 190px;
+  overflow-y: auto;
+  background: #001B3D;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+  padding: 6px;
+  display: none;
+  gap: 2px;
+}
+
+.qh-num-select.open .qh-num-panel {
+  display: grid;
+}
+
+.qh-num-option {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 8px 6px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.qh-num-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.qh-num-option.selected {
+  background: var(--color-green);
+  color: #fff;
+  font-weight: 700;
+}
+
+.qh-colon {
+  font-size: 19px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.qh-ampm-toggle {
+  display: flex;
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.qh-ampm-btn {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'Manrope', sans-serif;
+  letter-spacing: 0.3px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.qh-ampm-btn.active {
+  background: var(--color-green);
+  color: #fff;
+}
+
+.qh-range-arrow {
+  flex-shrink: 0;
+  height: 44px;
+  margin-top: 24px;
+  color: rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Coverage timeline ────────────────────────── */
+.qh-track {
+  position: relative;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.qh-track-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--color-green);
+  border-radius: inherit;
+}
+
+.qh-track-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'Manrope', sans-serif;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.btn-save,
+.qh-save-btn {
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: none;
+  background: var(--color-green);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: 'Manrope', sans-serif;
+  color: #fff;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.btn-save:hover,
+.qh-save-btn:hover {
+  background: var(--color-green-dark);
+}
+
+.btn-save:active,
+.qh-save-btn:active {
+  transform: scale(0.98);
+}
+
+/* ── Toast ─────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  background: var(--text-primary);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  transform: translateY(80px);
+  opacity: 0;
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.toast.success {
+  background: var(--color-green-dark);
+}
+
+.toast.error {
+  background: var(--color-red);
+}
+
+/* =============================================
    RESPONSIVE — see public/css/variables.css for
    the shared breakpoint scale used across all pages.
    ============================================= */
@@ -446,6 +830,8 @@ body {
 
 /* ── Mobile: up to 480px ─────────────────────── */
 @media (max-width: 480px) {
+  .toast { left: 16px; right: 16px; bottom: 16px; }
+
   .page-body { padding: 20px 16px 40px; }
 
   .page-title { font-size: 22px; }

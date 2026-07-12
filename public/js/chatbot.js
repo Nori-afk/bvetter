@@ -1073,16 +1073,48 @@ function closeChat() {
         [
           { label: 'Dog', icon: 'chatbot-dogs.png' },
           { label: 'Cat', icon: 'chatbot-cats.png' },
-          { label: 'Other', icon: 'chatbot-others.png' }
+          { label: 'Other', icon: 'chatbot-others.png', sublabel: 'Livestock (cow, goat, pig, etc.)' }
         ].forEach(function (p) {
-          addOptionBtn(cOpts, p.icon, p.label, '', function () {
+          addOptionBtn(cOpts, p.icon, p.label, p.sublabel || '', function () {
             cState.petType = p.label;
             addUserBubble(cMsgs, p.label);
             clearOptions(cOpts);
-            askAgeGroup();
+            if (p.label === 'Other') {
+              showLivestockAppointmentPrompt();
+            } else {
+              askAgeGroup();
+            }
           });
         });
       });
+  }
+
+  /* ── "Other" (livestock) short-circuit: livestock cases need an in-person
+     clinic visit, not an online symptom check, so skip straight to booking. ── */
+  function showLivestockAppointmentPrompt() {
+    addBotBubble(
+      cMsgs,
+      'For livestock and other farm animals, our vet team needs to examine them in person — ' +
+      'we’re not able to give a reliable assessment through online consultation for these cases.\n\n' +
+      'Please book an appointment so a veterinarian can see your animal directly at the clinic.',
+      600
+    ).then(function () {
+      clearOptions(cOpts);
+      showOptionLabel(cOpts, 'What would you like to do?');
+
+      addOptionBtn(cOpts, 'chatbot-appointment.png', 'Book an Appointment', 'Schedule a clinic visit',
+        function () {
+          window.location.href = 'book-appointment.html';
+        }
+      );
+
+      addOptionBtn(cOpts, 'chatbot-ask-again.png', 'Check Again', 'Restart symptom checker',
+        function () {
+          consultDone = false;
+          startConsultation();
+        }
+      );
+    });
   }
 
   function askAgeGroup() {

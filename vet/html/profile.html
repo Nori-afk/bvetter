@@ -110,27 +110,14 @@
             <article class="kpi-card">
                 <div class="kpi-icon kpi-icon--green">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                        <polyline points="22 4 12 14.01 9 11.01"/>
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
                     </svg>
                 </div>
                 <div class="kpi-body">
-                    <p class="kpi-label">Surgeries Performed</p>
-                    <strong class="kpi-val" id="stat-surgeries">0</strong>
+                    <p class="kpi-label">Total Patients</p>
+                    <strong class="kpi-val" id="stat-total-patients">0</strong>
                     <span class="kpi-note">All-time records</span>
-                </div>
-            </article>
-            <article class="kpi-card">
-                <div class="kpi-icon kpi-icon--blue">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                    </svg>
-                </div>
-                <div class="kpi-body">
-                    <p class="kpi-label">Avg. Treatment Time</p>
-                    <strong class="kpi-val" id="stat-treatment-time">45m</strong>
-                    <span class="kpi-note">Profile metric</span>
                 </div>
             </article>
             <article class="kpi-card">
@@ -278,11 +265,11 @@
                             </svg>
                         </div>
                         <div>
-                            <p class="sec-title">Two-Factor Authentication</p>
+                            <p class="sec-title">Two-Factor Authentication <span class="twofa-badge disabled" id="twofaBadge">DISABLED</span></p>
                             <p class="sec-desc">Add an extra layer of security to your account</p>
                         </div>
                     </div>
-                    <button class="btn-outline">
+                    <button class="btn-outline" id="btnManage2FA">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                         </svg>

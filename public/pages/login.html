@@ -73,7 +73,22 @@
       </div>
     </div>
   </div>
- 
+
+  <!-- ══ NOTICE MODAL — replaces browser alert() ══ -->
+  <div class="modal-overlay" id="noticeModal" onclick="closeModalOutside(event,'noticeModal')">
+    <div class="modal-box narrow notice-box" role="alertdialog" aria-modal="true" aria-labelledby="noticeMessage">
+      <div class="notice-icon" id="noticeIcon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="9" stroke="#0FA82E" stroke-width="1.8"/>
+          <rect x="11.1" y="6.5" width="1.8" height="7" rx="0.9" fill="#0FA82E"/>
+          <rect x="11.1" y="15.5" width="1.8" height="1.8" rx="0.9" fill="#0FA82E"/>
+        </svg>
+      </div>
+      <p class="notice-message" id="noticeMessage"></p>
+      <button class="notice-ok-btn" onclick="closeModal('noticeModal')">Got it</button>
+    </div>
+  </div>
+
   <!-- ══ SCRIPTS — unauthenticated page ══ -->
 <script src="../../shared/js/auth.js"></script>  <!-- ← ADD THIS -->
 <script src="../js/api.js"></script>

@@ -400,11 +400,11 @@
         const tableBody = document.getElementById('event-table-body');
         tableBody.innerHTML = state.events.map(e => `
             <tr data-event-id="${sanitize(e.id)}">
-                <td>${sanitize(e.dateLabel)}</td>
-                <td>${sanitize(e.barangay)}</td>
-                <td>${sanitize(e.vaccine)}</td>
-                <td>${formatNumber(e.totalVaccinated)}</td>
-                <td><span class="status-pill ${statusClass(e.status)}">${sanitize(e.status)}</span></td>
+                <td data-label="Date">${sanitize(e.dateLabel)}</td>
+                <td data-label="Barangay">${sanitize(e.barangay)}</td>
+                <td data-label="Vaccine">${sanitize(e.vaccine)}</td>
+                <td data-label="Total Vaccinated">${formatNumber(e.totalVaccinated)}</td>
+                <td data-label="Status"><span class="status-pill ${statusClass(e.status)}">${sanitize(e.status)}</span></td>
             </tr>
         `).join('');
     };
@@ -1081,8 +1081,10 @@
         setProgress(document.getElementById('highest-progress'), e.comparison.highest, e.comparison.highest);
 
         const delta = Math.round(((e.comparison.event - e.comparison.average) / e.comparison.average) * 100);
-        document.getElementById('comparison-note').textContent =
+        const noteEl = document.getElementById('comparison-note');
+        noteEl.textContent =
             `${delta >= 0 ? '↑' : '↓'} ${Math.abs(delta)}% ${delta >= 0 ? 'above' : 'below'} barangay average - ${delta >= 0 ? 'good turnout' : 'needs follow up'}!`;
+        noteEl.className = delta >= 0 ? 'success-note' : 'warning-note';
 
         document.getElementById('post-event-form').dataset.activeEventId = e.id;
         setPanel('detail');
@@ -1142,10 +1144,117 @@
         alert('Vaccination report saved.');
     });
 
-    const openModal  = () => document.getElementById('create-event-modal').classList.remove('hidden');
+    const dateInput        = document.getElementById('event-date');
+    const dateError         = document.getElementById('date-error');
+    const barangaySelect    = document.getElementById('event-barangay');
+    const barangayTrigger   = document.getElementById('barangay-trigger');
+    const barangayError     = document.getElementById('barangay-error');
+    const vaccineSelect     = document.getElementById('event-vaccine');
+    const otherVaccineField = document.getElementById('other-vaccine-field');
+    const otherVaccineInput = document.getElementById('event-vaccine-other');
+    const otherVaccineError = document.getElementById('vaccine-other-error');
+
+    function todayIso() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function setFieldError(input, errorEl, message) {
+        input.classList.toggle('invalid', Boolean(message));
+        if (errorEl) {
+            errorEl.textContent = message || '';
+            errorEl.classList.toggle('visible', Boolean(message));
+        }
+    }
+
+    // ── Custom dropdown: mirrors a native <select> visually so the
+    // options panel always opens downward with controlled padding,
+    // instead of relying on the browser's native (sometimes upward) list. ──
+    function enhanceSelect(select, wrapId, triggerId, panelId) {
+        const wrap    = document.getElementById(wrapId);
+        const trigger = document.getElementById(triggerId);
+        const panel   = document.getElementById(panelId);
+        const valueEl = trigger?.querySelector('.custom-select-value');
+        if (!select || !wrap || !trigger || !panel || !valueEl) return null;
+
+        function syncLabel() {
+            const opt = select.options[select.selectedIndex];
+            valueEl.textContent = opt ? opt.textContent : '';
+            valueEl.classList.toggle('placeholder', !select.value);
+        }
+
+        function buildPanel() {
+            panel.innerHTML = '';
+            Array.from(select.options).forEach((opt) => {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'custom-select-option' + (opt.value === select.value ? ' selected' : '');
+                item.setAttribute('role', 'option');
+                item.textContent = opt.textContent;
+                item.addEventListener('click', () => {
+                    select.value = opt.value;
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    syncLabel();
+                    closePanel();
+                });
+                panel.appendChild(item);
+            });
+        }
+
+        function openPanel() {
+            buildPanel();
+            panel.hidden = false;
+            wrap.classList.add('open');
+            trigger.setAttribute('aria-expanded', 'true');
+        }
+
+        function closePanel() {
+            panel.hidden = true;
+            wrap.classList.remove('open');
+            trigger.setAttribute('aria-expanded', 'false');
+        }
+
+        trigger.addEventListener('click', (event) => {
+            event.stopPropagation();
+            if (panel.hidden) openPanel(); else closePanel();
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!wrap.contains(event.target)) closePanel();
+        });
+
+        select.addEventListener('change', syncLabel);
+        syncLabel();
+
+        return { syncLabel, closePanel };
+    }
+
+    const barangaySelectUI = enhanceSelect(barangaySelect, 'barangay-select-wrap', 'barangay-trigger', 'barangay-panel');
+    const vaccineSelectUI  = enhanceSelect(vaccineSelect, 'vaccine-select-wrap', 'vaccine-trigger', 'vaccine-panel');
+
+    function toggleOtherVaccineField() {
+        const isOthers = vaccineSelect.value === 'Others';
+        otherVaccineField.hidden = !isOthers;
+        otherVaccineInput.required = isOthers;
+        if (!isOthers) setFieldError(otherVaccineInput, otherVaccineError, '');
+    }
+
+    vaccineSelect.addEventListener('change', toggleOtherVaccineField);
+
+    const openModal  = () => {
+        dateInput.min = todayIso();
+        toggleOtherVaccineField();
+        document.getElementById('create-event-modal').classList.remove('hidden');
+    };
     const closeModal = () => {
         document.getElementById('create-event-modal').classList.add('hidden');
         document.getElementById('create-event-form').reset();
+        setFieldError(dateInput, dateError, '');
+        setFieldError(barangayTrigger, barangayError, '');
+        setFieldError(otherVaccineInput, otherVaccineError, '');
+        barangaySelectUI?.syncLabel();
+        vaccineSelectUI?.syncLabel();
+        toggleOtherVaccineField();
     };
 
     document.getElementById('open-create-event').addEventListener('click', openModal);
@@ -1155,9 +1264,68 @@
         if (e.target === document.getElementById('create-event-modal')) closeModal();
     });
 
+    const summaryModal = document.getElementById('event-created-modal');
+    const closeSummaryModal = () => summaryModal.classList.add('hidden');
+    document.getElementById('close-event-created').addEventListener('click', closeSummaryModal);
+    document.getElementById('summary-done-btn').addEventListener('click', closeSummaryModal);
+    summaryModal.addEventListener('click', e => {
+        if (e.target === summaryModal) closeSummaryModal();
+    });
+
+    function showEventSummary(event) {
+        document.getElementById('summary-id').textContent       = event.id || '—';
+        document.getElementById('summary-date').textContent     = event.dateLabel || event.date || '—';
+        document.getElementById('summary-barangay').textContent = event.barangay || '—';
+        document.getElementById('summary-vaccine').textContent  = event.vaccine || '—';
+        const summaryStatusEl = document.getElementById('summary-status');
+        summaryStatusEl.textContent = event.status || 'Scheduled';
+        summaryStatusEl.className   = `summary-value summary-status ${statusClass(event.status || 'Scheduled')}`;
+        summaryModal.classList.remove('hidden');
+    }
+
     document.getElementById('create-event-form').addEventListener('submit', async (ev) => {
         ev.preventDefault();
+
+        setFieldError(dateInput, dateError, '');
+        setFieldError(barangayTrigger, barangayError, '');
+        setFieldError(otherVaccineInput, otherVaccineError, '');
+
+        let hasError = false;
+
+        if (!dateInput.value) {
+            setFieldError(dateInput, dateError, 'Please select a date.');
+            hasError = true;
+        } else if (dateInput.value < todayIso()) {
+            setFieldError(dateInput, dateError, 'Date cannot be in the past.');
+            hasError = true;
+        }
+
+        if (!barangaySelect.value) {
+            setFieldError(barangayTrigger, barangayError, 'Please select a barangay.');
+            hasError = true;
+        }
+
+        const isOthers = vaccineSelect.value === 'Others';
+        if (isOthers && !otherVaccineInput.value.trim()) {
+            setFieldError(otherVaccineInput, otherVaccineError, 'Please specify the vaccine name.');
+            hasError = true;
+        }
+
+        if (hasError) return;
+
         const fd = new FormData(document.getElementById('create-event-form'));
+        const vaccineValue = isOthers ? otherVaccineInput.value.trim() : fd.get('vaccine');
+
+        const isDuplicate = state.events.some(e =>
+            e.date === dateInput.value &&
+            (e.barangay || '').trim().toLowerCase() === barangaySelect.value.trim().toLowerCase() &&
+            (e.vaccine || '').trim().toLowerCase() === vaccineValue.trim().toLowerCase()
+        );
+        if (isDuplicate) {
+            setFieldError(dateInput, dateError, 'An event for this barangay and vaccine is already scheduled on this date.');
+            return;
+        }
+
         try {
             const res = await fetch(MASS_VACC_API, {
                 method: 'POST',
@@ -1166,17 +1334,19 @@
                     action: 'create',
                     date: fd.get('date'),
                     barangay: fd.get('barangay'),
-                    vaccine: fd.get('vaccine')
+                    vaccine: vaccineValue
                 })
             });
             const result = await res.json();
             if (result.success) state.events.unshift(result.data);
-        } catch (err) { alert('Failed to create event.'); return; }
+            else { alert(result.message || 'Failed to create event.'); return; }
 
-        renderTable();
-        updateMetrics();
-        buildCharts();
-        closeModal();
+            renderTable();
+            updateMetrics();
+            buildCharts();
+            closeModal();
+            showEventSummary(result.data);
+        } catch (err) { alert('Failed to create event.'); return; }
     });
 
     document.getElementById('range-filter')?.addEventListener('change', e => buildCharts(e.target.value));

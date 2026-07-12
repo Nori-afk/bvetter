@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * VBetter dashboard.php — v3 (Disease-Specific Forecasting)
  * ─────────────────────────────────────────────────────────

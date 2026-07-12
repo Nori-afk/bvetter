@@ -6,10 +6,83 @@
 let currentStep = 1;
 
 const otpState = {
-    email: { verified: false, timer: null },
+    email: { verified: false, timer: null, verifiedValue: '' },
 };
 
 const VERIFY_API = 'http://localhost/final-VBETTER/bvetter/api/admin/verify-contact.php';
+
+/* ══════════════════════════════════════════════
+   PROOF UPLOAD PREVIEW
+══════════════════════════════════════════════ */
+
+const FILE_ICON_SVG = `
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 2H14L20 8V20C20 21.1 19.1 22 18 22H6C4.9 22 4 21.1 4 20V4C4 2.9 4.9 2 6 2Z" stroke="#00963a" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M14 2V8H20" stroke="#00963a" stroke-width="1.6" stroke-linejoin="round"/>
+    </svg>
+`;
+
+function formatFileSize(bytes) {
+    return bytes > 1024 * 1024
+        ? (bytes / (1024 * 1024)).toFixed(2) + ' MB'
+        : Math.ceil(bytes / 1024) + ' KB';
+}
+
+function updateProofPreview(file) {
+    const box      = document.getElementById('proof_upload_box');
+    const empty    = document.getElementById('proof_upload_empty');
+    const preview  = document.getElementById('proof_upload_preview');
+    const thumb    = document.getElementById('proof_preview_thumb');
+    const nameEl   = document.getElementById('proof_preview_name');
+    const sizeEl   = document.getElementById('proof_preview_size');
+    if (!box || !empty || !preview || !thumb || !nameEl || !sizeEl) return;
+
+    if (!file) {
+        box.classList.remove('has-file');
+        empty.hidden   = false;
+        preview.hidden = true;
+        thumb.innerHTML = '';
+        nameEl.textContent = '';
+        sizeEl.textContent = '';
+        return;
+    }
+
+    box.classList.add('has-file');
+    empty.hidden   = true;
+    preview.hidden = false;
+    nameEl.textContent = file.name;
+    sizeEl.textContent = formatFileSize(file.size);
+
+    if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            thumb.innerHTML = `<img src="${e.target.result}" alt="Preview"/>`;
+        };
+        reader.readAsDataURL(file);
+    } else {
+        thumb.innerHTML = FILE_ICON_SVG;
+    }
+}
+
+document.getElementById('reg_proof')?.addEventListener('change', function () {
+    updateProofPreview(this.files[0] || null);
+});
+
+document.getElementById('proof_remove_btn')?.addEventListener('click', function (event) {
+    event.stopPropagation();
+    const input = document.getElementById('reg_proof');
+    if (input) input.value = '';
+    updateProofPreview(null);
+});
+
+/* If the user edits the email after verifying it, the verification no longer
+   applies — clear it immediately so the UI never shows a stale "verified"
+   state for an address that hasn't actually been confirmed. */
+document.getElementById('reg_email')?.addEventListener('input', function () {
+    if (otpState.email.verified && otpState.email.verifiedValue !== this.value.trim()) {
+        resetEmailVerification();
+    }
+});
 
 /* ══════════════════════════════════════════════
    STEP NAVIGATION
@@ -18,10 +91,20 @@ const VERIFY_API = 'http://localhost/final-VBETTER/bvetter/api/admin/verify-cont
 function goTo(step) {
     if (currentStep === 1 && step === 2) {
         if (!validateStep1()) return;
-        if (!otpState.email.verified) {
+
+        const currentEmail = document.getElementById('reg_email')?.value.trim();
+        // Verification is tied to the exact email that was OTP-confirmed. If the
+        // user goes back and edits the email after verifying, the old "verified"
+        // flag no longer applies to this (different) address — require OTP again.
+        if (!otpState.email.verified || otpState.email.verifiedValue !== currentEmail) {
+            resetEmailVerification();
             startOtpFlow();
             return;
         }
+    }
+
+    if (currentStep === 2 && step === 3) {
+        if (!validateStep2()) return;
     }
 
     document.getElementById('step-' + currentStep).classList.remove('active');
@@ -30,6 +113,30 @@ function goTo(step) {
 
     if (step === 3) reviewStep();
     updateStepper(step);
+}
+
+/* ── Reset OTP verification state (email changed since last verify) ── */
+function resetEmailVerification() {
+    otpState.email.verified = false;
+    otpState.email.verifiedValue = '';
+    document.getElementById('email-verified-badge')?.setAttribute('hidden', '');
+}
+
+/* ── Validate Step 2 (proof of residency) before advancing to review ── */
+function validateStep2() {
+    const proofInput = document.getElementById('reg_proof');
+    if (!proofInput?.files.length) {
+        showStepError('Please upload your proof of residency.', 2);
+        return false;
+    }
+    clearStepError(2);
+    return true;
+}
+
+/* ── PH mobile number check: 09XXXXXXXXX / +639XXXXXXXXX / 639XXXXXXXXX ── */
+function isValidPHPhone(value) {
+    const cleaned = value.trim().replace(/[\s-]/g, '');
+    return /^(?:\+63|63|0)9\d{9}$/.test(cleaned);
 }
 
 /* ── Validate Step 1 fields before OTP ── */
@@ -51,6 +158,10 @@ function validateStep1() {
     }
     if (pw1 !== pw2) { showStepError('Passwords do not match.'); return false; }
     if (!phone) { showStepError('Please enter your phone number.'); return false; }
+    if (!isValidPHPhone(phone)) {
+        showStepError('Please enter a valid Philippine mobile number (e.g. 09171234567).');
+        return false;
+    }
     if (!barangay) { showStepError('Please select your barangay.'); return false; }
     if (!terms) { showStepError('Please agree to the Terms of Service.'); return false; }
 
@@ -157,8 +268,10 @@ async function verifyOtp(type) {
             return;
         }
 
-        // Mark verified
+        // Mark verified — record the exact value that was confirmed, so a later
+        // edit to this field can be detected and re-verification required.
         otpState[type].verified = true;
+        otpState[type].verifiedValue = value;
         clearInterval(otpState[type].timer);
 
         // Close modal
@@ -284,14 +397,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadBarangays();
     updateStepper(1);
-    wireProofPreview();
 
     const terms = document.getElementById('reg_terms');
     if (terms) terms.checked = false;
 
     // Reset verified state and badges on load
-    document.getElementById('email-verified-badge')?.setAttribute('hidden', '');
-    otpState.email.verified = false;
+    resetEmailVerification();
 });
 
 /* ══════════════════════════════════════════════
@@ -317,53 +428,6 @@ function updateStepper(step) {
         if (i < 3) {
             const line = document.getElementById('line-' + i);
             if (line) line.classList.toggle('active', i < step);
-        }
-    }
-}
-
-/* ══════════════════════════════════════════════
-   PROOF OF RESIDENCY — upload thumbnail preview
-══════════════════════════════════════════════ */
-
-function wireProofPreview() {
-    const input = document.getElementById('reg_proof');
-    if (!input) return;
-    input.addEventListener('change', () => {
-        const file = input.files[0];
-        renderProofPreview(file, {
-            wrap: 'proof_preview_wrap',
-            img: 'proof_preview_img',
-            pdf: 'proof_preview_pdf',
-            prompt: 'proof_upload_prompt'
-        });
-    });
-}
-
-function renderProofPreview(file, ids) {
-    const wrap   = document.getElementById(ids.wrap);
-    const img    = document.getElementById(ids.img);
-    const pdfBox = document.getElementById(ids.pdf);
-    const prompt = ids.prompt ? document.getElementById(ids.prompt) : null;
-
-    if (!file) {
-        if (wrap) wrap.hidden = true;
-        if (prompt) prompt.hidden = false;
-        return;
-    }
-
-    if (wrap) wrap.hidden = false;
-    if (prompt) prompt.hidden = true;
-
-    if (file.type === 'application/pdf') {
-        if (img) img.hidden = true;
-        if (pdfBox) pdfBox.hidden = false;
-    } else {
-        if (pdfBox) pdfBox.hidden = true;
-        if (img) {
-            img.hidden = false;
-            const reader = new FileReader();
-            reader.onload = e => { img.src = e.target.result; };
-            reader.readAsDataURL(file);
         }
     }
 }
@@ -409,14 +473,45 @@ function reviewStep() {
 
 async function submitRegistration() {
     const proofInput      = document.getElementById('reg_proof');
+    const fullname        = document.getElementById('rv_fullname')?.value.trim() || '';
+    const email           = document.getElementById('rv_email')?.value.trim() || '';
     const password        = document.getElementById('rv_pw')?.value || '';
     const confirmPassword = document.getElementById('rv_pw2')?.value || '';
+    const phone           = document.getElementById('phone')?.value.trim() || '';
+    const barangayId      = document.getElementById('rv_barangay_id')?.value || '';
 
+    // Final safety net: re-check everything right before submit, in case the
+    // user navigated back and forth between steps and something drifted out
+    // of sync (e.g. email changed after verification, a field left empty).
+    if (!fullname) {
+        alert('Please enter your full name.');
+        return;
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        alert('Please enter a valid email address.');
+        return;
+    }
+    if (!otpState.email.verified || otpState.email.verifiedValue !== email) {
+        alert('This email address has not been verified. Please go back and verify it.');
+        goTo(1);
+        return;
+    }
+    if (password.length < 8) {
+        alert('Password must be at least 8 characters.');
+        return;
+    }
     if (password !== confirmPassword) {
         alert('Passwords do not match.');
         return;
     }
-
+    if (!phone || !isValidPHPhone(phone)) {
+        alert('Please enter a valid Philippine mobile number.');
+        return;
+    }
+    if (!barangayId) {
+        alert('Please select your barangay.');
+        return;
+    }
     if (!proofInput?.files.length) {
         alert('Please upload your proof of residence.');
         return;
@@ -518,17 +613,17 @@ function markVerifiedBadge(type) {
     if (badge) badge.removeAttribute('hidden');
 }
 
-function showStepError(msg) {
-    clearStepError();
-    const btn = document.querySelector('#step-1 .btn-primary');
+function showStepError(msg, step = 1) {
+    clearStepError(step);
+    const btn = document.querySelector('#step-' + step + ' .btn-primary');
     if (!btn) return;
     const el = document.createElement('p');
-    el.id        = 'step1-error';
+    el.id        = 'step' + step + '-error';
     el.className = 'step-error-msg';
     el.textContent = msg;
     btn.before(el);
 }
 
-function clearStepError() {
-    document.getElementById('step1-error')?.remove();
+function clearStepError(step = 1) {
+    document.getElementById('step' + step + '-error')?.remove();
 }

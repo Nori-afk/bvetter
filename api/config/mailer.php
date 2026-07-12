@@ -27,14 +27,14 @@ function sendAppMail(string $toEmail, string $toName, string $subject, string $h
         $mail = new PHPMailer(true);
         $mail->CharSet    = PHPMailer::CHARSET_UTF8;
         $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';
+        $mail->Host       = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'vbetter141@gmail.com';
-        $mail->Password   = 'adftcbfxjkydawvs';
+        $mail->Username   = getenv('SMTP_USER') ?: '';
+        $mail->Password   = getenv('SMTP_PASS') ?: '';
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;
+        $mail->Port       = (int) (getenv('SMTP_PORT') ?: 587);
 
-        $mail->setFrom('vbetter141@gmail.com', 'VBetter');
+        $mail->setFrom(getenv('SMTP_FROM') ?: $mail->Username, 'VBetter');
         $mail->addAddress($toEmail, $toName);
         $mail->isHTML(true);
         $mail->Subject = $subject;

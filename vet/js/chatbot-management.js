@@ -184,6 +184,7 @@
 		consultationPageSize: 5,
 		consultationSort: 'default',
 		selectedAnimal: '',
+		selectedAgeGroup: 'Any',
 		selectedDuration: '1-3 Days',
 		selectedSymptoms: [],
 		chartsReady: false,
@@ -220,6 +221,7 @@
 		consultationBuilderSubmit: document.getElementById('consultation-builder-submit'),
 		consultationBuilderTitle: document.getElementById('consultation-builder-title'),
 		consultationAnimalGrid: document.getElementById('consultation-animal-grid'),
+		consultationAgeGroupGrid: document.getElementById('consultation-agegroup-grid'),
 		consultationSymptomGrid: document.getElementById('consultation-symptom-grid'),
 		consultationDurationGroup: document.getElementById('consultation-duration-group'),
 		consultationCondition: document.getElementById('consultation-condition'),
@@ -553,6 +555,10 @@
 			button.classList.toggle('active', button.dataset.animal === state.selectedAnimal);
 			button.setAttribute('aria-pressed', String(button.dataset.animal === state.selectedAnimal));
 		});
+		ui.consultationAgeGroupGrid?.querySelectorAll('[data-agegroup]').forEach((button) => {
+			button.classList.toggle('active', button.dataset.agegroup === state.selectedAgeGroup);
+			button.setAttribute('aria-pressed', String(button.dataset.agegroup === state.selectedAgeGroup));
+		});
 		ui.consultationSymptomGrid?.querySelectorAll('[data-symptom]').forEach((button) => {
 			button.classList.toggle('active', state.selectedSymptoms.includes(button.dataset.symptom));
 		});
@@ -564,6 +570,7 @@
 	function resetConsultationBuilder() {
 		state.consultationEditingId = null;
 		state.selectedAnimal = '';
+		state.selectedAgeGroup = 'Any';
 		state.selectedDuration = '1-3 Days';
 		state.selectedSymptoms = [];
 		ui.consultationBuilderForm?.reset();
@@ -583,6 +590,7 @@
 			if (!row) return;
 			state.consultationEditingId = id;
 			state.selectedAnimal = row.petType;
+			state.selectedAgeGroup = row.ageGroup || 'Any';
 			state.selectedDuration = row.duration;
 			state.selectedSymptoms = [...row.symptoms];
 			if (ui.consultationCondition) ui.consultationCondition.value = row.condition;
@@ -598,6 +606,7 @@
 	function consultationFormValues() {
 		return {
 			petType: state.selectedAnimal || '',
+			ageGroup: state.selectedAgeGroup || 'Any',
 			symptoms: [...state.selectedSymptoms],
 			duration: state.selectedDuration || '',
 			condition: String(ui.consultationCondition?.value || '').trim(),
@@ -647,6 +656,7 @@
 	function renderConsultationModal(mode, id = null) {
 		const row = consultationItemById(id) || {
 			petType: state.selectedAnimal || 'Dog',
+			ageGroup: state.selectedAgeGroup || 'Any',
 			symptoms: [...state.selectedSymptoms],
 			duration: state.selectedDuration || '1-3 Days',
 			condition: String(ui.consultationCondition?.value || ''),
@@ -657,6 +667,7 @@
 
 		const rows = [
 			['Pet Type', row.petType],
+			['Age Group', row.ageGroup || 'Any'],
 			['Symptoms', row.symptoms.join(', ')],
 			['Symptoms Duration', row.duration],
 			['Possible Condition', row.condition],
@@ -784,6 +795,9 @@
 	function handleConsultationSelection(type, value) {
 		if (type === 'animal') {
 			state.selectedAnimal = value;
+		}
+		if (type === 'ageGroup') {
+			state.selectedAgeGroup = value;
 		}
 		if (type === 'duration') {
 			state.selectedDuration = value;
@@ -1422,6 +1436,11 @@
 			const button = event.target.closest('[data-animal]');
 			if (!button) return;
 			handleConsultationSelection('animal', button.dataset.animal);
+		});
+		ui.consultationAgeGroupGrid?.addEventListener('click', (event) => {
+			const button = event.target.closest('[data-agegroup]');
+			if (!button) return;
+			handleConsultationSelection('ageGroup', button.dataset.agegroup);
 		});
 		ui.consultationSymptomGrid?.addEventListener('click', (event) => {
 			const button = event.target.closest('[data-symptom]');

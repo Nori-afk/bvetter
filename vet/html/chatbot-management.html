@@ -362,7 +362,27 @@
 
                             <section class="builder-step">
                                 <div class="step-title-row">
-                                    <h3>2. Select Symptoms</h3>
+                                    <h3>2. Select Age Group</h3>
+                                    <span class="step-hint">Which life stage this rule applies to. Choose "Any" if age
+                                        doesn't matter.</span>
+                                </div>
+                                <div class="choice-grid agegroup-grid" id="consultation-agegroup-grid">
+                                    <button type="button" class="choice-card" data-agegroup="Any"
+                                        aria-pressed="false">Any</button>
+                                    <button type="button" class="choice-card" data-agegroup="Baby"
+                                        aria-pressed="false">Baby</button>
+                                    <button type="button" class="choice-card" data-agegroup="Young"
+                                        aria-pressed="false">Young</button>
+                                    <button type="button" class="choice-card" data-agegroup="Adult"
+                                        aria-pressed="false">Adult</button>
+                                    <button type="button" class="choice-card" data-agegroup="Senior"
+                                        aria-pressed="false">Senior</button>
+                                </div>
+                            </section>
+
+                            <section class="builder-step">
+                                <div class="step-title-row">
+                                    <h3>3. Select Symptoms</h3>
                                     <span class="step-hint">Select all symptoms that trigger this rule.</span>
                                 </div>
                                 <div class="choice-grid symptom-grid" id="consultation-symptom-grid">
@@ -382,7 +402,7 @@
 
                             <section class="builder-step builder-step-divider">
                                 <div class="step-title-row">
-                                    <h3>3. Symptoms Duration</h3>
+                                    <h3>4. Symptoms Duration</h3>
                                     <span class="step-hint">Potential diagnosis or clinical term.</span>
                                 </div>
                                 <div class="duration-row" id="consultation-duration-group">
@@ -403,7 +423,7 @@
 
                             <section class="builder-step">
                                 <div class="step-title-row">
-                                    <h3>4. Possible Condition</h3>
+                                    <h3>5. Possible Condition</h3>
                                     <span class="step-hint">Potential diagnosis or clinical term.</span>
                                 </div>
                                 <label class="field span-2 field-tight" for="consultation-condition">
@@ -415,7 +435,7 @@
                             <section class="builder-step builder-step-two-cols">
                                 <div class="mini-card">
                                     <div class="step-title-row">
-                                        <h3>5. Severity Level</h3>
+                                        <h3>6. Severity Level</h3>
                                         <span class="step-hint">Pet's overall state</span>
                                     </div>
                                     <select id="consultation-severity" name="severity" class="builder-select">
@@ -428,7 +448,7 @@
 
                                 <div class="mini-card">
                                     <div class="step-title-row">
-                                        <h3>6. Recommended Action</h3>
+                                        <h3>7. Recommended Action</h3>
                                         <span class="step-hint">Chatbot's suggested next step</span>
                                     </div>
                                     <textarea id="consultation-recommendation" name="recommendation"

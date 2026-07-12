@@ -51,8 +51,7 @@
 		}
 
 		document.getElementById("stat-patients-today").textContent = profile.stats?.patientsToday ?? 0;
-		document.getElementById("stat-surgeries").textContent = profile.stats?.surgeriesPerformed ?? 0;
-		document.getElementById("stat-treatment-time").textContent = profile.stats?.avgTreatmentTime ?? "45m";
+		document.getElementById("stat-total-patients").textContent = profile.stats?.totalPatients ?? 0;
 		document.getElementById("stat-satisfaction").textContent = profile.stats?.satisfactionRate ?? "0.0";
 
 		if (notificationForm) {
@@ -130,6 +129,17 @@
 	function closePasswordModal() {
 		if (pwOverlay) pwOverlay.hidden = true;
 	}
+
+	const btnManage2FA = document.getElementById("btnManage2FA");
+	const twofaBadge = document.getElementById("twofaBadge");
+	btnManage2FA?.addEventListener("click", () => {
+		if (!twofaBadge) return;
+		const isEnabled = twofaBadge.classList.contains("enabled");
+		twofaBadge.classList.toggle("enabled", !isEnabled);
+		twofaBadge.classList.toggle("disabled", isEnabled);
+		twofaBadge.textContent = isEnabled ? "DISABLED" : "ENABLED";
+		setMessage(isEnabled ? "Two-factor authentication disabled." : "Two-factor authentication enabled.", "success");
+	});
 
 	document.getElementById("update-password-btn")?.addEventListener("click", openPasswordModal);
 	document.getElementById("pwModalClose")?.addEventListener("click", closePasswordModal);

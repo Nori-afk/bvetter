@@ -113,14 +113,14 @@ function sendEmailOtp(PDO $pdo): never
         $mail = new PHPMailer(true);
         $mail->CharSet    = PHPMailer::CHARSET_UTF8;
         $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';
+        $mail->Host       = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'vbetter141@gmail.com';
-        $mail->Password   = 'adftcbfxjkydawvs';
+        $mail->Username   = getenv('SMTP_USER') ?: '';
+        $mail->Password   = getenv('SMTP_PASS') ?: '';
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;
+        $mail->Port       = (int) (getenv('SMTP_PORT') ?: 587);
 
-        $mail->setFrom('vbetter141@gmail.com', 'VBetter');
+        $mail->setFrom(getenv('SMTP_FROM') ?: $mail->Username, 'VBetter');
         $mail->addAddress($email);
         $mail->isHTML(true);
         $mail->Subject = 'VBetter – Your Email Verification Code';
@@ -201,8 +201,8 @@ function sendPhoneOtp(PDO $pdo): never
     ]);
 
     // ── Semaphore SMS ────────────────────────────────────────
-    $apiKey     = '82bf322b4bb59a4e6649ebf93e13ae66';   // ← paste your key here
-    $senderName = 'VBETTER';                  // ← your approved sender name
+    $apiKey     = getenv('SEMAPHORE_API_KEY') ?: '';
+    $senderName = getenv('SEMAPHORE_SENDER_NAME') ?: 'VBETTER';
 
     $payload = http_build_query([
         'apikey'      => $apiKey,
@@ -371,14 +371,14 @@ $resetUrl = APP_URL . '/public/pages/reset-password.html?token='
         $mail = new PHPMailer(true);
         $mail->CharSet    = PHPMailer::CHARSET_UTF8;
         $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';
+        $mail->Host       = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
         $mail->SMTPAuth   = true;
-        $mail->Username   = 'vbetter141@gmail.com';
-        $mail->Password   = 'adftcbfxjkydawvs';
+        $mail->Username   = getenv('SMTP_USER') ?: '';
+        $mail->Password   = getenv('SMTP_PASS') ?: '';
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;
+        $mail->Port       = (int) (getenv('SMTP_PORT') ?: 587);
 
-        $mail->setFrom('vbetter141@gmail.com', 'VBetter');
+        $mail->setFrom(getenv('SMTP_FROM') ?: $mail->Username, 'VBetter');
         $mail->addAddress($email, $user['full_name']);
         $mail->isHTML(true);
         $mail->Subject = $subject;
@@ -483,4 +483,4 @@ try {
         'message' => 'Server error. Please try again.',
         'error'   => $e->getMessage(),
     ]);
-}
+}

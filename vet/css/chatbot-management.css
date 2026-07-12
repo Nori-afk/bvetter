@@ -718,6 +718,10 @@ body {
     grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.agegroup-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .symptom-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -1568,6 +1572,11 @@ body {
 
 /* ── Animal type cards ───────────────────── */
 .animal-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.agegroup-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
 }

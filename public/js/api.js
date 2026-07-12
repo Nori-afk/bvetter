@@ -302,6 +302,78 @@ const api = {
     }).then(r => r.json());
   },
 
+  /* ══════════════════════════════════════════
+     SESSIONS — Manage Security page
+     ══════════════════════════════════════════ */
+
+  /** List the current user's own active sessions/devices */
+  listSessions: () => {
+    const body = new FormData();
+    body.append('action', 'list');
+    return fetch(`${API_BASE_REG}/auth/session.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
+  /** End one of the current user's other sessions */
+  endSession: (sessionId) => {
+    const body = new FormData();
+    body.append('action', 'end');
+    body.append('session_id', sessionId);
+    return fetch(`${API_BASE_REG}/auth/session.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
+  /** End every session except the one making this request */
+  endOtherSessions: () => {
+    const body = new FormData();
+    body.append('action', 'end_others');
+    return fetch(`${API_BASE_REG}/auth/session.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
+  /** (Admin only) list every active session, across every user account */
+  adminListSessions: () => {
+    const body = new FormData();
+    body.append('action', 'admin_list');
+    return fetch(`${API_BASE_REG}/auth/session.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
+  /** (Admin only) end any session by id, belonging to any user */
+  adminEndSession: (sessionId) => {
+    const body = new FormData();
+    body.append('action', 'admin_end');
+    body.append('session_id', sessionId);
+    return fetch(`${API_BASE_REG}/auth/session.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
+  /** (Admin only) end every session system-wide except the caller's own */
+  adminEndOtherSessions: () => {
+    const body = new FormData();
+    body.append('action', 'admin_end_others');
+    return fetch(`${API_BASE_REG}/auth/session.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
   /**
    * Register new account
    * @param {Object} data — { full_name, email, password, barangay, phone_number }
@@ -586,16 +658,6 @@ forgotPassword: (email) => {
     formData.append('action', 'reject');
     formData.append('user_id', userId);
     formData.append('review_notes', reviewNotes);
-    return fetch(`${API_BASE_REG}/admin/account-management.php`, {
-      method: 'POST',
-      body: formData
-    }).then(r => r.json());
-  },
-
-  deleteUser: (userId) => {
-    const formData = new FormData();
-    formData.append('action', 'delete');
-    formData.append('user_id', userId);
     return fetch(`${API_BASE_REG}/admin/account-management.php`, {
       method: 'POST',
       body: formData

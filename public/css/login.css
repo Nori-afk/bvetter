@@ -286,6 +286,98 @@ body {
 }
 
 /* =============================================
+   NOTICE MODAL — replaces browser alert()
+   ============================================= */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.modal-overlay.open {
+  display: flex;
+}
+
+.modal-box {
+  background: #fff;
+  border-radius: var(--radius-xl);
+  padding: 28px 28px 24px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: var(--shadow-modal);
+  animation: modalPop 0.18s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.modal-box.narrow {
+  max-width: 340px;
+  text-align: center;
+}
+
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.94) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.notice-box {
+  padding: 34px 28px 28px;
+}
+
+.notice-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background: var(--color-green-pale);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notice-message {
+  font-size: 14.5px;
+  font-weight: 500;
+  font-family: 'Manrope', sans-serif;
+  color: var(--text-body);
+  line-height: 1.6;
+  margin-bottom: 26px;
+}
+
+.notice-ok-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150px;
+  padding: 12px 30px;
+  background: linear-gradient(135deg, var(--color-green-dark) 0%, var(--color-green) 100%);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Manrope', sans-serif;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(15, 168, 46, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.notice-ok-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(15, 168, 46, 0.38);
+  opacity: 0.96;
+}
+
+.notice-ok-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(15, 168, 46, 0.3);
+}
+
+/* =============================================
    RESPONSIVE — see public/css/variables.css for
    the shared breakpoint scale used across all pages.
 

@@ -9,12 +9,30 @@ function togglePassword() {
   pw.type = pw.type === 'password' ? 'text' : 'password';
 }
 
+/* ══════════════════════════════════════════════
+   NOTICE MODAL — replaces browser alert()
+══════════════════════════════════════════════ */
+
+function showNotice(message) {
+  const messageEl = document.getElementById('noticeMessage');
+  if (messageEl) messageEl.textContent = message;
+  document.getElementById('noticeModal')?.classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id)?.classList.remove('open');
+}
+
+function closeModalOutside(event, id) {
+  if (event.target.id === id) closeModal(id);
+}
+
 async function handleLogin() {
   const email = document.getElementById('loginEmail')?.value.trim() || '';
   const password = document.getElementById('loginPassword')?.value || '';
 
   if (!email || !password) {
-    alert('Please enter your email and password.');
+    showNotice('Please enter your email and password.');
     return;
   }
 
@@ -22,7 +40,7 @@ async function handleLogin() {
     const result = await api.login(email, password);
 
     if (!result.success) {
-      alert(result.message || 'Invalid email or password.');
+      showNotice(result.message || 'Invalid email or password.');
       return;
     }
 
@@ -31,7 +49,7 @@ async function handleLogin() {
     sessionStorage.setItem('bvetter_token', result.data.token || '');
     VBetterAuth.redirectToDashboard(result.data.role);
   } catch (error) {
-    alert('Login failed. Please try again.');
+    showNotice('Login failed. Please try again.');
   }
 }
 document.addEventListener('DOMContentLoaded',()=>{

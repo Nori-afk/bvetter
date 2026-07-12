@@ -212,7 +212,7 @@
 
         <div class="quiet-schedule-row">
           <div class="quiet-schedule-label">SCHEDULE</div>
-          <div class="quiet-schedule-value">22:00 — 07:00</div>
+          <div class="quiet-schedule-value">10:00 PM — 07:00 AM</div>
         </div>
 
         <button class="btn-configure">Configure Schedule</button>
@@ -222,6 +222,90 @@
 
   </div>
 </main>
+
+  <!-- ══ QUIET HOURS SCHEDULE MODAL ══ -->
+  <div class="modal-overlay" id="quietHoursModal">
+    <div class="modal-box qh-modal-box">
+      <div class="modal-box-head">
+        <h3>Configure Quiet Hours</h3>
+        <button type="button" class="modal-box-close" id="qhModalClose" aria-label="Close">&times;</button>
+      </div>
+      <p class="modal-box-desc">Clinical alerts will be muted during this window. Critical emergency alerts always bypass quiet hours.</p>
+
+      <div class="qh-night-card">
+        <div class="qh-night-head">
+          <div class="qh-night-head-left">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+            <span>Quiet Window</span>
+          </div>
+          <span class="qh-night-duration" id="qhDuration">9h</span>
+        </div>
+
+        <div class="qh-range-row">
+          <div class="qh-time-group">
+            <span class="qh-time-group-label">Start</span>
+            <div class="qh-time-inputs">
+              <div class="qh-num-select" id="qhStartHourWrap">
+                <button type="button" class="qh-num-trigger" id="qhStartHourTrigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Start hour"></button>
+                <div class="qh-num-panel" id="qhStartHourPanel" role="listbox" hidden></div>
+              </div>
+              <span class="qh-colon">:</span>
+              <div class="qh-num-select" id="qhStartMinuteWrap">
+                <button type="button" class="qh-num-trigger" id="qhStartMinuteTrigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Start minute"></button>
+                <div class="qh-num-panel" id="qhStartMinutePanel" role="listbox" hidden></div>
+              </div>
+              <select class="visually-hidden-select" id="qhStartHour" aria-hidden="true" tabindex="-1"></select>
+              <select class="visually-hidden-select" id="qhStartMinute" aria-hidden="true" tabindex="-1"></select>
+            </div>
+            <div class="qh-ampm-toggle" id="qhStartPeriod">
+              <button type="button" class="qh-ampm-btn active" data-period="AM">AM</button>
+              <button type="button" class="qh-ampm-btn" data-period="PM">PM</button>
+            </div>
+          </div>
+
+          <div class="qh-range-arrow" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/>
+            </svg>
+          </div>
+
+          <div class="qh-time-group">
+            <span class="qh-time-group-label">End</span>
+            <div class="qh-time-inputs">
+              <div class="qh-num-select" id="qhEndHourWrap">
+                <button type="button" class="qh-num-trigger" id="qhEndHourTrigger" aria-haspopup="listbox" aria-expanded="false" aria-label="End hour"></button>
+                <div class="qh-num-panel" id="qhEndHourPanel" role="listbox" hidden></div>
+              </div>
+              <span class="qh-colon">:</span>
+              <div class="qh-num-select" id="qhEndMinuteWrap">
+                <button type="button" class="qh-num-trigger" id="qhEndMinuteTrigger" aria-haspopup="listbox" aria-expanded="false" aria-label="End minute"></button>
+                <div class="qh-num-panel" id="qhEndMinutePanel" role="listbox" hidden></div>
+              </div>
+              <select class="visually-hidden-select" id="qhEndHour" aria-hidden="true" tabindex="-1"></select>
+              <select class="visually-hidden-select" id="qhEndMinute" aria-hidden="true" tabindex="-1"></select>
+            </div>
+            <div class="qh-ampm-toggle" id="qhEndPeriod">
+              <button type="button" class="qh-ampm-btn" data-period="AM">AM</button>
+              <button type="button" class="qh-ampm-btn active" data-period="PM">PM</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="qh-track" aria-hidden="true">
+          <div class="qh-track-fill" id="qhTrackFillA"></div>
+          <div class="qh-track-fill" id="qhTrackFillB" hidden></div>
+        </div>
+        <div class="qh-track-labels" aria-hidden="true">
+          <span>12 PM</span><span>12 AM</span><span>12 PM</span>
+        </div>
+      </div>
+
+      <button type="button" class="btn-save qh-save-btn" id="qhModalSave">Save Schedule</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
   <!-- ══ SCRIPTS — auth.js MUST be first ══ -->
   <script src="../../shared/js/auth.js"></script>
   <script>

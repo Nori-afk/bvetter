@@ -34,12 +34,32 @@ from sklearn.model_selection import train_test_split
 warnings.filterwarnings("ignore")
 app = Flask(__name__)
 
+
+def _load_dotenv(path):
+    """Minimal .env loader (mirrors config/env.php) so this service and the
+    PHP layer read DB credentials from the same single source of truth."""
+    if not os.path.isfile(path):
+        return
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            if key and key not in os.environ:
+                os.environ[key] = value.strip()
+
+
+_load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
+
 EXCEL_PATH = os.path.join(os.path.dirname(__file__), "../../database/BaliwagVet_2023-2025.xlsx")
 
 # Same DB this app's PHP layer connects to (api/config/connection.php) — kept
 # overridable via env vars for deployments where the DB isn't local XAMPP.
 DB_CONFIG = {
     "host":     os.environ.get("VBETTER_DB_HOST", "localhost"),
+    "port":     int(os.environ.get("VBETTER_DB_PORT", "3306")),
     "user":     os.environ.get("VBETTER_DB_USER", "root"),
     "password": os.environ.get("VBETTER_DB_PASS", "root"),
     "database": os.environ.get("VBETTER_DB_NAME", "bvetter"),
