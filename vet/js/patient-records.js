@@ -198,10 +198,14 @@ const state = {
 	filterType: 'all',
 	filterStatus: 'all',
 	page: 1,
-	pageSize: 8,
 	modal: null,
 	pendingDeleteId: null
 };
+
+// Desktop can comfortably show more rows per page than a phone screen.
+function pageSizeForViewport() {
+	return window.innerWidth <= 768 ? 5 : 10;
+}
 
 let searchRenderTimer = null;
 
@@ -698,11 +702,17 @@ function actionButton(label, action, className, id, variant = 'icon') {
 }
 
 function renderList() {
-	const records = filteredRecords();
+	const filtered = filteredRecords();
 	const total = state.records.length;
 	const active = state.records.filter((record) => record.statusType === 'success').length;
 	const monitoring = state.records.filter((record) => record.statusType === 'warning').length;
 	const alerts = state.records.filter((record) => record.alert && record.alert !== '0').length;
+
+	const pageSize   = pageSizeForViewport();
+	const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+	state.page = Math.min(Math.max(1, state.page), totalPages);
+	const pageStart  = (state.page - 1) * pageSize;
+	const records    = filtered.slice(pageStart, pageStart + pageSize);
 
 	return `
 		<section class="records-shell">
@@ -802,11 +812,28 @@ function renderList() {
 				</div>
 
 				<div class="page-footer">
-					<p>Showing <strong>${records.length}</strong> of <strong>${total}</strong> patients</p>
 					<p>${records.length ? 'Click <strong>View</strong> to inspect a patient profile, or <strong>Add Record</strong> to log a visit.' : 'Try clearing the search or changing the filter.'}</p>
 				</div>
+				${renderListPagination(records.length, filtered.length, state.page, totalPages)}
 			</section>
 		</section>
+	`;
+}
+
+// Same "Displaying X of Y Records" + boxed page-number pager markup/
+// style used on the Reports table, so pagination looks consistent
+// (and clean) across every table in the app.
+function renderListPagination(shown, total, page, totalPages) {
+	if (totalPages <= 1) return '';
+	return `
+		<div class="report-footer">
+			<p>Displaying ${shown} of ${total} Records</p>
+			<div class="pagination">
+				<button type="button" class="page-btn" data-action="prev-page" aria-label="Previous page" ${page <= 1 ? 'disabled' : ''}>&lsaquo;</button>
+				<button type="button" class="page-btn active" disabled>${page}</button>
+				<button type="button" class="page-btn" data-action="next-page" aria-label="Next page" ${page >= totalPages ? 'disabled' : ''}>&rsaquo;</button>
+			</div>
+		</div>
 	`;
 }
 
@@ -1551,7 +1578,7 @@ function bindGlobalEvents() {
 		}
 
 		const actionButtonEl = event.target.closest('[data-action]');
-		if (!actionButtonEl) return;
+		if (!actionButtonEl || actionButtonEl.disabled) return;
 
 		const action = actionButtonEl.dataset.action;
 		const id = Number(actionButtonEl.dataset.id);
@@ -1560,6 +1587,8 @@ function bindGlobalEvents() {
 		if (action === 'add-record') navigate('add', { id }, false);
 		if (action === 'edit') openEditModal(id);
 		if (action === 'delete') openDeleteModal(id);
+		if (action === 'prev-page') { state.page -= 1; app.innerHTML = renderList(); }
+		if (action === 'next-page') { state.page += 1; app.innerHTML = renderList(); }
 	});
 
 	modalOverlay.addEventListener('click', (event) => {

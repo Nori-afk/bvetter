@@ -449,7 +449,7 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 
 .bar-row {
     display: grid;
-    grid-template-columns: 115px 1fr 64px;
+    grid-template-columns: 115px 1fr auto;
     align-items: center;
     gap: 12px;
     font-size: 12px;
@@ -470,6 +470,15 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     font-size: 12px;
     font-weight: 600;
     text-align: right;
+}
+
+/* Badge drops to its own line under the number instead of fighting it
+   for space on one line — keeps the number flush at the end of the
+   bar and the "Advanced Forecast"/"Basic Estimate" label legible. */
+.bar-row .source-badge {
+    display: block;
+    width: fit-content;
+    margin: 3px 0 0 auto;
 }
 
 .bar-track {
@@ -1074,6 +1083,24 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     background: rgba(255,255,255,0.95);
     backdrop-filter: blur(8px);
     border: 1px solid var(--border);
+    padding: 10px 12px;
+}
+
+/* These float over the map at a fixed small width — they inherit the
+   main overview KPI card's font sizes (built for a full-width card),
+   which reads oversized here. */
+.map-metrics .kpi-card h5 {
+    font-size: 8.5px;
+    margin-bottom: 4px;
+}
+
+.map-metrics .kpi-card strong {
+    font-size: 1.1rem;
+    margin-bottom: 2px;
+}
+
+.map-metrics .kpi-card small {
+    font-size: 10px;
 }
 
 #baliwagMap { width: 100%; height: 640px; }
@@ -1557,11 +1584,41 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     .map-side { border-left: 0; border-top: 1px solid var(--border); border-radius: 0 0 var(--r-md) var(--r-md); }
 }
 
+@media (max-width: 768px) {
+    /* Sidebar switches to an in-flow horizontal bar at this width (see
+       shared/css/sidebar.css) — stack it above the content instead of
+       letting the flex row squeeze both side by side. */
+    .main-holder.da-page { flex-direction: column; }
+}
+
 @media (max-width: 760px) {
     .da-main, .sidebar.expanded ~ .da-main { margin-left: 0; width: 100%; padding: 12px 14px 32px; }
     .overview-header { flex-direction: column; align-items: flex-start; padding: 20px; }
     .header-actions { width: 100%; flex-wrap: wrap; }
     .header-actions select, .header-actions .btn { flex: 1; min-width: 120px; }
-    .kpi-row, .insight-grid, .summary-kpi-grid { grid-template-columns: 1fr; }
+    .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .insight-grid, .summary-kpi-grid { grid-template-columns: 1fr; }
     .map-metrics { grid-template-columns: repeat(2, 1fr); }
+
+    .bar-row { grid-template-columns: 90px 1fr auto; }
+
+    /* Map view topbar: the back button and breadcrumb were squeezed
+       side by side, wrapping the breadcrumb awkwardly. Stack them —
+       button spans full width, breadcrumb sits below it. */
+    .map-topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .map-topbar .back-btn {
+        width: 50%;
+        justify-content: center;
+        margin-bottom: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .kpi-card strong { font-size: 22px; }
+    .kpi-card h5 { font-size: 10px; }
 }

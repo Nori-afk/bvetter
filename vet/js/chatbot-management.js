@@ -10,6 +10,10 @@
 	}
 
 	const CHATBOT_API = `${appBasePath()}/api/chatbot/chatbot.php`;
+
+	function pageSizeForViewport() {
+		return window.innerWidth <= 768 ? 5 : 10;
+	}
 	let inquiryRules = [
 		{
 			id: 1,
@@ -174,14 +178,12 @@
 		inquiryDeletingId: null,
 		inquiryViewingId: null,
 		inquiryPage: 1,
-		inquiryPageSize: 4,
 		inquirySort: 'default',
 		consultationMode: 'list',
 		consultationEditingId: null,
 		consultationDeletingId: null,
 		consultationViewingId: null,
 		consultationPage: 1,
-		consultationPageSize: 5,
 		consultationSort: 'default',
 		selectedAnimal: '',
 		selectedAgeGroup: 'Any',
@@ -202,18 +204,14 @@
 		inquirySort: document.getElementById('inquiry-sort'),
 		inquiryTableBody: document.getElementById('inquiry-table-body'),
 		inquirySummary: document.getElementById('inquiry-summary'),
-		inquiryPrev: document.getElementById('inquiry-prev'),
-		inquiryNext: document.getElementById('inquiry-next'),
-		inquiryPage: document.getElementById('inquiry-page'),
+		inquiryPagination: document.getElementById('inquiry-pagination'),
 		openInquiryModal: document.getElementById('open-inquiry-modal'),
 		consultationViews: Array.from(document.querySelectorAll('[data-consultation-view]')),
 		consultationSearch: document.getElementById('consultation-search'),
 		consultationSort: document.getElementById('consultation-sort'),
 		consultationTableBody: document.getElementById('consultation-table-body'),
 		consultationSummary: document.getElementById('consultation-summary'),
-		consultationPrev: document.getElementById('consultation-prev'),
-		consultationNext: document.getElementById('consultation-next'),
-		consultationPage: document.getElementById('consultation-page'),
+		consultationPagination: document.getElementById('consultation-pagination'),
 		openConsultationBuilder: document.getElementById('open-consultation-builder'),
 		consultationBackBtn: document.getElementById('consultation-back-btn'),
 		consultationBuilderForm: document.getElementById('consultation-builder-form'),
@@ -476,6 +474,19 @@
 		return rows;
 	}
 
+	function renderTablePagination(container, page, totalPages) {
+		if (!container) return;
+		if (totalPages <= 1) {
+			container.innerHTML = '';
+			return;
+		}
+		container.innerHTML = `
+			<button type="button" class="page-btn" data-page-action="prev" aria-label="Previous page" ${page <= 1 ? 'disabled' : ''}>&lsaquo;</button>
+			<button type="button" class="page-btn active" disabled>${page}</button>
+			<button type="button" class="page-btn" data-page-action="next" aria-label="Next page" ${page >= totalPages ? 'disabled' : ''}>&rsaquo;</button>
+		`;
+	}
+
 	function renderInquiryStats() {
 		const total = getInquiryTotalCount();
 		if (ui.inquiryTotal) ui.inquiryTotal.textContent = String(total);
@@ -497,11 +508,12 @@
 		if (!ui.consultationTableBody) return;
 
 		const filteredRows = getConsultationFilteredRows();
-		const totalPages = Math.max(1, Math.ceil(filteredRows.length / state.consultationPageSize));
+		const pageSize = pageSizeForViewport();
+		const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
 		state.consultationPage = Math.min(state.consultationPage, totalPages);
 
-		const startIndex = (state.consultationPage - 1) * state.consultationPageSize;
-		const pageRows = filteredRows.slice(startIndex, startIndex + state.consultationPageSize);
+		const startIndex = (state.consultationPage - 1) * pageSize;
+		const pageRows = filteredRows.slice(startIndex, startIndex + pageSize);
 
 		ui.consultationTableBody.innerHTML = pageRows.length
 			? pageRows.map((row) => `
@@ -533,11 +545,9 @@
 			: '<tr><td colspan="8">No consultation rules match your search.</td></tr>';
 
 		if (ui.consultationSummary) {
-			ui.consultationSummary.textContent = `Showing ${pageRows.length} of ${filteredRows.length} results`;
+			ui.consultationSummary.textContent = `Displaying ${pageRows.length} of ${filteredRows.length} Results`;
 		}
-		if (ui.consultationPage) ui.consultationPage.textContent = String(state.consultationPage);
-		if (ui.consultationPrev) ui.consultationPrev.disabled = state.consultationPage <= 1;
-		if (ui.consultationNext) ui.consultationNext.disabled = state.consultationPage >= totalPages;
+		renderTablePagination(ui.consultationPagination, state.consultationPage, totalPages);
 	}
 
 	function setConsultationView(viewName) {
@@ -816,11 +826,12 @@
 		if (!ui.inquiryTableBody) return;
 
 		const filteredRows = getFilteredInquiryRows();
-		const totalPages = Math.max(1, Math.ceil(filteredRows.length / state.inquiryPageSize));
+		const pageSize = pageSizeForViewport();
+		const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
 		state.inquiryPage = Math.min(state.inquiryPage, totalPages);
 
-		const startIndex = (state.inquiryPage - 1) * state.inquiryPageSize;
-		const pageRows = filteredRows.slice(startIndex, startIndex + state.inquiryPageSize);
+		const startIndex = (state.inquiryPage - 1) * pageSize;
+		const pageRows = filteredRows.slice(startIndex, startIndex + pageSize);
 
 		ui.inquiryTableBody.innerHTML = pageRows.length
 			? pageRows.map((rule) => {
@@ -857,17 +868,9 @@
 			`;
 
 		if (ui.inquirySummary) {
-			ui.inquirySummary.textContent = `Showing ${pageRows.length} of ${filteredRows.length} Categories`;
+			ui.inquirySummary.textContent = `Displaying ${pageRows.length} of ${filteredRows.length} Categories`;
 		}
-		if (ui.inquiryPage) {
-			ui.inquiryPage.textContent = String(state.inquiryPage);
-		}
-		if (ui.inquiryPrev) {
-			ui.inquiryPrev.disabled = state.inquiryPage <= 1;
-		}
-		if (ui.inquiryNext) {
-			ui.inquiryNext.disabled = state.inquiryPage >= totalPages;
-		}
+		renderTablePagination(ui.inquiryPagination, state.inquiryPage, totalPages);
 	}
 
 	function renderLocationLegend() {
@@ -1396,13 +1399,14 @@
 			renderInquiryTable();
 		});
 
-		ui.inquiryPrev?.addEventListener('click', () => {
-			state.inquiryPage = Math.max(1, state.inquiryPage - 1);
-			renderInquiryTable();
-		});
-
-		ui.inquiryNext?.addEventListener('click', () => {
-			state.inquiryPage += 1;
+		ui.inquiryPagination?.addEventListener('click', (event) => {
+			const button = event.target.closest('[data-page-action]');
+			if (!button) return;
+			if (button.dataset.pageAction === 'prev') {
+				state.inquiryPage = Math.max(1, state.inquiryPage - 1);
+			} else {
+				state.inquiryPage += 1;
+			}
 			renderInquiryTable();
 		});
 
@@ -1411,12 +1415,14 @@
 		ui.consultationBackBtn?.addEventListener('click', () => setConsultationView('list'));
 		ui.consultationBuilderCancel?.addEventListener('click', () => setConsultationView('list'));
 		ui.consultationBuilderForm?.addEventListener('submit', saveConsultationRule);
-		ui.consultationPrev?.addEventListener('click', () => {
-			state.consultationPage = Math.max(1, state.consultationPage - 1);
-			renderConsultationTable();
-		});
-		ui.consultationNext?.addEventListener('click', () => {
-			state.consultationPage += 1;
+		ui.consultationPagination?.addEventListener('click', (event) => {
+			const button = event.target.closest('[data-page-action]');
+			if (!button) return;
+			if (button.dataset.pageAction === 'prev') {
+				state.consultationPage = Math.max(1, state.consultationPage - 1);
+			} else {
+				state.consultationPage += 1;
+			}
 			renderConsultationTable();
 		});
 		ui.consultationSearch?.addEventListener('input', () => {

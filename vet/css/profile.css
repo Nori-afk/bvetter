@@ -406,6 +406,20 @@ body {
     align-items: center;
 }
 
+.prof-form-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.prof-card-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 16px 24px 20px;
+    border-top: 1px solid var(--border);
+}
+
 /* ── Status message ── */
 .profile-message {
     min-height: 16px;
@@ -640,6 +654,13 @@ body {
     .kpi-strip { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* Sidebar switches to an in-flow horizontal bar at 768px (see
+   shared/css/sidebar.css) — stack it above the content at that exact
+   breakpoint instead of letting the flex row squeeze both side by side. */
+@media (max-width: 768px) {
+    .main-holder { flex-direction: column; }
+}
+
 @media (max-width: 900px) {
     .profile-main,
     .sidebar.expanded ~ .profile-main {
@@ -649,6 +670,10 @@ body {
     }
 
     .prof-form-grid { grid-template-columns: 1fr; }
+
+    .prof-form-footer { flex-direction: column-reverse; align-items: stretch; }
+    .prof-form-footer .btn-save { width: 100%; justify-content: center; }
+    .prof-card-footer .btn-save { width: 100%; justify-content: center; }
 }
 
 @media (max-width: 700px) {
@@ -657,10 +682,16 @@ body {
     .hero-inner { flex-direction: column; align-items: flex-start; gap: 16px; }
     .prof-card-head { flex-wrap: wrap; }
     .security-item { flex-wrap: wrap; }
+    .security-item .btn-outline { width: 100%; justify-content: center; }
+    .pw-modal-actions { flex-direction: column-reverse; }
+    .pw-modal-actions .btn-outline,
+    .pw-modal-actions .btn-save { width: 100%; justify-content: center; }
 }
 
 @media (max-width: 480px) {
-    .kpi-strip { grid-template-columns: 1fr; }
+    /* Keep 2-up with the 3rd card spanning full width instead of
+       collapsing all the way to a single column. */
+    .kpi-strip > :nth-child(3) { grid-column: 1 / -1; }
 }
 
 /* ══════════════════════════════════════════
@@ -834,7 +865,7 @@ body {
     background: rgba(15, 23, 42, 0.55);
     display: grid;
     place-items: center;
-    z-index: 1000;
+    z-index: 2000;
     padding: 16px;
 }
 

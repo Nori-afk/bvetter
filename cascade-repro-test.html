@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html><head>
+<link rel="stylesheet" href="/bvetter/cascade-repro2.css">
+</head>
+<body>
+<div class="foo" id="target"><div>A</div><div>B</div></div>
+<script>
+document.title = getComputedStyle(document.getElementById('target')).gridTemplateColumns + ' | w=' + window.innerWidth;
+</script>
+</body></html>

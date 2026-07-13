@@ -50,7 +50,11 @@
         arimaData:          null, // from Python ARIMA service
         dashboardData:      null, // from PHP vet_dashboard (Excel summary)
         vaccinationDataset: null, // from PHP mass_vaccination_dataset (Excel monthly)
+        eventTablePage:     1,
     };
+
+    // Desktop can comfortably show more rows per page than a phone screen.
+    const pageSizeForViewport = () => (window.innerWidth <= 768 ? 5 : 10);
 
     // ── Data source legend ────────────────────────────────────────────────
     // Chart 1 (Vaccinated per Barangay) → Excel Barangay_Disease_Monthly  MERGED with DB events
@@ -380,7 +384,15 @@
     // ── Table (DB source) ─────────────────────────────────────────────────
     const renderTable = () => {
         const tableBody = document.getElementById('event-table-body');
-        tableBody.innerHTML = state.events.map(e => `
+        const footer    = document.getElementById('event-table-footer');
+
+        const pageSize   = pageSizeForViewport();
+        const totalPages = Math.max(1, Math.ceil(state.events.length / pageSize));
+        state.eventTablePage = Math.min(Math.max(1, state.eventTablePage), totalPages);
+        const start     = (state.eventTablePage - 1) * pageSize;
+        const pageRows  = state.events.slice(start, start + pageSize);
+
+        tableBody.innerHTML = pageRows.map(e => `
             <tr data-event-id="${sanitize(e.id)}">
                 <td data-label="Date">${sanitize(e.dateLabel)}</td>
                 <td data-label="Barangay">${sanitize(e.barangay)}</td>
@@ -389,6 +401,25 @@
                 <td data-label="Status"><span class="status-pill ${statusClass(e.status)}">${sanitize(e.status)}</span></td>
             </tr>
         `).join('');
+
+        if (!footer) return;
+        if (totalPages <= 1) { footer.innerHTML = ''; return; }
+        footer.innerHTML = `
+            <div class="report-footer">
+                <p>Displaying ${pageRows.length} of ${state.events.length} Records</p>
+                <div class="pagination">
+                    <button type="button" class="page-btn" data-event-page="prev" aria-label="Previous page" ${state.eventTablePage <= 1 ? 'disabled' : ''}>&lsaquo;</button>
+                    <button type="button" class="page-btn active" disabled>${state.eventTablePage}</button>
+                    <button type="button" class="page-btn" data-event-page="next" aria-label="Next page" ${state.eventTablePage >= totalPages ? 'disabled' : ''}>&rsaquo;</button>
+                </div>
+            </div>
+        `;
+        footer.querySelectorAll('[data-event-page]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                state.eventTablePage += btn.dataset.eventPage === 'prev' ? -1 : 1;
+                renderTable();
+            });
+        });
     };
 
     // ── ARIMA summary card ────────────────────────────────────────────────

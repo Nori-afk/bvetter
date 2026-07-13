@@ -48,12 +48,16 @@ const ui = {
 const state = {
 	appointments: [],
 	page: 1,
-	pageSize: 6,
 	selectedAppointmentId: null,
 	selectedSlot: '',
 	selectedDate: '',
 	rescheduleMonth: null
 };
+
+// Desktop can comfortably show more rows per page than a phone screen.
+function pageSizeForViewport() {
+	return window.innerWidth <= 768 ? 5 : 10;
+}
 
 let calendar;
 
@@ -239,12 +243,13 @@ function renderPendingList() {
 }
 
 function renderTable() {
+	const pageSize = pageSizeForViewport();
 	const filtered = getFilteredAppointments().sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
-	const totalPages = Math.max(1, Math.ceil(filtered.length / state.pageSize));
+	const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
 	state.page = Math.min(state.page, totalPages);
 
-	const start = (state.page - 1) * state.pageSize;
-	const pageRows = filtered.slice(start, start + state.pageSize);
+	const start = (state.page - 1) * pageSize;
+	const pageRows = filtered.slice(start, start + pageSize);
 
 	if (!pageRows.length) {
 		ui.tbody.innerHTML = '<tr><td colspan="6">No appointments found for your filters.</td></tr>';
@@ -275,7 +280,7 @@ function renderTable() {
 		}).join('');
 	}
 
-	ui.tableSummary.textContent = `Showing ${pageRows.length} of ${filtered.length} appointments`;
+	ui.tableSummary.textContent = `Displaying ${pageRows.length} of ${filtered.length} Appointments`;
 	ui.pageLabel.textContent = String(state.page);
 	ui.prevPage.disabled = state.page <= 1;
 	ui.nextPage.disabled = state.page >= totalPages;

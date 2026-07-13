@@ -358,6 +358,51 @@ input {
 	overflow-x: auto;
 }
 
+/* Same "Displaying X of Y Records" + boxed page-number style used on
+   the Reports table, for a consistent, clean look across every table
+   in the app. */
+.report-footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	padding: 14px 4px 4px;
+	color: #64748B;
+	font-size: 12px;
+}
+
+.report-footer p { margin: 0; }
+
+.pagination {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.page-btn {
+	width: 24px;
+	height: 24px;
+	border-radius: 6px;
+	border: 1px solid #a6b6cb;
+	background: #fff;
+	color: var(--mv-navy);
+	font-size: 11px;
+	font-weight: 700;
+	cursor: pointer;
+	display: inline-grid;
+	place-items: center;
+	padding: 0;
+}
+
+.page-btn.active {
+	background: var(--mv-navy);
+	color: #fff;
+	border-color: var(--mv-navy);
+}
+
+.page-btn:disabled:not(.active) { opacity: 0.35; cursor: default; }
+
 table {
 	width: 100%;
 	border-collapse: collapse;
@@ -627,7 +672,10 @@ tr[data-event-id]:hover {
 	backdrop-filter: blur(4px);
 	display: grid;
 	place-items: center;
-	z-index: 90;
+	/* Must outrank the shared sidebar's mobile top bar (z-index:1000 —
+	   see shared/css/sidebar.css) or its hamburger bar renders on top
+	   of the modal instead of the modal covering everything. */
+	z-index: 2000;
 	padding: 16px;
 }
 
@@ -1391,7 +1439,38 @@ tr[data-event-id]:hover {
 	.mv-breakdown-grid,
 	.forecast-band { grid-template-columns: 1fr; }
 
-	.mv-fc-card,
-	.mv-breakdown-card,
+	/* Fixed label/value columns (instead of flex space-between) so the
+	   label and the bold number line up at the same indent on every
+	   row, regardless of how wide each row's own text happens to be. */
+	.mv-fc-card {
+		display: grid;
+		grid-template-columns: 78px 78px 1fr;
+		align-items: baseline;
+		column-gap: 6px;
+		row-gap: 2px;
+		text-align: left;
+		padding: 12px 14px;
+	}
+
+	.mv-fc-val { font-size: 1.5rem; }
+
+	.mv-fc-label { grid-column: 1; grid-row: 1; }
+	.mv-fc-val   { grid-column: 2; grid-row: 1; }
+	.mv-fc-range { grid-column: 3; grid-row: 1; }
+	.mv-fc-ci    { grid-column: 3; grid-row: 2; }
+
+	.mv-breakdown-card {
+		display: grid;
+		grid-template-columns: 80px 1fr auto;
+		align-items: center;
+		column-gap: 8px;
+		text-align: left;
+		padding: 12px 14px;
+	}
+
+	.mv-bk-label { text-align: left; }
+	.mv-bk-val   { text-align: left; }
+	.mv-bk-trend { text-align: right; }
+
 	.forecast-col { flex-direction: row; justify-content: space-between; text-align: left; padding: 10px 12px; }
 }

@@ -92,8 +92,14 @@ const lfState = {
 	sourceFilter: 'All Sources',
 	barangayFilter: 'Select Barangay',
 	selectedMatchId: null,
-	modalMaps: []
+	modalMaps: [],
+	resolvedPage: 1
 };
+
+// Desktop gets more rows per page than a phone screen can comfortably show.
+function pageSizeForViewport() {
+	return window.innerWidth <= 768 ? 5 : 10;
+}
 
 function escapeHtml(value) {
 	return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -457,6 +463,13 @@ function renderPotential(root) {
 function renderResolved(root) {
 	if (!lfData.resolvedCases.length) { root.innerHTML = empty('No resolved cases yet.'); return; }
 	const locIcon = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
+
+	const pageSize   = pageSizeForViewport();
+	const totalPages = Math.max(1, Math.ceil(lfData.resolvedCases.length / pageSize));
+	lfState.resolvedPage = Math.min(Math.max(1, lfState.resolvedPage), totalPages);
+	const start   = (lfState.resolvedPage - 1) * pageSize;
+	const pageRows = lfData.resolvedCases.slice(start, start + pageSize);
+
 	root.innerHTML = `
 		<div class="lf-table-wrap">
 			<table class="lf-table">
@@ -471,7 +484,7 @@ function renderResolved(root) {
 					</tr>
 				</thead>
 				<tbody>
-					${lfData.resolvedCases.map((item) => `
+					${pageRows.map((item) => `
 						<tr>
 							<td>
 								<div class="lf-pet-cell">
@@ -493,6 +506,34 @@ function renderResolved(root) {
 					`).join('')}
 				</tbody>
 			</table>
+		</div>
+		${renderTablePagination(pageRows.length, lfData.resolvedCases.length, lfState.resolvedPage, totalPages)}
+	`;
+
+	const paginationEl = root.querySelector('.report-footer');
+	if (paginationEl) {
+		paginationEl.addEventListener('click', (event) => {
+			const btn = event.target.closest('button[data-page]');
+			if (!btn || btn.disabled) return;
+			lfState.resolvedPage = btn.dataset.page === 'prev' ? lfState.resolvedPage - 1 : lfState.resolvedPage + 1;
+			renderResolved(root);
+		});
+	}
+}
+
+// Same "Displaying X of Y Records" + boxed page-number pager markup/
+// style used on the Reports table, so pagination looks consistent
+// (and clean) across every table in the app.
+function renderTablePagination(shown, total, page, totalPages) {
+	if (totalPages <= 1) return '';
+	return `
+		<div class="report-footer">
+			<p>Displaying ${shown} of ${total} Records</p>
+			<div class="pagination">
+				<button type="button" class="page-btn" data-page="prev" aria-label="Previous page" ${page <= 1 ? 'disabled' : ''}>&lsaquo;</button>
+				<button type="button" class="page-btn active" disabled>${page}</button>
+				<button type="button" class="page-btn" data-page="next" aria-label="Next page" ${page >= totalPages ? 'disabled' : ''}>&rsaquo;</button>
+			</div>
 		</div>
 	`;
 }

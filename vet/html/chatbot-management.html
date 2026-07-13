@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VBetter | Chatbot Management</title>
     <link rel="stylesheet" href="/final-VBETTER/bvetter/shared/css/sidebar.css">
-    <link rel="stylesheet" href="/final-VBETTER/bvetter/vet/css/chatbot-management.css">
+    <link rel="stylesheet" href="/final-VBETTER/bvetter/vet/css/chatbot-management.css?v=20260713-6">
     <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0" defer></script>
     <script src="/final-VBETTER/bvetter/shared/js/sidebar.js" defer></script>
     <script src="/final-VBETTER/bvetter/vet/js/chatbot-management.js" defer></script> -->
@@ -150,7 +150,7 @@
                         <div class="panel-head">
                             <h2>Most Common Symptoms</h2>
                             <select id="petTypeFilter" class="panel-select" aria-label="Pet type filter">
-                                <option value="all" disabled selected hidden>Pet Type</option>
+                                <option value="all">Pet Type</option>
                                 <option value="dog">Dog</option>
                                 <option value="cat">Cat</option>
                                 <option value="other">Other</option>
@@ -231,15 +231,9 @@
                             <tbody id="inquiry-table-body"></tbody>
                         </table>
                     </div>
-                    <footer class="table-footer">
-                        <p id="inquiry-summary">Showing 0 of 0 Categories</p>
-                        <div class="pagination">
-                            <button type="button" class="page-btn" id="inquiry-prev"
-                                aria-label="Previous page">Prev</button>
-                            <span id="inquiry-page" class="page-state">1</span>
-                            <button type="button" class="page-btn" id="inquiry-next"
-                                aria-label="Next page">Next</button>
-                        </div>
+                    <footer class="report-footer">
+                        <p id="inquiry-summary">Displaying 0 of 0 Categories</p>
+                        <div class="pagination" id="inquiry-pagination"></div>
                     </footer>
                 </section>
             </section>
@@ -320,15 +314,9 @@
                                 <tbody id="consultation-table-body"></tbody>
                             </table>
                         </div>
-                        <footer class="table-footer">
-                            <p id="consultation-summary">Showing 0 of 0 Results</p>
-                            <div class="pagination">
-                                <button type="button" class="page-btn" id="consultation-prev"
-                                    aria-label="Previous page">Prev</button>
-                                <span id="consultation-page" class="page-state">1</span>
-                                <button type="button" class="page-btn" id="consultation-next"
-                                    aria-label="Next page">Next</button>
-                            </div>
+                        <footer class="report-footer">
+                            <p id="consultation-summary">Displaying 0 of 0 Results</p>
+                            <div class="pagination" id="consultation-pagination"></div>
                         </footer>
                     </section>
                 </section>
@@ -480,7 +468,7 @@
     <!-- <script src="/final-VBETTER/bvetter/shared/js/auth.js"></script> -->
     <!-- <script>VBetterAuth.requireAuth(['vet']);</script> -->
     <script src="/final-VBETTER/bvetter/shared/js/sidebar.js"></script>
-    <script src="/final-VBETTER/bvetter/vet/js/chatbot-management.js"></script>
+    <script src="/final-VBETTER/bvetter/vet/js/chatbot-management.js?v=20260713-1"></script>
 
 </body>
 

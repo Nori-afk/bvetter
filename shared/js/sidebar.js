@@ -75,6 +75,14 @@
         wrapMobilePanel(sidebar);
     }
 
+    /* Single source of truth for "which photo represents this user" —
+       used by both the desktop/expanded profile card and the mobile
+       top-bar avatar, so they can never show a different picture. */
+    function resolveAvatarUrl(session) {
+        const role = (session && session.role) ? session.role : '';
+        return (session && session.pfp) ? session.pfp : (DEFAULT_AVATARS[role] || DEFAULT_AVATARS.admin);
+    }
+
     /* ── Mobile top-bar actions (notification bell + avatar) ──
        Always visible in the collapsed mobile bar, next to the
        hamburger/logo — mirrors the public pet-owner nav's bell+
@@ -123,8 +131,10 @@
         const panel = document.createElement('div');
         panel.className = 'sidebar-mobile-panel';
         sidebar.appendChild(panel);
-        panel.appendChild(footer);
+        // Same order as the desktop sidebar: nav section first, then
+        // the profile/logout footer at the bottom — don't reorder.
         panel.appendChild(nav);
+        panel.appendChild(footer);
     }
 
     /* ── Read session — works with or without VBetterAuth ────── */
@@ -177,14 +187,6 @@
             sidebar.classList.toggle('expanded');
             syncToggleState(sidebar);
         });
-    }
-
-    /* Single source of truth for "which photo represents this user" —
-       used by both the desktop/expanded profile card and the mobile
-       top-bar avatar, so they can never show a different picture. */
-    function resolveAvatarUrl(session) {
-        const role = (session && session.role) ? session.role : '';
-        return (session && session.pfp) ? session.pfp : (DEFAULT_AVATARS[role] || DEFAULT_AVATARS.admin);
     }
 
     /* ── Profile card — ALWAYS from session, never "Guest" ───── */

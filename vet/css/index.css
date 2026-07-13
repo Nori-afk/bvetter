@@ -73,19 +73,6 @@ html, body {
     width: calc(100% - (var(--shell-gap) + var(--sidebar-width-expanded) + var(--sidebar-main-gap)));
 }
 
-.sidebar-toggle {
-    display: none;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    background: transparent;
-    color: var(--white);
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 18px;
-    line-height: 1;
-}
-
 #module-content {
     padding: 24px 32px 32px;
 }
@@ -395,6 +382,7 @@ html, body {
     flex-direction: column;
     gap: 12px;
     transition: box-shadow 0.3s ease;
+    min-width: 0;
 }
 
 .kpi-card:hover {
@@ -1249,6 +1237,10 @@ html, body {
     font-size: 12.5px;
     font-weight: 600;
     color: #334155;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .insight-percentage {
@@ -1259,6 +1251,7 @@ html, body {
     padding: 1px 8px;
     border-radius: 999px;
     letter-spacing: -0.01em;
+    flex-shrink: 0;
 }
 
 .insight-bar {
@@ -1379,6 +1372,23 @@ html, body {
 .fc table { border-color: transparent !important; }
 .fc .fc-scrollgrid { border: none !important; }
 .fc .fc-scrollgrid td, .fc .fc-scrollgrid th { border-color: #F1F5F9 !important; }
+
+/* FullCalendar's table sizes columns by content by default — a single
+   long event label (e.g. "Consultation") is enough to blow the whole
+   7-column grid wider than its container and push Saturday off the
+   edge. Fixed layout + truncated event text keeps every column equal
+   width regardless of what's inside it. */
+.fc table,
+.fc .fc-scrollgrid-sync-table { table-layout: fixed !important; }
+
+.fc-daygrid-event {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+}
+
+.fc-daygrid-day-events { overflow: hidden; }
 
 /* TIMELINE CARD */
 .timeline-card {
@@ -1760,72 +1770,11 @@ html, body {
         flex-direction: column;
     }
 
-    .sidebar {
-        width: 100%;
-        height: auto;
-        flex-direction: row;
-        padding: 12px 16px;
-        align-items: center;
-        position: relative;
-        left: 0;
-        top: 0;
-        border-radius: 0;
-        border-right: none;
-        overflow: visible;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .sidebar-header {
-        margin-bottom: 0;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .sidebar-toggle {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .sidebar-nav {
-        display: none;
-        position: absolute;
-        left: 12px;
-        right: 12px;
-        top: 64px;
-        background: #0b396f;
-        border-radius: 12px;
-        padding: 12px;
-        z-index: 12;
-        max-height: 60vh;
-        overflow-y: auto;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .sidebar.mobile-open .sidebar-nav {
-        display: flex;
-    }
-
-    .nav-item {
-        width: 100%;
-        min-height: 40px;
-        justify-content: flex-start;
-        padding: 8px 12px;
-        border-radius: 10px;
-    }
-
-    .nav-label {
-        display: inline;
-        opacity: 1;
-        max-width: 100%;
-    }
-
-    .nav-icon {
-        width: 20px;
-        height: 20px;
-    }
+    /* Sidebar shell + mobile nav are fully owned by shared/css/sidebar.css
+       now (hamburger bar, notif+avatar, profile-card-above-nav dropdown
+       panel) — this page used to duplicate an older/simpler version of
+       that here, which fought with the shared file's positioning and
+       caused the dropdown to render mis-sized and overlapping content. */
 
     .mainContent {
         margin-left: 0;
@@ -1843,6 +1792,15 @@ html, body {
         padding: 16px;
     }
 
+    /* Profile name/avatar + notification/settings/help icons duplicate
+       what the shared sidebar's own mobile bar already shows (avatar +
+       notif bell), so hide them here — desktop/tablet keep both. */
+    .header-identity,
+    .iconheader,
+    .header-divider {
+        display: none;
+    }
+
     .rightSide {
         flex-direction: column;
         width: 100%;
@@ -1850,15 +1808,18 @@ html, body {
     }
 
     .buttonHolder {
-        flex-direction: column;
+        flex-direction: row;
         width: 100%;
         gap: 8px;
     }
 
     .btn-secondary {
-        width: 100%;
+        flex: 1;
+        min-width: 0;
+        width: auto;
         padding: 10px 12px;
         font-size: 12px;
+        justify-content: center;
     }
 
     .Greetings {
@@ -1935,8 +1896,13 @@ html, body {
         flex-wrap: wrap;
     }
 
+    /* flex-basis must be non-zero here — with `flex: 1` (basis 0%),
+       the wrap algorithm judges each item as zero-width and never
+       wraps, so all 3 cards get squeezed onto one row and the
+       min-width floor just pushes the last one off the edge instead
+       of dropping to a new line. */
     .vaccine-item {
-        flex: 1;
+        flex: 1 1 100px;
         min-width: 100px;
     }
 
@@ -1966,15 +1932,34 @@ html, body {
 
 @media (max-width: 480px) {
     .KPI {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    /* Vaccination Rate's progress bar needs more room than the plain
+       number cards, so it gets the full-width row to itself. */
+    .kpi-card:nth-child(4) {
+        grid-column: 1 / -1;
     }
 
     .kpi-card {
-        padding: 12px;
+        padding: 10px 8px;
+        gap: 6px;
+    }
+
+    .kpi-label {
+        font-size: 9.5px;
+        line-height: 1.25;
     }
 
     .kpi-value {
-        font-size: 20px;
+        font-size: 17px;
+    }
+
+    .kpi-location,
+    .trend-text,
+    .urgent-badge {
+        font-size: 9.5px;
     }
 
     .Greetings h1 {
@@ -2014,20 +1999,6 @@ html, body {
         height: 140px;
     }
 
-    .sidebar-nav {
-        gap: 8px;
-    }
-
-    .nav-item {
-        width: 40px;
-        height: 40px;
-    }
-
-    .nav-icon {
-        width: 20px;
-        height: 20px;
-    }
-
     .buttonHolder {
         gap: 6px;
     }
@@ -2052,4 +2023,29 @@ html, body {
     .timeline-item {
         gap: 12px;
     }
+
+    /* Calendar — 7 columns is tight at phone width even with the
+       table-layout:fixed guard above, so shrink the day cells further. */
+    .fc { font-size: 10px !important; }
+
+    .fc .fc-daygrid-day-number {
+        width: 20px;
+        height: 20px;
+        font-size: 10.5px !important;
+        margin: 1px auto;
+    }
+
+    .fc .fc-col-header-cell-cushion {
+        font-size: 8.5px !important;
+        padding: 3px 0 !important;
+    }
+
+    .fc .fc-daygrid-event {
+        font-size: 8.5px !important;
+        padding: 1px 3px !important;
+    }
+
+    .calendar-card { padding: 16px 12px; }
+
+    .calendar-header { margin-bottom: 12px; }
 }

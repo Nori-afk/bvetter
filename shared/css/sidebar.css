@@ -77,7 +77,14 @@
     overflow:         hidden;
     border-right:     1px solid rgba(255, 255, 255, 0.1);
     transition:       width 0.28s ease;
-    z-index:          100;
+    /* Several pages give their own sticky/fixed header the same
+       z-index (100). Since .sidebar and that header sit in separate
+       DOM branches (siblings, not ancestor/descendant), a tie is
+       broken by DOM order — whichever page markup happens to put the
+       header after the sidebar would then paint its header on top of
+       the mobile nav dropdown regardless of the panel's own z-index.
+       Comfortably outrank any page-level z-index so this can't recur. */
+    z-index:          1000;
 }
 
 .sidebar.expanded {
@@ -368,15 +375,14 @@
    defaults MUST come before the mobile media query below so that
    query can override them — a later unconditional rule of equal
    specificity would otherwise win and cancel the mobile behavior. */
-.sidebar-mobile-panel  { display: contents; }
+.sidebar-mobile-panel   { display: contents; }
 .sidebar-mobile-actions { display: none; }
 
 /* ── Mobile ──────────────────────────────────────────────── */
 /* Layout: collapsed bar = hamburger + logo (left), notif + avatar
-   (right). Tapping either the hamburger or the avatar opens
-   `.sidebar-mobile-panel` — a dropdown holding the profile card on
-   top and the full labeled nav list below — matching the public
-   pet-owner nav's hamburger-dropdown pattern. */
+   (right) — same as the public pet-owner nav. Tapping the hamburger
+   or the avatar opens `.sidebar-mobile-panel`: a dropdown holding the
+   profile card on top and the full labeled nav list below. */
 @media (max-width: 768px) {
     .sidebar {
         position:       relative;
@@ -384,7 +390,8 @@
         top:            0;
         width:          100%;
         height:         auto;
-        border-radius:  12px;
+        border-radius:  0;
+        margin:         0;
         padding:        10px 12px;
         flex-direction: row;
         align-items:    center;
@@ -503,16 +510,17 @@
     }
 
     .sidebar.mobile-open .sidebar-footer {
-        display:       flex;
+        display:        flex;
         flex-direction: column;
-        width:         100%;
-        padding-bottom: 10px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        width:          100%;
+        padding-top:    10px;
+        margin-top:     6px;
+        border-top:     1px solid rgba(255, 255, 255, 0.12);
     }
 
     /* Profile card — same "avatar + name/role" look as the desktop
        expanded sidebar (mirrors .sidebar.expanded .sidebar-profile-*
-       below), since mobile uses the separate .mobile-open class. */
+       above), since mobile uses the separate .mobile-open class. */
     .sidebar.mobile-open .sidebar-profile-card {
         width:           100%;
         min-height:      51px;
@@ -562,9 +570,9 @@
     }
 
     .sidebar.mobile-open .nav-label {
-        display:   inline-block;
-        opacity:   1;
-        max-width: none;
+        display:     inline-block;
+        opacity:     1;
+        max-width:   none;
         margin-left: 10px;
     }
 
@@ -588,7 +596,6 @@
         width:       100% !important;
     }
 }
-
 .sidebar-profile-avatar--initials {
     display: flex;
     align-items: center;

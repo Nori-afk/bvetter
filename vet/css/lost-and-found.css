@@ -898,6 +898,51 @@ body {
 .lf-table tbody tr { transition: background 0.12s; }
 .lf-table tbody tr:hover td { background: #F8FAFF; cursor: pointer; }
 
+/* Pagination — same "Displaying X of Y Records" + boxed page-number
+   style used on the Reports table, for a consistent, clean look
+   across every table in the app. */
+.report-footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	padding: 12px 4px 0;
+	color: #687389;
+	font-size: 12px;
+}
+
+.report-footer p { margin: 0; }
+
+.pagination {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.page-btn {
+	width: 24px;
+	height: 24px;
+	border-radius: 6px;
+	border: 1px solid rgba(195, 198, 210, 0.8);
+	background: #fff;
+	color: #173d6b;
+	font-size: 11px;
+	font-weight: 700;
+	cursor: pointer;
+	display: inline-grid;
+	place-items: center;
+	padding: 0;
+}
+
+.page-btn.active {
+	background: #0f4b8f;
+	color: #fff;
+	border-color: #0f4b8f;
+}
+
+.page-btn:disabled:not(.active) { opacity: 0.35; cursor: default; }
+
 /* Pet cell */
 .lf-pet-cell {
 	display: flex;
@@ -1062,7 +1107,10 @@ body {
 	background: rgba(8, 15, 28, 0.68);
 	display: grid;
 	place-items: center;
-	z-index: 900;
+	/* Must outrank the shared sidebar's mobile top bar (z-index:1000 —
+	   see shared/css/sidebar.css) or its hamburger bar renders on top
+	   of the modal instead of the modal covering everything. */
+	z-index: 2000;
 	padding: 14px;
 }
 
@@ -2007,7 +2055,45 @@ body {
 	}
 }
 
+@media (max-width: 768px) {
+	/* Sidebar switches to an in-flow horizontal bar at this width (see
+	   shared/css/sidebar.css) — stack it above the content instead of
+	   letting the flex row squeeze both side by side. */
+	.main-holder.lf-page { flex-direction: column; }
+}
+
 @media (max-width: 860px) {
+	/* Resolved/Claims tables: the wrapper's overflow:hidden was clipping
+	   the 3 columns (Owner/Submitter, Date, Status) that don't fit
+	   instead of letting them scroll into view — they were still in
+	   the DOM, just invisible. */
+	.lf-table-wrap {
+		overflow-x: auto;
+		overflow-y: hidden;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	/* Tabs: flex-wrap let 6 tabs break across 2-3 uneven rows, so the
+	   active tab's underline could land anywhere depending on wrap —
+	   scroll horizontally in one clean row instead, like the filter
+	   pill patterns used elsewhere in the app. */
+	.lf-tabbar {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		gap: 4px;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: thin;
+		scrollbar-color: var(--lf-border) transparent;
+	}
+
+	.lf-tabbar::-webkit-scrollbar { height: 4px; }
+	.lf-tabbar::-webkit-scrollbar-thumb { background: var(--lf-border); border-radius: 4px; }
+	.lf-tabbar::-webkit-scrollbar-track { background: transparent; }
+
+	.tab-btn {
+		flex-shrink: 0;
+	}
+
 	.lf-main,
 	.sidebar.expanded ~ .lf-main {
 		margin-left: 0;
@@ -2021,8 +2107,27 @@ body {
 		gap: 10px;
 	}
 
-	.lf-stats,
-	.lf-toolbar,
+	.lf-hero .btn {
+		width: 100%;
+		justify-content: center;
+	}
+
+	/* Pending Review spans full width on its own row (it's the featured/
+	   actionable card); the other 4 go 2-up instead of leaving Resolved
+	   dangling alone in a lopsided last row. */
+	.lf-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.stat-card.featured { grid-column: 1 / -1; }
+
+	/* Search stays full-width on its own row; the 3 filter selects are
+	   the actual filters and don't need a full row each — 2 per row. */
+	.lf-toolbar {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.search-box {
+		grid-column: 1 / -1;
+	}
+
 	.active-grid {
 		grid-template-columns: 1fr;
 	}
@@ -2720,4 +2825,59 @@ body {
 	.vlf-body { grid-template-columns: 1fr; }
 	.vlf-col:first-child { border-right: none; border-bottom: 1px solid #F1F5F9; }
 	.vlf-row-2 { grid-template-columns: 1fr; }
+
+	/* This is the modal actually used by the Report Lost/Found Pet form
+	   (.vlf-body above is unused dead CSS) — Pet Identification/Details
+	   and Incident Details columns need to stack on mobile. */
+	.vet-lf-modal .modal-body {
+		display: flex;
+		flex-direction: column;
+	}
+
+	/* Header: icon+title+description spans full width on its own row;
+	   the Lost/Found toggle drops below it, aligned right, instead of
+	   squeezing next to the title on the same row. */
+	.vet-lf-modal .modal-header {
+		flex-wrap: wrap;
+		padding: 15px 48px 14px 16px;
+		gap: 10px;
+	}
+
+	.vet-lf-modal .modal-header-left { width: 100%; }
+
+	.vet-lf-modal .modal-header-right {
+		width: 100%;
+		justify-content: flex-end;
+	}
+
+	/* Footer: Save Draft + Cancel share a row; Submit gets its own
+	   full-width row below instead of all 3 competing for one row. */
+	.vet-lf-modal .vlf-footer {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 8px;
+	}
+
+	.vet-lf-modal .vlf-footer-right {
+		display: contents;
+	}
+
+	.vet-lf-modal .vlf-save-draft {
+		grid-column: 1;
+		grid-row: 1;
+		width: 100%;
+	}
+
+	.vet-lf-modal .vlf-cancel {
+		grid-column: 2;
+		grid-row: 1;
+		width: 100%;
+	}
+
+	.vet-lf-modal .vlf-submit {
+		grid-column: 1 / -1;
+		grid-row: 2;
+		width: 100%;
+		justify-content: center;
+	}
 }

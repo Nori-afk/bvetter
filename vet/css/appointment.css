@@ -624,21 +624,35 @@ body {
     color:           var(--appt-muted);
 }
 
-.pager { display: flex; align-items: center; gap: 8px; }
+/* Same boxed page-number look as the Reports table's pagination, for
+   a consistent, clean style across every table in the app. */
+.pager { display: flex; align-items: center; gap: 6px; }
 
-.pager button {
-    width:         28px;
-    height:        28px;
+.pager button,
+.pager span {
+    width:         24px;
+    height:        24px;
     border:        1px solid var(--appt-line);
     border-radius: 6px;
     background:    #fff;
     color:         var(--appt-navy);
-    font-size:     1rem;
+    font-size:     11px;
+    font-weight:   700;
     cursor:        pointer;
     line-height:   1;
+    display:       inline-grid;
+    place-items:   center;
+    padding:       0;
 }
 
 .pager button:disabled { opacity: 0.35; cursor: default; }
+
+.pager span {
+    background: #0f4b8f;
+    color:      #fff;
+    border-color: #0f4b8f;
+    cursor:     default;
+}
 
 /* ── Modal ───────────────────────────────────────────── */
 .modal-overlay {
@@ -648,7 +662,10 @@ body {
     display:        grid;
     place-items:    center;
     padding:        20px;
-    z-index:        200;
+    /* Must outrank the shared sidebar's mobile top bar (z-index:1000 —
+       see shared/css/sidebar.css) or its hamburger bar renders on top
+       of the modal instead of the modal covering everything. */
+    z-index:        2000;
 }
 
 .modal-overlay[hidden] { display: none !important; }
@@ -1444,7 +1461,86 @@ body {
 }
 
 @media (max-width: 768px) {
-    .right-content { margin-left: 0; width: 100%; }
-    .card-holder   { grid-template-columns: 1fr; }
+    /* Sidebar switches to an in-flow horizontal bar at this width (see
+       shared/css/sidebar.css) — stack it above the content instead of
+       letting the flex row squeeze both side by side. */
+    .main-holder { flex-direction: column; }
+
+    .right-content { margin-left: 0; width: 100%; padding: 16px 16px 32px; }
+
+    /* Stays 2-up on mobile — only the padding/font sizes shrink. */
+    .card-holder { gap: 10px; }
+
+    .pending-request,
+    .confirmed-request {
+        padding: 14px 16px;
+    }
+
+    .pending-request h3,
+    .confirmed-request h3 {
+        font-size: 15px;
+    }
+
+    /* ── Appointment details / reschedule / confirm modals ────── */
+    .modal-shell { max-height: 92vh; }
+
+    .appt-modal-header { padding: 18px 48px 16px 18px; }
+
+    .appt-modal-body { padding: 18px 18px 22px; }
+
+    /* Grid tracks don't shrink below their content's intrinsic width by
+       default — "Mark as Completed" on one line was enough to blow this
+       row past the modal's edge, and since .modal-shell clips overflow
+       (overflow-x:hidden) the 3rd button was just cut off invisibly.
+       minmax(0,1fr) lets the tracks actually shrink; stacking the icon
+       above the label (instead of side by side) gives the text enough
+       width to wrap within its own column instead of forcing one. */
+    .appt-action-row {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .appt-action-btn {
+        flex-direction: column;
+        gap: 4px;
+        padding: 10px 4px;
+        font-size: 10.5px;
+        line-height: 1.15;
+    }
+
+    .appt-action-btn i,
+    .appt-action-btn svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    .appt-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Label/value rows: "Owner" + a long name have no room to sit
+       side-by-side at phone width, so stack the value under the label
+       instead of squeezing them onto one line. */
+    .appt-info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 3px;
+        padding: 8px 0;
+    }
+
+    .modal-footer {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .modal-footer .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .card-stat span {
+        font-size: 1.6rem;
+    }
+
     .info-grid, .reschedule-layout { grid-template-columns: 1fr; }
 }

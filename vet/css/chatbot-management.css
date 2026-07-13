@@ -114,6 +114,11 @@ body {
     box-shadow: 0 2px 10px rgba(12, 30, 54, 0.06);
     overflow-x: auto;
     margin-bottom: 4px;
+    scrollbar-width: none;
+}
+
+.Menu-holder::-webkit-scrollbar {
+    display: none;
 }
 
 .tab-btn {
@@ -573,7 +578,8 @@ body {
     background: #FEE2E2;
 }
 
-.table-footer {
+.table-footer,
+.report-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -587,19 +593,30 @@ body {
 .pagination {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
     flex-wrap: wrap;
 }
 
 .page-btn {
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border: 1px solid rgba(172, 188, 212, 0.8);
     background: #fff;
-    border-radius: 12px;
-    padding: 10px 14px;
+    border-radius: 6px;
+    padding: 0;
     font: inherit;
     font-weight: 800;
     color: var(--chatbot-blue);
     cursor: pointer;
+}
+
+.page-btn.active {
+    background: #0f4b8f;
+    color: #fff;
+    border-color: #0f4b8f;
 }
 
 .page-btn:disabled {
@@ -983,7 +1000,7 @@ body {
     align-items: center;
     justify-content: center;
     padding: 24px;
-    z-index: 60;
+    z-index: 2000;
 }
 
 .modal-overlay[hidden] {
@@ -1293,28 +1310,75 @@ body {
     }
 }
 
+/* Sidebar switches to an in-flow horizontal bar at 768px (see
+   shared/css/sidebar.css) — stack it above the content at that exact
+   breakpoint instead of letting the flex row squeeze both side by side. */
 @media (max-width: 768px) {
     .main-holder {
-        padding: 12px;
-        gap: 12px;
+        flex-direction: column;
     }
 
     .content-holder {
         margin-left: 0;
         width: 100%;
+        padding: 16px 14px 28px;
     }
 
     .Menu-holder {
         padding: 8px;
     }
 
+    .tab-btn {
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
     .hero-shell,
     .table-head,
     .table-footer,
+    .report-footer,
     .management-toolbar,
     .consultation-copy {
         padding-left: 16px;
         padding-right: 16px;
+    }
+
+    /* 2-up instead of 1 full-width KPI card per row */
+    .summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .summary-grid > :nth-child(3) {
+        grid-column: 1 / -1;
+    }
+
+    /* Table title spans full width; the "Live backend data" badge
+       drops below it, aligned to the right instead of squeezing
+       beside a long heading. */
+    .table-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .table-badge {
+        align-self: flex-end;
+    }
+
+    .search-shell {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .toolbar-actions {
+        width: 100%;
+    }
+
+    .toolbar-actions .light-select {
+        flex: 1;
+    }
+
+    .toolbar-actions .primary-action {
+        flex: 1;
     }
 
     .modal-overlay {
@@ -1323,6 +1387,33 @@ body {
 
     .modal-shell {
         padding: 18px;
+    }
+
+    .modal-footer {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .modal-footer .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .duration-row {
+        grid-template-columns: 1fr;
+    }
+
+    .builder-step-two-cols {
+        grid-template-columns: 1fr;
+    }
+
+    .builder-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .builder-actions .btn {
+        width: 100%;
     }
 }
 
@@ -1660,6 +1751,15 @@ body {
     box-shadow: 0 4px 14px rgba(44, 55, 80, 0.25);
 }
 
+/* Age group cards share .choice-card.active but have no data-animal
+   attribute, so they never matched the per-species backgrounds above —
+   left with white text on the pale default active background
+   (near-invisible). Give them their own solid active fill. */
+.choice-card[data-agegroup].active {
+    background: #0d7a3d;
+    box-shadow: 0 4px 14px rgba(13, 122, 61, 0.25);
+}
+
 .choice-card.active::before {
     background-color: rgba(255, 255, 255, 0.18) !important;
 }
@@ -1932,5 +2032,19 @@ body {
 .builder-actions .btn {
     min-width:      110px;
     justify-content: center;
+}
+
+/* Mobile builder grids — placed at the end of the file so they win over
+   the unconditional .animal-grid/.agegroup-grid/.symptom-grid column
+   counts declared earlier (same specificity, later source wins). */
+@media (max-width: 768px) {
+    .animal-grid,
+    .agegroup-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .symptom-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 

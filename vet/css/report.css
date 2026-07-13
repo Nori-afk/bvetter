@@ -646,43 +646,115 @@ body {
 }
 
 @media (max-width: 768px) {
+	/* Sidebar switches to an in-flow horizontal bar at this width (see
+	   shared/css/sidebar.css) — stack it above the content instead of
+	   letting the flex row squeeze both side by side. */
 	.main-holder {
-		padding: 12px;
+		flex-direction: column;
+		padding: 0;
 	}
 
 	.right-side {
 		margin-left: 0;
 		width: 100%;
+		padding: 16px 16px 32px;
 	}
 
 	.report-hero h1 {
 		font-size: 26px;
 	}
 
+	/* 3 metric cards in a row instead of stacked full-width. */
+	.metric-grid {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 10px;
+	}
+
+	.metric-card {
+		padding: 12px 10px 14px;
+		gap: 6px;
+	}
+
+	/* Decorative only — dropping it on mobile gives the label the full
+	   card width instead of squeezing "Total Patients This Month" into
+	   a narrow column next to it (was wrapping 4 lines deep). */
+	.metric-icon {
+		display: none;
+	}
+
+	.metric-label {
+		font-size: 8px;
+		letter-spacing: 0.02em;
+		line-height: 1.3;
+	}
+
+	.metric-value {
+		font-size: 22px;
+		letter-spacing: -1px;
+	}
+
+	.metric-title {
+		font-size: 13px;
+	}
+
+	.metric-note,
+	.kpi-subset {
+		font-size: 9.5px;
+	}
+
+	/* Filter / Sort / Export — 3 in a row instead of stacked full-width.
+	   .toolbar-group wraps Filter+Sort as one unit in the markup, so it's
+	   flattened with display:contents to let its two .filter-wrap children
+	   become direct grid items alongside the Export group. */
 	.toolbar {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 8px;
 		align-items: stretch;
 	}
 
-	.toolbar-group,
+	.toolbar-group {
+		display: contents;
+	}
+
 	.toolbar-group-end {
 		width: 100%;
+		margin-left: 0;
 	}
 
 	.toolbar-btn {
 		width: 100%;
+		padding: 0 6px;
+		font-size: 11px;
 	}
 
 	.filter-wrap {
 		width: 100%;
 	}
 
+	/* Keep the desktop behavior (position:absolute floating overlay) —
+	   switching it to position:static/width:100% shoved it into normal
+	   document flow instead, where it got squeezed into the narrow
+	   Filter column and pushed the table down. Just keep it from
+	   running off the right edge of a narrow phone screen. */
 	.filter-popover {
-		position: static;
-		width: 100%;
-		margin-top: 10px;
+		width: min(200px, 70vw);
 	}
 
 	.report-footer {
 		align-items: flex-start;
 	}
+
+	/* Patient report table stays a real table (same look as desktop) —
+	   just scrolls horizontally to reach the columns that don't fit,
+	   with a visible thin scrollbar so it's clear there's more to see. */
+	.table-wrap {
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: thin;
+		scrollbar-color: #c3c6d2 transparent;
+	}
+
+	.table-wrap::-webkit-scrollbar { height: 6px; }
+	.table-wrap::-webkit-scrollbar-thumb { background: #c3c6d2; border-radius: 4px; }
+	.table-wrap::-webkit-scrollbar-track { background: transparent; }
 }

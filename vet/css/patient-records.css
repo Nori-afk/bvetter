@@ -405,6 +405,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    min-width: 0;
 }
 
 /* ======================================= */
@@ -857,6 +858,51 @@ body {
     font-size: 13px;
 }
 
+/* Same "Displaying X of Y Records" + boxed page-number style used on
+   the Reports table, for a consistent, clean look across every table
+   in the app. */
+.report-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 4px;
+    color: var(--text-tertiary);
+    font-size: 12px;
+}
+
+.report-footer p { margin: 0; }
+
+.pagination {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.page-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: 1px solid #C3C6D2;
+    background: #fff;
+    color: #173d6b;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-grid;
+    place-items: center;
+    padding: 0;
+}
+
+.page-btn.active {
+    background: #0f4b8f;
+    color: #fff;
+    border-color: #0f4b8f;
+}
+
+.page-btn:disabled:not(.active) { opacity: 0.35; cursor: default; }
+
 /* ======================================= */
 /* DETAIL VIEW                             */
 /* ======================================= */
@@ -895,9 +941,13 @@ body {
     display: grid;
     grid-template-columns: 1.2fr 0.8fr;
     gap: 16px;
+    min-width: 0;
 }
 
-.detail-shell { display: grid; gap: 18px; }
+.detail-grid > * { min-width: 0; }
+
+.detail-shell { display: grid; gap: 18px; min-width: 0; }
+.detail-shell > * { min-width: 0; }
 
 /* Detail hero card */
 .detail-hero {
@@ -1069,6 +1119,7 @@ body {
     flex-direction: column;
     gap: 10px;
     position: relative;
+    min-width: 0;
     overflow: hidden;
 }
 
@@ -1853,7 +1904,10 @@ body {
     display: grid;
     place-items: center;
     padding: 20px;
-    z-index: 1000;
+    /* Must strictly outrank the shared sidebar's mobile top bar
+       (z-index:1000 — see shared/css/sidebar.css), not just tie with
+       it — a tie is resolved by DOM order, which is fragile. */
+    z-index: 2000;
 }
 
 .modal-overlay[hidden] { display: none !important; }
@@ -2046,29 +2100,140 @@ body {
 /* ======================================= */
 
 @media (max-width: 1200px) {
-    .detail-grid, .form-layout { grid-template-columns: 1fr; }
+    .detail-grid { grid-template-columns: 1fr; }
+    .form-layout,
+    #record-form.form-layout,
+    form#record-form {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .form-layout > .form-card,
+    #record-form.form-layout > .form-card {
+        width: 100% !important;
+    }
     .metrics-grid, .detail-kpis { grid-template-columns: repeat(2, 1fr); }
     .summary-heading-row, .visit-details-grid, .history-columns,
     .vaccination-card, .vaccination-meta { grid-template-columns: 1fr; }
 }
 
+/* Sidebar switches to an in-flow horizontal bar at 768px (see
+   shared/css/sidebar.css) — stack it above the content at that exact
+   breakpoint instead of letting the flex row squeeze both side by side. */
+@media (max-width: 768px) {
+    .main-holder { flex-direction: column; }
+}
+
 @media (max-width: 900px) {
-    .right-side { margin-left: 0; width: 100%; }
+    .right-side { margin-left: 0; width: 100%; overflow-x: hidden; }
     .records-hero { margin: 0; padding: 20px 24px; flex-direction: column; }
     .hero-stats { width: 100%; justify-content: space-around; }
-    .metrics-grid { padding: 0; gap: 12px; }
+
+    /* 2-up instead of 1 full-width card per row */
+    .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0; gap: 12px; }
+
     .records-shell { padding: 16px; gap: 16px; }
     .topHeader { padding: 14px 20px; }
-    .detail-head { flex-direction: column; }
+    /* display:block (not flex-direction:column) — same-axis property
+       updates on an already-flex element were unreliable in testing;
+       switching the display type itself forces a clean relayout. */
+    .detail-head { display: block !important; }
+    .detail-title { display: flex; flex-wrap: wrap; min-width: 0; margin-bottom: 12px; }
+    .detail-actions { display: flex; margin-top: 14px; }
+    .detail-actions .btn { width: 100%; justify-content: center; }
     .records-hero-top { flex-direction: column; }
-    .hero-actions { justify-content: flex-start; }
+    .hero-actions { justify-content: flex-start; width: 100%; }
+    .hero-actions .btn { width: 100%; justify-content: center; }
     .filter-strip { justify-content: flex-start; }
-    .detail-tabs { padding-left: 0; }
+    .detail-tabs {
+        padding-left: 0;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .detail-tabs::-webkit-scrollbar { display: none; }
+
+    .detail-tab {
+        flex-shrink: 0;
+        white-space: nowrap;
+        padding: 10px 14px 12px;
+        font-size: 12.5px;
+    }
     .section-head { flex-direction: column; align-items: flex-start; }
+
+    .form-grid { grid-template-columns: 1fr; }
+
+    .em-footer {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .em-footer-right {
+        flex-direction: column-reverse;
+        width: 100%;
+    }
+
+    .em-footer-right .btn,
+    .em-delete-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* 2-up instead of 4 cramped into one row (grid-template-columns
+       overrides were unreliable on this element in testing — flex+wrap
+       sidesteps it and gives the same 2-column result). */
+    .detail-kpis {
+        display: flex !important;
+        flex-wrap: wrap !important;
+    }
+
+    .detail-kpis > * {
+        width: calc(50% - 6px) !important;
+    }
+
+    .kpi-row {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 12px !important;
+    }
+
+    .kpi-tile {
+        width: calc(50% - 6px) !important;
+    }
+
+    /* grid-template-columns updates were unreliable on this element in
+       testing (stuck showing a stale multi-column track list even with
+       !important) — flex sidesteps it entirely and is just as correct
+       for a single-column stack. */
+    .form-grid-3 {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .form-grid-3 .field { width: 100% !important; }
+
+    /* Physical Characteristics / Ownership Information pair had no
+       mobile override at all — the 2-column grid forced the row wider
+       than the viewport (long email/name text can't shrink below its
+       intrinsic width), and .right-side's overflow-x:hidden was silently
+       clipping the excess instead of the row actually fitting. */
+    .detail-two-column {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    .detail-two-column > * {
+        width: 100% !important;
+        min-width: 0;
+    }
 }
 
 @media (max-width: 640px) {
-    .metrics-grid, .detail-kpis, .form-grid { grid-template-columns: 1fr; }
+    .metric-card { padding: 12px 14px; }
+
+    .metric-value { font-size: 26px; }
+
     .records-table { min-width: 900px; }
     .modal-shell { padding: 16px; }
     .hero-stats { gap: 16px; }
@@ -2436,6 +2601,8 @@ body {
     font-weight: 600;
     color: #0F172A;
     line-height: 1.4;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .pi-owner-strip {
@@ -2446,6 +2613,10 @@ body {
     background: #F8FAFC;
     border-radius: 10px;
     border: 1px solid #E8EEF6;
+}
+
+.pi-owner-strip > div {
+    min-width: 0;
 }
 
 .pi-owner-strip .owner-avatar {
@@ -2467,12 +2638,14 @@ body {
     font-weight: 700;
     color: #0F172A;
     display: block;
+    overflow-wrap: break-word;
 }
 
 .pi-owner-strip p {
     font-size: 11px;
     color: #94A3B8;
     margin: 1px 0 0;
+    overflow-wrap: break-word;
 }
 
 /* --- Latest Visit card --- */
