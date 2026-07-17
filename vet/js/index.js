@@ -4,18 +4,21 @@
         appointmentsResponse,
         vaccinationEventsResponse,
         chatbotStatsResponse,
-        announcementsResponse
+        announcementsResponse,
+        staffNotificationsResponse
     ] = await Promise.all([
         window.VetAPI?.getDashboardSummary ? window.VetAPI.getDashboardSummary({ patient_range: 'weekly' }) : { ok: false, data: null },
         window.VetAPI?.getAppointments ? window.VetAPI.getAppointments({}) : { ok: false, data: [] },
         window.VetAPI?.getVaccinationEvents ? window.VetAPI.getVaccinationEvents() : { ok: false, data: [] },
         window.VetAPI?.getChatbotDashboardStats ? window.VetAPI.getChatbotDashboardStats() : { ok: false, data: {} },
-        window.VetAPI?.getAnnouncements ? window.VetAPI.getAnnouncements({ status: 'all' }) : { ok: false, data: [] }
+        window.VetAPI?.getAnnouncements ? window.VetAPI.getAnnouncements({ status: 'all' }) : { ok: false, data: [] },
+        window.VetAPI?.getStaffNotifications ? window.VetAPI.getStaffNotifications() : { ok: false, data: [] }
     ]);
     let dashboardData = dashboardResponse.ok ? dashboardResponse.data : null;
     const appointments = appointmentsResponse.ok && Array.isArray(appointmentsResponse.data) ? appointmentsResponse.data : [];
     const vaccinationEvents = vaccinationEventsResponse.ok && Array.isArray(vaccinationEventsResponse.data) ? vaccinationEventsResponse.data : [];
     const chatbotStats = chatbotStatsResponse.ok ? chatbotStatsResponse.data : {};
+    const staffNotifications = staffNotificationsResponse.ok && Array.isArray(staffNotificationsResponse.data) ? staffNotificationsResponse.data : [];
     applyDashboardKpis(dashboardData);
     renderTodayTimeline(appointments);
     renderRecentPatientAppointment(appointments);
@@ -27,7 +30,17 @@
     };
 
     const notificationState = {
-        items: buildOperationalNotifications(dashboardData, appointments, vaccinationEvents)
+        items: [
+            ...staffNotifications.map((item) => ({
+                id: item.id,
+                title: item.title,
+                detail: item.message,
+                time: new Date(item.created_at).toLocaleString(),
+                read: item.is_read,
+                serverBacked: true
+            })),
+            ...buildOperationalNotifications(dashboardData, appointments, vaccinationEvents)
+        ]
     };
 
     const modalRoot = ensureDashboardModalRoot();
@@ -297,7 +310,7 @@
         new Chart(vaccinatedCtx, {
             type: 'doughnut',
             data: {
-                labels: ['Rabies', 'Parvo'],
+                labels: ['Dogs', 'Cats'],
                 datasets: [
                     {
                         data: [
@@ -537,16 +550,22 @@
                     item.read = true;
                 });
                 openNotificationModal();
+                if (window.VetAPI?.markAllNotificationsRead) {
+                    window.VetAPI.markAllNotificationsRead();
+                }
             });
         }
 
         modalRoot.querySelectorAll('[data-notification-id]').forEach((element) => {
             element.addEventListener('click', () => {
-                const entry = notificationState.items.find((item) => item.id === element.dataset.notificationId);
+                const entry = notificationState.items.find((item) => String(item.id) === element.dataset.notificationId);
                 if (entry) {
                     entry.read = true;
                     element.classList.remove('unread');
                     element.classList.add('read');
+                    if (entry.serverBacked && window.VetAPI?.markNotificationRead) {
+                        window.VetAPI.markNotificationRead(entry.id);
+                    }
                 }
             });
         });
@@ -1179,15 +1198,14 @@ function applyDashboardKpis(data) {
     const progress = document.querySelector('.vaccination-progress .progress-fill');
     if (progress) progress.style.width = `${Math.min(100, data.kpis.vaccinationRate || 0)}%`;
 
-    const demandItems = document.querySelectorAll('.vaccine-item');
-    (data.vaccineDemand || []).forEach((item, index) => {
-        const card = demandItems[index];
-        if (!card) return;
-        const label = card.querySelector('.vaccine-item-label');
-        const value = card.querySelector('.vaccine-item-value');
-        if (label) label.textContent = item.label;
-        if (value) value.textContent = formatNumber(item.units || 0);
-    });
+    // Clinic only administers Anti-Rabies, so only the first forecasted
+    // demand figure is shown, always labeled "Anti-Rabies".
+    const demandCard = document.querySelector('.vaccine-item');
+    const demandEntry = (data.vaccineDemand || [])[0];
+    if (demandCard && demandEntry) {
+        const value = demandCard.querySelector('.vaccine-item-value');
+        if (value) value.textContent = formatNumber(demandEntry.units || 0);
+    }
 }
 
 /**

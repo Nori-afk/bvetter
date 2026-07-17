@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
-	const PROFILE_API = "/bvetter/api/users/profile.php";
-	const SESSION_API = "/bvetter/api/users/sessions.php";
+	const PROFILE_API = "/final-VBETTER/bvetter/api/users/profile.php";
+	const SESSION_API = "/final-VBETTER/bvetter/api/users/sessions.php";
 	const session = window.VBetterAuth?.getSession?.() || JSON.parse(sessionStorage.getItem("vbetter_session") || "null");
 	const userId = session?.userId || session?.id || 0;
 
@@ -83,6 +83,9 @@ document.addEventListener("DOMContentLoaded", () => {
 			if (n.contentUpdates)          n.contentUpdates.checked          = Boolean(profile.notifications?.contentUpdates);
 			if (n.weeklySummary)           n.weeklySummary.checked           = Boolean(profile.notifications?.weeklySummary);
 			if (n.securityAlerts)          n.securityAlerts.checked          = profile.notifications?.securityAlerts !== false;
+			if (n.quietHoursEnabled)       n.quietHoursEnabled.checked       = Boolean(profile.notifications?.quietHoursEnabled);
+			if (n.quietHoursStart)         n.quietHoursStart.value           = profile.notifications?.quietHoursStart || "22:00";
+			if (n.quietHoursEnd)           n.quietHoursEnd.value             = profile.notifications?.quietHoursEnd || "07:00";
 		}
 	}
 
@@ -195,7 +198,10 @@ document.addEventListener("DOMContentLoaded", () => {
 				systemAlerts:            n.systemAlerts?.checked            ?? false,
 				contentUpdates:          n.contentUpdates?.checked          ?? false,
 				weeklySummary:           n.weeklySummary?.checked           ?? false,
-				securityAlerts:          n.securityAlerts?.checked          ?? true
+				securityAlerts:          n.securityAlerts?.checked          ?? true,
+				quietHoursEnabled:       n.quietHoursEnabled?.checked       ?? false,
+				quietHoursStart:         n.quietHoursStart?.value           || "22:00",
+				quietHoursEnd:           n.quietHoursEnd?.value             || "07:00"
 			});
 			fillProfile(profile);
 			setMessage("Notification preferences saved.", "success");

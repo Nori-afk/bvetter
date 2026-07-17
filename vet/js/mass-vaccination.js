@@ -1139,9 +1139,7 @@
     const barangayTrigger   = document.getElementById('barangay-trigger');
     const barangayError     = document.getElementById('barangay-error');
     const vaccineSelect     = document.getElementById('event-vaccine');
-    const otherVaccineField = document.getElementById('other-vaccine-field');
-    const otherVaccineInput = document.getElementById('event-vaccine-other');
-    const otherVaccineError = document.getElementById('vaccine-other-error');
+    const addVaccineTypeBtn = document.getElementById('add-vaccine-type-btn');
 
     function todayIso() {
         const d = new Date();
@@ -1221,18 +1219,57 @@
     const barangaySelectUI = enhanceSelect(barangaySelect, 'barangay-select-wrap', 'barangay-trigger', 'barangay-panel');
     const vaccineSelectUI  = enhanceSelect(vaccineSelect, 'vaccine-select-wrap', 'vaccine-trigger', 'vaccine-panel');
 
-    function toggleOtherVaccineField() {
-        const isOthers = vaccineSelect.value === 'Others';
-        otherVaccineField.hidden = !isOthers;
-        otherVaccineInput.required = isOthers;
-        if (!isOthers) setFieldError(otherVaccineInput, otherVaccineError, '');
+    // Vaccine Type options come from the shared VaccineTypes registry
+    // (defaults to Anti-Rabies only; grows as staff add new types).
+    function rebuildVaccineOptions(selectValue) {
+        const types = window.VaccineTypes?.getAll ? window.VaccineTypes.getAll() : ['Anti-Rabies'];
+        const previous = selectValue ?? vaccineSelect.value;
+        vaccineSelect.innerHTML = types.map((t) => `<option>${t}</option>`).join('');
+        vaccineSelect.value = types.includes(previous) ? previous : types[0];
+        vaccineSelectUI?.syncLabel();
     }
 
-    vaccineSelect.addEventListener('change', toggleOtherVaccineField);
+    rebuildVaccineOptions();
+
+    // ── Add Vaccination Type modal ─────────────────────────────────
+    const addVaccineTypeModal = document.getElementById('add-vaccine-type-modal');
+    const addVaccineTypeForm  = document.getElementById('add-vaccine-type-form');
+    const newVaccineTypeInput = document.getElementById('new-vaccine-type-input');
+    const newVaccineTypeError = document.getElementById('new-vaccine-type-error');
+
+    const openAddVaccineTypeModal = () => {
+        addVaccineTypeForm.reset();
+        setFieldError(newVaccineTypeInput, newVaccineTypeError, '');
+        addVaccineTypeModal.classList.remove('hidden');
+        newVaccineTypeInput.focus();
+    };
+    const closeAddVaccineTypeModal = () => {
+        addVaccineTypeModal.classList.add('hidden');
+    };
+
+    addVaccineTypeBtn?.addEventListener('click', openAddVaccineTypeModal);
+    document.getElementById('close-add-vaccine-type').addEventListener('click', closeAddVaccineTypeModal);
+    document.getElementById('cancel-add-vaccine-type').addEventListener('click', closeAddVaccineTypeModal);
+    addVaccineTypeModal.addEventListener('click', (e) => {
+        if (e.target === addVaccineTypeModal) closeAddVaccineTypeModal();
+    });
+
+    addVaccineTypeForm.addEventListener('submit', (ev) => {
+        ev.preventDefault();
+        const result = window.VaccineTypes?.add
+            ? window.VaccineTypes.add(newVaccineTypeInput.value)
+            : { ok: false, error: 'Vaccine type registry unavailable.' };
+        if (!result.ok) {
+            setFieldError(newVaccineTypeInput, newVaccineTypeError, result.error || 'Could not add that vaccination type.');
+            return;
+        }
+        rebuildVaccineOptions(result.value);
+        closeAddVaccineTypeModal();
+    });
 
     const openModal  = () => {
         dateInput.min = todayIso();
-        toggleOtherVaccineField();
+        rebuildVaccineOptions();
         document.getElementById('create-event-modal').classList.remove('hidden');
     };
     const closeModal = () => {
@@ -1240,10 +1277,8 @@
         document.getElementById('create-event-form').reset();
         setFieldError(dateInput, dateError, '');
         setFieldError(barangayTrigger, barangayError, '');
-        setFieldError(otherVaccineInput, otherVaccineError, '');
         barangaySelectUI?.syncLabel();
-        vaccineSelectUI?.syncLabel();
-        toggleOtherVaccineField();
+        rebuildVaccineOptions();
     };
 
     document.getElementById('open-create-event').addEventListener('click', openModal);
@@ -1277,7 +1312,6 @@
 
         setFieldError(dateInput, dateError, '');
         setFieldError(barangayTrigger, barangayError, '');
-        setFieldError(otherVaccineInput, otherVaccineError, '');
 
         let hasError = false;
 
@@ -1294,16 +1328,10 @@
             hasError = true;
         }
 
-        const isOthers = vaccineSelect.value === 'Others';
-        if (isOthers && !otherVaccineInput.value.trim()) {
-            setFieldError(otherVaccineInput, otherVaccineError, 'Please specify the vaccine name.');
-            hasError = true;
-        }
-
         if (hasError) return;
 
         const fd = new FormData(document.getElementById('create-event-form'));
-        const vaccineValue = isOthers ? otherVaccineInput.value.trim() : fd.get('vaccine');
+        const vaccineValue = fd.get('vaccine');
 
         const isDuplicate = state.events.some(e =>
             e.date === dateInput.value &&

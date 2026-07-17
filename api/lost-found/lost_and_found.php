@@ -14,6 +14,7 @@ if ($method !== 'POST') {
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/mailer.php';
+require_once __DIR__ . '/../config/notifications.php';
 
 function respond($statusCode, $payload)
 {
@@ -792,6 +793,17 @@ function createReport($pdo, $data)
 
     if ($status === 'active') {
         notifyReportOwnerActive($pdo, $ownerId, $reportId);
+    } else {
+        $label = $type === 'lost' ? 'lost pet' : 'found pet';
+        notifyStaff(
+            $pdo,
+            'both',
+            'lost_found_new',
+            'New Lost & Found Report',
+            "A new {$label} report ({$contactName}) is awaiting review.",
+            $reportId,
+            true
+        );
     }
 
     respond(201, [
@@ -1209,6 +1221,16 @@ function createSighting($pdo, $data)
     $lostReports = $pdo->query("SELECT id FROM lost_found_reports WHERE report_type = 'lost' AND status = 'active'")->fetchAll();
     foreach ($lostReports as $row) rebuildSightingMatches($pdo, (int) $row['id']);
 
+    notifyStaff(
+        $pdo,
+        'both',
+        'lost_found_new',
+        'New Sighting Reported',
+        'A new pet sighting is awaiting review.',
+        $sightingId,
+        true
+    );
+
     respond(201, ['success' => true, 'message' => 'Sighting submitted for review.', 'sighting_id' => $sightingId]);
 }
 
@@ -1302,7 +1324,19 @@ function createClaim($pdo, $data)
         ':proof_file_path' => $proofPath,
     ]);
 
-    respond(201, ['success' => true, 'message' => 'Claim submitted for vet review.', 'claim_id' => (int) $pdo->lastInsertId()]);
+    $claimId = (int) $pdo->lastInsertId();
+
+    notifyStaff(
+        $pdo,
+        'both',
+        'lost_found_new',
+        'New Ownership Claim',
+        'A new ownership claim is awaiting review.',
+        $claimId,
+        true
+    );
+
+    respond(201, ['success' => true, 'message' => 'Claim submitted for vet review.', 'claim_id' => $claimId]);
 }
 
 function listClaims($pdo, $data, $management = false)

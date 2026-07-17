@@ -1,0 +1,119 @@
+- generic [ref=f2e2]:
+  - complementary [ref=f2e3]:
+    - generic [ref=f2e4]:
+      - button "Toggle sidebar" [ref=f2e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=f2e7]
+    - generic [ref=f2e8]:
+      - button "Notifications" [ref=f2e9] [cursor=pointer]
+      - img "Admin" [ref=f2e11] [cursor=pointer]
+  - generic [ref=f2e12]:
+    - generic [ref=f2e13]:
+      - generic [ref=f2e14]:
+        - generic [ref=f2e15]: AD
+        - generic [ref=f2e16]:
+          - generic [ref=f2e17]: Admin
+          - generic [ref=f2e18]: Monday, July 13, 2026
+      - generic [ref=f2e19]:
+        - generic [ref=f2e20]:
+          - button "Open notifications" [ref=f2e21] [cursor=pointer]
+          - button "Settings" [ref=f2e25] [cursor=pointer]
+          - button "About us and help" [ref=f2e29] [cursor=pointer]
+        - generic [ref=f2e34]:
+          - button "Add Account" [ref=f2e35] [cursor=pointer]
+          - button "Manage Accounts" [ref=f2e39] [cursor=pointer]
+    - generic [ref=f2e41]:
+      - generic [ref=f2e42]:
+        - generic [ref=f2e43]:
+          - generic [ref=f2e44]: Administrator
+          - heading "Good Day, Admin!" [level=1] [ref=f2e45]
+          - paragraph [ref=f2e46]: Full system overview — accounts, clinic operations, and module activity.
+        - generic [ref=f2e47]:
+          - generic [ref=f2e48]:
+            - generic [ref=f2e49]: "--"
+            - generic [ref=f2e50]: Total Accounts
+          - generic [ref=f2e52]:
+            - generic [ref=f2e53]: "--"
+            - generic [ref=f2e54]: Active
+          - generic [ref=f2e56]:
+            - generic [ref=f2e57]: "--"
+            - generic [ref=f2e58]: Pending
+      - generic [ref=f2e59]:
+        - generic [ref=f2e60]:
+          - paragraph [ref=f2e61]: Total Accounts
+          - heading "--" [level=2] [ref=f2e62]
+          - generic [ref=f2e63]: Across all roles
+        - generic [ref=f2e65]:
+          - paragraph [ref=f2e66]: Pending Approvals
+          - heading "--" [level=2] [ref=f2e67]
+        - generic [ref=f2e68]:
+          - paragraph [ref=f2e69]: System Alerts
+          - heading "--" [level=2] [ref=f2e70]
+          - generic [ref=f2e71]: Lost & found reports awaiting review
+        - generic [ref=f2e73]:
+          - paragraph [ref=f2e74]: Clinic Vaccination Rate
+          - heading "--" [level=2] [ref=f2e77]
+      - generic [ref=f2e78]:
+        - generic [ref=f2e79]:
+          - generic [ref=f2e81]:
+            - generic [ref=f2e82]:
+              - heading "Account Registrations" [level=3] [ref=f2e83]
+              - paragraph [ref=f2e84]: Monthly new accounts created in the system
+            - generic [ref=f2e85]:
+              - button "Monthly" [ref=f2e86] [cursor=pointer]
+              - button "Quarterly" [ref=f2e87] [cursor=pointer]
+          - generic [ref=f2e90]:
+            - generic [ref=f2e91]:
+              - generic [ref=f2e92]:
+                - heading "Recent Accounts" [level=3] [ref=f2e93]
+                - paragraph [ref=f2e94]: Latest registered users in the system
+              - link "View All" [ref=f2e95] [cursor=pointer]:
+                - /url: account-management.html
+            - table [ref=f2e97]:
+              - rowgroup [ref=f2e98]:
+                - row [ref=f2e99]:
+                  - columnheader "Name" [ref=f2e100]
+                  - columnheader "Role" [ref=f2e101]
+                  - columnheader "Email" [ref=f2e102]
+                  - columnheader "Status" [ref=f2e103]
+                  - columnheader "Joined" [ref=f2e104]
+              - rowgroup [ref=f2e105]:
+                - row [ref=f2e106]:
+                  - cell "Loading accounts…" [ref=f2e107]
+          - generic [ref=f2e108]:
+            - generic [ref=f2e110]:
+              - heading "Module Usage by Vets" [level=3] [ref=f2e111]
+              - paragraph [ref=f2e112]: Relative record volume across modules
+            - paragraph [ref=f2e114]: Loading module activity…
+        - generic [ref=f2e115]:
+          - generic [ref=f2e116]:
+            - generic [ref=f2e117]:
+              - generic [ref=f2e118]:
+                - heading "Pending Approvals" [level=3] [ref=f2e119]
+                - paragraph [ref=f2e120]: Accounts awaiting review
+              - generic [ref=f2e121]: "--"
+            - paragraph [ref=f2e123]: Loading pending approvals…
+            - button "View All Pending" [ref=f2e124] [cursor=pointer]
+          - generic [ref=f2e125]:
+            - heading "Clinic Snapshot" [level=3] [ref=f2e126]
+            - paragraph [ref=f2e127]: Key operational numbers
+            - generic [ref=f2e128]:
+              - generic [ref=f2e129]:
+                - paragraph [ref=f2e130]: Appointments Today
+                - heading "--" [level=4] [ref=f2e131]
+                - paragraph [ref=f2e132]: Scheduled for today
+              - generic [ref=f2e133]:
+                - paragraph [ref=f2e134]: Active Lost Reports
+                - heading "--" [level=4] [ref=f2e135]
+                - paragraph [ref=f2e136]: Awaiting resolution
+              - generic [ref=f2e137]:
+                - paragraph [ref=f2e138]: Chatbot Queries
+                - heading "--" [level=4] [ref=f2e139]
+                - paragraph [ref=f2e140]: Total logged queries
+              - generic [ref=f2e141]:
+                - paragraph [ref=f2e142]: Pending Actions
+                - heading "--" [level=4] [ref=f2e143]
+                - paragraph [ref=f2e144]: Appointments needing action
+          - generic [ref=f2e145]:
+            - heading "Recent Activity" [level=3] [ref=f2e146]
+            - paragraph [ref=f2e147]: System-wide account events
+            - paragraph [ref=f2e149]: Loading recent activity…

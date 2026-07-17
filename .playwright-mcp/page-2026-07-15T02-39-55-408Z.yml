@@ -1,0 +1,50 @@
+- generic [ref=f13e2]:
+  - complementary [ref=f13e3]:
+    - generic [ref=f13e4]:
+      - button "Toggle sidebar" [ref=f13e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=f13e7]
+    - generic [ref=f13e8]:
+      - button "Notifications" [ref=f13e9] [cursor=pointer]
+      - img "Kizea igaya" [ref=f13e11] [cursor=pointer]
+  - main [ref=f13e12]:
+    - generic [ref=f13e14]:
+      - generic [ref=f13e16]:
+        - heading "Reports" [level=1] [ref=f13e17]
+        - paragraph [ref=f13e18]: Detailed overview of clinical data and patient statistics.
+      - region "Report summary metrics" [ref=f13e19]:
+        - article [ref=f13e20]:
+          - generic [ref=f13e21]: Total Patients This Month
+          - generic [ref=f13e23]: "0"
+        - article [ref=f13e24]:
+          - generic [ref=f13e25]: Most Common Disease
+          - generic [ref=f13e27]: N/A
+        - article [ref=f13e28]:
+          - generic [ref=f13e29]: Most Active Barangay
+          - generic [ref=f13e31]: N/A
+      - region "Report controls" [ref=f13e32]:
+        - generic [ref=f13e33]:
+          - button [ref=f13e35] [cursor=pointer]:
+            - img "Filter" [ref=f13e36]
+            - text: Filter
+          - button [ref=f13e38] [cursor=pointer]:
+            - img "Sort" [ref=f13e39]
+            - text: Sort
+        - button [ref=f13e41] [cursor=pointer]:
+          - img "Export" [ref=f13e42]
+          - text: Export
+      - region "Patient report table" [ref=f13e43]:
+        - table [ref=f13e45]:
+          - rowgroup [ref=f13e46]:
+            - row [ref=f13e47]:
+              - columnheader "Patient ID" [ref=f13e48]
+              - columnheader "Owner Name" [ref=f13e49]
+              - columnheader "Contact Number" [ref=f13e50]
+              - columnheader "Pet Name" [ref=f13e51]
+              - columnheader "Pet Type" [ref=f13e52]
+              - columnheader "Barangay" [ref=f13e53]
+              - columnheader "Sex" [ref=f13e54]
+              - columnheader "Date" [ref=f13e55]
+          - rowgroup [ref=f13e56]:
+            - row [ref=f13e57]:
+              - cell "Loading reports..." [ref=f13e58]
+        - paragraph [ref=f13e60]: Displaying 0 of 0 Patients

@@ -20,6 +20,7 @@ const LOST_FOUND_URL = `${BACKEND_URL}/lost-found/lost_and_found.php`;
 const MASS_VACCINATION_URL = `${BACKEND_URL}/mass-vaccination/events.php`;
 const CHATBOT_URL = `${BACKEND_URL}/chatbot/chatbot.php`;
 const ANNOUNCEMENTS_URL = `${BACKEND_URL}/announcements/announcements.php`;
+const NOTIFICATIONS_URL = `${BACKEND_URL}/notifications/notifications.php`;
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
@@ -514,6 +515,51 @@ async function getVaccinationForecast(steps) {
     }
 }
 
+/* ── Notifications (shared admin/vet feed) ──────────────── */
+
+/** POST notifications.php { action: 'list', role: 'vet' } */
+async function getStaffNotifications() {
+    try {
+        const response = await fetch(NOTIFICATIONS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'list', role: 'vet' })
+        });
+        const result = await response.json();
+        return { ok: result.success, data: result.data || [], error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, data: [], error: error.message };
+    }
+}
+
+async function markNotificationRead(id) {
+    try {
+        const response = await fetch(NOTIFICATIONS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'mark_read', id })
+        });
+        const result = await response.json();
+        return { ok: result.success, error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, error: error.message };
+    }
+}
+
+async function markAllNotificationsRead() {
+    try {
+        const response = await fetch(NOTIFICATIONS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'mark_all_read', role: 'vet' })
+        });
+        const result = await response.json();
+        return { ok: result.success, error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, error: error.message };
+    }
+}
+
 async function getRFModelInfo() {
     try {
         const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?scope=rf_model_info`);
@@ -564,5 +610,8 @@ window.VetAPI = {
     getVaccinationForecast,
     getDiseaseRiskPrediction,
     getMassVaccinationDataset,
-    getRFModelInfo
+    getRFModelInfo,
+    getStaffNotifications,
+    markNotificationRead,
+    markAllNotificationsRead
 };

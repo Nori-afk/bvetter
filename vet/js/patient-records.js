@@ -14,6 +14,12 @@ const DIAGNOSIS_OPTIONS = [
 ];
 const DIAGNOSIS_OTHER = 'Other / Not Listed';
 
+function vaccineTypeOptionsHtml(selected) {
+	const types = window.VaccineTypes?.getAll ? window.VaccineTypes.getAll() : ['Anti-Rabies'];
+	if (selected && !types.includes(selected)) types.push(selected);
+	return types.map((t) => `<option ${selected === t ? 'selected' : ''}>${t}</option>`).join('');
+}
+
 function parseAge(ageStr) {
 	const match = String(ageStr || '').match(/(\d+(?:\.\d+)?)\s*(year|month)/i);
 	if (!match) return { value: '', unit: 'Years' };
@@ -104,7 +110,7 @@ const defaultRecords = [
 		category: 'Routine Checkup',
 		attendingVet: 'Dr. Kizea Bien Igaya',
 		vaccinationStatus: 'Up to date',
-		vaccineBrand: 'DHPPi-L 5-in-1',
+		vaccineBrand: 'Anti-Rabies',
 		history: [
 			{ date: '2023-10-24', title: 'Annual Checkup', note: 'Stable vitals and clean incision site.' },
 			{ date: '2023-08-18', title: 'Post-surgery follow-up', note: 'Healing progressed as expected.' }
@@ -140,7 +146,7 @@ const defaultRecords = [
 		category: 'Dermatology',
 		attendingVet: 'Dr. Aris Rodriguez',
 		vaccinationStatus: 'Pending booster',
-		vaccineBrand: 'Canigen DHPPi',
+		vaccineBrand: 'Anti-Rabies',
 		history: [
 			{ date: '2023-10-15', title: 'Dermatitis Review', note: 'Topical care prescribed.' },
 			{ date: '2023-09-04', title: 'Skin scraping', note: 'Observed response to allergy management.' }
@@ -176,7 +182,7 @@ const defaultRecords = [
 		category: 'Respiratory',
 		attendingVet: 'Dr. Kizea Bien Igaya',
 		vaccinationStatus: 'Up to date',
-		vaccineBrand: 'FVRCP',
+		vaccineBrand: 'Anti-Rabies',
 		history: [
 			{ date: '2023-10-10', title: 'Respiratory Observation', note: 'Supportive therapy started.' }
 		]
@@ -1086,8 +1092,13 @@ function renderAdd(record) {
 							</select>
 						</div>
 						<div class="field">
-							<label class="field-label" for="vaccine-brand">VACCINE BRAND</label>
-							<input class="form-input" id="vaccine-brand" name="vaccineBrand" placeholder="e.g. Nobivac" value="${escapeHtml(data.vaccineBrand)}">
+							<label class="field-label" for="vaccine-brand">VACCINATION TYPE</label>
+							<div class="field-inline-row">
+								<select class="form-input" id="vaccine-brand" name="vaccineBrand">
+									${vaccineTypeOptionsHtml(data.vaccineBrand)}
+								</select>
+								<button type="button" id="add-vaccine-type-btn" class="btn btn-soft btn-add-type" title="Add a new vaccination type">+ Add</button>
+							</div>
 						</div>
 						<div class="field">
 							<label class="field-label" for="status">RECORD STATUS</label>
@@ -1466,6 +1477,11 @@ function bindModeSpecificHandlers() {
 			if (!diagnosisOther.hidden) diagnosisOther.focus();
 		});
 	}
+
+	const addVaccineTypeBtn = document.getElementById('add-vaccine-type-btn');
+	if (addVaccineTypeBtn) {
+		addVaccineTypeBtn.addEventListener('click', openAddVaccineTypeModal);
+	}
 }
 
 function openEditModal(id) {
@@ -1512,6 +1528,33 @@ function openDeleteModal(id) {
 	openModal(renderDeleteModal(record));
 }
 
+function renderAddVaccineTypeModal() {
+	return `
+		<div class="delete-modal-wrap">
+			<div class="delete-modal-icon icon-add">
+				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+			</div>
+			<h2 id="records-modal-title" class="delete-modal-title">Add Vaccination Type</h2>
+			<p class="delete-modal-sub">Register a new vaccine so it can be selected for future visits.</p>
+			<div class="field delete-confirm-field">
+				<label for="new-vaccine-type-input" class="delete-confirm-label">Vaccination type name</label>
+				<input class="form-input" id="new-vaccine-type-input" type="text" placeholder="e.g. Deworming, 5-in-1" autocomplete="off">
+				<span class="field-error" id="new-vaccine-type-error"></span>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-soft" data-modal-action="close-modal">Cancel</button>
+				<button type="button" class="btn btn-primary" data-modal-action="confirm-add-vaccine-type">Add Type</button>
+			</div>
+		</div>
+	`;
+}
+
+function openAddVaccineTypeModal() {
+	state.modal = 'add-vaccine-type';
+	openModal(renderAddVaccineTypeModal());
+	document.getElementById('new-vaccine-type-input')?.focus();
+}
+
 function handleModalAction(action, target) {
 	const id = Number(target?.dataset?.id || state.selectedId || state.pendingDeleteId || 0);
 
@@ -1535,6 +1578,28 @@ function handleModalAction(action, target) {
 	if (action === 'open-delete') {
 		closeModal();
 		openDeleteModal(id);
+		return;
+	}
+
+	if (action === 'confirm-add-vaccine-type') {
+		const input = document.getElementById('new-vaccine-type-input');
+		const error = document.getElementById('new-vaccine-type-error');
+		const result = window.VaccineTypes?.add
+			? window.VaccineTypes.add(input?.value)
+			: { ok: false, error: 'Vaccine type registry unavailable.' };
+		if (!result.ok) {
+			if (error) { error.textContent = result.error || 'Could not add that vaccination type.'; error.classList.add('visible'); }
+			input?.classList.add('invalid');
+			return;
+		}
+		const vaccineBrandSelect = document.getElementById('vaccine-brand');
+		if (vaccineBrandSelect) {
+			const opt = document.createElement('option');
+			opt.textContent = result.value;
+			vaccineBrandSelect.appendChild(opt);
+			vaccineBrandSelect.value = result.value;
+		}
+		closeModal();
 		return;
 	}
 

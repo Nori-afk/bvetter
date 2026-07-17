@@ -1,0 +1,98 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - button "Toggle sidebar" [ref=e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=e7]
+    - generic [ref=e8]:
+      - button "Notifications" [ref=e9] [cursor=pointer]
+      - img "Unknown" [ref=e11] [cursor=pointer]
+  - main [ref=e12]:
+    - region "Mass Vaccination Dashboard" [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - heading "Mass Vaccination" [level=1] [ref=e16]
+          - paragraph [ref=e17]: View and analyze vaccination data from online consultation.
+        - button "Create New Event" [active] [ref=e18] [cursor=pointer]
+      - region "Mass Vaccination KPIs" [ref=e20]:
+        - article [ref=e21]:
+          - heading "Total Events This Year" [level=2] [ref=e22]
+          - paragraph [ref=e23]: "85"
+        - article [ref=e27]:
+          - heading "Total Pets Vaccinated" [level=2] [ref=e28]
+          - paragraph [ref=e29]: 13,930
+        - article [ref=e33]:
+          - heading "Most Active Barangay" [level=2] [ref=e34]
+          - paragraph [ref=e35]: Sta. Barbara
+        - article [ref=e39]:
+          - heading "Pending Reports" [level=2] [ref=e40]
+          - paragraph [ref=e41]: "1"
+      - generic [ref=e46]:
+        - paragraph [ref=e54]
+        - paragraph [ref=e70]
+      - generic [ref=e85]:
+        - article [ref=e86]:
+          - generic [ref=e87]:
+            - heading "Pets Vaccinated per Barangay" [level=3] [ref=e88]
+            - combobox "Time range filter" [ref=e89]:
+              - option "This Month" [selected]
+              - option "Last 3 Months"
+              - option "This Year"
+        - article [ref=e108]:
+          - heading "Predicted Number of Animals to be Vaccinated" [level=2] [ref=e110]
+      - generic [ref=e127]:
+        - article [ref=e128]:
+          - heading "Pet Vaccinated Distribution" [level=3] [ref=e130]
+        - article [ref=e147]:
+          - heading "Number of Vaccines Needed per Barangay" [level=3] [ref=e149]
+      - generic [ref=e168]:
+        - generic [ref=e169]:
+          - heading "Recent Vaccination Events" [level=3] [ref=e170]
+          - generic [ref=e171]: Click a row to open event report details
+        - table [ref=e177]:
+          - rowgroup [ref=e178]:
+            - row [ref=e179] [cursor=pointer]:
+              - cell "Date July 15, 2026" [ref=e180]
+              - cell "Barangay Tiaong" [ref=e181]
+              - cell "Vaccine Anti-Rabies" [ref=e182]
+              - cell "Total Vaccinated -" [ref=e183]
+              - cell "Status Pending Report" [ref=e184]:
+                - text: Status
+                - generic [ref=e185]: Pending Report
+            - row [ref=e186] [cursor=pointer]:
+              - cell "Date July 9, 2026" [ref=e187]
+              - cell "Barangay Pinagbarilan" [ref=e188]
+              - cell "Vaccine Anti-Rabies" [ref=e189]
+              - cell "Total Vaccinated 50" [ref=e190]
+              - cell "Status Completed" [ref=e191]:
+                - text: Status
+                - generic [ref=e192]: Completed
+            - row [ref=e193] [cursor=pointer]:
+              - cell "Date July 4, 2026" [ref=e194]
+              - cell "Barangay Sto. Niño" [ref=e195]
+              - cell "Vaccine 5-in-1" [ref=e196]
+              - cell "Total Vaccinated 50" [ref=e197]
+              - cell "Status Completed" [ref=e198]:
+                - text: Status
+                - generic [ref=e199]: Completed
+            - row [ref=e200] [cursor=pointer]:
+              - cell "Date June 17, 2026" [ref=e201]
+              - cell "Barangay Pinagbarilan" [ref=e202]
+              - cell "Vaccine Anti-Rabies" [ref=e203]
+              - cell "Total Vaccinated 50" [ref=e204]
+              - cell "Status Completed" [ref=e205]:
+                - text: Status
+                - generic [ref=e206]: Completed
+            - row [ref=e207] [cursor=pointer]:
+              - cell "Date June 13, 2026" [ref=e208]
+              - cell "Barangay Paitan" [ref=e209]
+              - cell "Vaccine Anti-Rabies" [ref=e210]
+              - cell "Total Vaccinated 25" [ref=e211]
+              - cell "Status Completed" [ref=e212]:
+                - text: Status
+                - generic [ref=e213]: Completed
+        - generic [ref=e215]:
+          - paragraph [ref=e216]: Displaying 5 of 85 Records
+          - generic [ref=e217]:
+            - button "Previous page" [disabled] [ref=e218]: ‹
+            - button "1" [disabled] [ref=e219] [cursor=pointer]
+            - button "Next page" [ref=e220] [cursor=pointer]: ›

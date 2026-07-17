@@ -1,0 +1,320 @@
+- generic [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - complementary [ref=f4e3]:
+      - img "VBetter Logo" [ref=f4e6]
+      - generic [ref=f4e7]:
+        - navigation [ref=f4e8]:
+          - link [ref=f4e9] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/admin/pages/index.html
+            - img "Dashboard" [ref=f4e10]
+            - generic: Dashboard
+          - link [ref=f4e11] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/appointment.html
+            - img "Appointment Management" [ref=f4e12]
+            - generic: Appointment Management
+          - link [ref=f4e13] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/patient-records.html
+            - img "Patient Records" [ref=f4e14]
+            - generic: Patient Records
+          - link [ref=f4e15] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/report.html
+            - img "Report" [ref=f4e16]
+            - generic: Report
+          - link [ref=f4e17] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/disease-analytics.html
+            - img "Disease Analytics" [ref=f4e18]
+            - generic: Disease Analytics
+          - link [ref=f4e19] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/lost-and-found.html
+            - img "Lost and Found" [ref=f4e20]
+            - generic: Lost And Found
+          - link [ref=f4e21] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/chatbot-management.html
+            - img "Chatbot Management" [ref=f4e22]
+            - generic: Chatbot Management
+          - link [ref=f4e23] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/mass-vaccination.html
+            - img "Mass Vaccination" [ref=f4e24]
+            - generic: Mass Vaccination
+          - generic [ref=f4e25]: Administration
+          - link [ref=f4e26] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/admin/pages/account-management.html
+            - img "Account Management" [ref=f4e27]
+            - generic: Account Management
+          - link [ref=f4e28] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/admin/pages/website-management.html
+            - img "Website Management" [ref=f4e29]
+            - generic: Website Management
+        - generic [ref=f4e30]:
+          - article "Admin profile" [ref=f4e31] [cursor=pointer]:
+            - img "Admin" [ref=f4e32]
+          - button [ref=f4e33] [cursor=pointer]:
+            - img "Log Out" [ref=f4e34]
+            - generic: Log Out
+    - generic [ref=f4e35]:
+      - generic [ref=f4e36]:
+        - generic [ref=f4e37]:
+          - generic [ref=f4e38]: AD
+          - generic [ref=f4e39]:
+            - generic [ref=f4e40]: Admin
+            - generic [ref=f4e41]: Monday, July 13, 2026
+        - generic [ref=f4e42]:
+          - generic [ref=f4e43]:
+            - button "Open notifications" [active] [ref=f4e44] [cursor=pointer]
+            - button "Settings" [ref=f4e48] [cursor=pointer]
+            - button "About us and help" [ref=f4e52] [cursor=pointer]
+          - generic [ref=f4e57]:
+            - button "Create Announcement" [ref=f4e58] [cursor=pointer]
+            - button "Manage Announcements" [ref=f4e62] [cursor=pointer]
+      - generic [ref=f4e64]:
+        - generic [ref=f4e65]:
+          - generic [ref=f4e66]:
+            - generic [ref=f4e67]: Veterinarian
+            - heading "Good Day, Dr. Igaya!" [level=1] [ref=f4e68]
+            - paragraph [ref=f4e69]: Clinic overview — appointments, patient records, and vaccination status.
+          - generic [ref=f4e70]:
+            - generic [ref=f4e71]:
+              - generic [ref=f4e72]: 1,284
+              - generic [ref=f4e73]: Total Appointments
+            - generic [ref=f4e75]:
+              - generic [ref=f4e76]: "42"
+              - generic [ref=f4e77]: Pending
+            - generic [ref=f4e79]:
+              - generic [ref=f4e80]: 94%
+              - generic [ref=f4e81]: Vacc. Rate
+        - generic [ref=f4e82]:
+          - generic [ref=f4e83]:
+            - paragraph [ref=f4e84]: Total Appointments
+            - heading "6" [level=2] [ref=f4e232]
+            - generic [ref=f4e86]:
+              - generic [ref=f4e87]: ↑
+              - generic [ref=f4e88]: 12%
+          - generic [ref=f4e89]:
+            - paragraph [ref=f4e90]: Pending Actions
+            - heading "0" [level=2] [ref=f4e233]
+            - generic [ref=f4e92]: Urgent
+          - generic [ref=f4e93]:
+            - paragraph [ref=f4e94]: Active Lost Reports
+            - heading "01" [level=2] [ref=f4e234]
+            - paragraph [ref=f4e96]: San Jose District
+          - generic [ref=f4e97]:
+            - paragraph [ref=f4e98]: Vaccination Rate
+            - heading "100%" [level=2] [ref=f4e235]
+        - generic [ref=f4e103]:
+          - generic [ref=f4e104]:
+            - generic [ref=f4e106]:
+              - generic [ref=f4e107]:
+                - heading "Patient Volume" [level=3] [ref=f4e108]
+                - paragraph [ref=f4e109]: Patient intake trends over time
+              - generic [ref=f4e110]:
+                - button "Weekly" [ref=f4e111] [cursor=pointer]
+                - button "Monthly" [ref=f4e112] [cursor=pointer]
+            - generic [ref=f4e116]:
+              - heading "Disease Cases by Barangay" [level=3] [ref=f4e118]
+              - combobox [ref=f4e119] [cursor=pointer]:
+                - option "All Diseases" [selected]
+                - option "Canine Parvovirus"
+                - option "Canine Distemper"
+                - option "Rabies (Suspected)"
+                - option "Leptospirosis"
+            - generic [ref=f4e122]:
+              - generic [ref=f4e123]:
+                - paragraph [ref=f4e124]: Animals Vaccinated
+                - generic [ref=f4e127]:
+                  - generic [ref=f4e128]: Rabies
+                  - generic [ref=f4e130]: Parvo
+              - generic [ref=f4e132]:
+                - paragraph [ref=f4e133]: Estimated Vaccine Demand (Next 30 Days)
+                - generic [ref=f4e134]:
+                  - generic [ref=f4e135]:
+                    - paragraph [ref=f4e136]: Rabies
+                    - heading "428" [level=4] [ref=f4e236]
+                    - paragraph [ref=f4e138]: Units Required
+                  - generic [ref=f4e139]:
+                    - paragraph [ref=f4e140]: Parvo
+                    - heading "1,086" [level=4] [ref=f4e237]
+                    - paragraph [ref=f4e142]: Units Required
+                  - generic [ref=f4e143]:
+                    - paragraph [ref=f4e144]: Distemper
+                    - heading "888" [level=4] [ref=f4e238]
+                    - paragraph [ref=f4e146]: Units Required
+                - generic [ref=f4e147]:
+                  - text: ⚠
+                  - paragraph [ref=f4e148]:
+                    - strong [ref=f4e149]: "Inventory Alert:"
+                    - text: Rabies stock is 12% below projected demand. Reorder suggested.
+            - generic [ref=f4e150]:
+              - generic [ref=f4e151]:
+                - 'heading "Chatbot Insights: Most Asked Symptoms" [level=3] [ref=f4e152]'
+                - paragraph [ref=f4e153]: Real-time Logs
+              - generic [ref=f4e154]:
+                - generic [ref=f4e240]:
+                  - generic [ref=f4e241]: Vomiting
+                  - generic [ref=f4e242]: 26% of queries
+                - generic [ref=f4e246]:
+                  - generic [ref=f4e247]: Seizures
+                  - generic [ref=f4e248]: 16% of queries
+                - generic [ref=f4e252]:
+                  - generic [ref=f4e253]: Loss of Appetite
+                  - generic [ref=f4e254]: 13% of queries
+                - generic [ref=f4e258]:
+                  - generic [ref=f4e259]: Diarrhea
+                  - generic [ref=f4e260]: 13% of queries
+              - paragraph [ref=f4e179]: "Insight: 38 symptom checker logs included."
+          - generic [ref=f4e180]:
+            - generic [ref=f4e181]:
+              - generic [ref=f4e182]:
+                - heading "July 2026" [level=3] [ref=f4e263]
+                - generic [ref=f4e184]:
+                  - button "←" [ref=f4e185] [cursor=pointer]
+                  - button "→" [ref=f4e186] [cursor=pointer]
+              - grid [ref=f4e267]:
+                - rowgroup [ref=f4e268]:
+                  - row [ref=f4e272]:
+                    - columnheader "Sunday" [ref=f4e273]:
+                      - generic "Sunday" [ref=f4e275]: Sun
+                    - columnheader "Monday" [ref=f4e276]:
+                      - generic "Monday" [ref=f4e278]: Mon
+                    - columnheader "Tuesday" [ref=f4e279]:
+                      - generic "Tuesday" [ref=f4e281]: Tue
+                    - columnheader "Wednesday" [ref=f4e282]:
+                      - generic "Wednesday" [ref=f4e284]: Wed
+                    - columnheader "Thursday" [ref=f4e285]:
+                      - generic "Thursday" [ref=f4e287]: Thu
+                    - columnheader "Friday" [ref=f4e288]:
+                      - generic "Friday" [ref=f4e290]: Fri
+                    - columnheader "Saturday" [ref=f4e291]:
+                      - generic "Saturday" [ref=f4e293]: Sat
+                - rowgroup [ref=f4e294]:
+                  - generic [ref=f4e297]:
+                    - row [ref=f4e299]:
+                      - gridcell "June 28, 2026" [ref=f4e300]:
+                        - generic "June 28, 2026" [ref=f4e303]: "28"
+                      - gridcell "June 29, 2026" [ref=f4e305]:
+                        - generic "June 29, 2026" [ref=f4e308]: "29"
+                      - gridcell "June 30, 2026" [ref=f4e310]:
+                        - generic [ref=f4e311]:
+                          - generic "June 30, 2026" [ref=f4e313]: "30"
+                          - generic [ref=f4e314]: "Consultation: Copper"
+                      - gridcell "July 1, 2026" [ref=f4e321]:
+                        - generic "July 1, 2026" [ref=f4e324]: "1"
+                      - gridcell "July 2, 2026" [ref=f4e326]:
+                        - generic "July 2, 2026" [ref=f4e329]: "2"
+                      - gridcell "July 3, 2026" [ref=f4e331]:
+                        - generic "July 3, 2026" [ref=f4e334]: "3"
+                      - gridcell "July 4, 2026" [ref=f4e336]:
+                        - generic [ref=f4e337]:
+                          - generic "July 4, 2026" [ref=f4e339]: "4"
+                          - generic [ref=f4e340]: "5-in-1: Sto. Niño"
+                    - row [ref=f4e347]:
+                      - gridcell "July 5, 2026" [ref=f4e348]:
+                        - generic "July 5, 2026" [ref=f4e351]: "5"
+                      - gridcell "July 6, 2026" [ref=f4e353]:
+                        - generic "July 6, 2026" [ref=f4e356]: "6"
+                      - gridcell "July 7, 2026" [ref=f4e358]:
+                        - generic "July 7, 2026" [ref=f4e361]: "7"
+                      - gridcell "July 8, 2026" [ref=f4e363]:
+                        - generic "July 8, 2026" [ref=f4e366]: "8"
+                      - gridcell "July 9, 2026" [ref=f4e368]:
+                        - generic [ref=f4e369]:
+                          - generic "July 9, 2026" [ref=f4e371]: "9"
+                          - generic [ref=f4e372]:
+                            - generic [ref=f4e373]: "Anti-Rabies: Pinagbarilan"
+                            - generic [ref=f4e379]: "Vaccination: cookcie"
+                            - generic [ref=f4e385]: "Vaccination: Copper"
+                      - gridcell "July 10, 2026" [ref=f4e391]:
+                        - generic "July 10, 2026" [ref=f4e394]: "10"
+                      - gridcell "July 11, 2026" [ref=f4e396]:
+                        - generic "July 11, 2026" [ref=f4e399]: "11"
+                    - row [ref=f4e401]:
+                      - gridcell "July 12, 2026" [ref=f4e402]:
+                        - generic "July 12, 2026" [ref=f4e405]: "12"
+                      - gridcell "July 13, 2026" [ref=f4e407]:
+                        - generic "July 13, 2026" [ref=f4e410]: "13"
+                      - gridcell "July 14, 2026" [ref=f4e412]:
+                        - generic "July 14, 2026" [ref=f4e415]: "14"
+                      - gridcell "July 15, 2026" [ref=f4e417]:
+                        - generic "July 15, 2026" [ref=f4e420]: "15"
+                      - gridcell "July 16, 2026" [ref=f4e422]:
+                        - generic "July 16, 2026" [ref=f4e425]: "16"
+                      - gridcell "July 17, 2026" [ref=f4e427]:
+                        - generic "July 17, 2026" [ref=f4e430]: "17"
+                      - gridcell "July 18, 2026" [ref=f4e432]:
+                        - generic "July 18, 2026" [ref=f4e435]: "18"
+                    - row [ref=f4e437]:
+                      - gridcell "July 19, 2026" [ref=f4e438]:
+                        - generic "July 19, 2026" [ref=f4e441]: "19"
+                      - gridcell "July 20, 2026" [ref=f4e443]:
+                        - generic [ref=f4e444]:
+                          - generic "July 20, 2026" [ref=f4e446]: "20"
+                          - generic [ref=f4e447]: "Checkup: Copper"
+                      - gridcell "July 21, 2026" [ref=f4e454]:
+                        - generic "July 21, 2026" [ref=f4e457]: "21"
+                      - gridcell "July 22, 2026" [ref=f4e459]:
+                        - generic "July 22, 2026" [ref=f4e462]: "22"
+                      - gridcell "July 23, 2026" [ref=f4e464]:
+                        - generic "July 23, 2026" [ref=f4e467]: "23"
+                      - gridcell "July 24, 2026" [ref=f4e469]:
+                        - generic "July 24, 2026" [ref=f4e472]: "24"
+                      - gridcell "July 25, 2026" [ref=f4e474]:
+                        - generic "July 25, 2026" [ref=f4e477]: "25"
+                    - row [ref=f4e479]:
+                      - gridcell "July 26, 2026" [ref=f4e480]:
+                        - generic "July 26, 2026" [ref=f4e483]: "26"
+                      - gridcell "July 27, 2026" [ref=f4e485]:
+                        - generic "July 27, 2026" [ref=f4e488]: "27"
+                      - gridcell "July 28, 2026" [ref=f4e490]:
+                        - generic "July 28, 2026" [ref=f4e493]: "28"
+                      - gridcell "July 29, 2026" [ref=f4e495]:
+                        - generic "July 29, 2026" [ref=f4e498]: "29"
+                      - gridcell "July 30, 2026" [ref=f4e500]:
+                        - generic "July 30, 2026" [ref=f4e503]: "30"
+                      - gridcell "July 31, 2026" [ref=f4e505]:
+                        - generic "July 31, 2026" [ref=f4e508]: "31"
+                      - gridcell "August 1, 2026" [ref=f4e510]:
+                        - generic "August 1, 2026" [ref=f4e513]: "1"
+            - generic [ref=f4e187]:
+              - generic [ref=f4e188]:
+                - heading "Today's Timeline" [level=3] [ref=f4e189]
+                - paragraph [ref=f4e190]: Jul 13
+              - generic [ref=f4e191]: No appointments scheduled for today.
+              - button "+ Add Appointment" [ref=f4e213] [cursor=pointer]
+            - generic [ref=f4e214]:
+              - paragraph [ref=f4e215]: NEXT MAJOR EVENT
+              - heading "No Upcoming Vaccination Event" [level=3] [ref=f4e516]
+              - paragraph [ref=f4e217]: Create an event in Mass Vaccination
+              - button "Manage Event" [ref=f4e218] [cursor=pointer]
+            - generic [ref=f4e219]:
+              - generic [ref=f4e220]:
+                - heading "Recent Patient Appointment" [level=3] [ref=f4e221]
+                - link "View Directory" [ref=f4e222] [cursor=pointer]:
+                  - /url: /final-VBETTER/bvetter/vet/html/appointment.html
+              - generic [ref=f4e223]:
+                - generic [ref=f4e517]:
+                  - generic [ref=f4e518]: C
+                  - generic [ref=f4e519]:
+                    - heading "Copper" [level=4] [ref=f4e520]
+                    - paragraph [ref=f4e521]: chuwawa - male - 2
+                - generic [ref=f4e522]:
+                  - generic [ref=f4e523]: cancelled
+                  - paragraph [ref=f4e524]: "Adm: May 18, 2026"
+  - dialog [ref=f4e525]:
+    - generic [ref=f4e526]:
+      - generic [ref=f4e527]:
+        - heading "Notification" [level=2] [ref=f4e528]
+        - generic [ref=f4e529]:
+          - button "Mark all as read" [ref=f4e530] [cursor=pointer]
+          - button "×" [ref=f4e531] [cursor=pointer]
+      - generic [ref=f4e533]:
+        - article [ref=f4e534] [cursor=pointer]:
+          - heading "Appointment Cancelled" [level=4] [ref=f4e535]
+          - paragraph [ref=f4e536]: "Appointment #9 was cancelled."
+          - text: 7/13/2026, 10:17:16 PM
+        - article [ref=f4e537] [cursor=pointer]:
+          - heading "New Appointment Request" [level=4] [ref=f4e538]
+          - paragraph [ref=f4e539]: Mark ivan Jalova. villaster requested a Checkup appointment for Copper on 2026-07-20 at 10:00.
+          - text: 7/13/2026, 10:16:36 PM
+        - article [ref=f4e540] [cursor=pointer]:
+          - heading "No Operational Notifications" [level=4] [ref=f4e541]
+          - paragraph [ref=f4e542]: No pending appointments or upcoming vaccination events were found.
+          - text: Just checked

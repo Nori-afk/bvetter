@@ -1,0 +1,156 @@
+- generic [active] [ref=f5e1]:
+  - generic [ref=f5e2]:
+    - complementary [ref=f5e3]:
+      - generic [ref=f5e4]:
+        - button "Toggle sidebar" [ref=f5e5] [cursor=pointer]: ☰
+        - img "VBetter Logo" [ref=f5e7]
+      - generic [ref=f5e8]:
+        - button "Notifications" [ref=f5e9] [cursor=pointer]
+        - img "Unknown" [ref=f5e11] [cursor=pointer]
+    - main [ref=f5e12]:
+      - region "Mass Vaccination Dashboard" [ref=f5e13]:
+        - generic [ref=f5e14]:
+          - generic [ref=f5e15]:
+            - heading "Mass Vaccination" [level=1] [ref=f5e16]
+            - paragraph [ref=f5e17]: View and analyze vaccination data from online consultation.
+          - button "Create New Event" [ref=f5e18] [cursor=pointer]
+        - region "Mass Vaccination KPIs" [ref=f5e20]:
+          - article [ref=f5e21]:
+            - heading "Total Events This Year" [level=2] [ref=f5e22]
+            - paragraph [ref=f5e23]: "85"
+          - article [ref=f5e27]:
+            - heading "Total Pets Vaccinated" [level=2] [ref=f5e28]
+            - paragraph [ref=f5e29]: 13,930
+          - article [ref=f5e33]:
+            - heading "Most Active Barangay" [level=2] [ref=f5e34]
+            - paragraph [ref=f5e35]: Sta. Barbara
+          - article [ref=f5e39]:
+            - heading "Pending Reports" [level=2] [ref=f5e40]
+            - paragraph [ref=f5e41]: "1"
+        - generic [ref=f5e46]:
+          - paragraph [ref=f5e54]
+          - paragraph [ref=f5e70]
+        - generic [ref=f5e85]:
+          - article [ref=f5e86]:
+            - generic [ref=f5e87]:
+              - heading "Pets Vaccinated per Barangay" [level=3] [ref=f5e88]
+              - combobox "Time range filter" [ref=f5e89]:
+                - option "This Month" [selected]
+                - option "Last 3 Months"
+                - option "This Year"
+          - article [ref=f5e108]:
+            - heading "Predicted Number of Animals to be Vaccinated" [level=2] [ref=f5e110]
+        - generic [ref=f5e127]:
+          - article [ref=f5e128]:
+            - heading "Pet Vaccinated Distribution" [level=3] [ref=f5e130]
+          - article [ref=f5e147]:
+            - heading "Number of Vaccines Needed per Barangay" [level=3] [ref=f5e149]
+        - generic [ref=f5e168]:
+          - generic [ref=f5e169]:
+            - heading "Recent Vaccination Events" [level=3] [ref=f5e170]
+            - generic [ref=f5e171]: Click a row to open event report details
+          - table [ref=f5e177]:
+            - rowgroup [ref=f5e178]:
+              - row [ref=f5e179] [cursor=pointer]:
+                - cell "Date July 15, 2026" [ref=f5e180]
+                - cell "Barangay Tiaong" [ref=f5e181]
+                - cell "Vaccine Anti-Rabies" [ref=f5e182]
+                - cell "Total Vaccinated -" [ref=f5e183]
+                - cell "Status Pending Report" [ref=f5e184]:
+                  - text: Status
+                  - generic [ref=f5e185]: Pending Report
+              - row [ref=f5e186] [cursor=pointer]:
+                - cell "Date July 9, 2026" [ref=f5e187]
+                - cell "Barangay Pinagbarilan" [ref=f5e188]
+                - cell "Vaccine Anti-Rabies" [ref=f5e189]
+                - cell "Total Vaccinated 50" [ref=f5e190]
+                - cell "Status Completed" [ref=f5e191]:
+                  - text: Status
+                  - generic [ref=f5e192]: Completed
+              - row [ref=f5e193] [cursor=pointer]:
+                - cell "Date July 4, 2026" [ref=f5e194]
+                - cell "Barangay Sto. Niño" [ref=f5e195]
+                - cell "Vaccine 5-in-1" [ref=f5e196]
+                - cell "Total Vaccinated 50" [ref=f5e197]
+                - cell "Status Completed" [ref=f5e198]:
+                  - text: Status
+                  - generic [ref=f5e199]: Completed
+              - row [ref=f5e200] [cursor=pointer]:
+                - cell "Date June 17, 2026" [ref=f5e201]
+                - cell "Barangay Pinagbarilan" [ref=f5e202]
+                - cell "Vaccine Anti-Rabies" [ref=f5e203]
+                - cell "Total Vaccinated 50" [ref=f5e204]
+                - cell "Status Completed" [ref=f5e205]:
+                  - text: Status
+                  - generic [ref=f5e206]: Completed
+              - row [ref=f5e207] [cursor=pointer]:
+                - cell "Date June 13, 2026" [ref=f5e208]
+                - cell "Barangay Paitan" [ref=f5e209]
+                - cell "Vaccine Anti-Rabies" [ref=f5e210]
+                - cell "Total Vaccinated 25" [ref=f5e211]
+                - cell "Status Completed" [ref=f5e212]:
+                  - text: Status
+                  - generic [ref=f5e213]: Completed
+          - generic [ref=f5e215]:
+            - paragraph [ref=f5e216]: Displaying 5 of 85 Records
+            - generic [ref=f5e217]:
+              - button "Previous page" [disabled] [ref=f5e218]: ‹
+              - button "1" [disabled] [ref=f5e219] [cursor=pointer]
+              - button "Next page" [ref=f5e220] [cursor=pointer]: ›
+  - dialog [ref=f5e221]:
+    - generic [ref=f5e222]:
+      - button "Close modal" [ref=f5e223] [cursor=pointer]: ×
+      - generic [ref=f5e228]:
+        - heading "Create Mass Vaccination Event" [level=2] [ref=f5e229]
+        - paragraph [ref=f5e230]: Schedule a new community vaccination drive
+      - generic [ref=f5e231]:
+        - generic [ref=f5e232]:
+          - generic [ref=f5e233]: DATE *
+          - textbox "DATE *" [ref=f5e234] [cursor=pointer]
+        - generic [ref=f5e235]:
+          - generic [ref=f5e236]: BARANGAY *
+          - button "Select Barangay…" [ref=f5e238] [cursor=pointer]
+          - combobox "BARANGAY *" [ref=f5e242]:
+            - option "Select Barangay…" [selected]
+            - option "Bagong Nayon"
+            - option "Barangca"
+            - option "Calantipay"
+            - option "Catulinan"
+            - option "Concepcion"
+            - option "Hinukay"
+            - option "Makinabang"
+            - option "Matangtubig"
+            - option "Pagala"
+            - option "Paitan"
+            - option "Piel"
+            - option "Pinagbarilan"
+            - option "Poblacion"
+            - option "Sabang"
+            - option "San Jose"
+            - option "San Roque"
+            - option "Sta. Barbara"
+            - option "Sto. Cristo"
+            - option "Sto. Nino"
+            - option "Sto. Niño"
+            - option "Subic"
+            - option "Sulivan"
+            - option "Tangos"
+            - option "Tarcan"
+            - option "Tiaong"
+            - option "Tibag"
+            - option "Tilapayong"
+            - option "Virgen Delas Flores"
+        - generic [ref=f5e243]:
+          - generic [ref=f5e244]: VACCINE TYPE *
+          - generic [ref=f5e245]:
+            - button "Booster Shot" [ref=f5e283] [cursor=pointer]
+            - button "Add Type" [ref=f5e251] [cursor=pointer]
+          - combobox "VACCINE TYPE *" [ref=f5e253]:
+            - option "Anti-Rabies"
+            - option "Deworming"
+            - option "5-in-1"
+            - option "Booster Shot" [selected]
+          - paragraph [ref=f5e254]: The clinic currently vaccinates with Anti-Rabies only. Use "Add Type" to register a new vaccine for future events.
+        - generic [ref=f5e255]:
+          - button "Cancel" [ref=f5e256] [cursor=pointer]
+          - button "Create Event" [ref=f5e260] [cursor=pointer]

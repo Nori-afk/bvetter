@@ -1037,3 +1037,37 @@ html, body {
     .dash-form-row { grid-template-columns: 1fr; }
     .dash-modal { border-radius: var(--radius-md); }
 }
+
+/* Notifications modal */
+#notifications-mark-all-read { margin-bottom: 12px; }
+
+.dash-notification-list {
+    display: grid;
+    gap: 8px;
+}
+
+.dash-notification-item {
+    border-radius: 10px;
+    background: var(--background-light);
+    padding: 12px 14px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.dash-notification-item.unread {
+    border-left: 4px solid var(--primary-blue);
+    background: #eef4ff;
+}
+
+.dash-notification-item.read { opacity: 0.82; }
+
+.dash-notification-item h4 {
+    color: var(--text-primary);
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.dash-notification-item p,
+.dash-notification-item small {
+    color: var(--text-secondary);
+}

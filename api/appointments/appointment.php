@@ -13,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/mailer.php';
+require_once __DIR__ . '/../config/notifications.php';
 
 function respond($statusCode, $payload)
 {
@@ -367,11 +368,34 @@ function createAppointment($pdo, $data)
     $appointmentId = (int) $pdo->lastInsertId();
     $pdo->commit();
 
+    notifyNewAppointmentRequest($pdo, $appointmentId, $ownerId, $petId, $appointmentType, $preferredDate, $timeSlot);
+
     respond(201, [
         'success' => true,
         'message' => 'Appointment request submitted.',
         'appointment_id' => $appointmentId
     ]);
+}
+
+function notifyNewAppointmentRequest($pdo, $appointmentId, $ownerId, $petId, $appointmentType, $preferredDate, $timeSlot)
+{
+    $ownerStmt = $pdo->prepare('SELECT full_name FROM users WHERE id = :id LIMIT 1');
+    $ownerStmt->execute([':id' => $ownerId]);
+    $ownerName = $ownerStmt->fetchColumn() ?: 'A pet owner';
+
+    $petStmt = $pdo->prepare('SELECT pet_name FROM pets WHERE id = :id LIMIT 1');
+    $petStmt->execute([':id' => $petId]);
+    $petName = $petStmt->fetchColumn() ?: 'a pet';
+
+    notifyStaff(
+        $pdo,
+        'both',
+        'appointment_new',
+        'New Appointment Request',
+        "{$ownerName} requested a {$appointmentType} appointment for {$petName} on {$preferredDate} at {$timeSlot}.",
+        $appointmentId,
+        true
+    );
 }
 
 function updateAppointmentStatus($pdo, $data)
@@ -410,6 +434,11 @@ function updateAppointmentStatus($pdo, $data)
 
     if ($status === 'confirmed') {
         notifyOwnerAppointmentConfirmed($pdo, $appointmentId);
+        notifyStaff($pdo, 'both', 'appointment_status', 'Appointment Confirmed', "Appointment #{$appointmentId} was confirmed.", $appointmentId, false);
+    }
+    if (in_array($status, ['cancelled', 'rejected'], true)) {
+        $verb = $status === 'cancelled' ? 'cancelled' : 'rejected';
+        notifyStaff($pdo, 'both', 'appointment_status', 'Appointment ' . ucfirst($verb), "Appointment #{$appointmentId} was {$verb}.", $appointmentId, true);
     }
 
     respond(200, [

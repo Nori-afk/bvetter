@@ -1,0 +1,53 @@
+- generic [ref=f5e2]:
+  - complementary [ref=f5e3]:
+    - generic [ref=f5e4]:
+      - button "Toggle sidebar" [ref=f5e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=f5e7]
+    - generic [ref=f5e8]:
+      - button "Notifications" [ref=f5e9] [cursor=pointer]
+      - img "Unknown" [ref=f5e11] [cursor=pointer]
+  - main [ref=f5e12]:
+    - region "Mass Vaccination Dashboard" [ref=f5e13]:
+      - generic [ref=f5e14]:
+        - generic [ref=f5e15]:
+          - heading "Mass Vaccination" [level=1] [ref=f5e16]
+          - paragraph [ref=f5e17]: View and analyze vaccination data from online consultation.
+        - button "Create New Event" [ref=f5e18] [cursor=pointer]
+      - region "Mass Vaccination KPIs" [ref=f5e20]:
+        - article [ref=f5e21]:
+          - heading "Total Events This Year" [level=2] [ref=f5e22]
+          - paragraph [ref=f5e23]
+        - article [ref=f5e27]:
+          - heading "Total Pets Vaccinated" [level=2] [ref=f5e28]
+          - paragraph [ref=f5e29]
+        - article [ref=f5e33]:
+          - heading "Most Active Barangay" [level=2] [ref=f5e34]
+          - paragraph [ref=f5e35]
+        - article [ref=f5e39]:
+          - heading "Pending Reports" [level=2] [ref=f5e40]
+          - paragraph [ref=f5e41]
+      - generic [ref=f5e46]:
+        - paragraph [ref=f5e54]
+        - paragraph [ref=f5e70]
+      - generic [ref=f5e85]:
+        - article [ref=f5e86]:
+          - generic [ref=f5e87]:
+            - heading "Pets Vaccinated per Barangay" [level=3] [ref=f5e88]
+            - combobox "Time range filter" [ref=f5e89]:
+              - option "This Month" [selected]
+              - option "Last 3 Months"
+              - option "This Year"
+        - article [ref=f5e108]:
+          - heading "Predicted Number of Animals to be Vaccinated" [level=2] [ref=f5e110]
+      - generic [ref=f5e127]:
+        - article [ref=f5e128]:
+          - heading "Pet Vaccinated Distribution" [level=3] [ref=f5e130]
+        - article [ref=f5e147]:
+          - heading "Number of Vaccines Needed per Barangay" [level=3] [ref=f5e149]
+      - generic [ref=f5e168]:
+        - generic [ref=f5e169]:
+          - heading "Recent Vaccination Events" [level=3] [ref=f5e170]
+          - generic [ref=f5e171]: Click a row to open event report details
+        - generic:
+          - table:
+            - rowgroup

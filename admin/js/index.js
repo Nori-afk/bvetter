@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadRoles();
     wireAddAccountModal();
     wireChartTabs();
+    wireNotificationsModal();
 
     document.getElementById('manage-accounts-btn')?.addEventListener('click', function () {
         window.location.href = 'account-management.html';
@@ -351,6 +352,76 @@ function renderActivityFeed(events) {
 }
 
 /* ── ADD ACCOUNT MODAL ──────────────────────────────────────── */
+/* ── Notifications (shared admin/vet feed) ─────────────────── */
+function wireNotificationsModal() {
+    const bellBtn  = document.getElementById('notification-icon-btn');
+    const overlay  = document.getElementById('modal-notifications');
+    const closeBtn = document.getElementById('modal-notifications-close');
+    const markAllBtn = document.getElementById('notifications-mark-all-read');
+    const listEl   = document.getElementById('notifications-list');
+
+    function openModal() {
+        if (overlay) overlay.hidden = false;
+        loadNotifications();
+    }
+
+    function closeModal() {
+        if (overlay) overlay.hidden = true;
+    }
+
+    async function loadNotifications() {
+        if (!listEl) return;
+        listEl.innerHTML = '<p class="am-loading-cell">Loading notifications…</p>';
+        const result = await api.getStaffNotifications('admin').catch(() => ({ success: false }));
+        if (!result.success) {
+            listEl.innerHTML = '<p class="am-loading-cell">Could not load notifications.</p>';
+            return;
+        }
+        renderNotifications(result.data || []);
+    }
+
+    function renderNotifications(items) {
+        if (!listEl) return;
+        if (!items.length) {
+            listEl.innerHTML = '<p class="am-loading-cell">No notifications yet.</p>';
+            return;
+        }
+        listEl.innerHTML = items.map((item) => `
+            <article class="dash-notification-item ${item.is_read ? 'read' : 'unread'}" data-notification-id="${item.id}">
+                <h4>${escapeHtml(item.title)}</h4>
+                <p>${escapeHtml(item.message)}</p>
+                <small>${escapeHtml(new Date(item.created_at).toLocaleString())}</small>
+            </article>
+        `).join('');
+
+        listEl.querySelectorAll('[data-notification-id]').forEach((el) => {
+            el.addEventListener('click', async () => {
+                const id = Number(el.dataset.notificationId);
+                el.classList.remove('unread');
+                el.classList.add('read');
+                await api.markNotificationRead(id).catch(() => null);
+            });
+        });
+    }
+
+    if (bellBtn) bellBtn.addEventListener('click', openModal);
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (overlay) {
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closeModal();
+        });
+    }
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', async () => {
+            await api.markAllNotificationsRead('admin').catch(() => null);
+            loadNotifications();
+        });
+    }
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && overlay && !overlay.hidden) closeModal();
+    });
+}
+
 function wireAddAccountModal() {
     const overlay    = document.getElementById('modal-add-account');
     const addBtn     = document.getElementById('add-account-btn');

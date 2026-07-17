@@ -1,0 +1,256 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e2]:
+    - complementary [ref=f2e3]:
+      - generic [ref=f2e4]:
+        - button "Toggle sidebar" [ref=f2e5] [cursor=pointer]: ☰
+        - img "VBetter Logo" [ref=f2e7]
+      - generic [ref=f2e8]:
+        - button "Notifications" [ref=f2e9] [cursor=pointer]
+        - img "Admin" [ref=f2e11] [cursor=pointer]
+    - generic [ref=f2e12]:
+      - generic [ref=f2e13]:
+        - generic [ref=f2e14]:
+          - generic [ref=f2e15]: AD
+          - generic [ref=f2e16]:
+            - generic [ref=f2e17]: Admin
+            - generic [ref=f2e18]: Monday, July 13, 2026
+        - generic [ref=f2e19]:
+          - generic [ref=f2e20]:
+            - button "Open notifications" [ref=f2e21] [cursor=pointer]
+            - button "Settings" [ref=f2e25] [cursor=pointer]
+            - button "About us and help" [ref=f2e29] [cursor=pointer]
+          - generic [ref=f2e34]:
+            - button "Add Account" [ref=f2e35] [cursor=pointer]
+            - button "Manage Accounts" [ref=f2e39] [cursor=pointer]
+      - generic [ref=f2e41]:
+        - generic [ref=f2e42]:
+          - generic [ref=f2e43]:
+            - generic [ref=f2e44]: Administrator
+            - heading "Good Day, Admin!" [level=1] [ref=f2e45]
+            - paragraph [ref=f2e46]: Full system overview — accounts, clinic operations, and module activity.
+          - generic [ref=f2e47]:
+            - generic [ref=f2e48]:
+              - generic [ref=f2e49]: "11"
+              - generic [ref=f2e50]: Total Accounts
+            - generic [ref=f2e52]:
+              - generic [ref=f2e53]: "9"
+              - generic [ref=f2e54]: Active
+            - generic [ref=f2e56]:
+              - generic [ref=f2e57]: "02"
+              - generic [ref=f2e58]: Pending
+        - generic [ref=f2e59]:
+          - generic [ref=f2e60]:
+            - paragraph [ref=f2e61]: Total Accounts
+            - heading "11" [level=2] [ref=f2e150]
+            - generic [ref=f2e63]: Across all roles
+          - generic [ref=f2e65]:
+            - paragraph [ref=f2e66]: Pending Approvals
+            - heading "02" [level=2] [ref=f2e151]
+            - generic [ref=f2e152]: Needs Action
+          - generic [ref=f2e68]:
+            - paragraph [ref=f2e69]: System Alerts
+            - heading "00" [level=2] [ref=f2e153]
+            - generic [ref=f2e71]: Lost & found reports awaiting review
+          - generic [ref=f2e73]:
+            - paragraph [ref=f2e74]: Clinic Vaccination Rate
+            - heading "100%" [level=2] [ref=f2e155]
+        - generic [ref=f2e78]:
+          - generic [ref=f2e79]:
+            - generic [ref=f2e81]:
+              - generic [ref=f2e82]:
+                - heading "Account Registrations" [level=3] [ref=f2e83]
+                - paragraph [ref=f2e84]: Monthly new accounts created in the system
+              - generic [ref=f2e85]:
+                - button "Monthly" [ref=f2e86] [cursor=pointer]
+                - button "Quarterly" [ref=f2e87] [cursor=pointer]
+            - generic [ref=f2e90]:
+              - generic [ref=f2e91]:
+                - generic [ref=f2e92]:
+                  - heading "Recent Accounts" [level=3] [ref=f2e93]
+                  - paragraph [ref=f2e94]: Latest registered users in the system
+                - link "View All" [ref=f2e95] [cursor=pointer]:
+                  - /url: account-management.html
+              - table [ref=f2e97]:
+                - rowgroup [ref=f2e98]:
+                  - row [ref=f2e99]:
+                    - columnheader "Name" [ref=f2e100]
+                    - columnheader "Role" [ref=f2e101]
+                    - columnheader "Email" [ref=f2e102]
+                    - columnheader "Status" [ref=f2e103]
+                    - columnheader "Joined" [ref=f2e104]
+                - rowgroup [ref=f2e105]:
+                  - row [ref=f2e156]:
+                    - cell "AH Anne Hallegado" [ref=f2e157]:
+                      - generic [ref=f2e158]: AH
+                      - generic [ref=f2e159]: Anne Hallegado
+                    - cell "Vet" [ref=f2e160]
+                    - cell "hallegado2004@gmail.com" [ref=f2e161]
+                    - cell "Active" [ref=f2e162]
+                    - cell "Jul 11" [ref=f2e163]
+                  - row [ref=f2e164]:
+                    - cell "JS Janelle Sandoval Inovero" [ref=f2e165]:
+                      - generic [ref=f2e166]: JS
+                      - generic [ref=f2e167]: Janelle Sandoval Inovero
+                    - cell "Owner" [ref=f2e168]
+                    - cell "kizeacha@gmail.com" [ref=f2e169]
+                    - cell "Active" [ref=f2e170]
+                    - cell "Jul 08" [ref=f2e171]
+                  - row [ref=f2e172]:
+                    - cell "K kzieas" [ref=f2e173]:
+                      - generic [ref=f2e174]: K
+                      - generic [ref=f2e175]: kzieas
+                    - cell "Owner" [ref=f2e176]
+                    - cell "markivanvillaster@gmail.com" [ref=f2e177]
+                    - cell "Inactive" [ref=f2e178]
+                    - cell "Jul 03" [ref=f2e179]
+                  - row [ref=f2e180]:
+                    - cell "A Admin" [ref=f2e181]:
+                      - generic [ref=f2e182]: A
+                      - generic [ref=f2e183]: Admin
+                    - cell "Admin" [ref=f2e184]
+                    - cell "AdminTest@test.com" [ref=f2e185]
+                    - cell "Active" [ref=f2e186]
+                    - cell "Jun 17" [ref=f2e187]
+                  - row [ref=f2e188]:
+                    - cell "K kzieas" [ref=f2e189]:
+                      - generic [ref=f2e190]: K
+                      - generic [ref=f2e191]: kzieas
+                    - cell "Owner" [ref=f2e192]
+                    - cell "kiritovillaster@gmail.com" [ref=f2e193]
+                    - cell "Inactive" [ref=f2e194]
+                    - cell "Jun 09" [ref=f2e195]
+                  - row [ref=f2e196]:
+                    - cell "AO Archive Owner" [ref=f2e197]:
+                      - generic [ref=f2e198]: AO
+                      - generic [ref=f2e199]: Archive Owner
+                    - cell "Owner" [ref=f2e200]
+                    - cell "archive-test-1779872413@example.com" [ref=f2e201]
+                    - cell "Active" [ref=f2e202]
+                    - cell "May 27" [ref=f2e203]
+            - generic [ref=f2e108]:
+              - generic [ref=f2e110]:
+                - heading "Module Usage by Vets" [level=3] [ref=f2e111]
+                - paragraph [ref=f2e112]: Relative record volume across modules
+              - generic [ref=f2e113]:
+                - generic [ref=f2e205]:
+                  - generic [ref=f2e206]: Appointment Management
+                  - generic [ref=f2e207]: 0%
+                - generic [ref=f2e210]:
+                  - generic [ref=f2e211]: Patient Records
+                  - generic [ref=f2e212]: 22%
+                - generic [ref=f2e216]:
+                  - generic [ref=f2e217]: Disease Analytics
+                  - generic [ref=f2e218]: 77%
+                - generic [ref=f2e222]:
+                  - generic [ref=f2e223]: Mass Vaccination
+                  - generic [ref=f2e224]: 100%
+                - generic [ref=f2e228]:
+                  - generic [ref=f2e229]: Lost and Found
+                  - generic [ref=f2e230]: 0%
+                - generic [ref=f2e233]:
+                  - generic [ref=f2e234]: Chatbot Management
+                  - generic [ref=f2e235]: 0%
+          - generic [ref=f2e115]:
+            - generic [ref=f2e116]:
+              - generic [ref=f2e117]:
+                - generic [ref=f2e118]:
+                  - heading "Pending Approvals" [level=3] [ref=f2e119]
+                  - paragraph [ref=f2e120]: Accounts awaiting review
+                - generic [ref=f2e121]: "2"
+              - generic [ref=f2e122]:
+                - generic [ref=f2e237]:
+                  - generic [ref=f2e238]: K
+                  - generic [ref=f2e239]:
+                    - paragraph [ref=f2e240]: kzieas
+                    - paragraph [ref=f2e241]: Pet Owner • Joined Jul 03
+                  - generic [ref=f2e242]:
+                    - button "✓" [ref=f2e243] [cursor=pointer]
+                    - button "✕" [ref=f2e244] [cursor=pointer]
+                - generic [ref=f2e245]:
+                  - generic [ref=f2e246]: K
+                  - generic [ref=f2e247]:
+                    - paragraph [ref=f2e248]: kzieas
+                    - paragraph [ref=f2e249]: Pet Owner • Joined Jun 09
+                  - generic [ref=f2e250]:
+                    - button "✓" [ref=f2e251] [cursor=pointer]
+                    - button "✕" [ref=f2e252] [cursor=pointer]
+              - button "View All Pending" [ref=f2e124] [cursor=pointer]
+            - generic [ref=f2e125]:
+              - heading "Clinic Snapshot" [level=3] [ref=f2e126]
+              - paragraph [ref=f2e127]: Key operational numbers
+              - generic [ref=f2e128]:
+                - generic [ref=f2e129]:
+                  - paragraph [ref=f2e130]: Appointments Today
+                  - heading "0" [level=4] [ref=f2e253]
+                  - paragraph [ref=f2e132]: Scheduled for today
+                - generic [ref=f2e133]:
+                  - paragraph [ref=f2e134]: Active Lost Reports
+                  - heading "1" [level=4] [ref=f2e254]
+                  - paragraph [ref=f2e136]: Awaiting resolution
+                - generic [ref=f2e137]:
+                  - paragraph [ref=f2e138]: Chatbot Queries
+                  - heading "23" [level=4] [ref=f2e255]
+                  - paragraph [ref=f2e140]: Total logged queries
+                - generic [ref=f2e141]:
+                  - paragraph [ref=f2e142]: Pending Actions
+                  - heading "0" [level=4] [ref=f2e256]
+                  - paragraph [ref=f2e144]: Appointments needing action
+            - generic [ref=f2e145]:
+              - heading "Recent Activity" [level=3] [ref=f2e146]
+              - paragraph [ref=f2e147]: System-wide account events
+              - generic [ref=f2e148]:
+                - generic [ref=f2e259]:
+                  - paragraph [ref=f2e260]:
+                    - strong [ref=f2e261]: Found report
+                    - text: found report is now
+                    - strong [ref=f2e262]: active
+                    - text: .
+                  - generic [ref=f2e263]: 1 day ago
+                - generic [ref=f2e266]:
+                  - paragraph [ref=f2e267]:
+                    - strong [ref=f2e268]: Found report
+                    - text: found report is now
+                    - strong [ref=f2e269]: resolved
+                    - text: .
+                  - generic [ref=f2e270]: 1 day ago
+                - generic [ref=f2e273]:
+                  - paragraph [ref=f2e274]:
+                    - strong [ref=f2e275]: Found report
+                    - text: found report is now
+                    - strong [ref=f2e276]: resolved
+                    - text: .
+                  - generic [ref=f2e277]: 1 day ago
+                - generic [ref=f2e280]:
+                  - paragraph [ref=f2e281]:
+                    - text: "New announcement posted:"
+                    - strong [ref=f2e282]: "Disease Response: All Diseases in Tiaong"
+                    - text: .
+                  - generic [ref=f2e283]: 1 day ago
+                - generic [ref=f2e286]:
+                  - paragraph [ref=f2e287]:
+                    - text: "New announcement posted:"
+                    - strong [ref=f2e288]: "Disease Response: All Diseases in Tiaong"
+                    - text: .
+                  - generic [ref=f2e289]: 1 day ago
+                - generic [ref=f2e292]:
+                  - paragraph [ref=f2e293]:
+                    - strong [ref=f2e294]: Anne Hallegado
+                    - text: registered as a new veterinarian account.
+                  - generic [ref=f2e295]: 2 days ago
+  - dialog [ref=f2e297]:
+    - generic [ref=f2e298]:
+      - generic [ref=f2e299]:
+        - heading "Notifications" [level=2] [ref=f2e300]
+        - paragraph [ref=f2e301]: Appointment and lost & found activity
+      - button "Close" [ref=f2e302] [cursor=pointer]
+    - generic [ref=f2e306]:
+      - button "Mark all as read" [active] [ref=f2e307] [cursor=pointer]
+      - generic [ref=f2e308]:
+        - article [ref=f2e315] [cursor=pointer]:
+          - heading "Appointment Cancelled" [level=4] [ref=f2e316]
+          - paragraph [ref=f2e317]: "Appointment #9 was cancelled."
+          - text: 7/13/2026, 10:17:16 PM
+        - article [ref=f2e318] [cursor=pointer]:
+          - heading "New Appointment Request" [level=4] [ref=f2e319]
+          - paragraph [ref=f2e320]: Mark ivan Jalova. villaster requested a Checkup appointment for Copper on 2026-07-20 at 10:00.
+          - text: 7/13/2026, 10:16:36 PM

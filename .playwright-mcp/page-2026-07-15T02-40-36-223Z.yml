@@ -1,0 +1,119 @@
+- generic [ref=f15e2]:
+  - complementary [ref=f15e3]:
+    - generic [ref=f15e4]:
+      - button "Toggle sidebar" [ref=f15e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=f15e7]
+    - generic [ref=f15e8]:
+      - button "Notifications" [ref=f15e9] [cursor=pointer]
+      - img "Admin" [ref=f15e11] [cursor=pointer]
+  - generic [ref=f15e12]:
+    - generic [ref=f15e13]:
+      - generic [ref=f15e14]:
+        - generic [ref=f15e15]: AD
+        - generic [ref=f15e16]:
+          - generic [ref=f15e17]: Admin
+          - generic [ref=f15e18]: Wednesday, July 15, 2026
+      - generic [ref=f15e19]:
+        - generic [ref=f15e20]:
+          - button "Open notifications" [ref=f15e21] [cursor=pointer]
+          - button "Settings" [ref=f15e25] [cursor=pointer]
+          - button "About us and help" [ref=f15e29] [cursor=pointer]
+        - generic [ref=f15e34]:
+          - button "Add Account" [ref=f15e35] [cursor=pointer]
+          - button "Manage Accounts" [ref=f15e39] [cursor=pointer]
+    - generic [ref=f15e41]:
+      - generic [ref=f15e42]:
+        - generic [ref=f15e43]:
+          - generic [ref=f15e44]: Administrator
+          - heading "Good Day, Admin!" [level=1] [ref=f15e45]
+          - paragraph [ref=f15e46]: Full system overview — accounts, clinic operations, and module activity.
+        - generic [ref=f15e47]:
+          - generic [ref=f15e48]:
+            - generic [ref=f15e49]: "--"
+            - generic [ref=f15e50]: Total Accounts
+          - generic [ref=f15e52]:
+            - generic [ref=f15e53]: "--"
+            - generic [ref=f15e54]: Active
+          - generic [ref=f15e56]:
+            - generic [ref=f15e57]: "--"
+            - generic [ref=f15e58]: Pending
+      - generic [ref=f15e59]:
+        - generic [ref=f15e60]:
+          - paragraph [ref=f15e61]: Total Accounts
+          - heading "--" [level=2] [ref=f15e62]
+          - generic [ref=f15e63]: Across all roles
+        - generic [ref=f15e65]:
+          - paragraph [ref=f15e66]: Pending Approvals
+          - heading "--" [level=2] [ref=f15e67]
+        - generic [ref=f15e68]:
+          - paragraph [ref=f15e69]: System Alerts
+          - heading "--" [level=2] [ref=f15e70]
+          - generic [ref=f15e71]: Lost & found reports awaiting review
+        - generic [ref=f15e73]:
+          - paragraph [ref=f15e74]: Clinic Vaccination Rate
+          - heading "--" [level=2] [ref=f15e77]
+      - generic [ref=f15e78]:
+        - generic [ref=f15e79]:
+          - generic [ref=f15e81]:
+            - generic [ref=f15e82]:
+              - heading "Account Registrations" [level=3] [ref=f15e83]
+              - paragraph [ref=f15e84]: Monthly new accounts created in the system
+            - generic [ref=f15e85]:
+              - button "Monthly" [ref=f15e86] [cursor=pointer]
+              - button "Quarterly" [ref=f15e87] [cursor=pointer]
+          - generic [ref=f15e90]:
+            - generic [ref=f15e91]:
+              - generic [ref=f15e92]:
+                - heading "Recent Accounts" [level=3] [ref=f15e93]
+                - paragraph [ref=f15e94]: Latest registered users in the system
+              - link "View All" [ref=f15e95] [cursor=pointer]:
+                - /url: account-management.html
+            - table [ref=f15e97]:
+              - rowgroup [ref=f15e98]:
+                - row [ref=f15e99]:
+                  - columnheader "Name" [ref=f15e100]
+                  - columnheader "Role" [ref=f15e101]
+                  - columnheader "Email" [ref=f15e102]
+                  - columnheader "Status" [ref=f15e103]
+                  - columnheader "Joined" [ref=f15e104]
+              - rowgroup [ref=f15e105]:
+                - row [ref=f15e106]:
+                  - cell "Loading accounts…" [ref=f15e107]
+          - generic [ref=f15e108]:
+            - generic [ref=f15e110]:
+              - heading "Module Usage by Vets" [level=3] [ref=f15e111]
+              - paragraph [ref=f15e112]: Relative record volume across modules
+            - paragraph [ref=f15e114]: Loading module activity…
+        - generic [ref=f15e115]:
+          - generic [ref=f15e116]:
+            - generic [ref=f15e117]:
+              - generic [ref=f15e118]:
+                - heading "Pending Approvals" [level=3] [ref=f15e119]
+                - paragraph [ref=f15e120]: Accounts awaiting review
+              - generic [ref=f15e121]: "--"
+            - paragraph [ref=f15e123]: Loading pending approvals…
+            - button "View All Pending" [ref=f15e124] [cursor=pointer]
+          - generic [ref=f15e125]:
+            - heading "Clinic Snapshot" [level=3] [ref=f15e126]
+            - paragraph [ref=f15e127]: Key operational numbers
+            - generic [ref=f15e128]:
+              - generic [ref=f15e129]:
+                - paragraph [ref=f15e130]: Appointments Today
+                - heading "--" [level=4] [ref=f15e131]
+                - paragraph [ref=f15e132]: Scheduled for today
+              - generic [ref=f15e133]:
+                - paragraph [ref=f15e134]: Active Lost Reports
+                - heading "--" [level=4] [ref=f15e135]
+                - paragraph [ref=f15e136]: Awaiting resolution
+              - generic [ref=f15e137]:
+                - paragraph [ref=f15e138]: Chatbot Queries
+                - heading "--" [level=4] [ref=f15e139]
+                - paragraph [ref=f15e140]: Total logged queries
+              - generic [ref=f15e141]:
+                - paragraph [ref=f15e142]: Pending Actions
+                - heading "--" [level=4] [ref=f15e143]
+                - paragraph [ref=f15e144]: Appointments needing action
+          - generic [ref=f15e145]:
+            - heading "Recent Activity" [level=3] [ref=f15e146]
+            - paragraph [ref=f15e147]: System-wide account events
+            - paragraph [ref=f15e149]: Loading recent activity…

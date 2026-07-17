@@ -1,0 +1,10 @@
+- generic [ref=f8e2]:
+  - complementary [ref=f8e3]:
+    - generic [ref=f8e4]:
+      - button "Toggle sidebar" [ref=f8e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=f8e7]
+    - generic [ref=f8e8]:
+      - button "Notifications" [ref=f8e9] [cursor=pointer]
+      - img "Kizea igaya" [ref=f8e11] [cursor=pointer]
+  - main [ref=f8e12]:
+    - generic [ref=f8e13]: Loading patient records...

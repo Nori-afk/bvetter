@@ -4,10 +4,10 @@
    Depends: nav.js, api.js
 
    Functions:
-   - loadNotifPrefs()      — api.getNotifPrefs() to set checkbox states
+   - loadNotifPrefs()      — api.getNotifPrefs() to set checkbox + quiet hours state
    - saveNotifPrefs()      — api.updateNotifPrefs() on checkbox change
    - (clear all history)
-   - (configure schedule placeholder)
+   - Quiet Hours modal + enable toggle — api.updateNotifPrefs() on save/toggle
 
    NOTE — known backend/UI mismatch:
    The backend (api/users/profile.php) only stores ONE on/off
@@ -44,6 +44,13 @@
       const enabled = !!prefs[prefKey];
       rowCheckboxes(row).forEach(cb => { cb.checked = enabled; });
     });
+
+    quietHoursEnabled = !!prefs.quietHoursEnabled;
+    if (prefs.quietHoursStart && prefs.quietHoursEnd) {
+      quietHours = { start: prefs.quietHoursStart, end: prefs.quietHoursEnd };
+    }
+    if (qhEnabledToggle) qhEnabledToggle.checked = quietHoursEnabled;
+    renderQuietHours(quietHours);
   }
 
   async function saveNotifPrefs() {
@@ -73,16 +80,16 @@
   }
 
   /* ── Configure schedule ──────────────────────
-     TODO backend: persist via PATCH /api/notifications/quiet-hours
-     instead of localStorage once that endpoint exists.
+     Persisted via api.updateNotifPrefs() (quietHoursEnabled/Start/End),
+     backed by api/users/profile.php's user_notification_preferences row.
 
      Times are stored internally as 24h "HH:MM" strings; the picker
      UI itself is 12h + AM/PM (hour/minute selects + pill toggle)
      to avoid the inconsistent native <input type="time"> widget. */
-  const QUIET_HOURS_KEY = 'vbetter_quiet_hours';
   const btnConfigure     = document.querySelector('.btn-configure');
   const qhModal          = document.getElementById('quietHoursModal');
   const qhScheduleValue  = document.querySelector('.quiet-schedule-value');
+  const qhEnabledToggle  = document.getElementById('qhEnabledToggle');
 
   const qhStartHour   = document.getElementById('qhStartHour');
   const qhStartMinute = document.getElementById('qhStartMinute');
@@ -271,19 +278,17 @@
     select?.addEventListener('change', updateNightVisual);
   });
 
-  function loadQuietHours() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(QUIET_HOURS_KEY) || 'null');
-      if (saved && saved.start && saved.end) return saved;
-    } catch {}
-    return { start: '22:00', end: '07:00' };
-  }
-
   function renderQuietHours(schedule) {
-    if (qhScheduleValue) qhScheduleValue.textContent = `${to12hLabel(schedule.start)} — ${to12hLabel(schedule.end)}`;
+    if (qhScheduleValue) {
+      qhScheduleValue.textContent = quietHoursEnabled
+        ? `${to12hLabel(schedule.start)} — ${to12hLabel(schedule.end)}`
+        : `${to12hLabel(schedule.start)} — ${to12hLabel(schedule.end)} (Off)`;
+    }
+    document.querySelector('.quiet-card')?.classList.toggle('quiet-disabled', !quietHoursEnabled);
   }
 
-  let quietHours = loadQuietHours();
+  let quietHours = { start: '22:00', end: '07:00' };
+  let quietHoursEnabled = false;
   renderQuietHours(quietHours);
 
   function fillPicker(hhmm, hourSelect, minuteSelect, periodToggle) {
@@ -331,35 +336,32 @@
     toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
   }
 
-  document.getElementById('qhModalSave')?.addEventListener('click', () => {
+  document.getElementById('qhModalSave')?.addEventListener('click', async () => {
     quietHours = {
       start: to24h(qhStartHour.value, qhStartMinute.value, getPeriodToggle(qhStartPeriod)),
       end:   to24h(qhEndHour.value, qhEndMinute.value, getPeriodToggle(qhEndPeriod))
     };
-    localStorage.setItem(QUIET_HOURS_KEY, JSON.stringify(quietHours));
+    quietHoursEnabled = true;
+    if (qhEnabledToggle) qhEnabledToggle.checked = true;
     renderQuietHours(quietHours);
     closeQhModal();
+    await api.updateNotifPrefs({
+      quietHoursEnabled: true,
+      quietHoursStart: quietHours.start,
+      quietHoursEnd: quietHours.end
+    }).catch(() => null);
     showToast('Quiet hours saved.', 'success');
   });
 
-  /* ── Checkbox preference saving ──────────────
-     TODO backend: on each change, call:
-     api.updateNotifPrefs(collectPrefs())
-
-  function collectPrefs() {
-    const prefs = {};
-    document.querySelectorAll('[data-row]').forEach(cb => {
-      const row     = cb.dataset.row;
-      const channel = cb.dataset.channel;
-      if (!prefs[row]) prefs[row] = {};
-      prefs[row][channel] = cb.checked;
-    });
-    return prefs;
-  }
-
-  document.querySelectorAll('[data-row]').forEach(cb => {
-    cb.addEventListener('change', () => api.updateNotifPrefs(collectPrefs()));
+  qhEnabledToggle?.addEventListener('change', async () => {
+    quietHoursEnabled = qhEnabledToggle.checked;
+    renderQuietHours(quietHours);
+    await api.updateNotifPrefs({
+      quietHoursEnabled,
+      quietHoursStart: quietHours.start,
+      quietHoursEnd: quietHours.end
+    }).catch(() => null);
+    showToast(quietHoursEnabled ? 'Quiet hours enabled.' : 'Quiet hours disabled.', 'success');
   });
-  */
 
 })();

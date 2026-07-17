@@ -1,0 +1,150 @@
+- generic [ref=f3e2]:
+  - complementary [ref=f3e3]:
+    - generic [ref=f3e4]:
+      - button "Toggle sidebar" [ref=f3e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=f3e7]
+    - generic [ref=f3e8]:
+      - button "Notifications" [ref=f3e9] [cursor=pointer]
+      - img "Admin" [ref=f3e11] [cursor=pointer]
+  - generic [ref=f3e12]:
+    - generic [ref=f3e15]:
+      - button "Create Announcement" [ref=f3e16] [cursor=pointer]
+      - button "Manage Announcements" [ref=f3e20] [cursor=pointer]
+    - generic [ref=f3e22]:
+      - generic [ref=f3e23]:
+        - generic [ref=f3e24]:
+          - generic [ref=f3e25]: Veterinarian
+          - heading "Good Day, Dr. Igaya!" [level=1] [ref=f3e26]
+          - paragraph [ref=f3e27]: Clinic overview — appointments, patient records, and vaccination status.
+        - generic [ref=f3e28]:
+          - generic [ref=f3e29]:
+            - generic [ref=f3e30]: 1,284
+            - generic [ref=f3e31]: Total Appointments
+          - generic [ref=f3e33]:
+            - generic [ref=f3e34]: "42"
+            - generic [ref=f3e35]: Pending
+          - generic [ref=f3e37]:
+            - generic [ref=f3e38]: 94%
+            - generic [ref=f3e39]: Vacc. Rate
+      - generic [ref=f3e40]:
+        - generic [ref=f3e41]:
+          - paragraph [ref=f3e42]: Total Appointments
+          - heading "1,284" [level=2] [ref=f3e43]
+          - generic [ref=f3e44]:
+            - generic [ref=f3e45]: ↑
+            - generic [ref=f3e46]: 12%
+        - generic [ref=f3e47]:
+          - paragraph [ref=f3e48]: Pending Actions
+          - heading "42" [level=2] [ref=f3e49]
+          - generic [ref=f3e50]: Urgent
+        - generic [ref=f3e51]:
+          - paragraph [ref=f3e52]: Active Lost Reports
+          - heading "08" [level=2] [ref=f3e53]
+          - paragraph [ref=f3e54]: San Jose District
+        - generic [ref=f3e55]:
+          - paragraph [ref=f3e56]: Vaccination Rate
+          - heading "94%" [level=2] [ref=f3e60]
+      - generic [ref=f3e61]:
+        - generic [ref=f3e62]:
+          - generic [ref=f3e64]:
+            - generic [ref=f3e65]:
+              - heading "Patient Volume" [level=3] [ref=f3e66]
+              - paragraph [ref=f3e67]: Patient intake trends over time
+            - generic [ref=f3e68]:
+              - button "Weekly" [ref=f3e69] [cursor=pointer]
+              - button "Monthly" [ref=f3e70] [cursor=pointer]
+          - generic [ref=f3e74]:
+            - heading "Disease Cases by Barangay" [level=3] [ref=f3e76]
+            - combobox [ref=f3e77] [cursor=pointer]:
+              - option "All Diseases" [selected]
+              - option "Canine Parvovirus"
+              - option "Canine Distemper"
+              - option "Rabies (Suspected)"
+              - option "Leptospirosis"
+          - generic [ref=f3e80]:
+            - generic [ref=f3e81]:
+              - paragraph [ref=f3e82]: Animals Vaccinated
+              - generic [ref=f3e85]:
+                - generic [ref=f3e86]: Rabies
+                - generic [ref=f3e88]: Parvo
+            - generic [ref=f3e90]:
+              - paragraph [ref=f3e91]: Estimated Vaccine Demand (Next 30 Days)
+              - generic [ref=f3e92]:
+                - generic [ref=f3e93]:
+                  - paragraph [ref=f3e94]: Rabies
+                  - heading "450" [level=4] [ref=f3e95]
+                  - paragraph [ref=f3e96]: Units Required
+                - generic [ref=f3e97]:
+                  - paragraph [ref=f3e98]: Parvo
+                  - heading "280" [level=4] [ref=f3e99]
+                  - paragraph [ref=f3e100]: Units Required
+                - generic [ref=f3e101]:
+                  - paragraph [ref=f3e102]: Distemper
+                  - heading "195" [level=4] [ref=f3e103]
+                  - paragraph [ref=f3e104]: Units Required
+              - generic [ref=f3e105]:
+                - text: ⚠
+                - paragraph [ref=f3e106]:
+                  - strong [ref=f3e107]: "Inventory Alert:"
+                  - text: Rabies stock is 12% below projected demand. Reorder suggested.
+          - generic [ref=f3e108]:
+            - generic [ref=f3e109]:
+              - 'heading "Chatbot Insights: Most Asked Symptoms" [level=3] [ref=f3e110]'
+              - paragraph [ref=f3e111]: Real-time Logs
+            - generic [ref=f3e112]:
+              - generic [ref=f3e114]:
+                - generic [ref=f3e115]: Loss of Appetite
+                - generic [ref=f3e116]: 42% of queries
+              - generic [ref=f3e120]:
+                - generic [ref=f3e121]: Lethargy / Weakness
+                - generic [ref=f3e122]: 28% of queries
+              - generic [ref=f3e126]:
+                - generic [ref=f3e127]: Vomiting
+                - generic [ref=f3e128]: 15% of queries
+              - generic [ref=f3e132]:
+                - generic [ref=f3e133]: Itchy Skin / Redness
+                - generic [ref=f3e134]: 10% of queries
+            - paragraph [ref=f3e137]: "Insight: Predictive patterns suggest a seasonal increase in skin-related queries."
+        - generic [ref=f3e138]:
+          - generic [ref=f3e140]:
+            - heading "April 2026" [level=3] [ref=f3e141]
+            - generic [ref=f3e142]:
+              - button "←" [ref=f3e143] [cursor=pointer]
+              - button "→" [ref=f3e144] [cursor=pointer]
+          - generic [ref=f3e145]:
+            - generic [ref=f3e146]:
+              - heading "Today's Timeline" [level=3] [ref=f3e147]
+              - paragraph [ref=f3e148]: Apr 24
+            - generic [ref=f3e149]:
+              - generic [ref=f3e153]:
+                - paragraph [ref=f3e154]: 09:00 AM
+                - 'heading "Deworming: Cooper" [level=4] [ref=f3e155]'
+                - paragraph [ref=f3e156]: Dr. Aris (Room 402)
+              - generic [ref=f3e160]:
+                - paragraph [ref=f3e161]: 11:30 AM
+                - 'heading "Vaccination: Buddy" [level=4] [ref=f3e162]'
+                - paragraph [ref=f3e163]: Dr. Santos (Room 101)
+              - generic [ref=f3e167]:
+                - paragraph [ref=f3e168]: 02:45 PM
+                - 'heading "Consultation: Felix" [level=4] [ref=f3e169]'
+                - paragraph [ref=f3e170]: Dr. Aris (Consultation Hall)
+            - button "+ Add Appointment" [ref=f3e171] [cursor=pointer]
+          - generic [ref=f3e172]:
+            - paragraph [ref=f3e173]: NEXT MAJOR EVENT
+            - heading "Annual Anti-Rabies Mass Vaccination" [level=3] [ref=f3e174]
+            - paragraph [ref=f3e175]: Nov 12-14 • Barangay Plaza Centers
+            - button "Manage Event" [ref=f3e176] [cursor=pointer]
+          - generic [ref=f3e177]:
+            - generic [ref=f3e178]:
+              - heading "Recent Patient Appointment" [level=3] [ref=f3e179]
+              - link "View Directory" [ref=f3e180] [cursor=pointer]:
+                - /url: "#"
+            - generic [ref=f3e181]:
+              - generic [ref=f3e182]:
+                - img "Cooper" [ref=f3e183]
+                - generic [ref=f3e184]:
+                  - heading "Cooper" [level=4] [ref=f3e185]
+                  - paragraph [ref=f3e186]: Golden Retriever • Male • 3yrs
+              - generic [ref=f3e187]:
+                - generic [ref=f3e188]: Stable
+                - paragraph [ref=f3e189]: "Adm: Apr 24, 2026"

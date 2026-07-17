@@ -1,0 +1,29 @@
+- generic [ref=f25e1]:
+  - generic [ref=f25e2]:
+    - generic [ref=f25e3]:
+      - img "Baliwag City Veterinary Services" [ref=f25e4]
+      - generic [ref=f25e5]:
+        - heading "Keep your pets healthy and happy" [level=1] [ref=f25e6]: Keep your petshealthy andhappy
+        - paragraph [ref=f25e7]: BOOK APPOINTMENTS, VIEW RECORDS, AND TRACK YOUR PET'S WELLNESS JOURNEY.
+    - generic [ref=f25e9]:
+      - img "Baliwag City Veterinary Services" [ref=f25e10]
+      - heading "Welcome Back!" [level=2] [ref=f25e11]
+      - paragraph [ref=f25e12]: Enter your credentials to access your account.
+      - generic [ref=f25e13]:
+        - generic [ref=f25e14]: EMAIL ADDRESS
+        - textbox "your@email.com" [ref=f25e16]: markdeppaa@gmail.com
+      - generic [ref=f25e17]:
+        - generic [ref=f25e18]: PASSWORD
+        - generic [ref=f25e19]:
+          - textbox "••••••••••••" [ref=f25e20]: ivan2405
+          - img "Show password" [ref=f25e21] [cursor=pointer]
+        - link "Forgot Password?" [ref=f25e23] [cursor=pointer]:
+          - /url: forgot-password.html
+      - button "Login" [active] [ref=f25e24] [cursor=pointer]
+      - paragraph [ref=f25e25]:
+        - text: New pet owner?
+        - link "Sign up" [ref=f25e26] [cursor=pointer]:
+          - /url: create-account.html
+  - alertdialog [ref=f25e28]:
+    - paragraph [ref=f25e34]: Invalid email or password.
+    - button "Got it" [ref=f25e35] [cursor=pointer]

@@ -1,0 +1,280 @@
+- generic [active] [ref=f22e1]:
+  - navigation "Main navigation" [ref=f22e2]:
+    - generic [ref=f22e3]:
+      - button "Toggle sidebar" [ref=f22e4] [cursor=pointer]: ☰
+      - img "VBetter" [ref=f22e6]
+    - generic [ref=f22e7]:
+      - button "Notifications" [ref=f22e8] [cursor=pointer]
+      - img "Admin" [ref=f22e10] [cursor=pointer]
+  - main [ref=f22e11]:
+    - navigation [ref=f22e12]:
+      - link "Account Management" [ref=f22e13] [cursor=pointer]:
+        - /url: account-management.html
+      - generic [ref=f22e14]: ›
+      - generic [ref=f22e15]: Manage Security
+    - generic [ref=f22e16]:
+      - link "Back" [ref=f22e17] [cursor=pointer]:
+        - /url: account-management.html
+      - heading "Security & Access Control" [level=1] [ref=f22e20]
+    - generic [ref=f22e21]:
+      - generic [ref=f22e22]:
+        - generic [ref=f22e23]:
+          - generic [ref=f22e29]:
+            - generic [ref=f22e30]: Two-Factor Authentication (2FA)
+            - text: Add an extra layer of security to your account.
+          - generic "Toggle 2FA" [ref=f22e31]:
+            - checkbox [checked]
+        - generic [ref=f22e34]:
+          - strong [ref=f22e35]: Authenticated via Microsoft Authenticator
+          - text: "Last used: Today at 08:42 AM from IP 192.168.1.45"
+        - button "Configure 2FA Methods" [ref=f22e36] [cursor=pointer]
+      - generic [ref=f22e37]:
+        - generic [ref=f22e38]:
+          - generic [ref=f22e46]:
+            - generic [ref=f22e47]: Password Policy
+            - text: Requirements for all clinic staff accounts.
+          - button "Edit policy" [ref=f22e48] [cursor=pointer]
+        - generic [ref=f22e51]:
+          - generic [ref=f22e52]:
+            - generic [ref=f22e53]: Minimum Length
+            - generic [ref=f22e54]: 12 Characters
+          - generic [ref=f22e55]: Require Special Characters
+          - generic [ref=f22e61]:
+            - generic [ref=f22e62]: Password Expiry
+            - generic [ref=f22e63]: 90 Days
+    - generic [ref=f22e64]:
+      - generic [ref=f22e65]:
+        - generic [ref=f22e66]:
+          - generic [ref=f22e67]: Active Session Management
+          - text: Currently logged-in devices across the clinic network
+        - button "TERMINATE ALL" [ref=f22e68] [cursor=pointer]
+      - table [ref=f22e69]:
+        - rowgroup [ref=f22e70]:
+          - row [ref=f22e71]:
+            - columnheader "User" [ref=f22e72]
+            - columnheader "Device / Browser" [ref=f22e73]
+            - columnheader "Location" [ref=f22e74]
+            - columnheader "Last Activity" [ref=f22e75]
+            - columnheader "Status" [ref=f22e76]
+            - columnheader "Action" [ref=f22e77]
+        - rowgroup [ref=f22e78]:
+          - row [ref=f22e79]:
+            - cell "Admin Administrator • AdminTest@test.com" [ref=f22e80]:
+              - generic [ref=f22e81]: Admin
+              - text: Administrator • AdminTest@test.com
+            - cell "Chrome on Windows ::1" [ref=f22e82]:
+              - generic [ref=f22e87]:
+                - generic [ref=f22e88]: Chrome on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e89]
+            - cell "Just now" [ref=f22e90]
+            - cell [ref=f22e91]
+            - cell "Active Session" [ref=f22e94]
+          - row [ref=f22e95]:
+            - cell "Kizea igaya Veterinarian • admin@test.com" [ref=f22e96]:
+              - generic [ref=f22e97]: Kizea igaya
+              - text: Veterinarian • admin@test.com
+            - cell "Chrome on Windows ::1" [ref=f22e98]:
+              - generic [ref=f22e103]:
+                - generic [ref=f22e104]: Chrome on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e105]
+            - cell "6 mins ago" [ref=f22e106]
+            - cell [ref=f22e107]
+            - cell [ref=f22e110]:
+              - button "End Session" [ref=f22e111] [cursor=pointer]
+          - row [ref=f22e112]:
+            - cell "Admin Administrator • AdminTest@test.com" [ref=f22e113]:
+              - generic [ref=f22e114]: Admin
+              - text: Administrator • AdminTest@test.com
+            - cell "Edge on Windows ::1" [ref=f22e115]:
+              - generic [ref=f22e120]:
+                - generic [ref=f22e121]: Edge on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e122]
+            - cell "12 mins ago" [ref=f22e123]
+            - cell [ref=f22e124]
+            - cell [ref=f22e127]:
+              - button "End Session" [ref=f22e128] [cursor=pointer]
+          - row [ref=f22e129]:
+            - cell "Admin Administrator • AdminTest@test.com" [ref=f22e130]:
+              - generic [ref=f22e131]: Admin
+              - text: Administrator • AdminTest@test.com
+            - cell "Edge on Windows ::1" [ref=f22e132]:
+              - generic [ref=f22e137]:
+                - generic [ref=f22e138]: Edge on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e139]
+            - cell "22 mins ago" [ref=f22e140]
+            - cell [ref=f22e141]
+            - cell [ref=f22e144]:
+              - button "End Session" [ref=f22e145] [cursor=pointer]
+          - row [ref=f22e146]:
+            - cell "Kizea igaya Veterinarian • admin@test.com" [ref=f22e147]:
+              - generic [ref=f22e148]: Kizea igaya
+              - text: Veterinarian • admin@test.com
+            - cell "Edge on Windows ::1" [ref=f22e149]:
+              - generic [ref=f22e154]:
+                - generic [ref=f22e155]: Edge on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e156]
+            - cell "40 mins ago" [ref=f22e157]
+            - cell [ref=f22e158]
+            - cell [ref=f22e161]:
+              - button "End Session" [ref=f22e162] [cursor=pointer]
+          - row [ref=f22e163]:
+            - cell "Kizea igaya Veterinarian • admin@test.com" [ref=f22e164]:
+              - generic [ref=f22e165]: Kizea igaya
+              - text: Veterinarian • admin@test.com
+            - cell "Edge on Windows ::1" [ref=f22e166]:
+              - generic [ref=f22e171]:
+                - generic [ref=f22e172]: Edge on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e173]
+            - cell "1 day ago" [ref=f22e174]
+            - cell [ref=f22e175]
+            - cell [ref=f22e178]:
+              - button "End Session" [ref=f22e179] [cursor=pointer]
+          - row [ref=f22e180]:
+            - cell "Kizea igaya Veterinarian • admin@test.com" [ref=f22e181]:
+              - generic [ref=f22e182]: Kizea igaya
+              - text: Veterinarian • admin@test.com
+            - cell "Edge on Windows ::1" [ref=f22e183]:
+              - generic [ref=f22e188]:
+                - generic [ref=f22e189]: Edge on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e190]
+            - cell "2 days ago" [ref=f22e191]
+            - cell [ref=f22e192]
+            - cell [ref=f22e195]:
+              - button "End Session" [ref=f22e196] [cursor=pointer]
+          - row [ref=f22e197]:
+            - cell "Admin Administrator • AdminTest@test.com" [ref=f22e198]:
+              - generic [ref=f22e199]: Admin
+              - text: Administrator • AdminTest@test.com
+            - cell "Edge on Windows ::1" [ref=f22e200]:
+              - generic [ref=f22e205]:
+                - generic [ref=f22e206]: Edge on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e207]
+            - cell "3 days ago" [ref=f22e208]
+            - cell [ref=f22e209]
+            - cell [ref=f22e212]:
+              - button "End Session" [ref=f22e213] [cursor=pointer]
+          - row [ref=f22e214]:
+            - cell "Mark ivan Jalova. villaster Pet Owner • markdeppaa@gmail.com" [ref=f22e215]:
+              - generic [ref=f22e216]: Mark ivan Jalova. villaster
+              - text: Pet Owner • markdeppaa@gmail.com
+            - cell "Edge on Windows ::1" [ref=f22e217]:
+              - generic [ref=f22e222]:
+                - generic [ref=f22e223]: Edge on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e224]
+            - cell "3 days ago" [ref=f22e225]
+            - cell [ref=f22e226]
+            - cell [ref=f22e229]:
+              - button "End Session" [ref=f22e230] [cursor=pointer]
+          - row [ref=f22e231]:
+            - cell "Mark ivan Jalova. villaster Pet Owner • markdeppaa@gmail.com" [ref=f22e232]:
+              - generic [ref=f22e233]: Mark ivan Jalova. villaster
+              - text: Pet Owner • markdeppaa@gmail.com
+            - cell "Edge on Windows ::1" [ref=f22e234]:
+              - generic [ref=f22e239]:
+                - generic [ref=f22e240]: Edge on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e241]
+            - cell "3 days ago" [ref=f22e242]
+            - cell [ref=f22e243]
+            - cell [ref=f22e246]:
+              - button "End Session" [ref=f22e247] [cursor=pointer]
+          - row [ref=f22e248]:
+            - cell "Kizea igaya Veterinarian • admin@test.com" [ref=f22e249]:
+              - generic [ref=f22e250]: Kizea igaya
+              - text: Veterinarian • admin@test.com
+            - cell "Edge on Windows ::1" [ref=f22e251]:
+              - generic [ref=f22e256]:
+                - generic [ref=f22e257]: Edge on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e258]
+            - cell "3 days ago" [ref=f22e259]
+            - cell [ref=f22e260]
+            - cell [ref=f22e263]:
+              - button "End Session" [ref=f22e264] [cursor=pointer]
+          - row [ref=f22e265]:
+            - cell "Admin Administrator • AdminTest@test.com" [ref=f22e266]:
+              - generic [ref=f22e267]: Admin
+              - text: Administrator • AdminTest@test.com
+            - cell "Chrome on Windows ::1" [ref=f22e268]:
+              - generic [ref=f22e273]:
+                - generic [ref=f22e274]: Chrome on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e275]
+            - cell "3 days ago" [ref=f22e276]
+            - cell [ref=f22e277]
+            - cell [ref=f22e280]:
+              - button "End Session" [ref=f22e281] [cursor=pointer]
+          - row [ref=f22e282]:
+            - cell "Kizea igaya Veterinarian • admin@test.com" [ref=f22e283]:
+              - generic [ref=f22e284]: Kizea igaya
+              - text: Veterinarian • admin@test.com
+            - cell "Chrome on Windows ::1" [ref=f22e285]:
+              - generic [ref=f22e290]:
+                - generic [ref=f22e291]: Chrome on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e292]
+            - cell "3 days ago" [ref=f22e293]
+            - cell [ref=f22e294]
+            - cell [ref=f22e297]:
+              - button "End Session" [ref=f22e298] [cursor=pointer]
+          - row [ref=f22e299]:
+            - cell "Admin Administrator • AdminTest@test.com" [ref=f22e300]:
+              - generic [ref=f22e301]: Admin
+              - text: Administrator • AdminTest@test.com
+            - cell "Chrome on Windows ::1" [ref=f22e302]:
+              - generic [ref=f22e307]:
+                - generic [ref=f22e308]: Chrome on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e309]
+            - cell "3 days ago" [ref=f22e310]
+            - cell [ref=f22e311]
+            - cell [ref=f22e314]:
+              - button "End Session" [ref=f22e315] [cursor=pointer]
+          - row [ref=f22e316]:
+            - cell "Kizea igaya Veterinarian • admin@test.com" [ref=f22e317]:
+              - generic [ref=f22e318]: Kizea igaya
+              - text: Veterinarian • admin@test.com
+            - cell "Chrome on Windows ::1" [ref=f22e319]:
+              - generic [ref=f22e324]:
+                - generic [ref=f22e325]: Chrome on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e326]
+            - cell "3 days ago" [ref=f22e327]
+            - cell [ref=f22e328]
+            - cell [ref=f22e331]:
+              - button "End Session" [ref=f22e332] [cursor=pointer]
+          - row [ref=f22e333]:
+            - cell "Admin Administrator • AdminTest@test.com" [ref=f22e334]:
+              - generic [ref=f22e335]: Admin
+              - text: Administrator • AdminTest@test.com
+            - cell "Edge on Windows ::1" [ref=f22e336]:
+              - generic [ref=f22e341]:
+                - generic [ref=f22e342]: Edge on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e343]
+            - cell "3 days ago" [ref=f22e344]
+            - cell [ref=f22e345]
+            - cell [ref=f22e348]:
+              - button "End Session" [ref=f22e349] [cursor=pointer]
+          - row [ref=f22e350]:
+            - cell "Kizea igaya Veterinarian • admin@test.com" [ref=f22e351]:
+              - generic [ref=f22e352]: Kizea igaya
+              - text: Veterinarian • admin@test.com
+            - cell "Edge on Windows ::1" [ref=f22e353]:
+              - generic [ref=f22e358]:
+                - generic [ref=f22e359]: Edge on Windows
+                - text: ::1
+            - cell "Unknown location" [ref=f22e360]
+            - cell "3 days ago" [ref=f22e361]
+            - cell [ref=f22e362]
+            - cell [ref=f22e365]:
+              - button "End Session" [ref=f22e366] [cursor=pointer]

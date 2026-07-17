@@ -367,6 +367,8 @@ $resetUrl = APP_URL . '/public/pages/reset-password.html?token='
         </div>
     ";
 
+    $mailSent = false;
+
     try {
         $mail = new PHPMailer(true);
         $mail->CharSet    = PHPMailer::CHARSET_UTF8;
@@ -390,16 +392,26 @@ $resetUrl = APP_URL . '/public/pages/reset-password.html?token='
         }
 
         $mail->send();
+        $mailSent = true;
 
         error_log("[VBetter Reset] email sent to {$email}");
     } catch (MailException $e) {
         error_log("[VBetter Reset] Mailer error: " . $e->getMessage());
     }
 
-    respond(200, [
+    $response = [
         'success' => true,
         'message' => 'If that email is registered, a reset link has been sent.',
-    ]);
+    ];
+
+    // No SMTP credentials configured locally (no .env / empty SMTP_USER) — hand
+    // back the reset link directly so the flow is still testable without real email.
+    $smtpUser = getenv('SMTP_USER');
+    if (!$mailSent && ($smtpUser === false || $smtpUser === '')) {
+        $response['dev_link'] = $resetUrl;
+    }
+
+    respond(200, $response);
 }
 
 /* ── reset password ─────────────────────────────────────── */

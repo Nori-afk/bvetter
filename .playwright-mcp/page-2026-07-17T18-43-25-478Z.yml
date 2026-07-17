@@ -1,0 +1,199 @@
+- generic [ref=f6e2]:
+  - complementary [ref=f6e3]:
+    - generic [ref=f6e4]:
+      - button "Toggle sidebar" [ref=f6e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=f6e7]
+    - generic [ref=f6e8]:
+      - button "Notifications" [ref=f6e9] [cursor=pointer]
+      - img "Unknown" [ref=f6e11] [cursor=pointer]
+  - main [ref=f6e12]:
+    - generic [ref=f6e16]:
+      - generic [ref=f6e17]:
+        - button "Back to Patient Records" [ref=f6e18] [cursor=pointer]
+        - generic [ref=f6e26]:
+          - heading "Add New Patient" [level=2] [ref=f6e27]
+          - paragraph [ref=f6e28]: Register a new patient and capture the first clinical note.
+      - generic [ref=f6e29]:
+        - article [ref=f6e30]:
+          - generic [ref=f6e38]:
+            - heading "Pet Information" [level=3] [ref=f6e39]
+            - paragraph [ref=f6e40]: Physical and identification details
+          - generic [ref=f6e41]:
+            - generic [ref=f6e42]:
+              - generic [ref=f6e43]: PET NAME
+              - textbox "PET NAME" [ref=f6e44]:
+                - /placeholder: e.g. Buddy
+            - generic [ref=f6e45]:
+              - generic [ref=f6e46]: SPECIES
+              - combobox "SPECIES" [ref=f6e47]:
+                - option "Canine" [selected]
+                - option "Feline"
+                - option "Avian"
+                - option "Exotic"
+            - generic [ref=f6e48]:
+              - generic [ref=f6e49]: BREED
+              - textbox "BREED" [ref=f6e50]:
+                - /placeholder: e.g. Golden Retriever
+            - generic [ref=f6e51]:
+              - generic [ref=f6e52]: AGE
+              - generic [ref=f6e53]:
+                - spinbutton "AGE" [ref=f6e54]
+                - combobox [ref=f6e55]:
+                  - option "Years" [selected]
+                  - option "Months"
+            - generic [ref=f6e56]:
+              - generic [ref=f6e57]: SEX
+              - combobox "SEX" [ref=f6e58]:
+                - option "Male"
+                - option "Female" [selected]
+            - generic [ref=f6e59]:
+              - generic [ref=f6e60]: WEIGHT
+              - textbox "WEIGHT" [ref=f6e61]:
+                - /placeholder: e.g. 12.5 kg
+            - generic [ref=f6e62]:
+              - generic [ref=f6e63]: COLOR / MARKINGS
+              - textbox "COLOR / MARKINGS" [ref=f6e64]:
+                - /placeholder: e.g. Golden coat, white chest
+        - article [ref=f6e65]:
+          - generic [ref=f6e71]:
+            - heading "Owner Information" [level=3] [ref=f6e72]
+            - paragraph [ref=f6e73]: Contact and address details
+          - generic [ref=f6e74]:
+            - generic [ref=f6e75]:
+              - generic [ref=f6e76]: OWNER NAME
+              - textbox "OWNER NAME" [ref=f6e77]:
+                - /placeholder: Full name
+            - generic [ref=f6e78]:
+              - generic [ref=f6e79]: PHONE NUMBER
+              - textbox "PHONE NUMBER" [ref=f6e80]:
+                - /placeholder: 09xxxxxxxxx
+            - generic [ref=f6e81]:
+              - generic [ref=f6e82]: EMAIL ADDRESS
+              - textbox "EMAIL ADDRESS" [ref=f6e83]:
+                - /placeholder: owner@email.com
+            - generic [ref=f6e84]:
+              - generic [ref=f6e85]: COMPLETE ADDRESS
+              - textbox "COMPLETE ADDRESS" [ref=f6e86]:
+                - /placeholder: Barangay, Municipality, Province
+        - article [ref=f6e87]:
+          - generic [ref=f6e92]:
+            - heading "Visit Details" [level=3] [ref=f6e93]
+            - paragraph [ref=f6e94]: Clinical notes for this visit
+          - generic [ref=f6e95]:
+            - generic [ref=f6e96]:
+              - generic [ref=f6e97]: VISIT TITLE
+              - textbox "VISIT TITLE" [ref=f6e98]:
+                - /placeholder: e.g. Annual Checkup, Vaccination Drive
+            - generic [ref=f6e99]:
+              - generic [ref=f6e100]: VISIT DATE
+              - textbox "VISIT DATE" [ref=f6e101]: 2026-07-17
+            - generic [ref=f6e102]:
+              - generic [ref=f6e103]: FOLLOW-UP DATE
+              - textbox "FOLLOW-UP DATE" [ref=f6e104]
+            - generic [ref=f6e105]:
+              - generic [ref=f6e106]: ATTENDING VETERINARIAN
+              - textbox "ATTENDING VETERINARIAN" [ref=f6e107]: Dr. Kizea Bien Igaya
+            - generic [ref=f6e108]:
+              - generic [ref=f6e109]: SYMPTOMS / CHIEF COMPLAINT
+              - textbox "SYMPTOMS / CHIEF COMPLAINT" [ref=f6e110]:
+                - /placeholder: Describe observed clinical signs and symptoms...
+            - generic [ref=f6e111]:
+              - generic [ref=f6e112]: DIAGNOSIS
+              - combobox "DIAGNOSIS" [ref=f6e113]:
+                - option "Select a diagnosis..." [disabled] [selected]
+                - option "Avian Influenza"
+                - option "Canine Distemper"
+                - option "Coccidiosis"
+                - option "Dental Disease"
+                - option "Ear Infection"
+                - option "Ear Mites"
+                - option "Ehrlichiosis"
+                - option "Enterotoxemia"
+                - option "Feline Immunodeficiency Virus (FIV)"
+                - option "Feline Leukemia Virus (FeLV)"
+                - option "Feline Lower Urinary Tract Disease"
+                - option "Feline Panleukopenia"
+                - option "Feline Respiratory Complex (Cat Flu)"
+                - option "Flea Allergy Dermatitis"
+                - option "Flea Infestation"
+                - option "Foot Rot"
+                - option "Foot-and-Mouth Disease"
+                - option "Fowl Pox"
+                - option "Gastroenteritis"
+                - option "Gastrointestinal Stasis"
+                - option "Heartworm"
+                - option "Heat Stroke"
+                - option "Hemorrhagic Septicemia"
+                - option "Infectious Bronchitis"
+                - option "Infectious Bursal Disease"
+                - option "Intestinal Parasites"
+                - option "Kennel Cough"
+                - option "Leptospirosis"
+                - option "Mange"
+                - option "Marek's Disease"
+                - option "Mastitis"
+                - option "Newcastle Disease"
+                - option "Parasite Infection"
+                - option "Parasitic Infection"
+                - option "Pneumonia"
+                - option "Pyometra"
+                - option "Rabies (Suspected)"
+                - option "Respiratory Infection"
+                - option "Ringworm"
+                - option "Skin Infection"
+                - option "Upper Respiratory Infection"
+                - option "Urinary Tract Infection"
+                - option "Other / Not Listed"
+            - generic [ref=f6e114]:
+              - generic [ref=f6e115]: TREATMENT PROVIDED
+              - textbox "TREATMENT PROVIDED" [ref=f6e116]:
+                - /placeholder: Procedures performed, medications administered...
+            - generic [ref=f6e117]:
+              - generic [ref=f6e118]: PRESCRIBED MEDICATIONS
+              - textbox "PRESCRIBED MEDICATIONS" [ref=f6e119]:
+                - /placeholder: "Comma-separated: Amoxicillin, Meloxicam"
+            - generic [ref=f6e120]:
+              - generic [ref=f6e121]: CASE CATEGORY
+              - combobox "CASE CATEGORY" [ref=f6e122]:
+                - option "Routine Checkup" [selected]
+                - option "Vaccination"
+                - option "Dermatology"
+                - option "Emergency"
+                - option "Surgery Follow-up"
+            - generic [ref=f6e123]:
+              - generic [ref=f6e124]: DISEASE CATEGORY
+              - combobox "DISEASE CATEGORY" [ref=f6e125]:
+                - option "General/Other" [selected]
+                - option "Skin"
+                - option "Parasitic"
+                - option "Respiratory"
+                - option "Gastrointestinal"
+            - generic [ref=f6e126]:
+              - generic [ref=f6e127]: VACCINATION STATUS
+              - combobox "VACCINATION STATUS" [ref=f6e128]:
+                - option "Up to date"
+                - option "Pending" [selected]
+                - option "Pending booster"
+                - option "Overdue"
+                - option "Completed"
+            - generic [ref=f6e129]:
+              - generic [ref=f6e130]: VACCINATION TYPE
+              - generic [ref=f6e131]:
+                - combobox "VACCINATION TYPE" [ref=f6e132]:
+                  - option "Anti-Rabies"
+                  - option "Deworming"
+                  - option "5-in-1"
+                  - option "Booster Shot"
+                  - option "Parvo Booster" [selected]
+                - button "+ Add" [ref=f6e133] [cursor=pointer]
+            - generic [ref=f6e134]:
+              - generic [ref=f6e135]: RECORD STATUS
+              - combobox "RECORD STATUS" [ref=f6e136]:
+                - option "Active Patient" [selected]
+                - option "Monitoring"
+                - option "Critical"
+          - generic [ref=f6e137]:
+            - button "Cancel" [ref=f6e138] [cursor=pointer]
+            - button [ref=f6e139] [cursor=pointer]:
+              - text: Add Patient
+              - img "add" [ref=f6e140]

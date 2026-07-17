@@ -1,0 +1,163 @@
+- generic [ref=f17e2]:
+  - complementary [ref=f17e3]:
+    - img "VBetter Logo" [ref=f17e6]
+    - navigation [ref=f17e7]:
+      - link [ref=f17e8] [cursor=pointer]:
+        - /url: /bvetter/admin/pages/index.html
+        - img "Dashboard" [ref=f17e9]
+        - text: Dashboard
+      - link [ref=f17e10] [cursor=pointer]:
+        - /url: /bvetter/vet/html/appointment.html
+        - img "Appointment Management" [ref=f17e11]
+        - text: Appointment Management
+      - link [ref=f17e12] [cursor=pointer]:
+        - /url: /bvetter/vet/html/patient-records.html
+        - img "Patient Records" [ref=f17e13]
+        - text: Patient Records
+      - link [ref=f17e14] [cursor=pointer]:
+        - /url: /bvetter/vet/html/report.html
+        - img "Report" [ref=f17e15]
+        - text: Report
+      - link [ref=f17e16] [cursor=pointer]:
+        - /url: /bvetter/vet/html/disease-analytics.html
+        - img "Disease Analytics" [ref=f17e17]
+        - text: Disease Analytics
+      - link [ref=f17e18] [cursor=pointer]:
+        - /url: /bvetter/vet/html/lost-and-found.html
+        - img "Lost and Found" [ref=f17e19]
+        - text: Lost And Found
+      - link [ref=f17e20] [cursor=pointer]:
+        - /url: /bvetter/vet/html/chatbot-management.html
+        - img "Chatbot Management" [ref=f17e21]
+        - text: Chatbot Management
+      - link [ref=f17e22] [cursor=pointer]:
+        - /url: /bvetter/vet/html/mass-vaccination.html
+        - img "Mass Vaccination" [ref=f17e23]
+        - text: Mass Vaccination
+      - generic [ref=f17e24]: Administration
+      - link [ref=f17e25] [cursor=pointer]:
+        - /url: /bvetter/admin/pages/account-management.html
+        - img "Account Management" [ref=f17e26]
+        - text: Account Management
+      - link [ref=f17e27] [cursor=pointer]:
+        - /url: /bvetter/admin/pages/website-management.html
+        - img "Website Management" [ref=f17e28]
+        - text: Website Management
+  - main [ref=f17e29]:
+    - generic [ref=f17e31]:
+      - generic "Change photo" [ref=f17e33]
+      - generic [ref=f17e37]:
+        - paragraph [ref=f17e38]: System Administrator
+        - heading "Loading profile…" [level=1] [ref=f17e39]
+        - generic [ref=f17e40]: Active VBetter Admin
+    - generic [ref=f17e41]:
+      - article [ref=f17e42]:
+        - generic [ref=f17e49]:
+          - paragraph [ref=f17e50]: Total Accounts
+          - strong [ref=f17e51]: —
+          - text: Registered users
+      - article [ref=f17e52]:
+        - generic [ref=f17e58]:
+          - paragraph [ref=f17e59]: Active Users
+          - strong [ref=f17e60]: —
+          - text: Active this month
+      - article [ref=f17e61]:
+        - generic [ref=f17e67]:
+          - paragraph [ref=f17e68]: Site Updates
+          - strong [ref=f17e69]: —
+          - text: Last 30 days
+      - article [ref=f17e70]:
+        - generic [ref=f17e74]:
+          - paragraph [ref=f17e75]: System Uptime
+          - strong [ref=f17e76]: —
+          - text: All-time average
+    - generic [ref=f17e77]:
+      - generic [ref=f17e78]:
+        - generic [ref=f17e84]:
+          - heading "Profile Information" [level=2] [ref=f17e85]
+          - paragraph [ref=f17e86]: Manage your account details and contact info
+        - button "Save Changes" [ref=f17e87]
+      - generic [ref=f17e90]:
+        - generic [ref=f17e91]:
+          - generic [ref=f17e92]:
+            - text: Full Name
+            - textbox "Full Name" [ref=f17e93]:
+              - /placeholder: Enter your full name
+          - generic [ref=f17e94]:
+            - text: Email Address
+            - textbox "Email Address" [ref=f17e95]:
+              - /placeholder: admin@baliwagvet.gov.ph
+          - generic [ref=f17e96]:
+            - text: Contact Number
+            - textbox "Contact Number" [ref=f17e97]:
+              - /placeholder: +63 912 345 6789
+          - generic [ref=f17e98]:
+            - text: Role
+            - textbox "Role" [ref=f17e100]
+        - status
+    - generic [ref=f17e105]:
+      - generic [ref=f17e111]:
+        - heading "Security" [level=2] [ref=f17e112]
+        - paragraph [ref=f17e113]: Password, two-factor authentication, and active session management
+      - generic [ref=f17e114]:
+        - generic [ref=f17e115]:
+          - generic [ref=f17e121]:
+            - paragraph [ref=f17e122]: Password
+            - paragraph [ref=f17e123]: Last changed — · Use a strong, unique password
+          - button "Update Password" [ref=f17e124]
+        - generic [ref=f17e128]:
+          - generic [ref=f17e133]:
+            - paragraph [ref=f17e134]: Two-Factor Authentication
+            - paragraph [ref=f17e135]: Require a second verification step at every sign-in
+          - generic [ref=f17e136]:
+            - text: Not Enabled
+            - button "Manage 2FA" [ref=f17e137]
+        - generic [ref=f17e140]:
+          - generic [ref=f17e145]:
+            - paragraph [ref=f17e146]: Active Sessions
+            - paragraph [ref=f17e147]: Loading active sessions…
+          - button "Revoke All Other" [ref=f17e148]
+      - generic [ref=f17e153]:
+        - paragraph [ref=f17e154]: Recent Sign-ins
+        - generic [ref=f17e155]: Loading sign-in history…
+    - generic [ref=f17e157]:
+      - generic [ref=f17e158]:
+        - generic [ref=f17e164]:
+          - heading "Notification Preferences" [level=2] [ref=f17e165]
+          - paragraph [ref=f17e166]: Control which system updates and alerts you receive
+        - button "Save" [ref=f17e167]
+      - generic [ref=f17e168]:
+        - generic [ref=f17e169]:
+          - generic [ref=f17e176]:
+            - paragraph [ref=f17e177]: New Account Registrations
+            - paragraph [ref=f17e178]: Get notified when a new user registers on the system
+          - checkbox [ref=f17e180]
+        - generic [ref=f17e181]:
+          - generic [ref=f17e185]:
+            - paragraph [ref=f17e186]: System Alerts
+            - paragraph [ref=f17e187]: Critical system events, errors, and downtime warnings
+          - checkbox [ref=f17e189]
+        - generic [ref=f17e190]:
+          - generic [ref=f17e196]:
+            - paragraph [ref=f17e197]: Website Content Updates
+            - paragraph [ref=f17e198]: Notify me when website content is published or changed
+          - checkbox [ref=f17e200]
+        - generic [ref=f17e201]:
+          - generic [ref=f17e204]:
+            - paragraph [ref=f17e205]: Weekly Summary Reports
+            - paragraph [ref=f17e206]: Weekly digest of system activity and user statistics
+          - checkbox [ref=f17e208]
+        - generic [ref=f17e209]:
+          - generic [ref=f17e213]:
+            - paragraph [ref=f17e214]: Security Alerts Recommended
+            - paragraph [ref=f17e215]: Get notified when your account is accessed from a new device or location
+          - checkbox [checked] [ref=f17e217]
+        - generic [ref=f17e218]:
+          - generic [ref=f17e222]:
+            - paragraph [ref=f17e223]: Quiet Hours
+            - paragraph [ref=f17e224]: Mute email alerts during these hours. Critical system alerts still go through.
+            - generic [ref=f17e225]:
+              - textbox "Quiet hours start" [ref=f17e226]: 22:00
+              - text: to
+              - textbox "Quiet hours end" [ref=f17e227]: 07:00
+          - checkbox "Enable Quiet Hours" [ref=f17e229]

@@ -58,9 +58,14 @@ function sendAppMail(string $toEmail, string $toName, string $subject, string $h
 }
 
 /**
- * Whether the given user has opted into a notification category.
- * Falls back to the column's schema default when the user has no
+ * Whether the given user has opted into a notification category, AND (if
+ * they've turned on Quiet Hours) that it isn't currently within their muted
+ * window. Falls back to the column's schema default when the user has no
  * preferences row yet (see api/users/profile.php setupProfileTables()).
+ *
+ * Quiet Hours only applies here — it never suppresses notifyStaff()'s fixed
+ * STAFF_ALERT_EMAIL alerts, which is what keeps "critical alerts always
+ * bypass quiet hours" true without needing a separate urgency flag.
  */
 function userWantsNotification(PDO $pdo, int $userId, string $column): bool
 {
@@ -73,14 +78,35 @@ function userWantsNotification(PDO $pdo, int $userId, string $column): bool
         return false;
     }
 
-    $stmt = $pdo->prepare("SELECT $column FROM user_notification_preferences WHERE user_id = :user_id LIMIT 1");
+    $stmt = $pdo->prepare("SELECT $column, quiet_hours_enabled, quiet_hours_start, quiet_hours_end FROM user_notification_preferences WHERE user_id = :user_id LIMIT 1");
     $stmt->execute([':user_id' => $userId]);
-    $value = $stmt->fetchColumn();
+    $row = $stmt->fetch();
 
-    if ($value === false) {
+    if ($row === false) {
         return $defaults[$column];
     }
-    return (bool) $value;
+    if (!(bool) $row[$column]) {
+        return false;
+    }
+
+    return !isWithinQuietHours((bool) $row['quiet_hours_enabled'], (string) $row['quiet_hours_start'], (string) $row['quiet_hours_end']);
+}
+
+/**
+ * True when "now" (server local time) falls inside the given start–end
+ * window. Handles overnight windows (e.g. 22:00 -> 07:00) by wrapping past
+ * midnight instead of treating start > end as an empty range.
+ */
+function isWithinQuietHours(bool $enabled, string $start, string $end): bool
+{
+    if (!$enabled) return false;
+
+    $now = date('H:i:s');
+    if ($start === $end) return true; // 24h window
+    if ($start < $end) {
+        return $now >= $start && $now < $end;
+    }
+    return $now >= $start || $now < $end;
 }
 
 /**

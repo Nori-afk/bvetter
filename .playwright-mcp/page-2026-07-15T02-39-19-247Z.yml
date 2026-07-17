@@ -1,0 +1,114 @@
+- generic [ref=f12e2]:
+  - complementary [ref=f12e3]:
+    - generic [ref=f12e4]:
+      - button "Toggle sidebar" [ref=f12e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=f12e7]
+    - generic [ref=f12e8]:
+      - button "Notifications" [ref=f12e9] [cursor=pointer]
+      - img "Kizea igaya" [ref=f12e11] [cursor=pointer]
+  - main [ref=f12e12]:
+    - generic [ref=f12e14]:
+      - heading "Chatbot Management" [level=1] [ref=f12e15]
+      - paragraph [ref=f12e16]: Switch between the dashboard, inquiry rules, and consultation rules.
+    - tablist "Chatbot management sections" [ref=f12e17]:
+      - button "Home" [ref=f12e18] [cursor=pointer]
+      - button "Inquiry Management" [ref=f12e19] [cursor=pointer]
+      - button "Consultation Management" [ref=f12e20] [cursor=pointer]
+    - region "Inquiry management" [ref=f12e21]:
+      - region "Inquiry summary metrics" [ref=f12e22]:
+        - article [ref=f12e23]:
+          - generic [ref=f12e24]:
+            - paragraph [ref=f12e25]: Total Online Inquiry
+            - generic [ref=f12e26]: i
+          - strong [ref=f12e27]: "50"
+          - generic [ref=f12e28]: "-2% lower compared last month"
+        - article [ref=f12e29]:
+          - generic [ref=f12e30]:
+            - paragraph [ref=f12e31]: Avg response Time
+            - generic [ref=f12e32]: i
+          - strong [ref=f12e33]: < 2s
+          - generic [ref=f12e34]: Optimized
+        - article [ref=f12e35]:
+          - generic [ref=f12e36]:
+            - paragraph [ref=f12e37]: Bot Success Rate
+            - generic [ref=f12e38]: i
+          - strong [ref=f12e39]: 92.8%
+          - generic [ref=f12e40]: High accuracy
+      - region "Inquiry management controls" [ref=f12e41]:
+        - generic [ref=f12e42]:
+          - generic [ref=f12e43]: ⌕
+          - searchbox "Search inquiry rules" [ref=f12e44]
+        - generic [ref=f12e45]:
+          - combobox "Sort inquiry rules" [ref=f12e46]:
+            - 'option "Sort: Default" [selected]'
+            - option "Most used"
+            - option "Recently updated"
+            - option "Name A to Z"
+          - button "+ Add new Inquiry Type" [ref=f12e47] [cursor=pointer]
+      - generic [ref=f12e48]:
+        - generic [ref=f12e49]:
+          - generic [ref=f12e50]:
+            - heading "Chatbot Inquiry Management" [level=2] [ref=f12e51]
+            - paragraph [ref=f12e52]: Manage the local inquiry rules used by the chatbot.
+          - generic [ref=f12e53]: Live backend data
+        - table [ref=f12e55]:
+          - rowgroup [ref=f12e56]:
+            - row [ref=f12e57]:
+              - columnheader "Inquiry Name" [ref=f12e58]
+              - columnheader "Response" [ref=f12e59]
+              - columnheader "Last Updated" [ref=f12e60]
+              - columnheader "Inquiry Count" [ref=f12e61]
+              - columnheader "Action" [ref=f12e62]
+          - rowgroup
+        - paragraph [ref=f12e64]: Displaying 0 of 0 Categories
+    - region "Consultation management" [ref=f12e65]:
+      - generic [ref=f12e66]:
+        - region "Consultation summary metrics" [ref=f12e67]:
+          - article [ref=f12e68]:
+            - generic [ref=f12e69]:
+              - paragraph [ref=f12e70]: Total Online Consultation
+              - generic [ref=f12e71]: i
+            - strong [ref=f12e72]: "50"
+            - generic [ref=f12e73]: "-2% lower compared last month"
+          - article [ref=f12e74]:
+            - generic [ref=f12e75]:
+              - paragraph [ref=f12e76]: Avg response Time
+              - generic [ref=f12e77]: i
+            - strong [ref=f12e78]: < 2s
+            - generic [ref=f12e79]: Optimized
+          - article [ref=f12e80]:
+            - generic [ref=f12e81]:
+              - paragraph [ref=f12e82]: Bot Success Rate
+              - generic [ref=f12e83]: i
+            - strong [ref=f12e84]: 92.8%
+            - generic [ref=f12e85]: High accuracy
+        - region "Consultation management controls" [ref=f12e86]:
+          - generic [ref=f12e87]:
+            - generic [ref=f12e88]: ⌕
+            - searchbox "Search consultation rules" [ref=f12e89]
+          - generic [ref=f12e90]:
+            - combobox "Sort consultation rules" [ref=f12e91]:
+              - 'option "Sort: Default" [selected]'
+              - option "Recently updated"
+              - option "Severity priority"
+              - option "Pet type A to Z"
+            - button "+ Create New Rules" [ref=f12e92] [cursor=pointer]
+        - generic [ref=f12e93]:
+          - generic [ref=f12e94]:
+            - generic [ref=f12e95]:
+              - heading "Chatbot Consultation Rules" [level=2] [ref=f12e96]
+              - paragraph [ref=f12e97]: Manage the symptom rules that drive the consultation assistant.
+            - generic [ref=f12e98]: Live backend data
+          - table [ref=f12e100]:
+            - rowgroup [ref=f12e101]:
+              - row [ref=f12e102]:
+                - columnheader "Pet Type" [ref=f12e103]
+                - columnheader "Symptoms" [ref=f12e104]
+                - columnheader "Symptoms Duration" [ref=f12e105]
+                - columnheader "Possible Condition" [ref=f12e106]
+                - columnheader "Severity" [ref=f12e107]
+                - columnheader "Recommendation" [ref=f12e108]
+                - columnheader "Last Update" [ref=f12e109]
+                - columnheader "Action" [ref=f12e110]
+            - rowgroup
+          - paragraph [ref=f12e112]: Displaying 0 of 0 Results

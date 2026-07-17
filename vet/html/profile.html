@@ -345,6 +345,26 @@
                         <span class="toggle-track"><span class="toggle-thumb"></span></span>
                     </label>
                 </div>
+                <div class="notif-item">
+                    <div class="notif-item-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+                        </svg>
+                    </div>
+                    <div class="notif-item-body">
+                        <p class="notif-title">Quiet Hours</p>
+                        <p class="notif-desc">Mute email alerts during these hours. Staff review alerts still go through.</p>
+                        <div class="quiet-hours-range">
+                            <input type="time" name="quietHoursStart" class="quiet-hours-time" value="22:00" aria-label="Quiet hours start">
+                            <span class="quiet-hours-sep">to</span>
+                            <input type="time" name="quietHoursEnd" class="quiet-hours-time" value="07:00" aria-label="Quiet hours end">
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="quietHoursEnabled" aria-label="Enable Quiet Hours">
+                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    </label>
+                </div>
             </form>
             <div class="prof-card-footer">
                 <button class="btn-save" type="submit" form="notification-form">Save</button>

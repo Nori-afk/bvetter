@@ -1,0 +1,35 @@
+- generic [ref=f9e2]:
+  - complementary [ref=f9e3]:
+    - generic [ref=f9e4]:
+      - button "Toggle sidebar" [ref=f9e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=f9e7]
+    - generic [ref=f9e8]:
+      - button "Notifications" [ref=f9e9] [cursor=pointer]
+      - img "Kizea igaya" [ref=f9e11] [cursor=pointer]
+  - main [ref=f9e12]:
+    - generic [ref=f9e13]:
+      - generic [ref=f9e14]:
+        - heading "Lost And Found Management" [level=1] [ref=f9e15]
+        - paragraph [ref=f9e16]: Review reports, validate claims, and resolve pet match workflows.
+      - button "Upload Found Pet" [ref=f9e17] [cursor=pointer]
+    - generic [ref=f9e21]:
+      - button "Pending Review" [ref=f9e22] [cursor=pointer]
+      - button "Active Reports" [ref=f9e23] [cursor=pointer]
+      - button "Potential Matches" [ref=f9e24] [cursor=pointer]
+      - button "Resolved Cases" [ref=f9e25] [cursor=pointer]
+      - button "Claims" [ref=f9e26] [cursor=pointer]
+      - button "Sighting" [ref=f9e27] [cursor=pointer]
+    - generic [ref=f9e28]:
+      - textbox "Search lost and found reports" [ref=f9e30]:
+        - /placeholder: Search breed, name, or location...
+      - combobox "Select report type" [ref=f9e31] [cursor=pointer]:
+        - option "All Types" [selected]
+        - option "Lost"
+        - option "Found"
+      - combobox "Select source" [ref=f9e32] [cursor=pointer]:
+        - option "All Sources" [selected]
+        - option "Owner"
+        - option "Admin/Clinic"
+      - combobox "Select barangay" [ref=f9e33] [cursor=pointer]:
+        - option "Select Barangay" [selected]
+    - generic [ref=f9e34]: Loading lost and found records...

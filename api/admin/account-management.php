@@ -433,6 +433,23 @@ function deleteUser($pdo)
     ');
     $clearReviewedDocs->execute([':user_id' => $userId]);
 
+    $deleteAppointments = $pdo->prepare('
+        DELETE FROM appointments
+        WHERE owner_id = :owner_id
+           OR veterinarian_id = :vet_id
+           OR reviewed_by_user_id = :reviewer_id
+           OR pet_id IN (SELECT id FROM (SELECT id FROM pets WHERE owner_id = :pet_owner_id) AS owned_pets)
+    ');
+    $deleteAppointments->execute([
+        ':owner_id' => $userId,
+        ':vet_id' => $userId,
+        ':reviewer_id' => $userId,
+        ':pet_owner_id' => $userId,
+    ]);
+
+    $deletePets = $pdo->prepare('DELETE FROM pets WHERE owner_id = :user_id');
+    $deletePets->execute([':user_id' => $userId]);
+
     $deleteDocs = $pdo->prepare('DELETE FROM user_verification_documents WHERE user_id = :user_id');
     $deleteDocs->execute([':user_id' => $userId]);
 

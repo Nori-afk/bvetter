@@ -1,0 +1,53 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - button "Toggle sidebar" [ref=e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=e7]
+    - generic [ref=e8]:
+      - button "Notifications" [ref=e9] [cursor=pointer]
+      - img "Unknown" [ref=e11] [cursor=pointer]
+  - main [ref=e12]:
+    - region "Mass Vaccination Dashboard" [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - heading "Mass Vaccination" [level=1] [ref=e16]
+          - paragraph [ref=e17]: View and analyze vaccination data from online consultation.
+        - button "Create New Event" [ref=e18] [cursor=pointer]
+      - region "Mass Vaccination KPIs" [ref=e20]:
+        - article [ref=e21]:
+          - heading "Total Events This Year" [level=2] [ref=e22]
+          - paragraph [ref=e23]
+        - article [ref=e27]:
+          - heading "Total Pets Vaccinated" [level=2] [ref=e28]
+          - paragraph [ref=e29]
+        - article [ref=e33]:
+          - heading "Most Active Barangay" [level=2] [ref=e34]
+          - paragraph [ref=e35]
+        - article [ref=e39]:
+          - heading "Pending Reports" [level=2] [ref=e40]
+          - paragraph [ref=e41]
+      - generic [ref=e46]:
+        - paragraph [ref=e54]
+        - paragraph [ref=e70]
+      - generic [ref=e85]:
+        - article [ref=e86]:
+          - generic [ref=e87]:
+            - heading "Pets Vaccinated per Barangay" [level=3] [ref=e88]
+            - combobox "Time range filter" [ref=e89]:
+              - option "This Month" [selected]
+              - option "Last 3 Months"
+              - option "This Year"
+        - article [ref=e108]:
+          - heading "Predicted Number of Animals to be Vaccinated" [level=2] [ref=e110]
+      - generic [ref=e127]:
+        - article [ref=e128]:
+          - heading "Pet Vaccinated Distribution" [level=3] [ref=e130]
+        - article [ref=e147]:
+          - heading "Number of Vaccines Needed per Barangay" [level=3] [ref=e149]
+      - generic [ref=e168]:
+        - generic [ref=e169]:
+          - heading "Recent Vaccination Events" [level=3] [ref=e170]
+          - generic [ref=e171]: Click a row to open event report details
+        - generic:
+          - table:
+            - rowgroup

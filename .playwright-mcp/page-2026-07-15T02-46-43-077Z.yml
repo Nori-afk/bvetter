@@ -1,0 +1,337 @@
+- generic [active] [ref=f20e1]:
+  - navigation "Main navigation" [ref=f20e2]:
+    - generic [ref=f20e3]:
+      - button "Toggle sidebar" [ref=f20e4] [cursor=pointer]: ☰
+      - img "VBetter" [ref=f20e6]
+    - generic [ref=f20e7]:
+      - button "Notifications" [ref=f20e8] [cursor=pointer]
+      - img "Admin" [ref=f20e10] [cursor=pointer]
+  - main [ref=f20e11]:
+    - generic [ref=f20e12]:
+      - generic [ref=f20e13]:
+        - heading "Website Management" [level=1] [ref=f20e14]
+        - paragraph [ref=f20e15]: Customize the public landing page — update branding, content, and visuals. Changes save to site config and reflect live on the public site.
+      - generic [ref=f20e16]:
+        - button "Discard" [ref=f20e17] [cursor=pointer]
+        - button "Save Changes" [ref=f20e18] [cursor=pointer]
+    - generic [ref=f20e21]:
+      - generic [ref=f20e22]:
+        - generic [ref=f20e23]:
+          - generic [ref=f20e24]:
+            - generic [ref=f20e25]: Company Logo
+            - generic [ref=f20e31]: SVG, PNG, JPG
+          - generic [ref=f20e39] [cursor=pointer]:
+            - generic [ref=f20e40]: Upload your company logo.
+            - paragraph [ref=f20e41]: Recommended size 512×512px. Appears in the navbar and browser tab.
+            - generic [ref=f20e42]: Upload Logo
+        - generic [ref=f20e45]:
+          - generic [ref=f20e46]: Brand Colors
+          - generic [ref=f20e52]:
+            - generic [ref=f20e53]: Primary Brand Color
+            - generic [ref=f20e54]:
+              - textbox [ref=f20e55] [cursor=pointer]: "#002a58"
+              - textbox "#000000" [ref=f20e56]: "#002A58"
+            - generic [ref=f20e57]: Presets
+            - generic [ref=f20e58]:
+              - generic "Navy" [ref=f20e59] [cursor=pointer]
+              - generic "Green" [ref=f20e60] [cursor=pointer]
+              - generic "Amber" [ref=f20e61] [cursor=pointer]
+              - generic "Red" [ref=f20e62] [cursor=pointer]
+              - generic "Purple" [ref=f20e63] [cursor=pointer]
+              - generic "Pink" [ref=f20e64] [cursor=pointer]
+      - generic [ref=f20e65]:
+        - generic [ref=f20e66]: Visual Assets
+        - generic [ref=f20e74]:
+          - generic [ref=f20e75] [cursor=pointer]:
+            - generic [ref=f20e76]: No image uploaded
+            - generic [ref=f20e82]:
+              - generic [ref=f20e83]: Hero Banner
+              - generic [ref=f20e84]: Main homepage landing visual (1920×1080)
+              - generic [ref=f20e85]:
+                - generic [ref=f20e86]: Upload
+                - button "Remove" [ref=f20e87]
+          - generic [ref=f20e88] [cursor=pointer]:
+            - img "Team Workspace" [ref=f20e89]
+            - generic [ref=f20e90]:
+              - generic [ref=f20e91]: Team Workspace
+              - generic [ref=f20e92]: Background for the About section
+              - generic [ref=f20e93]:
+                - generic [ref=f20e94]: Upload
+                - button "Remove" [ref=f20e95]
+      - generic [ref=f20e96]:
+        - generic [ref=f20e97]:
+          - generic [ref=f20e98]: Announcements
+          - button "Add New Announcement" [ref=f20e104] [cursor=pointer]
+        - generic [ref=f20e106]:
+          - generic [ref=f20e107]: Company Profile
+          - generic [ref=f20e112]:
+            - generic [ref=f20e113]:
+              - generic [ref=f20e114]: About Us
+              - textbox "About Us" [ref=f20e115]:
+                - /placeholder: Tell your customers about your company mission...
+            - generic [ref=f20e116]:
+              - generic [ref=f20e117]:
+                - generic [ref=f20e118]: Contact Email
+                - textbox "Contact Email" [ref=f20e119]:
+                  - /placeholder: clinic@gmail.com
+                  - text: BaliwagtVC@gmail.com
+              - generic [ref=f20e120]:
+                - generic [ref=f20e121]: Support Phone
+                - textbox "Support Phone" [ref=f20e122]:
+                  - /placeholder: +63 9XX XXX XXXX
+                  - text: "09959210640"
+            - generic [ref=f20e123]:
+              - generic [ref=f20e124]: Physical Address
+              - textbox "Physical Address" [ref=f20e126]:
+                - /placeholder: Building, Street, City, Province
+                - text: AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026
+            - generic [ref=f20e127]:
+              - generic [ref=f20e128]:
+                - generic [ref=f20e129]: Clinic Capacity (homepage stat)
+                - textbox "Clinic Capacity (homepage stat)" [ref=f20e130]:
+                  - /placeholder: 24/7
+                  - text: 24/7
+              - generic [ref=f20e131]:
+                - generic [ref=f20e132]: Surgery Recovery Rate (homepage stat)
+                - textbox "Surgery Recovery Rate (homepage stat)" [ref=f20e133]:
+                  - /placeholder: 98.4%
+                  - text: 98.4%
+            - generic [ref=f20e134]:
+              - generic [ref=f20e135]: Specialists (homepage stat)
+              - textbox "Specialists (homepage stat)" [disabled] [ref=f20e136]:
+                - /placeholder: "0"
+                - text: "2"
+              - generic [ref=f20e137]: Counted automatically from active veterinarian accounts — update it in Account Management.
+      - generic [ref=f20e138]:
+        - generic [ref=f20e139]:
+          - generic [ref=f20e140]: Quick Preview
+          - generic [ref=f20e145]:
+            - group "Preview audience" [ref=f20e146]:
+              - button "Pet Owner" [ref=f20e147] [cursor=pointer]
+              - button "Vet" [ref=f20e148] [cursor=pointer]
+            - button "Desktop" [ref=f20e150] [cursor=pointer]
+            - button "Mobile" [ref=f20e151] [cursor=pointer]
+            - link "View full site" [ref=f20e152] [cursor=pointer]:
+              - /url: ../../public/pages/landing.html
+        - generic [ref=f20e155]:
+          - generic [ref=f20e156]: adminpanel.com/preview-live
+          - iframe [ref=f20e167]:
+            - generic [ref=f21e1]:
+              - navigation [ref=f21e2]:
+                - generic [ref=f21e3]:
+                  - img "Baliwag City Vet" [ref=f21e4]
+                  - list [ref=f21e5]:
+                    - listitem [ref=f21e6]:
+                      - link "Home" [ref=f21e7] [cursor=pointer]:
+                        - /url: landing.html
+                    - listitem [ref=f21e8]:
+                      - link "Book An Appointment" [ref=f21e9] [cursor=pointer]:
+                        - /url: book-appointment.html
+                    - listitem [ref=f21e10]:
+                      - link "Lost And Found" [ref=f21e11] [cursor=pointer]:
+                        - /url: lost-found.html
+                - generic [ref=f21e12]:
+                  - button [ref=f21e13] [cursor=pointer]:
+                    - img "Notifications" [ref=f21e14]
+                  - generic [ref=f21e16] [cursor=pointer]:
+                    - generic [ref=f21e17]:
+                      - generic [ref=f21e18]: Admin
+                      - generic [ref=f21e19]: Administrator
+                    - img "User" [ref=f21e20]
+              - generic [ref=f21e21]:
+                - generic [ref=f21e22]:
+                  - generic [ref=f21e23]: Baliwag Veterinary Clinic
+                  - heading [level=1] [ref=f21e24]:
+                    - text: Compassion Meets
+                    - generic [ref=f21e25]: Clinical Precision
+                  - paragraph [ref=f21e26]: Redefining veterinary excellence with world-class diagnostics and a deep-rooted empathy for your companion's vitality.
+                  - generic [ref=f21e27]:
+                    - link [ref=f21e28] [cursor=pointer]:
+                      - /url: ./login.html
+                    - link "Our Specialties" [ref=f21e31] [cursor=pointer]:
+                      - /url: "#"
+                - generic [ref=f21e33]:
+                  - img "Dog" [ref=f21e34]
+                  - generic [ref=f21e37]:
+                    - generic [ref=f21e38]: VITALITY SCORE
+                    - generic [ref=f21e39]: Optimized Recovery Plans
+              - generic [ref=f21e40]:
+                - generic [ref=f21e41]:
+                  - generic [ref=f21e42]: CLINIC CAPACITY
+                  - generic [ref=f21e43]: 24/7
+                - generic [ref=f21e44]:
+                  - generic [ref=f21e45]: SURGERY RECOVERY
+                  - generic [ref=f21e46]: 98.4%
+                - generic [ref=f21e47]:
+                  - generic [ref=f21e48]: SPECIALISTS
+                  - generic [ref=f21e49]: "2"
+              - generic [ref=f21e50]:
+                - img "Our team" [ref=f21e52]
+                - generic [ref=f21e53]:
+                  - generic [ref=f21e54]: About Us
+                  - heading "Our Story" [level=2] [ref=f21e55]
+                  - paragraph [ref=f21e56]: Baliwag Veterinary Services has been dedicated to the health and happiness of pets in our community, combining modern diagnostics with genuine, compassionate care for every companion that walks through our doors.
+              - generic [ref=f21e57]:
+                - generic [ref=f21e58]:
+                  - generic [ref=f21e59]:
+                    - heading "Upcoming Health Events" [level=2] [ref=f21e60]
+                    - paragraph [ref=f21e61]: Stay proactive with our community wellness initiatives.
+                  - generic [ref=f21e62]:
+                    - button "←" [ref=f21e63] [cursor=pointer]
+                    - button "→" [ref=f21e64] [cursor=pointer]
+                - generic [ref=f21e66]:
+                  - generic [ref=f21e67]:
+                    - generic [ref=f21e68]:
+                      - generic [ref=f21e69]: Upcoming Event
+                      - 'img "Disease Response: All Diseases in Tiaong" [ref=f21e70]'
+                    - generic [ref=f21e71]:
+                      - generic [ref=f21e72]: Community Advisory
+                      - 'heading "Disease Response: All Diseases in Tiaong" [level=3] [ref=f21e73]'
+                      - paragraph [ref=f21e74]: "Community advisory for All Diseases cases in Tiaong. Risk level: Grade 4 — High Risk. Please observe preventive measures and report symptoms in pets to your barangay vet team."
+                      - generic [ref=f21e75]:
+                        - generic [ref=f21e76]: Jul 13, 2026
+                        - generic [ref=f21e77]: Tiaong
+                  - generic [ref=f21e78]:
+                    - generic [ref=f21e79]:
+                      - generic [ref=f21e80]: Upcoming Event
+                      - 'img "Disease Response: All Diseases in Tiaong" [ref=f21e81]'
+                    - generic [ref=f21e82]:
+                      - generic [ref=f21e83]: Community Advisory
+                      - 'heading "Disease Response: All Diseases in Tiaong" [level=3] [ref=f21e84]'
+                      - paragraph [ref=f21e85]: "Community advisory for All Diseases cases in Tiaong. Risk level: Grade 4 — High Risk. Please observe preventive measures and report symptoms in pets to your barangay vet team."
+                      - generic [ref=f21e86]:
+                        - generic [ref=f21e87]: Jul 12, 2026
+                        - generic [ref=f21e88]: Tiaong
+                  - generic [ref=f21e89]:
+                    - generic [ref=f21e90]:
+                      - generic [ref=f21e91]: Upcoming Event
+                      - img "nice" [ref=f21e92]
+                    - generic [ref=f21e93]:
+                      - generic [ref=f21e94]: Spay & Neuter
+                      - heading "nice" [level=3] [ref=f21e95]
+                      - paragraph [ref=f21e96]: adadsa
+                      - generic [ref=f21e97]:
+                        - generic [ref=f21e98]: Jul 8, 2026
+                        - generic [ref=f21e99]: SM
+                  - generic [ref=f21e100]:
+                    - generic [ref=f21e101]:
+                      - generic [ref=f21e102]: Upcoming Event
+                      - img "Clinic Wellness Advisory" [ref=f21e103]
+                    - generic [ref=f21e104]:
+                      - generic [ref=f21e105]: Community Advisory
+                      - heading "Clinic Wellness Advisory" [level=3] [ref=f21e106]
+                      - paragraph [ref=f21e107]: Bring updated vaccination records during upcoming community visits.
+                      - generic [ref=f21e108]:
+                        - generic [ref=f21e109]: Jun 15, 2026
+                        - generic [ref=f21e110]: Baliwag City Veterinary Services
+                  - generic [ref=f21e111]:
+                    - generic [ref=f21e112]:
+                      - generic [ref=f21e113]: Upcoming Event
+                      - img "vaccines" [ref=f21e114]
+                    - generic [ref=f21e115]:
+                      - generic [ref=f21e116]: Health & Wellness
+                      - heading "vaccines" [level=3] [ref=f21e117]
+                      - paragraph [ref=f21e118]: asdad
+                      - generic [ref=f21e119]:
+                        - generic [ref=f21e120]: Jun 5, 2026
+                        - generic [ref=f21e121]: SM
+                  - generic [ref=f21e122]:
+                    - generic [ref=f21e123]:
+                      - generic [ref=f21e124]: Pending Report
+                      - img "Anti-Rabies - Tiaong" [ref=f21e125]
+                    - generic [ref=f21e126]:
+                      - generic [ref=f21e127]: Anti-Rabies
+                      - heading "Anti-Rabies - Tiaong" [level=3] [ref=f21e128]
+                      - paragraph [ref=f21e129]: Community vaccination event managed by the veterinary clinic.
+                      - generic [ref=f21e130]:
+                        - generic [ref=f21e131]: July 15, 2026
+                        - generic [ref=f21e132]: Tiaong
+                  - generic [ref=f21e133]:
+                    - generic [ref=f21e134]:
+                      - generic [ref=f21e135]: Completed
+                      - img "Anti-Rabies - Pinagbarilan" [ref=f21e136]
+                    - generic [ref=f21e137]:
+                      - generic [ref=f21e138]: Anti-Rabies
+                      - heading "Anti-Rabies - Pinagbarilan" [level=3] [ref=f21e139]
+                      - paragraph [ref=f21e140]: Community vaccination event managed by the veterinary clinic.
+                      - generic [ref=f21e141]:
+                        - generic [ref=f21e142]: July 9, 2026
+                        - generic [ref=f21e143]: Pinagbarilan
+                  - generic [ref=f21e144]:
+                    - generic [ref=f21e145]:
+                      - generic [ref=f21e146]: Completed
+                      - img "5-in-1 - Sto. Niño" [ref=f21e147]
+                    - generic [ref=f21e148]:
+                      - generic [ref=f21e149]: 5-in-1
+                      - heading "5-in-1 - Sto. Niño" [level=3] [ref=f21e150]
+                      - paragraph [ref=f21e151]: Community vaccination event managed by the veterinary clinic.
+                      - generic [ref=f21e152]:
+                        - generic [ref=f21e153]: July 4, 2026
+                        - generic [ref=f21e154]: Sto. Niño
+              - generic [ref=f21e164]:
+                - generic [ref=f21e165]:
+                  - generic [ref=f21e166]:
+                    - heading "Lost & Found Community" [level=2] [ref=f21e167]: Lost & FoundCommunity
+                    - paragraph [ref=f21e168]: Our integrated network helps reunite elite companions with their families through real-time pet tracking and alerts.
+                  - link "Visit Lost & Found →" [ref=f21e169] [cursor=pointer]:
+                    - /url: lost-found.html
+                - generic [ref=f21e170]:
+                  - generic [ref=f21e171]:
+                    - generic [ref=f21e172]:
+                      - generic [ref=f21e173]: found
+                      - img "Found Pet Report" [ref=f21e174]
+                    - generic [ref=f21e175]:
+                      - generic [ref=f21e176]: Found Pet Report
+                      - generic [ref=f21e177]: Calantipay
+                  - generic [ref=f21e178] [cursor=pointer]:
+                    - img "report" [ref=f21e180]
+                    - generic [ref=f21e181]: Report a Pet
+              - generic [ref=f21e182]:
+                - heading "Meet Our Specialists" [level=2] [ref=f21e183]
+                - paragraph [ref=f21e184]: The experts behind our clinical precision.
+                - generic [ref=f21e185]:
+                  - generic [ref=f21e188]:
+                    - generic [ref=f21e189]: Anne Hallegado
+                    - generic [ref=f21e190]: Veterinarian
+                    - paragraph [ref=f21e191]: hallegado2004@gmail.com
+                  - generic [ref=f21e192]:
+                    - img "Kizea igaya" [ref=f21e194]
+                    - generic [ref=f21e195]:
+                      - generic [ref=f21e196]: Kizea igaya
+                      - generic [ref=f21e197]: Veterinarian
+                      - paragraph [ref=f21e198]: admin@test.com
+              - contentinfo [ref=f21e199]:
+                - generic [ref=f21e200]:
+                  - generic [ref=f21e201]:
+                    - heading "Baliwag Veterinary Services" [level=3] [ref=f21e202]
+                    - paragraph [ref=f21e203]: Leading the future of veterinary medicine through precision technology and heartfelt dedication.
+                  - generic [ref=f21e204]:
+                    - heading "QUICK LINKS" [level=4] [ref=f21e205]
+                    - list [ref=f21e206]:
+                      - listitem [ref=f21e207]:
+                        - link "Privacy Policy" [ref=f21e208] [cursor=pointer]:
+                          - /url: "#"
+                      - listitem [ref=f21e209]:
+                        - link "Terms of Service" [ref=f21e210] [cursor=pointer]:
+                          - /url: "#"
+                      - listitem [ref=f21e211]:
+                        - link "Emergency Care" [ref=f21e212] [cursor=pointer]:
+                          - /url: "#"
+                      - listitem [ref=f21e213]:
+                        - link "Careers" [ref=f21e214] [cursor=pointer]:
+                          - /url: "#"
+                  - generic [ref=f21e215]:
+                    - heading "CONTACT" [level=4] [ref=f21e216]
+                    - paragraph [ref=f21e217]: AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026
+                    - paragraph [ref=f21e218]: BaliwagtVC@gmail.com
+                    - paragraph [ref=f21e219]: "09959210640"
+                - generic [ref=f21e220]:
+                  - generic [ref=f21e221]: © 2026 Baliwag Veterinary Services. Precision in Medicine, Vitality in Life
+                  - generic [ref=f21e222]:
+                    - link "f" [ref=f21e223] [cursor=pointer]:
+                      - /url: "#"
+                    - link "in" [ref=f21e224] [cursor=pointer]:
+                      - /url: "#"
+              - button "Open Vet Assistant" [ref=f21e225] [cursor=pointer]:
+                - img "Vet Assistant" [ref=f21e227]
+  - generic: Changes saved successfully

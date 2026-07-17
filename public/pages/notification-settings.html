@@ -203,19 +203,25 @@
       <!-- Quiet Hours -->
       <div class="quiet-card">
         <div class="quiet-card-head">
-          <div class="quiet-icon-wrap">
-            <img src="../images/icons/notif-quiet-hours.svg" alt="" class="quiet-icon"/>
+          <div class="quiet-card-head-left">
+            <div class="quiet-icon-wrap">
+              <img src="../images/icons/notif-quiet-hours.svg" alt="" class="quiet-icon"/>
+            </div>
+            <div class="quiet-title">Quiet Hours</div>
           </div>
-          <div class="quiet-title">Quiet Hours</div>
+          <label class="quiet-toggle">
+            <input type="checkbox" id="qhEnabledToggle" aria-label="Enable Quiet Hours"/>
+            <span class="quiet-toggle-track"><span class="quiet-toggle-thumb"></span></span>
+          </label>
         </div>
-        <p class="quiet-desc">Prevent clinical alerts from disturbing you during rest hours. Critical emergency alerts bypass this setting automatically.</p>
+        <p class="quiet-desc">Prevent email alerts from disturbing you during rest hours. Staff review alerts bypass this setting automatically.</p>
 
         <div class="quiet-schedule-row">
           <div class="quiet-schedule-label">SCHEDULE</div>
           <div class="quiet-schedule-value">10:00 PM — 07:00 AM</div>
         </div>
 
-        <button class="btn-configure">Configure Schedule</button>
+        <button type="button" class="btn-configure">Configure Schedule</button>
       </div>
 
     </div>

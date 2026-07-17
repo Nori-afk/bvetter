@@ -1838,6 +1838,10 @@ body {
 .field-row .form-input { flex: 1 1 auto; min-width: 0; }
 .field-row select.form-input { flex: 0 0 108px; }
 
+.field-inline-row { display: flex; gap: 8px; align-items: stretch; }
+.field-inline-row .form-input { flex: 1 1 auto; min-width: 0; }
+.field-inline-row .btn-add-type { flex: 0 0 auto; padding: 0 14px; white-space: nowrap; }
+
 .field-label, .field label {
     font-size: 10px;
     font-weight: 800;
@@ -2048,6 +2052,28 @@ body {
 
 .delete-confirm-field {
     width: 100%;
+}
+
+.delete-modal-icon.icon-add {
+    background: #ECFDF5;
+    border-color: #A7F3D0;
+    color: #059669;
+}
+
+.field-error {
+    display: none;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #EF4444;
+    margin-top: 5px;
+}
+
+.field-error.visible {
+    display: block;
+}
+
+.form-input.invalid {
+    border-color: #EF4444 !important;
 }
 
 .delete-confirm-label {

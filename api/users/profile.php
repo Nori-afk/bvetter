@@ -30,9 +30,25 @@ function setupProfileTables($pdo)
             lost_found_alerts TINYINT(1) NOT NULL DEFAULT 1,
             appointment_reminders TINYINT(1) NOT NULL DEFAULT 1,
             chatbot_updates TINYINT(1) NOT NULL DEFAULT 0,
+            quiet_hours_enabled TINYINT(1) NOT NULL DEFAULT 0,
+            quiet_hours_start TIME NOT NULL DEFAULT '22:00:00',
+            quiet_hours_end TIME NOT NULL DEFAULT '07:00:00',
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+
+    // Installs that already had this table from before quiet hours existed
+    // won't get the new columns from CREATE TABLE IF NOT EXISTS above.
+    try {
+        $pdo->exec("
+            ALTER TABLE user_notification_preferences
+                ADD COLUMN quiet_hours_enabled TINYINT(1) NOT NULL DEFAULT 0,
+                ADD COLUMN quiet_hours_start TIME NOT NULL DEFAULT '22:00:00',
+                ADD COLUMN quiet_hours_end TIME NOT NULL DEFAULT '07:00:00'
+        ");
+    } catch (PDOException $e) {
+        // Columns already exist — nothing to do.
+    }
 }
 
 function roleLabel($roleName)
@@ -103,7 +119,14 @@ function getProfile($pdo, $userId)
     $prefs = $prefsStmt->fetch();
     if (!$prefs) {
         $pdo->prepare('INSERT INTO user_notification_preferences (user_id) VALUES (:id)')->execute([':id' => $userId]);
-        $prefs = ['lost_found_alerts' => 1, 'appointment_reminders' => 1, 'chatbot_updates' => 0];
+        $prefs = [
+            'lost_found_alerts' => 1,
+            'appointment_reminders' => 1,
+            'chatbot_updates' => 0,
+            'quiet_hours_enabled' => 0,
+            'quiet_hours_start' => '22:00:00',
+            'quiet_hours_end' => '07:00:00',
+        ];
     }
 
     respond(200, [
@@ -124,6 +147,9 @@ function getProfile($pdo, $userId)
                 'lostFoundAlerts' => (bool) $prefs['lost_found_alerts'],
                 'appointmentReminders' => (bool) $prefs['appointment_reminders'],
                 'chatbotUpdates' => (bool) $prefs['chatbot_updates'],
+                'quietHoursEnabled' => (bool) $prefs['quiet_hours_enabled'],
+                'quietHoursStart' => substr((string) $prefs['quiet_hours_start'], 0, 5),
+                'quietHoursEnd' => substr((string) $prefs['quiet_hours_end'], 0, 5),
             ],
         ],
     ]);
@@ -160,26 +186,64 @@ function updateProfile($pdo, $data)
     getProfile($pdo, $userId);
 }
 
+function normalizeQuietTime($value)
+{
+    $value = trim((string) ($value ?? ''));
+    if (!preg_match('/^([01]\d|2[0-3]):([0-5]\d)$/', $value)) return null;
+    return $value . ':00';
+}
+
+/**
+ * Each dashboard's notification form (owner channel checkboxes, owner quiet
+ * hours modal, vet/admin toggle list) submits only the fields it owns.
+ * Columns not present in $data fall back to the row's current value instead
+ * of a hardcoded default, so e.g. saving Quiet Hours doesn't reset the
+ * category checkboxes and vice versa.
+ */
 function updatePreferences($pdo, $data)
 {
     $userId = (int) ($data['user_id'] ?? $data['userId'] ?? 0);
     if ($userId <= 0) respond(422, ['success' => false, 'message' => 'User id is required.']);
 
+    $existingStmt = $pdo->prepare('SELECT * FROM user_notification_preferences WHERE user_id = :id LIMIT 1');
+    $existingStmt->execute([':id' => $userId]);
+    $existing = $existingStmt->fetch() ?: [
+        'lost_found_alerts' => 1,
+        'appointment_reminders' => 1,
+        'chatbot_updates' => 0,
+        'quiet_hours_enabled' => 0,
+        'quiet_hours_start' => '22:00:00',
+        'quiet_hours_end' => '07:00:00',
+    ];
+
+    $lostFound = array_key_exists('lostFoundAlerts', $data) ? !empty($data['lostFoundAlerts']) : (bool) $existing['lost_found_alerts'];
+    $appointments = array_key_exists('appointmentReminders', $data) ? !empty($data['appointmentReminders']) : (bool) $existing['appointment_reminders'];
+    $chatbot = array_key_exists('chatbotUpdates', $data) ? !empty($data['chatbotUpdates']) : (bool) $existing['chatbot_updates'];
+    $quietEnabled = array_key_exists('quietHoursEnabled', $data) ? !empty($data['quietHoursEnabled']) : (bool) $existing['quiet_hours_enabled'];
+    $quietStart = normalizeQuietTime($data['quietHoursStart'] ?? null) ?? $existing['quiet_hours_start'];
+    $quietEnd = normalizeQuietTime($data['quietHoursEnd'] ?? null) ?? $existing['quiet_hours_end'];
+
     $stmt = $pdo->prepare("
         INSERT INTO user_notification_preferences
-            (user_id, lost_found_alerts, appointment_reminders, chatbot_updates)
+            (user_id, lost_found_alerts, appointment_reminders, chatbot_updates, quiet_hours_enabled, quiet_hours_start, quiet_hours_end)
         VALUES
-            (:user_id, :lost_found, :appointments, :chatbot)
+            (:user_id, :lost_found, :appointments, :chatbot, :quiet_enabled, :quiet_start, :quiet_end)
         ON DUPLICATE KEY UPDATE
             lost_found_alerts = VALUES(lost_found_alerts),
             appointment_reminders = VALUES(appointment_reminders),
-            chatbot_updates = VALUES(chatbot_updates)
+            chatbot_updates = VALUES(chatbot_updates),
+            quiet_hours_enabled = VALUES(quiet_hours_enabled),
+            quiet_hours_start = VALUES(quiet_hours_start),
+            quiet_hours_end = VALUES(quiet_hours_end)
     ");
     $stmt->execute([
         ':user_id' => $userId,
-        ':lost_found' => !empty($data['lostFoundAlerts']) ? 1 : 0,
-        ':appointments' => !empty($data['appointmentReminders']) ? 1 : 0,
-        ':chatbot' => !empty($data['chatbotUpdates']) ? 1 : 0,
+        ':lost_found' => $lostFound ? 1 : 0,
+        ':appointments' => $appointments ? 1 : 0,
+        ':chatbot' => $chatbot ? 1 : 0,
+        ':quiet_enabled' => $quietEnabled ? 1 : 0,
+        ':quiet_start' => $quietStart,
+        ':quiet_end' => $quietEnd,
     ]);
 
     getProfile($pdo, $userId);

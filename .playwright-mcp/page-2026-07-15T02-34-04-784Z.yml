@@ -1,0 +1,131 @@
+- generic [ref=f2e2]:
+  - complementary [ref=f2e3]:
+    - generic [ref=f2e4]:
+      - button "Toggle sidebar" [ref=f2e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=f2e7]
+    - generic [ref=f2e8]:
+      - button "Notifications" [ref=f2e9] [cursor=pointer]
+      - img "Kizea igaya" [ref=f2e11] [cursor=pointer]
+  - main [ref=f2e12]:
+    - generic [ref=f2e14]:
+      - generic [ref=f2e15]:
+        - generic [ref=f2e16]: K
+        - generic "Change photo" [ref=f2e17] [cursor=pointer]
+      - generic [ref=f2e21]:
+        - paragraph [ref=f2e22]: Veterinary Professional
+        - heading "Kizea igaya" [level=1] [ref=f2e23]
+        - generic [ref=f2e24]:
+          - generic [ref=f2e25]: Active
+          - generic [ref=f2e26]: VBetter Staff
+    - generic [ref=f2e27]:
+      - article [ref=f2e28]:
+        - generic [ref=f2e35]:
+          - paragraph [ref=f2e36]: Patients Today
+          - strong [ref=f2e37]: "0"
+          - text: From patient visit records
+      - article [ref=f2e38]:
+        - generic [ref=f2e43]:
+          - paragraph [ref=f2e44]: Total Patients
+          - strong [ref=f2e45]: "0"
+          - text: All-time records
+      - article [ref=f2e46]:
+        - generic [ref=f2e50]:
+          - paragraph [ref=f2e51]: Satisfaction Rate
+          - strong [ref=f2e52]: "0.0"
+          - text: Review average
+    - generic [ref=f2e53]:
+      - generic [ref=f2e54]:
+        - generic [ref=f2e59]:
+          - heading "Daily Clinical Schedule" [level=2] [ref=f2e60]
+          - paragraph [ref=f2e61]: Today's appointments and their current status
+        - link "View Calendar" [ref=f2e62] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/appointment.html
+      - generic [ref=f2e64]: Could not load today's schedule.
+    - generic [ref=f2e66]:
+      - generic [ref=f2e73]:
+        - heading "Profile Information" [level=2] [ref=f2e74]
+        - paragraph [ref=f2e75]: Update your personal and contact details
+      - generic [ref=f2e77]:
+        - generic [ref=f2e78]:
+          - generic [ref=f2e79]:
+            - generic [ref=f2e80]: Full Name
+            - textbox "Full Name" [ref=f2e81]:
+              - /placeholder: Enter your full name
+              - text: Kizea igaya
+          - generic [ref=f2e82]:
+            - generic [ref=f2e83]: Email Address
+            - textbox "Email Address" [ref=f2e84]:
+              - /placeholder: your@email.com
+              - text: admin@test.com
+          - generic [ref=f2e85]:
+            - generic [ref=f2e86]: Contact Number
+            - textbox "Contact Number" [ref=f2e87]:
+              - /placeholder: +63 912 345 6789
+              - text: "09123456789"
+          - generic [ref=f2e88]:
+            - generic [ref=f2e89]: Role
+            - textbox "Role" [ref=f2e91]: Vet III
+          - generic [ref=f2e92]:
+            - generic [ref=f2e93]: Education
+            - textbox "Education" [ref=f2e94]:
+              - /placeholder: e.g. DVM, University of the Philippines
+              - text: PUP major in Medicine
+          - generic [ref=f2e95]:
+            - generic [ref=f2e96]: Specialization / Expertise
+            - textbox "Specialization / Expertise" [ref=f2e97]:
+              - /placeholder: e.g. Small Animal Surgery
+              - text: Medicine
+        - generic [ref=f2e98]:
+          - status [ref=f2e99]
+          - button "Save Changes" [ref=f2e100] [cursor=pointer]
+    - generic [ref=f2e103]:
+      - generic [ref=f2e109]:
+        - heading "Security" [level=2] [ref=f2e110]
+        - paragraph [ref=f2e111]: Manage your password and account protection
+      - generic [ref=f2e113]:
+        - generic [ref=f2e114]:
+          - generic [ref=f2e120]:
+            - paragraph [ref=f2e121]: Password
+            - paragraph [ref=f2e122]: Keep your account secure with a strong password
+          - button "Update Password" [ref=f2e123] [cursor=pointer]
+        - generic [ref=f2e127]:
+          - generic [ref=f2e132]:
+            - paragraph [ref=f2e133]:
+              - text: Two-Factor Authentication
+              - generic [ref=f2e134]: DISABLED
+            - paragraph [ref=f2e135]: Add an extra layer of security to your account
+          - button "Manage 2FA" [ref=f2e136] [cursor=pointer]
+    - generic [ref=f2e139]:
+      - generic [ref=f2e146]:
+        - heading "Notification Preferences" [level=2] [ref=f2e147]
+        - paragraph [ref=f2e148]: Control which updates you receive
+      - generic [ref=f2e150]:
+        - generic [ref=f2e151]:
+          - generic [ref=f2e156]:
+            - paragraph [ref=f2e157]: Lost & Found Alerts
+            - paragraph [ref=f2e158]: Get notified when new lost or found pet reports are submitted
+          - generic [ref=f2e159] [cursor=pointer]:
+            - checkbox [checked]
+        - generic [ref=f2e162]:
+          - generic [ref=f2e166]:
+            - paragraph [ref=f2e167]: Appointment Reminders
+            - paragraph [ref=f2e168]: Receive notifications for upcoming scheduled appointments
+          - generic [ref=f2e169] [cursor=pointer]:
+            - checkbox [checked]
+        - generic [ref=f2e172]:
+          - generic [ref=f2e176]:
+            - paragraph [ref=f2e177]: Chatbot Rule Updates
+            - paragraph [ref=f2e178]: Be informed when chatbot inquiry rules are added or modified
+          - generic [ref=f2e179] [cursor=pointer]:
+            - checkbox
+        - generic [ref=f2e182]:
+          - generic [ref=f2e186]:
+            - paragraph [ref=f2e187]: Quiet Hours
+            - paragraph [ref=f2e188]: Mute email alerts during these hours. Staff review alerts still go through.
+            - generic [ref=f2e189]:
+              - textbox "Quiet hours start" [ref=f2e190]: 22:00
+              - generic [ref=f2e191]: to
+              - textbox "Quiet hours end" [ref=f2e192]: 07:00
+          - generic [ref=f2e193] [cursor=pointer]:
+            - checkbox "Enable Quiet Hours"
+      - button "Save" [ref=f2e197] [cursor=pointer]

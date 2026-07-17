@@ -575,6 +575,29 @@ body {
     line-height: 1.5;
 }
 
+.quiet-hours-range {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.quiet-hours-time {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 8px;
+    background: #fff;
+}
+
+.quiet-hours-sep {
+    font-size: 11px;
+    color: var(--text-3);
+}
+
 /* ── Toggle switch ── */
 .toggle-switch {
     position: relative;

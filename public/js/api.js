@@ -50,6 +50,7 @@ const MASS_VACCINATION_ENDPOINT = `${API_BASE_REG}/mass-vaccination/events.php`;
 const CHATBOT_ENDPOINT = `${API_BASE_REG}/chatbot/chatbot.php`;
 const ANNOUNCEMENTS_ENDPOINT = `${API_BASE_REG}/announcements/announcements.php`;
 const SITE_SETTINGS_ENDPOINT = `${API_BASE_REG}/site-settings/site-settings.php`;
+const NOTIFICATIONS_ENDPOINT = `${API_BASE_REG}/notifications/notifications.php`;
 
 /* ── Auth Header Builder ──────────────────────
    Reads JWT token saved on login.
@@ -674,6 +675,41 @@ forgotPassword: (email) => {
       body: formData
     }).then(r => r.json());
   },
+
+  deleteUser: (userId) => {
+    const formData = new FormData();
+    formData.append('action', 'delete');
+    formData.append('user_id', userId);
+    return fetch(`${API_BASE_REG}/admin/account-management.php`, {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json());
+  },
+
+  /**
+   * Shared admin/vet notification feed (api/notifications/notifications.php).
+   * role: 'admin' | 'vet'
+   */
+  getStaffNotifications: (role) =>
+    fetch(NOTIFICATIONS_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'list', role })
+    }).then(r => r.json()),
+
+  markNotificationRead: (id) =>
+    fetch(NOTIFICATIONS_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'mark_read', id })
+    }).then(r => r.json()),
+
+  markAllNotificationsRead: (role) =>
+    fetch(NOTIFICATIONS_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'mark_all_read', role })
+    }).then(r => r.json()),
 
 };
 

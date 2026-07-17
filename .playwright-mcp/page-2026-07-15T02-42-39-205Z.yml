@@ -1,0 +1,80 @@
+- generic [ref=f16e1]:
+  - navigation "Main navigation" [ref=f16e2]:
+    - generic [ref=f16e3]:
+      - button "Toggle sidebar" [ref=f16e4] [cursor=pointer]: ☰
+      - img "VBetter" [ref=f16e6]
+    - generic [ref=f16e7]:
+      - button "Notifications" [ref=f16e8] [cursor=pointer]
+      - img "Admin" [ref=f16e10] [cursor=pointer]
+  - main [ref=f16e11]:
+    - generic [ref=f16e12]:
+      - generic [ref=f16e13]:
+        - heading "Account Management" [level=1] [ref=f16e14]
+        - paragraph [ref=f16e15]: Manage your veterinary team, define access levels, and monitor system activity. Active users have access to patient records and appointment scheduling.
+      - button "Create New User" [ref=f16e16] [cursor=pointer]
+    - generic [ref=f16e20]:
+      - generic [ref=f16e21]:
+        - generic [ref=f16e22]: Total Registered Users
+        - strong [ref=f16e26]: "10"
+        - generic [ref=f16e27]: 2 New Accounts
+      - generic [ref=f16e28]:
+        - generic [ref=f16e29]: Active Vet Account
+        - strong [ref=f16e33]: "2"
+      - generic [ref=f16e35]:
+        - generic [ref=f16e36]: Blocked Account
+        - strong [ref=f16e40]: "0"
+    - generic [ref=f16e42]:
+      - generic [ref=f16e46]:
+        - strong [ref=f16e47]: Security Tip
+        - paragraph [ref=f16e48]: Require Two-Factor Authentication (2FA) for all Administrator roles to ensure patient data remains secure.
+      - link "MANAGE SECURITY" [ref=f16e49] [cursor=pointer]:
+        - /url: manage-security.html
+    - generic [ref=f16e50]:
+      - generic [ref=f16e51]:
+        - heading "All User" [level=2] [ref=f16e52]
+        - generic [ref=f16e53]:
+          - textbox "Search users..." [ref=f16e58]
+          - button [ref=f16e59] [cursor=pointer]
+      - generic [ref=f16e61]:
+        - button "All User" [ref=f16e62] [cursor=pointer]
+        - button "Veterinarian" [active] [ref=f16e63] [cursor=pointer]
+        - button "Pet Owner" [ref=f16e64] [cursor=pointer]
+        - button "Admin" [ref=f16e65] [cursor=pointer]
+      - table [ref=f16e67]:
+        - rowgroup [ref=f16e68]:
+          - row [ref=f16e69]:
+            - columnheader "All User" [ref=f16e70]
+            - columnheader "Role" [ref=f16e71]
+            - columnheader "Status" [ref=f16e72]
+            - columnheader "Joined Date" [ref=f16e73]
+            - columnheader "Actions" [ref=f16e74]
+        - rowgroup [ref=f16e75]:
+          - row [ref=f16e207]:
+            - cell "AH Anne Hallegado hallegado2004@gmail.com" [ref=f16e208]:
+              - generic [ref=f16e209]:
+                - generic [ref=f16e210]: AH
+                - generic [ref=f16e211]:
+                  - generic [ref=f16e212]: Anne Hallegado
+                  - generic [ref=f16e213]: hallegado2004@gmail.com
+            - cell "Veterinarian" [ref=f16e214]
+            - cell [ref=f16e216]
+            - cell "Jul 11, 2026" [ref=f16e219]
+            - cell [ref=f16e220]:
+              - button "Delete user" [ref=f16e222] [cursor=pointer]
+          - row [ref=f16e225]:
+            - cell "Kizea igaya Kizea igaya admin@test.com" [ref=f16e226]:
+              - generic [ref=f16e227]:
+                - img "Kizea igaya" [ref=f16e228]
+                - generic [ref=f16e229]:
+                  - generic [ref=f16e230]: Kizea igaya
+                  - generic [ref=f16e231]: admin@test.com
+            - cell "Veterinarian" [ref=f16e232]
+            - cell [ref=f16e234]
+            - cell "May 19, 2026" [ref=f16e237]
+            - cell [ref=f16e238]:
+              - button "Delete user" [ref=f16e240] [cursor=pointer]
+      - generic [ref=f16e94]:
+        - generic [ref=f16e95]: Showing 2 of 10 members
+        - generic [ref=f16e96]:
+          - button "Previous" [disabled] [ref=f16e97]
+          - button "Next" [disabled] [ref=f16e98]

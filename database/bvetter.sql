@@ -776,7 +776,33 @@ CREATE TABLE `user_notification_preferences` (
   `lost_found_alerts` tinyint(1) NOT NULL DEFAULT '1',
   `appointment_reminders` tinyint(1) NOT NULL DEFAULT '1',
   `chatbot_updates` tinyint(1) NOT NULL DEFAULT '0',
+  `quiet_hours_enabled` tinyint(1) NOT NULL DEFAULT '0',
+  `quiet_hours_start` time NOT NULL DEFAULT '22:00:00',
+  `quiet_hours_end` time NOT NULL DEFAULT '07:00:00',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `notifications`
+--
+-- Shared staff notification feed: rows written here are read by both the
+-- admin and vet dashboards (filtered by `audience`), replacing the two
+-- disconnected/synthetic per-dashboard notification builders.
+--
+
+CREATE TABLE `notifications` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `audience` enum('admin','vet','both') NOT NULL DEFAULT 'both',
+  `type` varchar(50) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `message` text NOT NULL,
+  `reference_id` int DEFAULT NULL,
+  `is_read` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_audience_created` (`audience`,`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------

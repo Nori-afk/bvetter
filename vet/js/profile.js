@@ -58,6 +58,9 @@
 			notificationForm.elements.lostFoundAlerts.checked = Boolean(profile.notifications?.lostFoundAlerts);
 			notificationForm.elements.appointmentReminders.checked = Boolean(profile.notifications?.appointmentReminders);
 			notificationForm.elements.chatbotUpdates.checked = Boolean(profile.notifications?.chatbotUpdates);
+			notificationForm.elements.quietHoursEnabled.checked = Boolean(profile.notifications?.quietHoursEnabled);
+			notificationForm.elements.quietHoursStart.value = profile.notifications?.quietHoursStart || "22:00";
+			notificationForm.elements.quietHoursEnd.value = profile.notifications?.quietHoursEnd || "07:00";
 		}
 	}
 
@@ -100,7 +103,10 @@
 			const profile = await profileRequest("preferences", {
 				lostFoundAlerts: notificationForm.elements.lostFoundAlerts.checked,
 				appointmentReminders: notificationForm.elements.appointmentReminders.checked,
-				chatbotUpdates: notificationForm.elements.chatbotUpdates.checked
+				chatbotUpdates: notificationForm.elements.chatbotUpdates.checked,
+				quietHoursEnabled: notificationForm.elements.quietHoursEnabled.checked,
+				quietHoursStart: notificationForm.elements.quietHoursStart.value || "22:00",
+				quietHoursEnd: notificationForm.elements.quietHoursEnd.value || "07:00"
 			});
 			fillProfile(profile);
 			setMessage("Notification preferences saved.", "success");
@@ -207,7 +213,7 @@
 			const formData = new FormData();
 			formData.append("action", "list");
 			formData.append("date", today);
-			const response = await fetch("/bvetter/api/appointments/appointment.php", { method: "POST", body: formData });
+			const response = await fetch("/final-VBETTER/bvetter/api/appointments/appointment.php", { method: "POST", body: formData });
 			const result = await response.json();
 			const items = (result.data || [])
 				.filter((a) => (a.preferred_date || "").slice(0, 10) === today)

@@ -307,24 +307,23 @@
 
                 <div class="field">
                     <label class="field-label" for="event-vaccine">VACCINE TYPE *</label>
-                    <div class="custom-select" id="vaccine-select-wrap">
-                        <button type="button" class="form-input custom-select-trigger" id="vaccine-trigger" aria-haspopup="listbox" aria-expanded="false">
-                            <span class="custom-select-value">Anti-Rabies</span>
-                            <svg class="custom-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    <div class="vaccine-type-row">
+                        <div class="custom-select" id="vaccine-select-wrap">
+                            <button type="button" class="form-input custom-select-trigger" id="vaccine-trigger" aria-haspopup="listbox" aria-expanded="false">
+                                <span class="custom-select-value">Anti-Rabies</span>
+                                <svg class="custom-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
+                            <div class="custom-select-panel" id="vaccine-panel" role="listbox" hidden></div>
+                        </div>
+                        <button type="button" id="add-vaccine-type-btn" class="btn btn-outline btn-add-type" title="Add a new vaccination type">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Add Type
                         </button>
-                        <div class="custom-select-panel" id="vaccine-panel" role="listbox" hidden></div>
                     </div>
                     <select class="visually-hidden-select" id="event-vaccine" name="vaccine">
                         <option>Anti-Rabies</option>
-                        <option>5-in-1</option>
-                        <option>Others</option>
                     </select>
-                </div>
-
-                <div class="field" id="other-vaccine-field" hidden>
-                    <label class="field-label" for="event-vaccine-other">SPECIFY VACCINE *</label>
-                    <input class="form-input" id="event-vaccine-other" name="vaccine_other" type="text" placeholder="e.g. Bordetella, Distemper">
-                    <span class="field-error" id="vaccine-other-error"></span>
+                    <p class="field-hint">The clinic currently vaccinates with Anti-Rabies only. Use "Add Type" to register a new vaccine for future events.</p>
                 </div>
 
                 <div class="modal-actions">
@@ -335,6 +334,40 @@
                     <button type="submit" class="btn btn-success">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                         Create Event
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add vaccination type modal -->
+    <div id="add-vaccine-type-modal" class="modal hidden" role="dialog" aria-modal="true"
+        aria-labelledby="add-vaccine-type-heading">
+        <div class="modal-card">
+            <button id="close-add-vaccine-type" class="modal-close" type="button" aria-label="Close modal">×</button>
+            <div class="modal-header-block">
+                <div class="modal-header-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </div>
+                <div>
+                    <h2 id="add-vaccine-type-heading">Add Vaccination Type</h2>
+                    <p class="modal-subtitle">Register a new vaccine so it can be selected for future events</p>
+                </div>
+            </div>
+            <form id="add-vaccine-type-form" novalidate>
+                <div class="field">
+                    <label class="field-label" for="new-vaccine-type-input">VACCINATION TYPE NAME *</label>
+                    <input class="form-input" id="new-vaccine-type-input" name="vaccineType" type="text" placeholder="e.g. Deworming, 5-in-1" autocomplete="off">
+                    <span class="field-error" id="new-vaccine-type-error"></span>
+                </div>
+                <div class="modal-actions">
+                    <button id="cancel-add-vaccine-type" type="button" class="btn btn-outline">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        Add Type
                     </button>
                 </div>
             </form>
@@ -382,6 +415,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/final-VBETTER/bvetter/shared/js/sidebar.js"></script>
+    <script src="/final-VBETTER/bvetter/shared/js/vaccine-types.js"></script>
     <script src="/final-VBETTER/bvetter/vet/js/mass-vaccination.js?v=20260713-1"></script>
 
 </body>

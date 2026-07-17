@@ -1,0 +1,263 @@
+- generic [ref=f23e2]:
+  - complementary [ref=f23e3]:
+    - generic [ref=f23e4]:
+      - button "Toggle sidebar" [ref=f23e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=f23e7]
+    - generic [ref=f23e8]:
+      - button "Notifications" [ref=f23e9] [cursor=pointer]
+      - img "Admin" [ref=f23e11] [cursor=pointer]
+  - main [ref=f23e12]:
+    - generic [ref=f23e13]:
+      - heading "Manage Appointments" [level=2] [ref=f23e14]
+      - paragraph [ref=f23e15]: Coordinate pending requests and confirmed visits for today.
+    - generic [ref=f23e16]:
+      - generic [ref=f23e17]:
+        - paragraph [ref=f23e18]: Today's Status
+        - heading "Pending Requests" [level=3] [ref=f23e19]
+        - generic [ref=f23e20]:
+          - generic [ref=f23e21]: "00"
+          - generic [ref=f23e22]: New
+      - generic [ref=f23e23]:
+        - paragraph [ref=f23e24]: Schedule Overview
+        - heading "Confirmed Appointments" [level=3] [ref=f23e25]
+        - generic [ref=f23e26]:
+          - generic [ref=f23e27]: "00"
+          - generic [ref=f23e28]: Slots Filled
+    - generic [ref=f23e29]:
+      - generic [ref=f23e30]:
+        - generic [ref=f23e31]:
+          - generic [ref=f23e32]:
+            - button "" [ref=f23e34] [cursor=pointer]
+            - heading "July 2026" [level=2] [ref=f23e37]
+            - button "" [ref=f23e39] [cursor=pointer]
+          - generic "July 2026" [ref=f23e41]:
+            - grid [ref=f23e43]:
+              - rowgroup [ref=f23e44]:
+                - row [ref=f23e48]:
+                  - columnheader "Sunday" [ref=f23e49]:
+                    - generic "Sunday" [ref=f23e51]: Sun
+                  - columnheader "Monday" [ref=f23e52]:
+                    - generic "Monday" [ref=f23e54]: Mon
+                  - columnheader "Tuesday" [ref=f23e55]:
+                    - generic "Tuesday" [ref=f23e57]: Tue
+                  - columnheader "Wednesday" [ref=f23e58]:
+                    - generic "Wednesday" [ref=f23e60]: Wed
+                  - columnheader "Thursday" [ref=f23e61]:
+                    - generic "Thursday" [ref=f23e63]: Thu
+                  - columnheader "Friday" [ref=f23e64]:
+                    - generic "Friday" [ref=f23e66]: Fri
+                  - columnheader "Saturday" [ref=f23e67]:
+                    - generic "Saturday" [ref=f23e69]: Sat
+              - rowgroup [ref=f23e70]:
+                - generic [ref=f23e73]:
+                  - row [ref=f23e75]:
+                    - gridcell "June 28, 2026" [ref=f23e76]:
+                      - generic "June 28, 2026" [ref=f23e79]: "28"
+                    - gridcell "June 29, 2026" [ref=f23e81]:
+                      - generic "June 29, 2026" [ref=f23e84]: "29"
+                    - gridcell "June 30, 2026" [ref=f23e86]:
+                      - generic "June 30, 2026" [ref=f23e89]: "30"
+                    - gridcell "July 1, 2026" [ref=f23e91]:
+                      - generic "July 1, 2026" [ref=f23e94]: "1"
+                    - gridcell "July 2, 2026" [ref=f23e96]:
+                      - generic "July 2, 2026" [ref=f23e99]: "2"
+                    - gridcell "July 3, 2026" [ref=f23e101]:
+                      - generic "July 3, 2026" [ref=f23e104]: "3"
+                    - gridcell "July 4, 2026" [ref=f23e106]:
+                      - generic "July 4, 2026" [ref=f23e109]: "4"
+                  - row [ref=f23e111]:
+                    - gridcell "July 5, 2026" [ref=f23e112]:
+                      - generic "July 5, 2026" [ref=f23e115]: "5"
+                    - gridcell "July 6, 2026" [ref=f23e117]:
+                      - generic "July 6, 2026" [ref=f23e120]: "6"
+                    - gridcell "July 7, 2026" [ref=f23e122]:
+                      - generic "July 7, 2026" [ref=f23e125]: "7"
+                    - gridcell "July 8, 2026" [ref=f23e127]:
+                      - generic "July 8, 2026" [ref=f23e130]: "8"
+                    - gridcell "July 9, 2026" [ref=f23e132]:
+                      - generic "July 9, 2026" [ref=f23e135]: "9"
+                    - gridcell "July 10, 2026" [ref=f23e137]:
+                      - generic "July 10, 2026" [ref=f23e140]: "10"
+                    - gridcell "July 11, 2026" [ref=f23e142]:
+                      - generic "July 11, 2026" [ref=f23e145]: "11"
+                  - row [ref=f23e147]:
+                    - gridcell "July 12, 2026" [ref=f23e148]:
+                      - generic "July 12, 2026" [ref=f23e151]: "12"
+                    - gridcell "July 13, 2026" [ref=f23e153]:
+                      - generic "July 13, 2026" [ref=f23e156]: "13"
+                    - gridcell "July 14, 2026" [ref=f23e158]:
+                      - generic "July 14, 2026" [ref=f23e161]: "14"
+                    - gridcell "July 15, 2026" [ref=f23e163]:
+                      - generic "July 15, 2026" [ref=f23e166]: "15"
+                    - gridcell "July 16, 2026" [ref=f23e168]:
+                      - generic "July 16, 2026" [ref=f23e171]: "16"
+                    - gridcell "July 17, 2026" [ref=f23e173]:
+                      - generic "July 17, 2026" [ref=f23e176]: "17"
+                    - gridcell "July 18, 2026" [ref=f23e178]:
+                      - generic "July 18, 2026" [ref=f23e181]: "18"
+                  - row [ref=f23e183]:
+                    - gridcell "July 19, 2026" [ref=f23e184]:
+                      - generic "July 19, 2026" [ref=f23e187]: "19"
+                    - gridcell "July 20, 2026" [ref=f23e189]:
+                      - generic "July 20, 2026" [ref=f23e192]: "20"
+                    - gridcell "July 21, 2026" [ref=f23e194]:
+                      - generic "July 21, 2026" [ref=f23e197]: "21"
+                    - gridcell "July 22, 2026" [ref=f23e199]:
+                      - generic "July 22, 2026" [ref=f23e202]: "22"
+                    - gridcell "July 23, 2026" [ref=f23e204]:
+                      - generic "July 23, 2026" [ref=f23e207]: "23"
+                    - gridcell "July 24, 2026" [ref=f23e209]:
+                      - generic "July 24, 2026" [ref=f23e212]: "24"
+                    - gridcell "July 25, 2026" [ref=f23e214]:
+                      - generic "July 25, 2026" [ref=f23e217]: "25"
+                  - row [ref=f23e219]:
+                    - gridcell "July 26, 2026" [ref=f23e220]:
+                      - generic "July 26, 2026" [ref=f23e223]: "26"
+                    - gridcell "July 27, 2026" [ref=f23e225]:
+                      - generic "July 27, 2026" [ref=f23e228]: "27"
+                    - gridcell "July 28, 2026" [ref=f23e230]:
+                      - generic "July 28, 2026" [ref=f23e233]: "28"
+                    - gridcell "July 29, 2026" [ref=f23e235]:
+                      - generic "July 29, 2026" [ref=f23e238]: "29"
+                    - gridcell "July 30, 2026" [ref=f23e240]:
+                      - generic "July 30, 2026" [ref=f23e243]: "30"
+                    - gridcell "July 31, 2026" [ref=f23e245]:
+                      - generic "July 31, 2026" [ref=f23e248]: "31"
+                    - gridcell "August 1, 2026" [ref=f23e250]:
+                      - generic "August 1, 2026" [ref=f23e253]: "1"
+                  - row [ref=f23e255]:
+                    - gridcell "August 2, 2026" [ref=f23e256]:
+                      - generic "August 2, 2026" [ref=f23e259]: "2"
+                    - gridcell "August 3, 2026" [ref=f23e261]:
+                      - generic "August 3, 2026" [ref=f23e264]: "3"
+                    - gridcell "August 4, 2026" [ref=f23e266]:
+                      - generic "August 4, 2026" [ref=f23e269]: "4"
+                    - gridcell "August 5, 2026" [ref=f23e271]:
+                      - generic "August 5, 2026" [ref=f23e274]: "5"
+                    - gridcell "August 6, 2026" [ref=f23e276]:
+                      - generic "August 6, 2026" [ref=f23e279]: "6"
+                    - gridcell "August 7, 2026" [ref=f23e281]:
+                      - generic "August 7, 2026" [ref=f23e284]: "7"
+                    - gridcell "August 8, 2026" [ref=f23e286]:
+                      - generic "August 8, 2026" [ref=f23e289]: "8"
+        - generic [ref=f23e291]:
+          - heading "Pending Appointments" [level=2] [ref=f23e292]
+          - generic [ref=f23e293]:
+            - paragraph [ref=f23e298]: All clear!
+            - paragraph [ref=f23e299]: No pending appointments right now.
+          - button "Accept All" [disabled] [ref=f23e300]
+      - generic [ref=f23e301]:
+        - generic [ref=f23e302]:
+          - heading "All Appointments" [level=2] [ref=f23e303]
+          - paragraph [ref=f23e304]: Manage and monitor clinical scheduling across all departments.
+        - generic [ref=f23e306]:
+          - textbox "Search patient, owner, or service..." [ref=f23e307]
+          - combobox "Filter by status" [ref=f23e308]:
+            - option "All Statuses" [selected]
+            - option "Pending"
+            - option "Confirmed"
+            - option "Completed"
+            - option "Canceled"
+          - textbox "Filter by date" [ref=f23e309]
+          - button "Clear" [ref=f23e310] [cursor=pointer]
+        - table [ref=f23e312]:
+          - rowgroup [ref=f23e313]:
+            - row [ref=f23e314]:
+              - columnheader "Date and Time" [ref=f23e315]
+              - columnheader "Patient" [ref=f23e316]
+              - columnheader "Owner" [ref=f23e317]
+              - columnheader "Service" [ref=f23e318]
+              - columnheader "Status" [ref=f23e319]
+              - columnheader "Actions" [ref=f23e320]
+          - rowgroup [ref=f23e321]:
+            - row [ref=f23e322]:
+              - cell [ref=f23e323]:
+                - strong [ref=f23e324]: May 18, 2026
+                - text: 2:00 PM
+              - cell "C Copper" [ref=f23e325]:
+                - generic [ref=f23e326]:
+                  - generic [ref=f23e327]: C
+                  - generic [ref=f23e328]: Copper
+              - cell "Mark ivan Jalova. villaster" [ref=f23e329]
+              - cell "Consultation" [ref=f23e330]
+              - cell "cancelled" [ref=f23e331]
+              - cell [ref=f23e333]:
+                - generic [ref=f23e334]:
+                  - button [ref=f23e335] [cursor=pointer]:
+                    - img "View" [ref=f23e336]
+                  - button [ref=f23e337] [cursor=pointer]:
+                    - img "Delete" [ref=f23e338]
+            - row [ref=f23e339]:
+              - cell [ref=f23e340]:
+                - strong [ref=f23e341]: May 20, 2026
+                - text: 11:00 AM
+              - cell "S sheena" [ref=f23e342]:
+                - generic [ref=f23e343]:
+                  - generic [ref=f23e344]: S
+                  - generic [ref=f23e345]: sheena
+              - cell "Mark ivan Jalova. villaster" [ref=f23e346]
+              - cell "Vaccination" [ref=f23e347]
+              - cell "completed" [ref=f23e348]
+              - cell [ref=f23e350]:
+                - generic [ref=f23e351]:
+                  - button [ref=f23e352] [cursor=pointer]:
+                    - img "View" [ref=f23e353]
+                  - button [ref=f23e354] [cursor=pointer]:
+                    - img "Delete" [ref=f23e355]
+            - row [ref=f23e356]:
+              - cell [ref=f23e357]:
+                - strong [ref=f23e358]: Jun 30, 2026
+                - text: 8:00 AM
+              - cell "C Copper" [ref=f23e359]:
+                - generic [ref=f23e360]:
+                  - generic [ref=f23e361]: C
+                  - generic [ref=f23e362]: Copper
+              - cell "Mark ivan Jalova. villaster" [ref=f23e363]
+              - cell "Consultation" [ref=f23e364]
+              - cell "completed" [ref=f23e365]
+              - cell [ref=f23e367]:
+                - generic [ref=f23e368]:
+                  - button [ref=f23e369] [cursor=pointer]:
+                    - img "View" [ref=f23e370]
+                  - button [ref=f23e371] [cursor=pointer]:
+                    - img "Delete" [ref=f23e372]
+            - row [ref=f23e373]:
+              - cell [ref=f23e374]:
+                - strong [ref=f23e375]: Jul 9, 2026
+                - text: 4:00 PM
+              - cell "C cookcie" [ref=f23e376]:
+                - generic [ref=f23e377]:
+                  - generic [ref=f23e378]: C
+                  - generic [ref=f23e379]: cookcie
+              - cell "Mark ivan Jalova. villaster" [ref=f23e380]
+              - cell "Vaccination" [ref=f23e381]
+              - cell "cancelled" [ref=f23e382]
+              - cell [ref=f23e384]:
+                - generic [ref=f23e385]:
+                  - button [ref=f23e386] [cursor=pointer]:
+                    - img "View" [ref=f23e387]
+                  - button [ref=f23e388] [cursor=pointer]:
+                    - img "Delete" [ref=f23e389]
+            - row [ref=f23e390]:
+              - cell [ref=f23e391]:
+                - strong [ref=f23e392]: Jul 9, 2026
+                - text: 4:00 PM
+              - cell "C Copper" [ref=f23e393]:
+                - generic [ref=f23e394]:
+                  - generic [ref=f23e395]: C
+                  - generic [ref=f23e396]: Copper
+              - cell "Mark ivan Jalova. villaster" [ref=f23e397]
+              - cell "Vaccination" [ref=f23e398]
+              - cell "completed" [ref=f23e399]
+              - cell [ref=f23e401]:
+                - generic [ref=f23e402]:
+                  - button [ref=f23e403] [cursor=pointer]:
+                    - img "View" [ref=f23e404]
+                  - button [ref=f23e405] [cursor=pointer]:
+                    - img "Delete" [ref=f23e406]
+        - generic [ref=f23e407]:
+          - paragraph [ref=f23e408]: Displaying 5 of 5 Appointments
+          - generic [ref=f23e409]:
+            - button "Previous page" [disabled] [ref=f23e410]: ‹
+            - generic [ref=f23e411]: "1"
+            - button "Next page" [disabled] [ref=f23e412]: ›
