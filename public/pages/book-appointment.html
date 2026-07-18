@@ -221,6 +221,7 @@
 
     <!-- History strip -->
     <div class="history-section">
+      <div id="cspStatusCard" class="csp-status-card is-hidden"></div>
       <div class="history-header">
         <div class="history-title">Recent Appointment History</div>
         <a href="#" class="view-all" id="btnViewAll">View All Records</a>
@@ -396,18 +397,28 @@
             <div class="select-wrap">
               <select class="form-select" id="visitType">
                 <option>Consultation</option><option>Vaccination</option>
-                <option>Surgery</option><option>Grooming</option><option>Check-up</option>
+                <option>Deworming</option>
               </select>
               <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
+            <span class="field-warning is-hidden" id="dewormingNotice">
+              The clinic will only entertain deworming appointments for pets 3 months old and above.
+            </span>
           </div>
-          <div class="form-group">
+          <div class="form-group" id="apptDateGroup">
             <label class="form-label">Preferred Date *</label>
             <input type="date" class="form-input" id="apptDate"/>
           </div>
         </div>
+        <div class="form-group full is-hidden" id="cspProgramNotice">
+          <div class="field-warning">
+            The Municipal Castration &amp; Spay Program isn't a scheduled visit — no date or time is needed.
+            Submitting this form adds your pet to the waiting list. The veterinary office batches registrations
+            and holds this program a couple of times a year; you'll be notified by email once a date is set.
+          </div>
+        </div>
         <div class="form-row-2">
-          <div class="form-group">
+          <div class="form-group" id="apptTimeGroup">
             <label class="form-label">Select Time Slot *</label>
             <div class="slot-grid">
               <button class="slot-btn" data-slot="8:00 AM">8:00 AM</button>
@@ -421,7 +432,7 @@
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Additional Details *</label>
+            <label class="form-label" id="apptNotesLabel">Additional Details *</label>
             <textarea class="form-textarea" placeholder="Describe your pet’s condition or reason for visit" id="apptNotes"></textarea>
           </div>
         </div>
@@ -477,7 +488,7 @@
 
     <!-- Step 5: Success -->
     <div id="step5" class="step-content" style="display:none;">
-      <div class="success-card">
+      <div class="success-card" id="step5Default">
         <div class="success-icon">
           <img src="../images/icons/icon-success.png" alt="booked"/>
         </div>
@@ -485,8 +496,21 @@
         <div class="success-desc">Your appointment request has been submitted and is pending clinic approval. You'll be notified via SMS/Email once confirmed.</div>
         <div class="success-ref">
           <span class="ref-label">Reference No.</span>
-          <span class="ref-val">#BB-2025-12</span>
+          <span class="ref-val" id="rv-refNo">#BB-2025-12</span>
         </div>
+      </div>
+      <div class="success-card is-hidden" id="step5Csp">
+        <div class="success-icon">
+          <img src="../images/icons/icon-success.png" alt="registered"/>
+        </div>
+        <div class="success-title">Registration Submitted</div>
+        <div class="success-desc">Your pet has been added to the waiting list for the Municipal Castration &amp; Spay Program.</div>
+        <div class="review-block csp-success-block">
+          <div class="review-row"><span class="review-key">Status:</span><span class="review-val">Pending Schedule</span></div>
+          <div class="review-row"><span class="review-key">Current Waiting List:</span><span class="review-val" id="csp-waiting-count">— Pets Registered</span></div>
+          <div class="review-row"><span class="review-key">Program Date:</span><span class="review-val">To Be Announced</span></div>
+        </div>
+        <div class="success-desc csp-success-footnote">You will receive an email once the veterinary office schedules the next program.</div>
       </div>
       <div class="success-btns">
         <button class="btn-back-step" id="btnBackHome">

@@ -24,6 +24,7 @@
         'lost and found':         '/final-VBETTER/bvetter/vet/html/lost-and-found.html',
         'chatbot management':     '/final-VBETTER/bvetter/vet/html/chatbot-management.html',
         'mass vaccination':       '/final-VBETTER/bvetter/vet/html/mass-vaccination.html',
+        'castration & spay program': '/final-VBETTER/bvetter/vet/html/castration-spay.html',
         // Admin-only — absolute paths
         'account management':     '/final-VBETTER/bvetter/admin/pages/account-management.html',
         'website management':     '/final-VBETTER/bvetter/admin/pages/website-management.html', // input here the directory of the Website management.

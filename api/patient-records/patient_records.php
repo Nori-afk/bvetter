@@ -424,39 +424,29 @@ function insertVisit($pdo, $petId, $ownerId, $data)
     }
 }
 
-function saveRecord($pdo, $data)
+function insertPetRow($pdo, $ownerId, $data)
 {
-    $petId = (int) ($data['id'] ?? $data['pet_id'] ?? 0);
-    $isNewPet = $petId <= 0;
+    $stmt = $pdo->prepare("
+        INSERT INTO pets (owner_id, pet_name, species, breed, sex, age, weight, color_markings, health_status, last_vaccination_date)
+        VALUES (:owner_id, :pet_name, :species, :breed, :sex, :age, :weight, :color_markings, :health_status, :last_vaccination_date)
+    ");
+    $stmt->execute([
+        ':owner_id' => $ownerId,
+        ':pet_name' => clean($data['petName'] ?? ''),
+        ':species' => clean($data['species'] ?? ''),
+        ':breed' => clean($data['breed'] ?? ''),
+        ':sex' => normalizeSex($data['sex'] ?? ''),
+        ':age' => clean($data['age'] ?? ''),
+        ':weight' => clean($data['weight'] ?? ''),
+        ':color_markings' => clean($data['colorMarkings'] ?? ''),
+        ':health_status' => clean($data['healthStatus'] ?? 'Good Standing'),
+        ':last_vaccination_date' => clean($data['visitDate'] ?? '') ?: null,
+    ]);
+    return (int) $pdo->lastInsertId();
+}
 
-    $pdo->beginTransaction();
-
-    if ($isNewPet) {
-        $ownerId = findOrCreateOwner($pdo, $data);
-        $stmt = $pdo->prepare("
-            INSERT INTO pets (owner_id, pet_name, species, breed, sex, age, weight, color_markings, health_status, last_vaccination_date)
-            VALUES (:owner_id, :pet_name, :species, :breed, :sex, :age, :weight, :color_markings, :health_status, :last_vaccination_date)
-        ");
-        $stmt->execute([
-            ':owner_id' => $ownerId,
-            ':pet_name' => clean($data['petName'] ?? ''),
-            ':species' => clean($data['species'] ?? ''),
-            ':breed' => clean($data['breed'] ?? ''),
-            ':sex' => normalizeSex($data['sex'] ?? ''),
-            ':age' => clean($data['age'] ?? ''),
-            ':weight' => clean($data['weight'] ?? ''),
-            ':color_markings' => clean($data['colorMarkings'] ?? ''),
-            ':health_status' => clean($data['healthStatus'] ?? 'Good Standing'),
-            ':last_vaccination_date' => clean($data['visitDate'] ?? '') ?: null,
-        ]);
-        $petId = (int) $pdo->lastInsertId();
-    } else {
-        $ownerStmt = $pdo->prepare('SELECT owner_id FROM pets WHERE id = :id');
-        $ownerStmt->execute([':id' => $petId]);
-        $ownerId = (int) $ownerStmt->fetchColumn();
-        if ($ownerId <= 0) respond(404, ['success' => false, 'message' => 'Patient not found.']);
-    }
-
+function finalizePetVisit($pdo, $petId, $ownerId, $data)
+{
     $profile = $pdo->prepare("
         INSERT INTO patient_record_profiles (pet_id, patient_status, health_status, alert_text, is_archived)
         VALUES (:pet_id, :patient_status, :health_status, :alert_text, 0)
@@ -474,9 +464,57 @@ function saveRecord($pdo, $data)
     ]);
 
     insertVisit($pdo, $petId, $ownerId, $data);
+}
+
+function saveRecord($pdo, $data)
+{
+    $petId = (int) ($data['id'] ?? $data['pet_id'] ?? 0);
+    $isNewPet = $petId <= 0;
+
+    $pdo->beginTransaction();
+
+    if ($isNewPet) {
+        $ownerId = findOrCreateOwner($pdo, $data);
+        $petId = insertPetRow($pdo, $ownerId, $data);
+    } else {
+        $ownerStmt = $pdo->prepare('SELECT owner_id FROM pets WHERE id = :id');
+        $ownerStmt->execute([':id' => $petId]);
+        $ownerId = (int) $ownerStmt->fetchColumn();
+        if ($ownerId <= 0) respond(404, ['success' => false, 'message' => 'Patient not found.']);
+    }
+
+    finalizePetVisit($pdo, $petId, $ownerId, $data);
     $pdo->commit();
 
     respond(201, ['success' => true, 'id' => $petId, 'message' => 'Patient record saved.']);
+}
+
+function saveBatch($pdo, $data)
+{
+    $pets = $data['pets'] ?? [];
+    if (!is_array($pets)) $pets = [];
+
+    $pdo->beginTransaction();
+
+    $ownerId = findOrCreateOwner($pdo, $data);
+
+    $petIds = [];
+    foreach ($pets as $petData) {
+        if (!is_array($petData) || clean($petData['petName'] ?? '') === '') continue;
+        $merged = array_merge($data, $petData);
+        $petId = insertPetRow($pdo, $ownerId, $merged);
+        finalizePetVisit($pdo, $petId, $ownerId, $merged);
+        $petIds[] = $petId;
+    }
+
+    if (count($petIds) === 0) {
+        $pdo->rollBack();
+        respond(422, ['success' => false, 'message' => 'At least one pet name is required.']);
+    }
+
+    $pdo->commit();
+
+    respond(201, ['success' => true, 'id' => $petIds[0], 'ids' => $petIds, 'message' => 'Patient records saved.']);
 }
 
 function updateRecord($pdo, $data)
@@ -559,6 +597,7 @@ try {
 
     if ($action === 'list') listRecords($pdo);
     if ($action === 'save') saveRecord($pdo, $input);
+    if ($action === 'save_batch') saveBatch($pdo, $input);
     if ($action === 'update') updateRecord($pdo, $input);
     if ($action === 'delete') deleteRecord($pdo, $input);
 

@@ -1,0 +1,120 @@
+- generic [active] [ref=f2e1]:
+  - navigation [ref=f2e2]:
+    - generic [ref=f2e3]:
+      - img "Baliwag City Vet" [ref=f2e4]
+      - button "Toggle navigation" [ref=f2e5] [cursor=pointer]: ☰
+      - list:
+        - listitem [ref=f2e6]:
+          - link "Home" [ref=f2e7] [cursor=pointer]:
+            - /url: landing.html
+        - listitem [ref=f2e8]:
+          - link "Book An Appointment" [ref=f2e9] [cursor=pointer]:
+            - /url: book-appointment.html
+        - listitem [ref=f2e10]:
+          - link "Lost And Found" [ref=f2e11] [cursor=pointer]:
+            - /url: lost-found.html
+    - generic [ref=f2e12]:
+      - button [ref=f2e13] [cursor=pointer]:
+        - img "Notifications" [ref=f2e14]
+      - generic [ref=f2e16] [cursor=pointer]:
+        - generic [ref=f2e17]: Pet Owner
+        - img "User" [ref=f2e19]
+  - generic [ref=f2e197]:
+    - generic [ref=f2e198]:
+      - generic [ref=f2e199]:
+        - generic [ref=f2e200] [cursor=pointer]: ← Back to selection
+        - generic [ref=f2e201]:
+          - generic [ref=f2e202]: KI
+          - generic [ref=f2e203]:
+            - generic [ref=f2e204]: Dr. Kizea Bien Igaya
+            - generic [ref=f2e205]: Senior Surgeon
+      - generic [ref=f2e206]:
+        - generic [ref=f2e207]: Step 1 of 4
+        - generic [ref=f2e208]: Book an Appointment
+        - generic [ref=f2e209]: Fill in your details to confirm your visit
+        - generic [ref=f2e210]:
+          - generic [ref=f2e211]:
+            - generic [ref=f2e212]: "1"
+            - generic [ref=f2e213]: Owner
+          - generic [ref=f2e215]:
+            - generic [ref=f2e216]: "2"
+            - generic [ref=f2e217]: Pet
+          - generic [ref=f2e219]:
+            - generic [ref=f2e220]: "3"
+            - generic [ref=f2e221]: Appointment
+          - generic [ref=f2e223]:
+            - generic [ref=f2e224]: "4"
+            - generic [ref=f2e225]: Review
+    - generic [ref=f2e228]:
+      - generic [ref=f2e229]: Owner Information
+      - generic [ref=f2e230]:
+        - generic [ref=f2e231]:
+          - generic [ref=f2e232]: Full Name *
+          - textbox "Enter your full name" [ref=f2e233]
+        - generic [ref=f2e234]:
+          - generic [ref=f2e235]: Contact Number *
+          - textbox "Enter your contact number" [ref=f2e236]
+        - generic [ref=f2e237]:
+          - generic [ref=f2e238]: Email Address *
+          - textbox "Enter your email address" [ref=f2e239]
+          - generic [ref=f2e240]: For appointment confirmation
+        - generic [ref=f2e241]:
+          - generic [ref=f2e242]: Barangay *
+          - combobox [ref=f2e244] [cursor=pointer]:
+            - option "Select your barangay" [selected]
+            - option "Bagong Nayon"
+            - option "Burol"
+            - option "Calasag"
+            - option "Camalig"
+            - option "Canalate"
+            - option "Caniogan"
+            - option "Entablado"
+            - option "Lote"
+            - option "Maasim"
+            - option "Pagala"
+            - option "Paitan"
+            - option "Poblacion"
+            - option "Sabang"
+            - option "San Jose"
+            - option "San Roque"
+            - option "Sta. Barbara"
+            - option "Subic"
+            - option "Tangos"
+            - option "Tibag"
+            - option "Tilapayong"
+        - generic [ref=f2e245]:
+          - generic [ref=f2e246]: Complete Address *
+          - textbox "House No., Street, Purok / Subdivision" [ref=f2e247]
+      - button "Pet Information" [ref=f2e249] [cursor=pointer]
+  - contentinfo [ref=f2e170]:
+    - generic [ref=f2e171]:
+      - generic [ref=f2e172]:
+        - heading "Baliwag Veterinary Services" [level=3] [ref=f2e173]
+        - paragraph [ref=f2e174]: Leading the future of veterinary medicine through precision technology and heartfelt dedication.
+      - generic [ref=f2e175]:
+        - heading "QUICK LINKS" [level=4] [ref=f2e176]
+        - list [ref=f2e177]:
+          - listitem [ref=f2e178]:
+            - link "Privacy Policy" [ref=f2e179] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f2e180]:
+            - link "Terms of Service" [ref=f2e181] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f2e182]:
+            - link "Emergency Care" [ref=f2e183] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f2e184]:
+            - link "Careers" [ref=f2e185] [cursor=pointer]:
+              - /url: "#"
+      - generic [ref=f2e186]:
+        - heading "CONTACT" [level=4] [ref=f2e187]
+        - paragraph [ref=f2e188]: AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026
+        - paragraph [ref=f2e189]: BaliwagtVC@gmail.com
+        - paragraph [ref=f2e190]: "09959210640"
+    - generic [ref=f2e191]:
+      - generic [ref=f2e192]: © 2026 Baliwag Veterinary Services. Precision in Medicine, Vitality in Life
+      - generic [ref=f2e193]:
+        - link "f" [ref=f2e194] [cursor=pointer]:
+          - /url: "#"
+        - link "in" [ref=f2e195] [cursor=pointer]:
+          - /url: "#"

@@ -42,7 +42,8 @@ const ui = {
 	modalOverlay: document.getElementById('modal-overlay'),
 	modalShell: document.getElementById('modal-shell'),
 	modalClose: document.getElementById('modal-close'),
-	modalContent: document.getElementById('modal-content')
+	modalContent: document.getElementById('modal-content'),
+	settingsButton: document.getElementById('open-settings-btn')
 };
 
 const state = {
@@ -51,7 +52,8 @@ const state = {
 	selectedAppointmentId: null,
 	selectedSlot: '',
 	selectedDate: '',
-	rescheduleMonth: null
+	rescheduleMonth: null,
+	visitTypes: []
 };
 
 // Desktop can comfortably show more rows per page than a phone screen.
@@ -610,6 +612,83 @@ function deleteModalTemplate(appointment) {
 	`;
 }
 
+function settingsModalTemplate(types) {
+	const rows = types.map((type) => `
+		<div class="visit-type-row">
+			<span>${type.name}${type.is_default ? '<span class="visit-type-badge">Default</span>' : ''}</span>
+			${!type.is_default ? `
+				<button type="button" class="visit-type-remove" data-modal-action="remove-visit-type" data-id="${type.id}" title="Remove ${type.name}">
+					<i data-lucide="trash-2"></i>
+				</button>
+			` : ''}
+		</div>
+	`).join('');
+
+	return `
+		<div class="appt-modal-header appt-accent-reschedule">
+			<div class="appt-header-avatar appt-avatar-reschedule"><i data-lucide="settings"></i></div>
+			<div class="appt-modal-identity">
+				<div class="appt-header-name">Manage Visit Types</div>
+				<div class="appt-header-meta">Control the types of visit owners can request when booking.</div>
+			</div>
+		</div>
+		<div class="appt-modal-body">
+			<div class="visit-type-list">${rows}</div>
+			<div class="add-visit-type-form">
+				<input type="text" class="visit-type-input" id="new-visit-type-input" placeholder="e.g. Grooming, Surgery" maxlength="60" autocomplete="off">
+				<button type="button" class="btn btn-primary" data-modal-action="confirm-add-visit-type">
+					<i data-lucide="plus"></i>
+					Add Type
+				</button>
+			</div>
+			<span class="visit-type-error" id="new-visit-type-error"></span>
+			<div class="modal-footer">
+				<button class="btn btn-outline" type="button" data-modal-action="close">Done</button>
+			</div>
+		</div>
+	`;
+}
+
+async function loadVisitTypesIntoModal() {
+	const result = window.VetAPI?.getVisitTypes
+		? await window.VetAPI.getVisitTypes()
+		: { ok: false, data: [], error: 'Visit type API unavailable.' };
+	state.visitTypes = result.ok ? result.data : [];
+	openModal(settingsModalTemplate(state.visitTypes));
+	if (!result.ok) alert(result.error || 'Could not load visit types.');
+}
+
+async function openSettingsModal() {
+	await loadVisitTypesIntoModal();
+	document.getElementById('new-visit-type-input')?.focus();
+}
+
+async function confirmAddVisitType() {
+	const input = document.getElementById('new-visit-type-input');
+	const error = document.getElementById('new-visit-type-error');
+	const name = input?.value || '';
+	const result = window.VetAPI?.addVisitType
+		? await window.VetAPI.addVisitType(name)
+		: { ok: false, error: 'Visit type API unavailable.' };
+	if (!result.ok) {
+		if (error) error.textContent = result.error || 'Could not add that visit type.';
+		input?.classList.add('invalid');
+		return;
+	}
+	await loadVisitTypesIntoModal();
+}
+
+async function removeVisitType(id) {
+	const result = window.VetAPI?.removeVisitType
+		? await window.VetAPI.removeVisitType(id)
+		: { ok: false, error: 'Visit type API unavailable.' };
+	if (!result.ok) {
+		alert(result.error || 'Could not remove that visit type.');
+		return;
+	}
+	await loadVisitTypesIntoModal();
+}
+
 function openDetailsModal(appointmentId) {
 	const selected = getAppointmentById(appointmentId);
 	if (!selected) return;
@@ -761,6 +840,8 @@ function setupEvents() {
 		renderTable();
 	});
 
+	ui.settingsButton?.addEventListener('click', openSettingsModal);
+
 	ui.acceptAllButton.addEventListener('click', async () => {
 		const pending = state.appointments.filter((item) => item.status === 'pending');
 		await Promise.all(pending.map((item) => updateStatus(item.id, 'confirmed')));
@@ -817,6 +898,8 @@ function setupEvents() {
 			if (action === 'confirm-complete') applyComplete();
 			if (action === 'confirm-cancel') applyCancel();
 			if (action === 'confirm-delete') applyDelete();
+			if (action === 'confirm-add-visit-type') confirmAddVisitType();
+			if (action === 'remove-visit-type') removeVisitType(Number(actionEl.dataset.id));
 			return;
 		}
 

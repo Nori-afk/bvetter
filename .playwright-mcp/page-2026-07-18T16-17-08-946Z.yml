@@ -1,0 +1,92 @@
+- generic [ref=f5e2]:
+  - complementary [ref=f5e3]:
+    - generic [ref=f5e4]:
+      - button "Toggle sidebar" [expanded] [ref=f5e5] [cursor=pointer]: ☰
+      - img "VBetter Logo" [ref=f5e7]
+    - generic [ref=f5e8]:
+      - button "Notifications" [ref=f5e9] [cursor=pointer]
+      - img "Kizea Igaya" [ref=f5e11] [cursor=pointer]
+  - main [ref=f5e12]:
+    - generic [ref=f5e13]:
+      - generic [ref=f5e14]:
+        - heading "Castration & Spay Program" [level=1] [ref=f5e15]
+        - paragraph [ref=f5e16]: Owners register interest; batch them into a municipal program date a couple of times a year.
+      - button "Create Program" [ref=f5e17] [cursor=pointer]
+    - region "Castration & Spay KPIs" [ref=f5e19]:
+      - article [ref=f5e20]:
+        - heading "Total Waiting Registrations" [level=2] [ref=f5e21]
+        - paragraph [ref=f5e22]: "1"
+      - article [ref=f5e23]:
+        - heading "Upcoming Program" [level=2] [ref=f5e24]
+        - paragraph [ref=f5e25]: Oct 15, 2026
+      - article [ref=f5e26]:
+        - heading "Capacity" [level=2] [ref=f5e27]
+        - paragraph [ref=f5e28]: "2"
+      - article [ref=f5e29]:
+        - heading "Assigned Pets" [level=2] [ref=f5e30]
+        - paragraph [ref=f5e31]: "0"
+      - article [ref=f5e32]:
+        - heading "Unassigned Pets" [level=2] [ref=f5e33]
+        - paragraph [ref=f5e34]: "1"
+    - generic [ref=f5e35]:
+      - generic [ref=f5e36]:
+        - heading "Programs" [level=3] [ref=f5e37]
+        - generic [ref=f5e38]: Create a program, then assign waiting registrations to it below.
+      - table [ref=f5e40]:
+        - rowgroup [ref=f5e41]:
+          - row [ref=f5e42]:
+            - columnheader "Title" [ref=f5e43]
+            - columnheader "Date" [ref=f5e44]
+            - columnheader "Venue" [ref=f5e45]
+            - columnheader "Assigned / Capacity" [ref=f5e46]
+            - columnheader "Status" [ref=f5e47]
+            - columnheader "Actions" [ref=f5e48]
+        - rowgroup [ref=f5e49]:
+          - row [ref=f5e184]:
+            - cell "Municipal Castration & Spay Program" [ref=f5e185]
+            - cell "Oct 15, 2026 · 8:00 AM" [ref=f5e186]
+            - cell "Municipal Veterinary Office" [ref=f5e187]
+            - cell "0 / 2" [ref=f5e188]
+            - cell "Open" [ref=f5e189]
+            - cell [ref=f5e191]:
+              - button "Manage" [ref=f5e192] [cursor=pointer]
+    - generic [ref=f5e52]:
+      - generic [ref=f5e53]:
+        - heading "Waiting List" [level=3] [ref=f5e54]
+        - generic [ref=f5e55]:
+          - combobox "Program to assign selected registrations to" [ref=f5e56]:
+            - option "Municipal Castration & Spay Program — Oct 15, 2026" [selected]
+          - button "Assign Selected" [ref=f5e57] [cursor=pointer]
+      - table [ref=f5e59]:
+        - rowgroup [ref=f5e60]:
+          - row [ref=f5e61]:
+            - columnheader [ref=f5e62]:
+              - checkbox "Select all waiting registrations" [ref=f5e63]
+            - columnheader "Pet" [ref=f5e64]
+            - columnheader "Owner" [ref=f5e65]
+            - columnheader "Registered" [ref=f5e66]
+        - rowgroup [ref=f5e67]:
+          - row [ref=f5e193]:
+            - cell [ref=f5e194]:
+              - checkbox [ref=f5e195]
+            - cell "Bantay (Dog)" [ref=f5e196]
+            - cell "Test Owner CSP" [ref=f5e197]
+            - cell "Jul 19, 2026" [ref=f5e198]
+    - generic [ref=f5e74]:
+      - generic [ref=f5e75]:
+        - heading "Assigned Roster" [level=3] [ref=f5e76]
+        - generic [ref=f5e77]:
+          - combobox "Program roster to view" [ref=f5e78]:
+            - option "Municipal Castration & Spay Program — Oct 15, 2026" [selected]
+          - button "Send Email Notifications" [ref=f5e79] [cursor=pointer]
+      - table [ref=f5e81]:
+        - rowgroup [ref=f5e82]:
+          - row [ref=f5e83]:
+            - 'columnheader "Queue #" [ref=f5e84]'
+            - columnheader "Pet" [ref=f5e85]
+            - columnheader "Owner" [ref=f5e86]
+            - columnheader "Status" [ref=f5e87]
+            - columnheader "Actions" [ref=f5e88]
+        - rowgroup [ref=f5e89]:
+          - row [ref=f5e199]:
+            - cell "No pets assigned to this program yet." [ref=f5e200]

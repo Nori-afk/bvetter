@@ -1888,6 +1888,50 @@ body {
 
 .span-2 { grid-column: span 2; }
 
+.pet-entry {
+    border: 1.5px dashed #E2E8F0;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.pet-entry + .pet-entry { margin-top: 0; }
+
+.pet-entry-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.pet-entry-label {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #002A58;
+    font-family: 'Manrope', sans-serif;
+}
+
+.pet-entry-remove {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    color: #DC2626;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'Manrope', sans-serif;
+    cursor: pointer;
+    padding: 4px 6px;
+}
+
+.pet-entry-remove:hover { text-decoration: underline; }
+.pet-entry-remove svg { width: 13px; height: 13px; }
+
+.btn-add-pet { margin-top: 4px; }
+
 .form-footer, .modal-footer {
     display: flex;
     justify-content: flex-end;

@@ -566,6 +566,57 @@ forgotPassword: (email) => {
     }).then(r => r.json());
   },
 
+  /**
+   * Get the vet/admin-managed list of visit types for the
+   * "Type of Visit" dropdown on the booking form.
+   */
+  getVisitTypes: () => {
+    const formData = new FormData();
+    formData.append('action', 'visit_types');
+    return fetch(`${API_BASE_REG}/appointments/appointment.php`, {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json());
+  },
+
+  /* ══════════════════════════════════════════
+     CASTRATION & SPAY PROGRAM
+     ══════════════════════════════════════════ */
+
+  /**
+   * Register a pet on the Castration & Spay Program waiting list.
+   * @param {Object} data — same owner/pet fields as bookAppointment(), no date/time.
+   */
+  registerCspProgram: (data) =>
+    fetch(`${API_BASE_REG}/castration-spay/program.php`, {
+      method: 'POST',
+      body: JSON.stringify({ ...data, action: 'register' })
+    }).then(r => r.json()),
+
+  /**
+   * Get the current owner's registration status + waiting list count,
+   * for the step-5 success screen and the dashboard card.
+   */
+  getCspStatus: (ownerId) => {
+    const formData = new FormData();
+    formData.append('action', 'my_status');
+    formData.append('owner_id', ownerId || '');
+    return fetch(`${API_BASE_REG}/castration-spay/program.php`, {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json());
+  },
+
+  cancelCspRegistration: (registrationId) => {
+    const formData = new FormData();
+    formData.append('action', 'cancel');
+    formData.append('registration_id', registrationId);
+    return fetch(`${API_BASE_REG}/castration-spay/program.php`, {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json());
+  },
+
 
   /* ══════════════════════════════════════════
      USER / ACCOUNT

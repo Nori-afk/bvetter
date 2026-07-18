@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VBetter | Castration & Spay Program</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="/final-VBETTER/bvetter/shared/css/sidebar.css">
+    <link rel="stylesheet" href="/final-VBETTER/bvetter/vet/css/castration-spay.css">
+</head>
+
+<body>
+    <div class="main-holder">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><img src="/final-VBETTER/bvetter/vet/images/logo.png" alt="VBetter Logo"></div>
+            </div>
+           <nav class="sidebar-nav">
+                <a href="/final-VBETTER/bvetter/vet/html/index.html" class="nav-item" title="Dashboard">
+                    <img src="/final-VBETTER/bvetter/shared/images/sidebar/dashboard.svg" class="nav-icon" alt="Dashboard">
+                    <span class="nav-label">Dashboard</span>
+                </a>
+                <a href="/final-VBETTER/bvetter/vet/html/appointment.html" class="nav-item" title="Appointments">
+                    <img src="/final-VBETTER/bvetter/shared/images/sidebar/appointment.svg" class="nav-icon" alt="Appointment Management">
+                    <span class="nav-label">Appointment Management</span>
+                </a>
+                <a href="/final-VBETTER/bvetter/vet/html/patient-records.html" class="nav-item" title="Patient Records">
+                    <img src="/final-VBETTER/bvetter/shared/images/sidebar/patient-records.svg" class="nav-icon" alt="Patient Records">
+                    <span class="nav-label">Patient Records</span>
+                </a>
+                <a href="/final-VBETTER/bvetter/vet/html/report.html" class="nav-item" title="Reports">
+                    <img src="/final-VBETTER/bvetter/shared/images/sidebar/report.svg" class="nav-icon" alt="Report">
+                    <span class="nav-label">Report</span>
+                </a>
+                <a href="/final-VBETTER/bvetter/vet/html/disease-analytics.html" class="nav-item" title="Disease Analytics">
+                    <img src="/final-VBETTER/bvetter/shared/images/sidebar/disease-analytics.svg" class="nav-icon" alt="Disease Analytics">
+                    <span class="nav-label">Disease Analytics</span>
+                </a>
+                <a href="/final-VBETTER/bvetter/vet/html/lost-and-found.html" class="nav-item" title="Lost and Found">
+                    <img src="/final-VBETTER/bvetter/shared/images/sidebar/lost-found.svg" class="nav-icon" alt="Lost and Found">
+                    <span class="nav-label">Lost And Found</span>
+                </a>
+                <a href="/final-VBETTER/bvetter/vet/html/chatbot-management.html" class="nav-item" title="Chatbot Management">
+                    <img src="/final-VBETTER/bvetter/shared/images/sidebar/chatbot.svg" class="nav-icon" alt="Chatbot Management">
+                    <span class="nav-label">Chatbot Management</span>
+                </a>
+                <a href="/final-VBETTER/bvetter/vet/html/mass-vaccination.html" class="nav-item" title="Mass Vaccination">
+                    <img src="/final-VBETTER/bvetter/shared/images/sidebar/mass-vacc.svg" class="nav-icon" alt="Mass Vaccination">
+                    <span class="nav-label">Mass Vaccination</span>
+                </a>
+                <a href="/final-VBETTER/bvetter/vet/html/castration-spay.html" class="nav-item" title="Castration & Spay Program">
+                    <img src="/final-VBETTER/bvetter/shared/images/sidebar/mass-vacc.svg" class="nav-icon" alt="Castration & Spay Program">
+                    <span class="nav-label">Castration & Spay Program</span>
+                </a>
+                <div class="nav-section-label" data-roles="admin">Administration</div>
+                <a href="/final-VBETTER/bvetter/admin/pages/account-management.html" class="nav-item" title="Account Management" data-roles="admin">
+                    <img src="/final-VBETTER/bvetter/shared/images/sidebar/acc-management.svg" class="nav-icon" alt="Account Management">
+                    <span class="nav-label">Account Management</span>
+                </a>
+                <a href="/final-VBETTER/bvetter/admin/pages/website-management.html" class="nav-item" title="Website Management" data-roles="admin">
+                    <img src="/final-VBETTER/bvetter/shared/images/sidebar/web-settings.svg" class="nav-icon" alt="Website Management">
+                    <span class="nav-label">Website Management</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer"></div>
+        </aside>
+
+        <main class="right-side csp-main">
+
+            <header class="hero">
+                <div>
+                    <h1>Castration &amp; Spay Program</h1>
+                    <p>Owners register interest; batch them into a municipal program date a couple of times a year.</p>
+                </div>
+                <button id="open-create-program" class="btn btn-primary" type="button">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Create Program
+                </button>
+            </header>
+
+            <section class="metric-grid" aria-label="Castration & Spay KPIs">
+                <article class="metric-card">
+                    <h2>Total Waiting Registrations</h2>
+                    <p class="metric-value" data-metric="totalWaiting">—</p>
+                </article>
+                <article class="metric-card">
+                    <h2>Upcoming Program</h2>
+                    <p class="metric-value" data-metric="upcomingDate">—</p>
+                </article>
+                <article class="metric-card">
+                    <h2>Capacity</h2>
+                    <p class="metric-value" data-metric="capacity">—</p>
+                </article>
+                <article class="metric-card">
+                    <h2>Assigned Pets</h2>
+                    <p class="metric-value" data-metric="assignedPets">—</p>
+                </article>
+                <article class="metric-card">
+                    <h2>Unassigned Pets</h2>
+                    <p class="metric-value" data-metric="unassignedPets">—</p>
+                </article>
+            </section>
+
+            <section class="card table-card">
+                <div class="card-head">
+                    <h3>Programs</h3>
+                    <small>Create a program, then assign waiting registrations to it below.</small>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Date</th>
+                                <th>Venue</th>
+                                <th>Assigned / Capacity</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="program-table-body">
+                            <tr><td colspan="6" class="csp-loading-cell">Loading programs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="card table-card">
+                <div class="card-head">
+                    <h3>Waiting List</h3>
+                    <div class="csp-assign-controls">
+                        <select id="assign-program-select" class="form-input" aria-label="Program to assign selected registrations to"></select>
+                        <button id="assign-selected-btn" class="btn btn-success" type="button">Assign Selected</button>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="waiting-select-all" aria-label="Select all waiting registrations"></th>
+                                <th>Pet</th>
+                                <th>Owner</th>
+                                <th>Registered</th>
+                            </tr>
+                        </thead>
+                        <tbody id="waiting-table-body">
+                            <tr><td colspan="4" class="csp-loading-cell">Loading waiting list...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="card table-card">
+                <div class="card-head">
+                    <h3>Assigned Roster</h3>
+                    <div class="csp-assign-controls">
+                        <select id="roster-program-select" class="form-input" aria-label="Program roster to view"></select>
+                        <button id="notify-program-btn" class="btn btn-outline" type="button">Send Email Notifications</button>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Queue #</th>
+                                <th>Pet</th>
+                                <th>Owner</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roster-table-body">
+                            <tr><td colspan="5" class="csp-loading-cell">Select a program above.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Create / Manage Program modal -->
+    <div id="program-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="program-modal-heading">
+        <div class="modal-card">
+            <button id="close-program-modal" class="modal-close" type="button" aria-label="Close modal">&times;</button>
+            <div class="modal-header-block">
+                <div class="modal-header-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+                <div>
+                    <h2 id="program-modal-heading">Create Program</h2>
+                    <p class="modal-subtitle">Municipal Castration &amp; Spay Program event</p>
+                </div>
+            </div>
+            <form id="program-form" novalidate>
+                <input type="hidden" id="program-id-input">
+                <div class="field">
+                    <label class="field-label" for="program-title-input">TITLE</label>
+                    <input class="form-input" id="program-title-input" type="text" placeholder="Municipal Castration & Spay Program">
+                </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label class="field-label" for="program-date-input">DATE</label>
+                        <input class="form-input" id="program-date-input" type="date">
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="program-time-input">TIME</label>
+                        <input class="form-input" id="program-time-input" type="text" placeholder="e.g. 8:00 AM">
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label class="field-label" for="program-venue-input">VENUE</label>
+                        <input class="form-input" id="program-venue-input" type="text" placeholder="Municipal Veterinary Office">
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="program-capacity-input">CAPACITY *</label>
+                        <input class="form-input" id="program-capacity-input" type="number" min="1" placeholder="e.g. 30">
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="field-label" for="program-status-input">STATUS</label>
+                    <select class="form-input" id="program-status-input">
+                        <option value="planning">Planning</option>
+                        <option value="open">Open</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                    <p class="field-hint">Date and venue are required before marking a program Scheduled.</p>
+                </div>
+                <span class="field-error" id="program-form-error"></span>
+                <div class="modal-actions">
+                    <button id="cancel-program-modal" type="button" class="btn btn-outline">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="program-submit-btn">Save Program</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/final-VBETTER/bvetter/shared/js/auth.js"></script>
+    <script>VBetterAuth.requireAuth(['admin', 'vet']);</script>
+    <script src="/final-VBETTER/bvetter/shared/js/sidebar.js"></script>
+    <script src="/final-VBETTER/bvetter/vet/js/vet-api.js"></script>
+    <script src="/final-VBETTER/bvetter/vet/js/castration-spay.js"></script>
+
+</body>
+
+</html>

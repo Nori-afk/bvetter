@@ -57,6 +57,10 @@
                     <img src="/final-VBETTER/bvetter/shared/images/sidebar/mass-vacc.svg" class="nav-icon" alt="Mass Vaccination">
                     <span class="nav-label">Mass Vaccination</span>
                 </a>
+                <a href="/final-VBETTER/bvetter/vet/html/castration-spay.html" class="nav-item" title="Castration & Spay Program">
+                    <img src="/final-VBETTER/bvetter/shared/images/sidebar/mass-vacc.svg" class="nav-icon" alt="Castration & Spay Program">
+                    <span class="nav-label">Castration & Spay Program</span>
+                </a>
                 <!-- ADMIN-ONLY section: sidebar.js hides these for vet role -->
                 <div class="nav-section-label" data-roles="admin">Administration</div>
                 <a href="/final-VBETTER/bvetter/admin/pages/account-management.html" class="nav-item" title="Account Management" data-roles="admin">
@@ -73,8 +77,14 @@
 
         <main class="right-content">
             <div class="header">
-                <h2>Manage Appointments</h2>
-                <p>Coordinate pending requests and confirmed visits for today.</p>
+                <div>
+                    <h2>Manage Appointments</h2>
+                    <p>Coordinate pending requests and confirmed visits for today.</p>
+                </div>
+                <button type="button" class="settings-btn" id="open-settings-btn" title="Manage visit types">
+                    <i data-lucide="settings"></i>
+                    Settings
+                </button>
             </div>
 
             <div class="card-holder">

@@ -1,0 +1,212 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - img "Baliwag City Vet" [ref=e4]
+      - button "Toggle navigation" [ref=e5] [cursor=pointer]: ☰
+      - list:
+        - listitem [ref=e6]:
+          - link "Home" [ref=e7] [cursor=pointer]:
+            - /url: landing.html
+        - listitem [ref=e8]:
+          - link "Book An Appointment" [ref=e9] [cursor=pointer]:
+            - /url: book-appointment.html
+        - listitem [ref=e10]:
+          - link "Lost And Found" [ref=e11] [cursor=pointer]:
+            - /url: lost-found.html
+    - generic [ref=e12]:
+      - button [ref=e13] [cursor=pointer]:
+        - img "Notifications" [ref=e14]
+      - generic [ref=e16] [cursor=pointer]:
+        - generic [ref=e17]: Pet Owner
+        - img "User" [ref=e19]
+  - generic [ref=e20]:
+    - generic [ref=e23]:
+      - generic [ref=e24]: VETERINARY SERVICES
+      - heading "Book An Appointment" [level=1] [ref=e25]
+      - paragraph [ref=e26]: Schedule a visit with our veterinarians. Select your preferred specialist and choose a convenient time slot.
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - generic [ref=e29]:
+          - generic [ref=e30]: Available Vets
+          - generic [ref=e31]: Select your preferred specialist
+          - generic [ref=e32] [cursor=pointer]:
+            - img "Anne Hallegado" [ref=e33]
+            - generic [ref=e34]:
+              - generic [ref=e35]: Anne Hallegado
+              - generic [ref=e36]: Veterinarian
+          - generic [ref=e37] [cursor=pointer]:
+            - img "Kizea igaya" [ref=e38]
+            - generic [ref=e39]:
+              - generic [ref=e40]: Kizea igaya
+              - generic [ref=e41]: Head Surgeon
+        - generic [ref=e42]:
+          - generic [ref=e43]:
+            - img "Dr. Kizea" [ref=e44]
+            - generic [ref=e45]:
+              - generic [ref=e46]: Anne Hallegado
+              - generic [ref=e47]: Veterinarian
+              - generic [ref=e48]: Baliwag Baliwag Vet Clinic
+              - generic [ref=e49]:
+                - img "star" [ref=e50]
+                - generic [ref=e51]: "4.9"
+                - generic [ref=e52]: (124 reviews)
+          - generic [ref=e53]:
+            - generic [ref=e54]:
+              - generic [ref=e55]: Experience
+              - generic [ref=e56]: 12+ Years
+            - generic [ref=e57]:
+              - generic [ref=e58]: Patients
+              - generic [ref=e59]: 2.4k
+            - generic [ref=e60]:
+              - generic [ref=e61]: Rating
+              - generic [ref=e62]: 98%
+          - generic [ref=e63]:
+            - generic [ref=e64]: Education & Expertise
+            - generic [ref=e65]: UP Philippines
+            - generic [ref=e67]: Common Cases Handled
+            - generic [ref=e69]:
+              - generic [ref=e70]: Patient Feedback
+              - link "See All" [ref=e71] [cursor=pointer]:
+                - /url: "#"
+            - generic [ref=e72]:
+              - generic [ref=e73]:
+                - generic [ref=e75]:
+                  - generic [ref=e76]: Sarah Jenkins
+                  - generic [ref=e77]: "Pet: Buster (Golden Retriever)"
+                - img "star" [ref=e79]
+              - generic [ref=e80]: "\"Dr. Clara was amazing with Buster's leg surgery. Extremely professional and communicative throughout the process.\""
+        - generic [ref=e82]:
+          - generic [ref=e83]: Calendar
+          - generic [ref=e84]:
+            - generic [ref=e85]: July 2026
+            - generic [ref=e86]:
+              - button [ref=e87] [cursor=pointer]:
+                - img "prev" [ref=e88]
+              - button [ref=e89] [cursor=pointer]:
+                - img "next" [ref=e90]
+          - generic [ref=e91]:
+            - generic [ref=e92]: MO
+            - generic [ref=e93]: TU
+            - generic [ref=e94]: WE
+            - generic [ref=e95]: TH
+            - generic [ref=e96]: FR
+            - generic [ref=e97]: SA
+            - generic [ref=e98]: SU
+            - generic: "1"
+            - generic: "2"
+            - generic: "3"
+            - generic: "4"
+            - generic: "5"
+            - generic: "6"
+            - generic: "7"
+            - generic: "8"
+            - generic: "9"
+            - generic: "10"
+            - generic: "11"
+            - generic: "12"
+            - generic: "13"
+            - generic: "14"
+            - generic: "15"
+            - generic: "16"
+            - generic: "17"
+            - generic [ref=e101] [cursor=pointer]: "18"
+            - generic [ref=e102] [cursor=pointer]: "19"
+            - generic [ref=e103] [cursor=pointer]: "20"
+            - generic [ref=e104] [cursor=pointer]: "21"
+            - generic [ref=e105] [cursor=pointer]: "22"
+            - generic [ref=e106] [cursor=pointer]: "23"
+            - generic [ref=e107] [cursor=pointer]: "24"
+            - generic [ref=e108] [cursor=pointer]: "25"
+            - generic [ref=e109] [cursor=pointer]: "26"
+            - generic [ref=e110] [cursor=pointer]: "27"
+            - generic [ref=e111] [cursor=pointer]: "28"
+            - generic [ref=e112] [cursor=pointer]: "29"
+            - generic [ref=e113] [cursor=pointer]: "30"
+            - generic [ref=e114] [cursor=pointer]: "31"
+          - generic [ref=e115]: Available Hours
+          - generic [ref=e116]:
+            - generic [ref=e117]: Not Available
+            - generic [ref=e119]: Available
+          - generic [ref=e121]:
+            - generic [ref=e122] [cursor=pointer]: 8:00 AM
+            - generic [ref=e123] [cursor=pointer]: 9:00 AM
+            - generic [ref=e124] [cursor=pointer]: 10:00 AM
+            - generic [ref=e125] [cursor=pointer]: 11:00 AM
+            - generic [ref=e126] [cursor=pointer]: 1:00 PM
+            - generic [ref=e127] [cursor=pointer]: 2:00 PM
+            - generic [ref=e128] [cursor=pointer]: 3:00 PM
+            - generic [ref=e129] [cursor=pointer]: 4:00 PM
+          - button "Book An Appointment" [ref=e130] [cursor=pointer]
+      - generic [ref=e131]:
+        - generic [ref=e132]:
+          - generic [ref=e133]: Recent Appointment History
+          - link "View All Records" [ref=e134] [cursor=pointer]:
+            - /url: "#"
+        - generic [ref=e135]:
+          - generic [ref=e136]:
+            - generic [ref=e137]:
+              - img "service" [ref=e139]
+              - generic [ref=e140]:
+                - generic [ref=e141]: Consultation
+                - generic [ref=e142]: Copper • May 18, 2026
+            - button "Cancelled" [disabled] [ref=e143] [cursor=pointer]
+          - generic [ref=e144]:
+            - generic [ref=e145]:
+              - img "service" [ref=e147]
+              - generic [ref=e148]:
+                - generic [ref=e149]: Vaccination
+                - generic [ref=e150]: sheena • May 20, 2026
+            - button "2 ★ Rated" [ref=e151] [cursor=pointer]
+          - generic [ref=e152]:
+            - generic [ref=e153]:
+              - img "service" [ref=e155]
+              - generic [ref=e156]:
+                - generic [ref=e157]: Consultation
+                - generic [ref=e158]: Copper • Jun 30, 2026
+            - button "5 ★ Rated" [ref=e159] [cursor=pointer]
+          - generic [ref=e160]:
+            - generic [ref=e161]:
+              - img "service" [ref=e163]
+              - generic [ref=e164]:
+                - generic [ref=e165]: Vaccination
+                - generic [ref=e166]: cookcie • Jul 9, 2026
+            - button "Cancelled" [disabled] [ref=e167] [cursor=pointer]
+          - generic [ref=e168]:
+            - generic [ref=e169]:
+              - img "service" [ref=e171]
+              - generic [ref=e172]:
+                - generic [ref=e173]: Vaccination
+                - generic [ref=e174]: Copper • Jul 9, 2026
+            - button "Rate & Review" [ref=e175] [cursor=pointer]
+  - contentinfo [ref=e176]:
+    - generic [ref=e177]:
+      - generic [ref=e178]:
+        - heading "Baliwag Veterinary Services" [level=3] [ref=e179]
+        - paragraph [ref=e180]: Leading the future of veterinary medicine through precision technology and heartfelt dedication.
+      - generic [ref=e181]:
+        - heading "QUICK LINKS" [level=4] [ref=e182]
+        - list [ref=e183]:
+          - listitem [ref=e184]:
+            - link "Privacy Policy" [ref=e185] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=e186]:
+            - link "Terms of Service" [ref=e187] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=e188]:
+            - link "Emergency Care" [ref=e189] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=e190]:
+            - link "Careers" [ref=e191] [cursor=pointer]:
+              - /url: "#"
+      - generic [ref=e192]:
+        - heading "CONTACT" [level=4] [ref=e193]
+        - paragraph [ref=e194]: AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026
+        - paragraph [ref=e195]: BaliwagtVC@gmail.com
+        - paragraph [ref=e196]: "09959210640"
+    - generic [ref=e197]:
+      - generic [ref=e198]: © 2026 Baliwag Veterinary Services. Precision in Medicine, Vitality in Life
+      - generic [ref=e199]:
+        - link "f" [ref=e200] [cursor=pointer]:
+          - /url: "#"
+        - link "in" [ref=e201] [cursor=pointer]:
+          - /url: "#"

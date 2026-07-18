@@ -689,6 +689,37 @@ body {
 
 }
 
+.csp-status-card {
+  background: var(--color-yellow-light, #FFF8E1);
+  border: 1px solid var(--color-yellow, #F2B807);
+  border-radius: 12px;
+  padding: 18px 22px;
+  margin-bottom: 16px;
+}
+
+.csp-status-card.is-hidden {
+  display: none;
+}
+
+.csp-status-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.csp-status-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 2px 0;
+  color: var(--text-muted);
+}
+
+.csp-status-row .csp-status-val {
+  font-weight: 600;
+  color: var(--text-dark, #1a1a1a);
+}
+
 .history-icon {
   width: 42px;
   height: 42px;
@@ -936,6 +967,36 @@ body {
 .field-hint {
   font-size: 10px;
   color: var(--text-muted);
+}
+
+.field-warning.is-hidden {
+  display: none;
+}
+
+.form-group.is-hidden,
+.form-row-2.is-hidden,
+.success-card.is-hidden {
+  display: none;
+}
+
+.csp-success-block {
+  text-align: left;
+  margin-top: 16px;
+}
+
+.csp-success-footnote {
+  margin-top: 16px;
+}
+
+.field-warning {
+  display: block;
+  margin-top: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-yellow);
+  background: var(--color-yellow-light);
+  border-radius: 6px;
 }
 
 .field-error-msg {
@@ -1262,7 +1323,8 @@ body {
 }
 
 .hist-hero .hero-left {
-  background: var(--color-navy);
+  /* background: var(--color-navy); */
+  background-image: url("../images/backgrounds/green-bg.png");
   padding: 32px 40px;
   display: flex;
   flex-direction: column;

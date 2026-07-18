@@ -434,6 +434,12 @@
 		return 2;
 	}
 
+	function babyLabelForAnimal(animal) {
+		if (animal === 'Dog') return 'Puppy';
+		if (animal === 'Cat') return 'Kitten';
+		return 'Baby';
+	}
+
 	function severityClass(value) {
 		if (value === 'Critical') return 'critical';
 		if (value === 'Active') return 'active';
@@ -566,6 +572,9 @@
 			button.setAttribute('aria-pressed', String(button.dataset.animal === state.selectedAnimal));
 		});
 		ui.consultationAgeGroupGrid?.querySelectorAll('[data-agegroup]').forEach((button) => {
+			if (button.dataset.agegroup === 'Baby') {
+				button.textContent = babyLabelForAnimal(state.selectedAnimal);
+			}
 			button.classList.toggle('active', button.dataset.agegroup === state.selectedAgeGroup);
 			button.setAttribute('aria-pressed', String(button.dataset.agegroup === state.selectedAgeGroup));
 		});
@@ -677,7 +686,7 @@
 
 		const rows = [
 			['Pet Type', row.petType],
-			['Age Group', row.ageGroup || 'Any'],
+			['Age Group', row.ageGroup === 'Baby' ? babyLabelForAnimal(row.petType) : (row.ageGroup || 'Any')],
 			['Symptoms', row.symptoms.join(', ')],
 			['Symptoms Duration', row.duration],
 			['Possible Condition', row.condition],

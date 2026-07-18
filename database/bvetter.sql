@@ -54,6 +54,31 @@ INSERT INTO `announcements` (`id`, `title`, `description`, `category`, `event_da
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `visit_types`
+--
+
+CREATE TABLE `visit_types` (
+  `id` int NOT NULL,
+  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_default` tinyint(1) NOT NULL DEFAULT '0',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `visit_types`
+--
+
+INSERT INTO `visit_types` (`id`, `name`, `is_default`, `is_active`, `created_at`, `updated_at`) VALUES
+(1, 'Consultation', 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(2, 'Vaccination', 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(3, 'Deworming', 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(4, 'Castration & Spay', 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `appointments`
 --
 
@@ -515,6 +540,49 @@ INSERT INTO `mass_vaccination_events` (`id`, `event_date`, `barangay`, `vaccine`
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `csp_programs`
+-- (Municipal Castration & Spay Program events. Also created idempotently
+--  at runtime by api/castration-spay/program.php's setupCspTables().)
+--
+
+CREATE TABLE `csp_programs` (
+  `id` int NOT NULL,
+  `title` varchar(150) NOT NULL DEFAULT 'Municipal Castration & Spay Program',
+  `program_date` date DEFAULT NULL,
+  `time_slot` varchar(50) DEFAULT NULL,
+  `venue` varchar(150) DEFAULT NULL,
+  `capacity` int DEFAULT NULL,
+  `status` enum('planning','open','scheduled','completed','cancelled') NOT NULL DEFAULT 'planning',
+  `created_by_user_id` int DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `csp_registrations`
+-- (Owner/pet waiting-list entries for the Castration & Spay Program.
+--  program_id is NULL while the pet is unassigned/waiting.)
+--
+
+CREATE TABLE `csp_registrations` (
+  `id` int NOT NULL,
+  `program_id` int DEFAULT NULL,
+  `owner_id` int NOT NULL,
+  `pet_id` int NOT NULL,
+  `status` enum('pending_schedule','scheduled','completed','cancelled') NOT NULL DEFAULT 'pending_schedule',
+  `queue_number` int DEFAULT NULL,
+  `notes` text,
+  `registered_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `assigned_at` datetime DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `owner_profiles`
 --
 
@@ -882,7 +950,15 @@ ALTER TABLE `appointments`
   ADD KEY `owner_id` (`owner_id`),
   ADD KEY `pet_id` (`pet_id`),
   ADD KEY `veterinarian_id` (`veterinarian_id`),
-  ADD KEY `reviewed_by_user_id` (`reviewed_by_user_id`);
+  ADD KEY `reviewed_by_user_id` (`reviewed_by_user_id`),
+  ADD KEY `appointment_type` (`appointment_type`);
+
+--
+-- Indexes for table `visit_types`
+--
+ALTER TABLE `visit_types`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `name` (`name`);
 
 --
 -- Indexes for table `barangays`
@@ -978,6 +1054,24 @@ ALTER TABLE `mass_vaccination_events`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_mve_date` (`event_date`),
   ADD KEY `idx_mve_status` (`status`);
+
+--
+-- Indexes for table `csp_programs`
+--
+ALTER TABLE `csp_programs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_csp_prog_status` (`status`),
+  ADD KEY `idx_csp_prog_date` (`program_date`);
+
+--
+-- Indexes for table `csp_registrations`
+--
+ALTER TABLE `csp_registrations`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_csp_reg_program` (`program_id`),
+  ADD KEY `idx_csp_reg_owner` (`owner_id`),
+  ADD KEY `idx_csp_reg_status` (`status`),
+  ADD KEY `fk_csp_reg_pet` (`pet_id`);
 
 --
 -- Indexes for table `owner_profiles`
@@ -1088,6 +1182,12 @@ ALTER TABLE `appointments`
   MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
+-- AUTO_INCREMENT for table `visit_types`
+--
+ALTER TABLE `visit_types`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
 -- AUTO_INCREMENT for table `barangays`
 --
 ALTER TABLE `barangays`
@@ -1152,6 +1252,18 @@ ALTER TABLE `lost_found_sightings`
 --
 ALTER TABLE `mass_vaccination_events`
   MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `csp_programs`
+--
+ALTER TABLE `csp_programs`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `csp_registrations`
+--
+ALTER TABLE `csp_registrations`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `owner_profiles`
@@ -1230,7 +1342,16 @@ ALTER TABLE `appointments`
   ADD CONSTRAINT `appointments_ibfk_1` FOREIGN KEY (`owner_id`) REFERENCES `users` (`id`),
   ADD CONSTRAINT `appointments_ibfk_2` FOREIGN KEY (`pet_id`) REFERENCES `pets` (`id`),
   ADD CONSTRAINT `appointments_ibfk_3` FOREIGN KEY (`veterinarian_id`) REFERENCES `users` (`id`),
-  ADD CONSTRAINT `appointments_ibfk_4` FOREIGN KEY (`reviewed_by_user_id`) REFERENCES `users` (`id`);
+  ADD CONSTRAINT `appointments_ibfk_4` FOREIGN KEY (`reviewed_by_user_id`) REFERENCES `users` (`id`),
+  ADD CONSTRAINT `fk_appointments_visit_type` FOREIGN KEY (`appointment_type`) REFERENCES `visit_types` (`name`) ON UPDATE CASCADE;
+
+--
+-- Constraints for table `csp_registrations`
+--
+ALTER TABLE `csp_registrations`
+  ADD CONSTRAINT `fk_csp_reg_program` FOREIGN KEY (`program_id`) REFERENCES `csp_programs` (`id`),
+  ADD CONSTRAINT `fk_csp_reg_owner` FOREIGN KEY (`owner_id`) REFERENCES `users` (`id`),
+  ADD CONSTRAINT `fk_csp_reg_pet` FOREIGN KEY (`pet_id`) REFERENCES `pets` (`id`);
 
 --
 -- Constraints for table `lost_found_claims`

@@ -169,6 +169,129 @@ async function rescheduleAppointment(id, preferredDate, timeSlot) {
     }
 }
 
+/** GET /final-VBETTER/bvetter/api/vet/appointments/visit-types */
+async function getVisitTypes() {
+    const formData = new FormData();
+    formData.append('action', 'visit_types');
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        return { ok: result.success, data: result.data || [], error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, data: [], error: error.message };
+    }
+}
+
+/** POST /final-VBETTER/bvetter/api/vet/appointments/visit-types */
+async function addVisitType(name) {
+    const formData = new FormData();
+    formData.append('action', 'add_visit_type');
+    formData.append('name', name);
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        return { ok: result.success, data: result.data || null, error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, data: null, error: error.message };
+    }
+}
+
+/** DELETE /final-VBETTER/bvetter/api/vet/appointments/visit-types/:id */
+async function removeVisitType(id) {
+    const formData = new FormData();
+    formData.append('action', 'remove_visit_type');
+    formData.append('id', id);
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        return { ok: result.success, error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, error: error.message };
+    }
+}
+
+/* ══════════════════════════════════════════
+   CASTRATION & SPAY PROGRAM
+   ══════════════════════════════════════════ */
+
+async function cspRequest(action, params = {}) {
+    const formData = new FormData();
+    formData.append('action', action);
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) formData.append(key, value);
+    });
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/castration-spay/program.php`, {
+            method: 'POST',
+            body: formData
+        });
+        return await response.json();
+    } catch (error) {
+        return { success: false, message: error.message };
+    }
+}
+
+async function getCspDashboardStats() {
+    const result = await cspRequest('dashboard_stats');
+    return { ok: result.success, data: result.data || {}, error: result.success ? null : result.message };
+}
+
+async function getCspPrograms() {
+    const result = await cspRequest('list_programs');
+    return { ok: result.success, data: result.data || [], error: result.success ? null : result.message };
+}
+
+async function createCspProgram(payload) {
+    const result = await cspRequest('create_program', payload);
+    return { ok: result.success, data: result, error: result.success ? null : result.message };
+}
+
+async function updateCspProgram(payload) {
+    const result = await cspRequest('update_program', payload);
+    return { ok: result.success, error: result.success ? null : result.message };
+}
+
+async function getCspRegistrations(filters = {}) {
+    const result = await cspRequest('list_registrations', filters);
+    return { ok: result.success, data: result.data || [], error: result.success ? null : result.message };
+}
+
+async function assignCspRegistrations(programId, registrationIds) {
+    const result = await cspRequest('assign_registrations', {
+        program_id: programId,
+        registration_ids: JSON.stringify(registrationIds)
+    });
+    return { ok: result.success, data: result, error: result.success ? null : result.message };
+}
+
+async function unassignCspRegistration(registrationId) {
+    const result = await cspRequest('unassign', { registration_id: registrationId });
+    return { ok: result.success, error: result.success ? null : result.message };
+}
+
+async function notifyCspProgram(programId) {
+    const result = await cspRequest('notify_program', { program_id: programId });
+    return { ok: result.success, message: result.message, error: result.success ? null : result.message };
+}
+
+async function cancelCspRegistration(registrationId) {
+    const result = await cspRequest('cancel', { registration_id: registrationId });
+    return { ok: result.success, error: result.success ? null : result.message };
+}
+
 /** DELETE /final-VBETTER/bvetter/api/vet/appointments/:id */
 async function deleteAppointment(id) {
     const formData = new FormData();
@@ -581,6 +704,18 @@ window.VetAPI = {
     updateAppointmentStatus,
     rescheduleAppointment,
     deleteAppointment,
+    getVisitTypes,
+    addVisitType,
+    removeVisitType,
+    getCspDashboardStats,
+    getCspPrograms,
+    createCspProgram,
+    updateCspProgram,
+    getCspRegistrations,
+    assignCspRegistrations,
+    unassignCspRegistration,
+    notifyCspProgram,
+    cancelCspRegistration,
     getPatients,
     getPatientById,
     createPatient,

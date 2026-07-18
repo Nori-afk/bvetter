@@ -1118,10 +1118,11 @@ function closeChat() {
   }
 
   function askAgeGroup() {
+    var babyLabel = cState.petType === 'Dog' ? 'Puppy' : cState.petType === 'Cat' ? 'Kitten' : 'Baby';
     addBotBubble(cMsgs, 'What age group is your pet?', 500)
       .then(function () {
-        showChips(cOpts, ['Baby', 'Young', 'Adult', 'Senior', 'Not sure'], function (ageGroup) {
-          cState.ageGroup = ageGroup;
+        showChips(cOpts, [babyLabel, 'Young', 'Adult', 'Senior', 'Not sure'], function (ageGroup) {
+          cState.ageGroup = ageGroup === babyLabel ? 'Baby' : ageGroup;
           addUserBubble(cMsgs, ageGroup);
           clearOptions(cOpts);
           cState.symptoms = [];

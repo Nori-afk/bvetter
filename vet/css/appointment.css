@@ -65,6 +65,37 @@ body {
     padding: 30px 36px;
     position: relative;
     overflow: hidden;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.settings-btn {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.28);
+    color: #fff;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 10px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.settings-btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-1px); }
+
+.settings-btn i {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2;
 }
 
 .header::before {
@@ -1430,6 +1461,83 @@ body {
 /* Modal footer */
 .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 6px; }
 .two-actions  { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+
+/* Visit type settings */
+.visit-type-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 260px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+}
+
+.visit-type-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border: 1px solid #e8eef6;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.visit-type-row span { font-size: 0.88rem; font-weight: 600; color: var(--appt-navy); }
+
+.visit-type-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #94A3B8;
+    margin-left: 8px;
+}
+
+.visit-type-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #c0392b;
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    border-radius: 6px;
+}
+
+.visit-type-remove:hover { background: #ffe8e8; }
+.visit-type-remove i { width: 15px; height: 15px; }
+
+.visit-type-input {
+    flex: 1;
+    padding:       10px 12px;
+    border:        1px solid #d0d8ea;
+    border-radius: 10px;
+    font:          inherit;
+    font-size:     0.86rem;
+    outline: none;
+    transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+.visit-type-input:focus {
+    border-color: var(--appt-blue);
+    box-shadow: 0 0 0 3px rgba(30, 97, 167, 0.12);
+}
+
+.visit-type-input.invalid { border-color: #c0392b; }
+
+.add-visit-type-form {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.visit-type-error {
+    display: block;
+    color: #c0392b;
+    font-size: 0.76rem;
+    margin-top: 6px;
+    min-height: 0;
+}
 
 /* Buttons */
 .btn {

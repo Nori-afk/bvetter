@@ -283,6 +283,72 @@ function listAppointments($pdo, $data)
     ]);
 }
 
+function listVisitTypes($pdo)
+{
+    $stmt = $pdo->query('SELECT id, name, is_default FROM visit_types WHERE is_active = 1 ORDER BY id ASC');
+    respond(200, [
+        'success' => true,
+        'data' => array_map(function ($row) {
+            return [
+                'id' => (int) $row['id'],
+                'name' => $row['name'],
+                'is_default' => (bool) $row['is_default'],
+            ];
+        }, $stmt->fetchAll())
+    ]);
+}
+
+function addVisitType($pdo, $data)
+{
+    $name = clean($data['name'] ?? '');
+    if ($name === '') {
+        respond(422, ['success' => false, 'message' => 'Please enter a visit type.']);
+    }
+
+    $stmt = $pdo->prepare('SELECT id, is_active FROM visit_types WHERE name = :name LIMIT 1');
+    $stmt->execute([':name' => $name]);
+    $existing = $stmt->fetch();
+
+    if ($existing) {
+        if (!$existing['is_active']) {
+            $pdo->prepare('UPDATE visit_types SET is_active = 1 WHERE id = :id')
+                ->execute([':id' => $existing['id']]);
+            respond(200, ['success' => true, 'data' => ['id' => (int) $existing['id'], 'name' => $name, 'is_default' => false]]);
+        }
+        respond(422, ['success' => false, 'message' => 'That visit type already exists.']);
+    }
+
+    $insert = $pdo->prepare('INSERT INTO visit_types (name) VALUES (:name)');
+    $insert->execute([':name' => $name]);
+
+    respond(201, [
+        'success' => true,
+        'data' => ['id' => (int) $pdo->lastInsertId(), 'name' => $name, 'is_default' => false]
+    ]);
+}
+
+function removeVisitType($pdo, $data)
+{
+    $id = (int) ($data['id'] ?? 0);
+    if ($id <= 0) {
+        respond(422, ['success' => false, 'message' => 'Invalid visit type id.']);
+    }
+
+    $stmt = $pdo->prepare('SELECT is_default FROM visit_types WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => $id]);
+    $type = $stmt->fetch();
+
+    if (!$type) {
+        respond(404, ['success' => false, 'message' => 'Visit type not found.']);
+    }
+    if ($type['is_default']) {
+        respond(422, ['success' => false, 'message' => 'Default visit types cannot be removed.']);
+    }
+
+    $pdo->prepare('UPDATE visit_types SET is_active = 0 WHERE id = :id')->execute([':id' => $id]);
+    respond(200, ['success' => true]);
+}
+
 function createAppointment($pdo, $data)
 {
     $appointmentType = clean($data['appointment_type'] ?? $data['visit_type'] ?? '');
@@ -297,6 +363,12 @@ function createAppointment($pdo, $data)
             'success' => false,
             'message' => 'Appointment type, date, and time slot are required.'
         ]);
+    }
+
+    $typeCheck = $pdo->prepare('SELECT id FROM visit_types WHERE name = :name AND is_active = 1 LIMIT 1');
+    $typeCheck->execute([':name' => $appointmentType]);
+    if (!$typeCheck->fetch()) {
+        respond(422, ['success' => false, 'message' => 'Please select a valid visit type.']);
     }
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $preferredDate) || strtotime($preferredDate) === false) {
         respond(422, ['success' => false, 'message' => 'A valid date is required.']);
@@ -692,6 +764,9 @@ try {
     if ($action === 'vet_reviews') getVetReviews($pdo, $input);
     if ($action === 'get_total') getTotalAppointment($pdo, $input);
     if ($action === 'common_cases') getCommonCases($pdo, $input);
+    if ($action === 'visit_types') listVisitTypes($pdo);
+    if ($action === 'add_visit_type') addVisitType($pdo, $input);
+    if ($action === 'remove_visit_type') removeVisitType($pdo, $input);
 
     respond(400, [
         'success' => false,

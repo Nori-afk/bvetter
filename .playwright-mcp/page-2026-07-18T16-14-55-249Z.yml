@@ -1,0 +1,168 @@
+- generic [ref=f5e1]:
+  - generic [ref=f5e2]:
+    - complementary [ref=f5e3]:
+      - img "VBetter Logo" [ref=f5e7]
+      - generic [ref=f5e127]:
+        - navigation [ref=f5e128]:
+          - link "Dashboard Dashboard" [ref=f5e129] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/index.html
+            - img "Dashboard" [ref=f5e130]
+            - generic [ref=f5e131]: Dashboard
+          - link "Appointment Management Appointment Management" [ref=f5e132] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/appointment.html
+            - img "Appointment Management" [ref=f5e133]
+            - generic [ref=f5e134]: Appointment Management
+          - link "Patient Records Patient Records" [ref=f5e135] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/patient-records.html
+            - img "Patient Records" [ref=f5e136]
+            - generic [ref=f5e137]: Patient Records
+          - link "Report Report" [ref=f5e138] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/report.html
+            - img "Report" [ref=f5e139]
+            - generic [ref=f5e140]: Report
+          - link "Disease Analytics Disease Analytics" [ref=f5e141] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/disease-analytics.html
+            - img "Disease Analytics" [ref=f5e142]
+            - generic [ref=f5e143]: Disease Analytics
+          - link "Lost and Found Lost And Found" [ref=f5e144] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/lost-and-found.html
+            - img "Lost and Found" [ref=f5e145]
+            - generic [ref=f5e146]: Lost And Found
+          - link "Chatbot Management Chatbot Management" [ref=f5e147] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/chatbot-management.html
+            - img "Chatbot Management" [ref=f5e148]
+            - generic [ref=f5e149]: Chatbot Management
+          - link "Mass Vaccination Mass Vaccination" [ref=f5e150] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/mass-vaccination.html
+            - img "Mass Vaccination" [ref=f5e151]
+            - generic [ref=f5e152]: Mass Vaccination
+          - link "Castration & Spay Program Castration & Spay Program" [ref=f5e153] [cursor=pointer]:
+            - /url: /final-VBETTER/bvetter/vet/html/castration-spay.html
+            - img "Castration & Spay Program" [ref=f5e154]
+            - generic [ref=f5e155]: Castration & Spay Program
+        - generic [ref=f5e156]:
+          - article "Kizea Igaya profile" [ref=f5e157] [cursor=pointer]:
+            - img "Kizea Igaya" [ref=f5e158]
+            - generic [ref=f5e159]:
+              - strong [ref=f5e160]: Kizea Igaya
+              - generic [ref=f5e161]: Vet III
+          - button "Log Out Log Out" [ref=f5e162] [cursor=pointer]:
+            - img "Log Out" [ref=f5e163]
+            - generic [ref=f5e164]: Log Out
+    - main [ref=f5e12]:
+      - generic [ref=f5e13]:
+        - generic [ref=f5e14]:
+          - heading "Castration & Spay Program" [level=1] [ref=f5e15]
+          - paragraph [ref=f5e16]: Owners register interest; batch them into a municipal program date a couple of times a year.
+        - button "Create Program" [active] [ref=f5e17] [cursor=pointer]
+      - region "Castration & Spay KPIs" [ref=f5e19]:
+        - article [ref=f5e20]:
+          - heading "Total Waiting Registrations" [level=2] [ref=f5e21]
+          - paragraph [ref=f5e22]: "1"
+        - article [ref=f5e23]:
+          - heading "Upcoming Program" [level=2] [ref=f5e24]
+          - paragraph [ref=f5e25]: Not scheduled
+        - article [ref=f5e26]:
+          - heading "Capacity" [level=2] [ref=f5e27]
+          - paragraph [ref=f5e28]: —
+        - article [ref=f5e29]:
+          - heading "Assigned Pets" [level=2] [ref=f5e30]
+          - paragraph [ref=f5e31]: "0"
+        - article [ref=f5e32]:
+          - heading "Unassigned Pets" [level=2] [ref=f5e33]
+          - paragraph [ref=f5e34]: "1"
+      - generic [ref=f5e35]:
+        - generic [ref=f5e36]:
+          - heading "Programs" [level=3] [ref=f5e37]
+          - generic [ref=f5e38]: Create a program, then assign waiting registrations to it below.
+        - table [ref=f5e40]:
+          - rowgroup [ref=f5e41]:
+            - row [ref=f5e42]:
+              - columnheader "Title" [ref=f5e43]
+              - columnheader "Date" [ref=f5e44]
+              - columnheader "Venue" [ref=f5e45]
+              - columnheader "Assigned / Capacity" [ref=f5e46]
+              - columnheader "Status" [ref=f5e47]
+              - columnheader "Actions" [ref=f5e48]
+          - rowgroup [ref=f5e49]:
+            - row [ref=f5e50]:
+              - cell "No programs yet. Create one to get started." [ref=f5e51]
+      - generic [ref=f5e52]:
+        - generic [ref=f5e53]:
+          - heading "Waiting List" [level=3] [ref=f5e54]
+          - generic [ref=f5e55]:
+            - combobox "Program to assign selected registrations to" [ref=f5e56]:
+              - option "No open program — create one first" [selected]
+            - button "Assign Selected" [ref=f5e57] [cursor=pointer]
+        - table [ref=f5e59]:
+          - rowgroup [ref=f5e60]:
+            - row [ref=f5e61]:
+              - columnheader [ref=f5e62]:
+                - checkbox "Select all waiting registrations" [ref=f5e63]
+              - columnheader "Pet" [ref=f5e64]
+              - columnheader "Owner" [ref=f5e65]
+              - columnheader "Registered" [ref=f5e66]
+          - rowgroup [ref=f5e67]:
+            - row [ref=f5e68]:
+              - cell [ref=f5e69]:
+                - checkbox [ref=f5e70]
+              - cell "Bantay (Dog)" [ref=f5e71]
+              - cell "Test Owner CSP" [ref=f5e72]
+              - cell "Jul 19, 2026" [ref=f5e73]
+      - generic [ref=f5e74]:
+        - generic [ref=f5e75]:
+          - heading "Assigned Roster" [level=3] [ref=f5e76]
+          - generic [ref=f5e77]:
+            - combobox "Program roster to view" [ref=f5e78]:
+              - option "No programs yet" [selected]
+            - button "Send Email Notifications" [ref=f5e79] [cursor=pointer]
+        - table [ref=f5e81]:
+          - rowgroup [ref=f5e82]:
+            - row [ref=f5e83]:
+              - 'columnheader "Queue #" [ref=f5e84]'
+              - columnheader "Pet" [ref=f5e85]
+              - columnheader "Owner" [ref=f5e86]
+              - columnheader "Status" [ref=f5e87]
+              - columnheader "Actions" [ref=f5e88]
+          - rowgroup [ref=f5e89]:
+            - row [ref=f5e90]:
+              - cell "Select a program above." [ref=f5e91]
+  - dialog [ref=f5e92]:
+    - generic [ref=f5e93]:
+      - button "Close modal" [ref=f5e94] [cursor=pointer]: ×
+      - generic [ref=f5e99]:
+        - heading "Create Program" [level=2] [ref=f5e100]
+        - paragraph [ref=f5e101]: Municipal Castration & Spay Program event
+      - generic [ref=f5e102]:
+        - generic [ref=f5e103]:
+          - generic [ref=f5e104]: TITLE
+          - textbox "TITLE" [ref=f5e105]:
+            - /placeholder: Municipal Castration & Spay Program
+        - generic [ref=f5e106]:
+          - generic [ref=f5e107]:
+            - generic [ref=f5e108]: DATE
+            - textbox "DATE" [ref=f5e109]
+          - generic [ref=f5e110]:
+            - generic [ref=f5e111]: TIME
+            - textbox "TIME" [ref=f5e112]:
+              - /placeholder: e.g. 8:00 AM
+        - generic [ref=f5e113]:
+          - generic [ref=f5e114]:
+            - generic [ref=f5e115]: VENUE
+            - textbox "VENUE" [ref=f5e116]:
+              - /placeholder: Municipal Veterinary Office
+          - generic [ref=f5e117]:
+            - generic [ref=f5e118]: CAPACITY *
+            - spinbutton "CAPACITY *" [ref=f5e119]
+        - generic [ref=f5e120]:
+          - generic [ref=f5e121]: STATUS
+          - combobox "STATUS" [ref=f5e122]:
+            - option "Planning" [selected]
+            - option "Open"
+            - option "Scheduled"
+            - option "Completed"
+            - option "Cancelled"
+          - paragraph [ref=f5e123]: Date and venue are required before marking a program Scheduled.
+        - generic [ref=f5e124]:
+          - button "Cancel" [ref=f5e125] [cursor=pointer]
+          - button "Save Program" [ref=f5e126] [cursor=pointer]

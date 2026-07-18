@@ -910,6 +910,61 @@ function buildNewVisitRecord(record) {
 	};
 }
 
+function renderPetEntryFields(index, data = {}, removable = false) {
+	const age = parseAge(data.age);
+	return `
+		<div class="pet-entry" data-pet-entry>
+			<div class="pet-entry-head">
+				<span class="pet-entry-label">Pet ${index + 1}</span>
+				${removable ? `<button type="button" class="pet-entry-remove" data-action="remove-pet-entry" aria-label="Remove this pet">${ICONS.trash} Remove</button>` : ''}
+			</div>
+			<div class="form-grid">
+				<div class="field span-2">
+					<label class="field-label">PET NAME</label>
+					<input class="form-input" data-field="petName" required placeholder="e.g. Buddy" value="${escapeHtml(data.petName || '')}">
+				</div>
+				<div class="field">
+					<label class="field-label">SPECIES</label>
+					<select class="form-input" data-field="species">
+						<option ${(data.species || 'Canine') === 'Canine' ? 'selected' : ''}>Canine</option>
+						<option ${data.species === 'Feline' ? 'selected' : ''}>Feline</option>
+						<option ${data.species === 'Avian' ? 'selected' : ''}>Avian</option>
+						<option ${data.species === 'Exotic' ? 'selected' : ''}>Exotic</option>
+					</select>
+				</div>
+				<div class="field">
+					<label class="field-label">BREED</label>
+					<input class="form-input" data-field="breed" placeholder="e.g. Golden Retriever" value="${escapeHtml(data.breed || '')}">
+				</div>
+				<div class="field">
+					<label class="field-label">AGE</label>
+					<div class="field-row">
+						<input class="form-input" data-field="ageValue" type="number" min="0" step="1" placeholder="e.g. 2" value="${escapeHtml(age.value)}">
+						<select class="form-input" data-field="ageUnit">
+							${['Years', 'Months'].map((item) => `<option ${age.unit === item ? 'selected' : ''}>${item}</option>`).join('')}
+						</select>
+					</div>
+				</div>
+				<div class="field">
+					<label class="field-label">SEX</label>
+					<select class="form-input" data-field="sex">
+						<option ${data.sex === 'Male' ? 'selected' : ''}>Male</option>
+						<option ${(data.sex || 'Female') === 'Female' ? 'selected' : ''}>Female</option>
+					</select>
+				</div>
+				<div class="field">
+					<label class="field-label">WEIGHT</label>
+					<input class="form-input" data-field="weight" placeholder="e.g. 12.5 kg" value="${escapeHtml(data.weight || '')}">
+				</div>
+				<div class="field">
+					<label class="field-label">COLOR / MARKINGS</label>
+					<input class="form-input" data-field="colorMarkings" placeholder="e.g. Golden coat, white chest" value="${escapeHtml(data.colorMarkings || '')}">
+				</div>
+			</div>
+		</div>
+	`;
+}
+
 function renderAdd(record) {
 	const data = record || buildBlankRecord();
 	const hasContext = Boolean(record);
@@ -945,9 +1000,10 @@ function renderAdd(record) {
 						</div>
 						<div>
 							<h3 class="form-card-title">Pet Information</h3>
-							<p class="form-card-sub">Physical and identification details</p>
+							<p class="form-card-sub">${hasContext ? 'Physical and identification details' : 'Registering pets for the same owner? Add them all here in one go.'}</p>
 						</div>
 					</div>
+					${hasContext ? `
 					<div class="form-grid">
 						<div class="field span-2">
 							<label class="field-label" for="pet-name">PET NAME</label>
@@ -991,6 +1047,12 @@ function renderAdd(record) {
 							<input class="form-input" id="color-markings" name="colorMarkings" placeholder="e.g. Golden coat, white chest" value="${escapeHtml(data.colorMarkings)}">
 						</div>
 					</div>
+					` : `
+					<div id="pet-entries-list">
+						${renderPetEntryFields(0, {}, false)}
+					</div>
+					<button type="button" id="add-pet-entry-btn" class="btn btn-soft btn-add-pet">+ Add Another Pet</button>
+					`}
 				</article>
 
 				<!-- Owner Information -->
@@ -1179,12 +1241,15 @@ function renderDetail(record) {
 	`;
 }
 
-function renderSuccessModal(record) {
+function renderSuccessModal(record, extraCount = 0) {
+	const message = extraCount > 0
+		? `${escapeHtml(record.petName)} and ${extraCount} other pet${extraCount > 1 ? 's' : ''} have been added to the patient records list.`
+		: `${escapeHtml(record.petName)} has been added to the patient records list.`;
 	return `
 		<div class="success-banner">
 			<div class="success-mark">${ICONS.check}</div>
-			<h2 id="records-modal-title">Record Added Successfully</h2>
-			<p class="muted">${escapeHtml(record.petName)} has been added to the patient records list.</p>
+			<h2 id="records-modal-title">${extraCount > 0 ? 'Patients Added Successfully' : 'Record Added Successfully'}</h2>
+			<p class="muted">${message}</p>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-soft" data-modal-action="go-list">Back to Records</button>
 				<button type="button" class="btn btn-primary" data-modal-action="go-view" data-id="${record.id}">View Patient</button>
@@ -1413,16 +1478,52 @@ function getFormData(form) {
 	};
 }
 
+function getPetEntriesData(form) {
+	return Array.from(form.querySelectorAll('[data-pet-entry]')).map((entry) => {
+		const fieldValue = (field) => entry.querySelector(`[data-field="${field}"]`)?.value ?? '';
+		return {
+			petName: fieldValue('petName').trim(),
+			species: fieldValue('species').trim(),
+			breed: fieldValue('breed').trim(),
+			sex: fieldValue('sex').trim(),
+			weight: fieldValue('weight').trim(),
+			colorMarkings: fieldValue('colorMarkings').trim(),
+			age: formatAge(fieldValue('ageValue'), fieldValue('ageUnit'))
+		};
+	}).filter((pet) => pet.petName);
+}
+
 async function handleAddSubmit(event) {
 	event.preventDefault();
-	const data = getFormData(event.currentTarget);
+	const form = event.currentTarget;
 	const patientId = state.selectedId || 0;
 
+	if (patientId) {
+		const data = getFormData(form);
+		try {
+			const result = await patientRequest('save', { id: patientId, ...data });
+			await loadRecords();
+			const record = getRecordById(Number(result.id || patientId));
+			openModal(renderSuccessModal(record || { ...buildBlankRecord(), ...data, id: result.id || patientId }));
+		} catch (error) {
+			alert(error.message || 'Failed to save patient record.');
+		}
+		return;
+	}
+
+	const petEntries = getPetEntriesData(form);
+	if (petEntries.length === 0) {
+		alert('Please enter at least one pet name.');
+		return;
+	}
+
+	const sharedData = getFormData(form);
 	try {
-		const result = await patientRequest('save', patientId ? { id: patientId, ...data } : data);
+		const result = await patientRequest('save_batch', { ...sharedData, pets: petEntries });
 		await loadRecords();
-		const record = getRecordById(Number(result.id || patientId));
-		openModal(renderSuccessModal(record || { ...buildBlankRecord(), ...data, id: result.id || patientId }));
+		const ids = Array.isArray(result.ids) && result.ids.length ? result.ids : [result.id];
+		const record = getRecordById(Number(ids[0]));
+		openModal(renderSuccessModal(record || { ...buildBlankRecord(), ...sharedData, ...petEntries[0], id: ids[0] }, ids.length - 1));
 	} catch (error) {
 		alert(error.message || 'Failed to save patient record.');
 	}
@@ -1481,6 +1582,27 @@ function bindModeSpecificHandlers() {
 	const addVaccineTypeBtn = document.getElementById('add-vaccine-type-btn');
 	if (addVaccineTypeBtn) {
 		addVaccineTypeBtn.addEventListener('click', openAddVaccineTypeModal);
+	}
+
+	const petEntriesList = document.getElementById('pet-entries-list');
+	const addPetEntryBtn = document.getElementById('add-pet-entry-btn');
+	if (petEntriesList && addPetEntryBtn) {
+		addPetEntryBtn.addEventListener('click', () => {
+			const index = petEntriesList.querySelectorAll('[data-pet-entry]').length;
+			petEntriesList.insertAdjacentHTML('beforeend', renderPetEntryFields(index, {}, true));
+			const newEntry = petEntriesList.lastElementChild;
+			newEntry?.querySelector('[data-field="petName"]')?.focus();
+		});
+
+		petEntriesList.addEventListener('click', (event) => {
+			const removeBtn = event.target.closest('[data-action="remove-pet-entry"]');
+			if (!removeBtn) return;
+			removeBtn.closest('[data-pet-entry]')?.remove();
+			petEntriesList.querySelectorAll('[data-pet-entry]').forEach((entry, idx) => {
+				const label = entry.querySelector('.pet-entry-label');
+				if (label) label.textContent = `Pet ${idx + 1}`;
+			});
+		});
 	}
 }
 

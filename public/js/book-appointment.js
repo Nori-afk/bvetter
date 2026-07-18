@@ -437,6 +437,53 @@ async function loadRecentHistory() {
     console.error('Failed to load recent history:', err);
   }
 }
+
+/* ── Castration & Spay Program status card ───── */
+async function loadCspStatus() {
+  const card = document.getElementById('cspStatusCard');
+  if (!card) return;
+
+  try {
+    const session = JSON.parse(
+      sessionStorage.getItem('vbetter_session') ||
+      sessionStorage.getItem('bvetter_user') ||
+      'null'
+    );
+    const ownerId = session?.userId || session?.id || '';
+    if (!ownerId) return;
+
+    const result = await api.getCspStatus(ownerId);
+    if (!result.success || !result.registration) {
+      card.classList.add('is-hidden');
+      return;
+    }
+
+    const reg = result.registration;
+    const rows = [];
+    if (reg.status === 'scheduled') {
+      rows.push(['Status', 'Scheduled']);
+      rows.push(['Program Date', reg.program_date ? formatDate(reg.program_date) : 'To Be Announced']);
+      rows.push(['Time', reg.time_slot || 'TBA']);
+      rows.push(['Venue', reg.venue || 'TBA']);
+      rows.push(['Queue Number', reg.queue_number ?? '—']);
+    } else {
+      rows.push(['Status', 'Pending Schedule']);
+      rows.push(['Current Waiting List', `${result.waiting_count} Pets Registered`]);
+      rows.push(['Program Date', 'To Be Announced']);
+    }
+
+    card.innerHTML = `
+      <div class="csp-status-title">Municipal Castration &amp; Spay Program — ${escapeHtml(reg.pet_name || '')}</div>
+      ${rows.map(([label, val]) => `
+        <div class="csp-status-row"><span>${label}:</span><span class="csp-status-val">${escapeHtml(String(val))}</span></div>
+      `).join('')}
+    `;
+    card.classList.remove('is-hidden');
+  } catch (err) {
+    console.error('Failed to load Castration & Spay status:', err);
+  }
+}
+
 async function submitReview(appointmentId, rating, comment) {
   try {
     const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
@@ -817,6 +864,7 @@ function closeReviewsModal() {
 
 fetchVets();
 loadRecentHistory();
+loadCspStatus();
 
 function getAverageRate(average) {
   if (average >= 5.0) {
@@ -977,10 +1025,12 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       if (!validateRequiredField('petSex',   "Please select your pet's sex."))    valid = false;
       // petVaccDate is optional — not validated
     } else if (n === 3) {
-      if (!validateRequiredField('visitType', 'Please select the type of visit.'))                        valid = false;
-      if (!validateRequiredField('apptDate',  'Please select a preferred date.'))                          valid = false;
-      if (!validateTimeSlotField())                                                                        valid = false;
-      if (!validateRequiredField('apptNotes', "Please describe your pet's condition or reason for visit.")) valid = false;
+      if (!validateRequiredField('visitType', 'Please select the type of visit.')) valid = false;
+      if (!isCspMode()) {
+        if (!validateRequiredField('apptDate', 'Please select a preferred date.'))                          valid = false;
+        if (!validateTimeSlotField())                                                                        valid = false;
+        if (!validateRequiredField('apptNotes', "Please describe your pet's condition or reason for visit.")) valid = false;
+      }
     }
 
     if (!valid) {
@@ -1006,7 +1056,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       if (el) el.style.display = (i === n) ? 'block' : 'none';
     }
     updateStepper(n);
-    if (n === 3) refreshStep3Slots();
+    if (n === 3) { toggleCspMode(); if (!isCspMode()) refreshStep3Slots(); }
     if (n === 4) populateReview();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -1065,6 +1115,54 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
 
   document.getElementById('apptDate')?.addEventListener('change', refreshStep3Slots);
 
+  /* ── Populate "Type of Visit" from the vet/admin-managed visit_types
+     table so new types added in Appointment Management show up here
+     without editing this page. ── */
+  async function populateVisitTypes() {
+    const select = document.getElementById('visitType');
+    if (!select) return;
+    try {
+      const result = await api.getVisitTypes();
+      if (!result.success || !Array.isArray(result.data) || !result.data.length) return;
+      const current = select.value;
+      const names = result.data.map((type) => type.name);
+      select.innerHTML = names.map((name) => `<option>${name}</option>`).join('');
+      if (names.includes(current)) select.value = current;
+      toggleDewormingNotice();
+      toggleCspMode();
+    } catch (err) {
+      // Keep the static fallback options already in the markup
+    }
+  }
+  populateVisitTypes();
+
+  /* ── Show the age-limit notice only for Deworming visits ── */
+  function toggleDewormingNotice() {
+    const visitType = document.getElementById('visitType')?.value || '';
+    document.getElementById('dewormingNotice')?.classList.toggle('is-hidden', visitType !== 'Deworming');
+  }
+  document.getElementById('visitType')?.addEventListener('change', toggleDewormingNotice);
+  toggleDewormingNotice();
+
+  /* ── Castration & Spay is a waiting-list registration, not a scheduled
+     visit — swap the date/time-slot step for a static notice and make
+     "Additional Details" optional whenever it's selected. ── */
+  function isCspMode() {
+    return (document.getElementById('visitType')?.value || '') === 'Castration & Spay';
+  }
+
+  function toggleCspMode() {
+    const cspMode = isCspMode();
+    document.getElementById('apptDateGroup')?.classList.toggle('is-hidden', cspMode);
+    document.getElementById('apptTimeGroup')?.classList.toggle('is-hidden', cspMode);
+    document.getElementById('cspProgramNotice')?.classList.toggle('is-hidden', !cspMode);
+
+    const notesLabel = document.getElementById('apptNotesLabel');
+    if (notesLabel) notesLabel.textContent = cspMode ? 'Additional Details (optional)' : 'Additional Details *';
+  }
+  document.getElementById('visitType')?.addEventListener('change', toggleCspMode);
+  toggleCspMode();
+
   /* ── Submit appointment ──────────────────── */
   async function submitAppointment() {
 const selectedSlot = document.querySelector('.slot-btn.selected');
@@ -1095,6 +1193,26 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
       notes:                document.getElementById('apptNotes')?.value.trim()    || ''
     };
 
+    if (isCspMode()) {
+      const required = ['owner_name','owner_contact','owner_email','pet_name','pet_type'];
+      if (required.some(k => !payload[k])) {
+        alert('Please complete all required fields.');
+        return;
+      }
+      try {
+        const result = await api.registerCspProgram(payload);
+        if (!result.success) {
+          alert(result.message || 'Failed to submit registration.');
+          return;
+        }
+        showCspSuccess(result.waiting_count);
+        goStep(5);
+      } catch (error) {
+        alert('Failed to submit registration. Please try again.');
+      }
+      return;
+    }
+
     const required = [
       'owner_name','owner_contact','owner_email',
       'pet_name','pet_type','appointment_type',
@@ -1117,10 +1235,25 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
         alert(result.message || 'Failed to book appointment.');
         return;
       }
+      showDefaultSuccess();
       goStep(5);
     } catch (error) {
       alert('Failed to book appointment. Please try again.');
     }
+  }
+
+  /* ── Toggle step-5 success card between the normal appointment
+     confirmation and the Castration & Spay waiting-list confirmation ── */
+  function showDefaultSuccess() {
+    document.getElementById('step5Default')?.classList.remove('is-hidden');
+    document.getElementById('step5Csp')?.classList.add('is-hidden');
+  }
+
+  function showCspSuccess(waitingCount) {
+    document.getElementById('step5Default')?.classList.add('is-hidden');
+    document.getElementById('step5Csp')?.classList.remove('is-hidden');
+    const countEl = document.getElementById('csp-waiting-count');
+    if (countEl) countEl.textContent = `${waitingCount ?? '—'} Pets Registered`;
   }
 
   /* ── Header stepper update ───────────────── */
@@ -1182,6 +1315,12 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     document.getElementById('rv-pettype')  .textContent = selText('petType');
     document.getElementById('rv-ageSex')   .textContent = val('petAge') + ' / ' + selText('petSex');
     document.getElementById('rv-visitType').textContent = selText('visitType');
+
+    if (isCspMode()) {
+      document.getElementById('rv-date').textContent = 'To Be Announced';
+      document.getElementById('rv-time').textContent = 'To Be Announced';
+      return;
+    }
 
     const rawDate = val('apptDate');
     if (rawDate && rawDate !== '—') {
