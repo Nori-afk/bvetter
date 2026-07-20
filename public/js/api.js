@@ -51,6 +51,7 @@ const CHATBOT_ENDPOINT = `${API_BASE_REG}/chatbot/chatbot.php`;
 const ANNOUNCEMENTS_ENDPOINT = `${API_BASE_REG}/announcements/announcements.php`;
 const SITE_SETTINGS_ENDPOINT = `${API_BASE_REG}/site-settings/site-settings.php`;
 const NOTIFICATIONS_ENDPOINT = `${API_BASE_REG}/notifications/notifications.php`;
+const MY_PETS_ENDPOINT = `${API_BASE_REG}/pets/my_pets.php`;
 
 /* ── Auth Header Builder ──────────────────────
    Reads JWT token saved on login.
@@ -86,6 +87,19 @@ function profileRequest(action, data = {}) {
     body: JSON.stringify({
       action,
       user_id: data.user_id || data.userId || session?.userId || session?.id || 0,
+      ...data
+    })
+  }).then(r => r.json());
+}
+
+function myPetsRequest(action, data = {}) {
+  const session = currentSession();
+  return fetch(MY_PETS_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action,
+      owner_id: data.owner_id || data.ownerId || session?.userId || session?.id || 0,
       ...data
     })
   }).then(r => r.json());
@@ -642,6 +656,24 @@ forgotPassword: (email) => {
    */
   changePassword: (data) =>
     profileRequest('password', data),
+
+
+  /* ══════════════════════════════════════════
+     MY PETS
+     ══════════════════════════════════════════ */
+
+  /**
+   * Get all pets registered under the current owner's account.
+   */
+  getMyPets: () =>
+    myPetsRequest('list'),
+
+  /**
+   * Get a single pet's full profile + visit/vaccination history.
+   * @param {number|string} petId
+   */
+  getMyPet: (petId) =>
+    myPetsRequest('detail', { pet_id: petId }),
 
 
   /* ══════════════════════════════════════════

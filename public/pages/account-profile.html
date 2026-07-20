@@ -35,6 +35,7 @@
       <li><a href="landing.html">Home</a></li>
       <li><a href="book-appointment.html">Book An Appointment</a></li>
       <li><a href="lost-found.html">Lost And Found</a></li>
+      <li><a href="my-pets.html">My Pets</a></li>
     </ul>
   </div>
   <div class="nav-right nav-right-auth">
@@ -128,6 +129,20 @@
         </div>
       </div>
 
+      <!-- ── MY PETS ─────────────────────────── -->
+      <div class="pets-section">
+        <div class="section-heading pets-section-heading">
+          <div class="section-title">My Pets</div>
+          <a href="my-pets.html" class="pets-viewall-link">
+            View All My Pets
+            <img src="../images/icons/icon-right-arrow.svg" alt="" class="pets-viewall-arrow"/>
+          </a>
+        </div>
+        <div class="pets-row" id="petsRow">
+          <p class="pets-empty">Loading your pets&hellip;</p>
+        </div>
+      </div>
+
       <!-- ── MAIN CONTENT ───────────────────── -->
       <div class="content-layout">
 
@@ -178,6 +193,17 @@
               <div class="qa-text">
                 <div class="qa-title">Search Found Pets</div>
                 <div class="qa-desc">Browse database of recovered pets</div>
+              </div>
+              <img src="../images/icons/icon-right-arrow.svg" alt="" class="qa-arrow"/>
+            </div>
+
+            <div class="quick-action-card" onclick="window.location.href='my-pets.html'">
+              <div class="qa-icon-wrap teal-bg">
+                <img src="../images/icons/icon-pawprint.svg" alt="" class="qa-icon"/>
+              </div>
+              <div class="qa-text">
+                <div class="qa-title">View My Pets</div>
+                <div class="qa-desc">Track health &amp; visit history</div>
               </div>
               <img src="../images/icons/icon-right-arrow.svg" alt="" class="qa-arrow"/>
             </div>

@@ -1,0 +1,72 @@
+- generic [active] [ref=f6e1]:
+  - navigation [ref=f6e2]:
+    - generic [ref=f6e3]:
+      - img "Baliwag City Vet" [ref=f6e4]
+      - list [ref=f6e5]:
+        - listitem [ref=f6e6]:
+          - link "Home" [ref=f6e7] [cursor=pointer]:
+            - /url: landing.html
+        - listitem [ref=f6e8]:
+          - link "Book An Appointment" [ref=f6e9] [cursor=pointer]:
+            - /url: book-appointment.html
+        - listitem [ref=f6e10]:
+          - link "Lost And Found" [ref=f6e11] [cursor=pointer]:
+            - /url: lost-found.html
+        - listitem [ref=f6e12]:
+          - link "My Pets" [ref=f6e13] [cursor=pointer]:
+            - /url: my-pets.html
+    - generic [ref=f6e14]:
+      - button [ref=f6e15] [cursor=pointer]:
+        - img "Notifications" [ref=f6e16]
+      - generic [ref=f6e18] [cursor=pointer]:
+        - generic [ref=f6e19]:
+          - generic [ref=f6e20]: Verify EmptyOwner
+          - generic [ref=f6e21]: Pet Owner
+        - img "User" [ref=f6e22]
+  - generic [ref=f6e24]:
+    - generic [ref=f6e25]:
+      - generic [ref=f6e26]: MY PETS
+      - heading "Your Pets" [level=1] [ref=f6e27]
+      - paragraph [ref=f6e28]: See every pet you have registered with the clinic and track their visit & vaccination history in one place.
+    - generic [ref=f6e30]:
+      - generic [ref=f6e31]: "0"
+      - generic [ref=f6e32]: Total Pets
+  - generic [ref=f6e33]:
+    - generic [ref=f6e34]:
+      - heading "Registered Pets" [level=2] [ref=f6e35]
+      - paragraph [ref=f6e36]: Click a pet to view its full visit and vaccination history.
+    - generic [ref=f6e38]:
+      - heading "No pets on file yet" [level=3] [ref=f6e39]
+      - paragraph [ref=f6e40]: Pets registered by the clinic or through a booked appointment will appear here automatically once they're linked to your account.
+  - contentinfo [ref=f6e41]:
+    - generic [ref=f6e42]:
+      - generic [ref=f6e43]:
+        - heading "Baliwag Veterinary Services" [level=3] [ref=f6e44]
+        - paragraph [ref=f6e45]: Leading the future of veterinary medicine through precision technology and heartfelt dedication.
+      - generic [ref=f6e46]:
+        - heading "QUICK LINKS" [level=4] [ref=f6e47]
+        - list [ref=f6e48]:
+          - listitem [ref=f6e49]:
+            - link "Privacy Policy" [ref=f6e50] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f6e51]:
+            - link "Terms of Service" [ref=f6e52] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f6e53]:
+            - link "Emergency Care" [ref=f6e54] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f6e55]:
+            - link "Careers" [ref=f6e56] [cursor=pointer]:
+              - /url: "#"
+      - generic [ref=f6e57]:
+        - heading "CONTACT" [level=4] [ref=f6e58]
+        - paragraph [ref=f6e59]: AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026
+        - paragraph [ref=f6e60]: BaliwagtVC@gmail.com
+        - paragraph [ref=f6e61]: "09959210640"
+    - generic [ref=f6e62]:
+      - generic [ref=f6e63]: © 2026 Baliwag Veterinary Services. Precision in Medicine, Vitality in Life
+      - generic [ref=f6e64]:
+        - link "f" [ref=f6e65] [cursor=pointer]:
+          - /url: "#"
+        - link "in" [ref=f6e66] [cursor=pointer]:
+          - /url: "#"

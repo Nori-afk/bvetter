@@ -1139,9 +1139,13 @@ body { font-family:Arial,sans-serif; font-size:9pt; color:#1a1a2e; }
         'tempDir'       => $tmpDir,
     ]);
 
+    $fileSlug = strtolower(preg_replace('/[^A-Za-z0-9]+/', '-', trim($generatedBy)));
+    $fileSlug = trim($fileSlug, '-') ?: 'vet';
+    $fileName = 'vbetter-' . $category . '-report-' . $fileSlug . '-' . date('Y-m-d') . '.pdf';
+
     $mpdf->SetTitle('VBetter ' . $categoryLabel);
     $mpdf->WriteHTML($html);
-    $mpdf->Output('vbetter-' . $category . '-report.pdf', 'D');
+    $mpdf->Output($fileName, 'D');
     exit;
 }
 

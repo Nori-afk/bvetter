@@ -1,0 +1,130 @@
+- generic [active] [ref=f3e1]:
+  - navigation [ref=f3e2]:
+    - generic [ref=f3e3]:
+      - img "Baliwag City Vet" [ref=f3e4]
+      - list [ref=f3e74]:
+        - listitem [ref=f3e6]:
+          - link "Home" [ref=f3e7] [cursor=pointer]:
+            - /url: landing.html
+        - listitem [ref=f3e8]:
+          - link "Book An Appointment" [ref=f3e9] [cursor=pointer]:
+            - /url: book-appointment.html
+        - listitem [ref=f3e10]:
+          - link "Lost And Found" [ref=f3e11] [cursor=pointer]:
+            - /url: lost-found.html
+        - listitem [ref=f3e12]:
+          - link "My Pets" [ref=f3e13] [cursor=pointer]:
+            - /url: my-pets.html
+    - generic [ref=f3e14]:
+      - button [ref=f3e15] [cursor=pointer]:
+        - img "Notifications" [ref=f3e16]
+      - generic [ref=f3e18] [cursor=pointer]:
+        - generic [ref=f3e19]:
+          - generic [ref=f3e20]: Verify TestOwner
+          - generic [ref=f3e21]: Pet Owner
+        - img "User" [ref=f3e22]
+  - generic [ref=f3e24]:
+    - generic [ref=f3e25]:
+      - generic [ref=f3e26]: MY PETS
+      - heading "Your Pets" [level=1] [ref=f3e27]
+      - paragraph [ref=f3e28]: See every pet you have registered with the clinic and track their visit & vaccination history in one place.
+    - generic [ref=f3e30]:
+      - generic [ref=f3e31]: "1"
+      - generic [ref=f3e32]: Total Pets
+  - generic [ref=f3e33]:
+    - generic [ref=f3e34]:
+      - heading "Registered Pets" [level=2] [ref=f3e35]
+      - paragraph [ref=f3e36]: Click a pet to view its full visit and vaccination history.
+    - generic [ref=f3e38] [cursor=pointer]:
+      - img "Buddy" [ref=f3e39]
+      - generic [ref=f3e40]:
+        - generic [ref=f3e41]:
+          - heading "Buddy" [level=3] [ref=f3e42]
+          - generic [ref=f3e43]: Good Standing
+        - paragraph [ref=f3e44]: Dog · Aspin
+        - generic [ref=f3e45]:
+          - generic [ref=f3e46]: Male · 2 years
+          - generic [ref=f3e47]: Last visit May 1, 2026
+  - dialog "Pet health detail" [ref=f3e76]:
+    - generic [ref=f3e77]:
+      - generic [ref=f3e78]:
+        - heading "Buddy" [level=2] [ref=f3e79]
+        - text: Dog · Aspin
+      - button "Close panel" [ref=f3e80] [cursor=pointer]
+    - generic [ref=f3e83]:
+      - generic [ref=f3e85]:
+        - generic [ref=f3e86]: Good Standing
+        - generic [ref=f3e87]:
+          - generic [ref=f3e88]:
+            - generic [ref=f3e89]: Species
+            - generic [ref=f3e90]: Dog
+          - generic [ref=f3e91]:
+            - generic [ref=f3e92]: Breed
+            - generic [ref=f3e93]: Aspin
+          - generic [ref=f3e94]:
+            - generic [ref=f3e95]: Sex
+            - generic [ref=f3e96]: Male
+          - generic [ref=f3e97]:
+            - generic [ref=f3e98]: Age
+            - generic [ref=f3e99]: 2 years
+          - generic [ref=f3e100]:
+            - generic [ref=f3e101]: Weight
+            - generic [ref=f3e102]: 10kg
+          - generic [ref=f3e103]:
+            - generic [ref=f3e104]: Markings
+            - generic [ref=f3e105]: Brown with white patches
+      - generic [ref=f3e106]:
+        - heading "Visit History" [level=3] [ref=f3e107]
+        - generic [ref=f3e111]:
+          - generic [ref=f3e112]:
+            - generic [ref=f3e113]: Annual Checkup
+            - generic [ref=f3e114]: May 1, 2026
+          - paragraph [ref=f3e115]: "Attending: Dr. Santos"
+          - paragraph [ref=f3e116]:
+            - strong [ref=f3e117]: "Diagnosis:"
+            - text: Healthy
+          - paragraph [ref=f3e118]:
+            - strong [ref=f3e119]: "Treatment:"
+            - text: Routine deworming
+          - paragraph [ref=f3e120]:
+            - strong [ref=f3e121]: "Symptoms:"
+            - text: None
+      - generic [ref=f3e122]:
+        - heading "Vaccination History" [level=3] [ref=f3e123]
+        - generic [ref=f3e125]:
+          - generic [ref=f3e126]:
+            - generic [ref=f3e127]: Rabies
+            - generic [ref=f3e128]: Given May 1, 2026 · Next due May 1, 2027
+          - generic [ref=f3e129]: Completed
+  - contentinfo [ref=f3e48]:
+    - generic [ref=f3e49]:
+      - generic [ref=f3e50]:
+        - heading "Baliwag Veterinary Services" [level=3] [ref=f3e51]
+        - paragraph [ref=f3e52]: Leading the future of veterinary medicine through precision technology and heartfelt dedication.
+      - generic [ref=f3e53]:
+        - heading "QUICK LINKS" [level=4] [ref=f3e54]
+        - list [ref=f3e55]:
+          - listitem [ref=f3e56]:
+            - link "Privacy Policy" [ref=f3e57] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f3e58]:
+            - link "Terms of Service" [ref=f3e59] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f3e60]:
+            - link "Emergency Care" [ref=f3e61] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f3e62]:
+            - link "Careers" [ref=f3e63] [cursor=pointer]:
+              - /url: "#"
+      - generic [ref=f3e64]:
+        - heading "CONTACT" [level=4] [ref=f3e65]
+        - paragraph [ref=f3e66]: AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026
+        - paragraph [ref=f3e67]: BaliwagtVC@gmail.com
+        - paragraph [ref=f3e68]: "09959210640"
+    - generic [ref=f3e69]:
+      - generic [ref=f3e70]: © 2026 Baliwag Veterinary Services. Precision in Medicine, Vitality in Life
+      - generic [ref=f3e71]:
+        - link "f" [ref=f3e72] [cursor=pointer]:
+          - /url: "#"
+        - link "in" [ref=f3e73] [cursor=pointer]:
+          - /url: "#"

@@ -1,0 +1,71 @@
+- generic [active] [ref=f7e1]:
+  - navigation [ref=f7e2]:
+    - generic [ref=f7e3]:
+      - img "Baliwag City Vet" [ref=f7e4]
+      - list [ref=f7e5]:
+        - listitem [ref=f7e6]:
+          - link "Home" [ref=f7e7] [cursor=pointer]:
+            - /url: landing.html
+        - listitem [ref=f7e8]:
+          - link "Book An Appointment" [ref=f7e9] [cursor=pointer]:
+            - /url: book-appointment.html
+        - listitem [ref=f7e10]:
+          - link "Lost And Found" [ref=f7e11] [cursor=pointer]:
+            - /url: lost-found.html
+        - listitem [ref=f7e12]:
+          - link "My Pets" [ref=f7e13] [cursor=pointer]:
+            - /url: my-pets.html
+    - generic [ref=f7e14]:
+      - button [ref=f7e15] [cursor=pointer]:
+        - img "Notifications" [ref=f7e16]
+      - generic [ref=f7e18] [cursor=pointer]:
+        - generic [ref=f7e19]:
+          - generic [ref=f7e20]: Verify EmptyOwner
+          - generic [ref=f7e21]: Pet Owner
+        - img "User" [ref=f7e22]
+  - main [ref=f7e23]:
+    - generic [ref=f7e24]:
+      - generic [ref=f7e26]:
+        - generic [ref=f7e27]:
+          - img "User" [ref=f7e28]
+          - generic [ref=f7e29]:
+            - heading [level=1]
+            - paragraph [ref=f7e30]: Pet Owner
+            - generic [ref=f7e31]: VERIFIED IDENTITY
+        - button "Edit Profile" [ref=f7e32] [cursor=pointer]
+      - generic [ref=f7e33]:
+        - generic [ref=f7e34]:
+          - generic [ref=f7e37]:
+            - generic [ref=f7e38]: ACTIVE LOST REPORTS
+            - generic [ref=f7e39]: "00"
+          - generic [ref=f7e43]:
+            - generic [ref=f7e44]: PENDING CLAIMS
+            - generic [ref=f7e45]: "00"
+          - generic [ref=f7e49]:
+            - generic [ref=f7e50]: UPCOMING APPOINTMENTS
+            - generic [ref=f7e51]: "00"
+        - generic [ref=f7e53]:
+          - generic [ref=f7e54]:
+            - generic [ref=f7e55]: My Pets
+            - link "View All My Pets" [ref=f7e56] [cursor=pointer]:
+              - /url: my-pets.html
+          - paragraph [ref=f7e58]: Loading your pets…
+        - generic [ref=f7e59]:
+          - generic [ref=f7e60]:
+            - generic [ref=f7e61]: Recent Activity
+            - paragraph [ref=f7e64]: Loading recent activity…
+          - generic [ref=f7e65]:
+            - generic [ref=f7e66]: Quick Actions
+            - generic [ref=f7e67]:
+              - generic [ref=f7e70] [cursor=pointer]:
+                - generic [ref=f7e71]: File New Lost Report
+                - generic [ref=f7e72]: Alert local clinics immediately
+              - generic [ref=f7e75] [cursor=pointer]:
+                - generic [ref=f7e76]: Book Appointment
+                - generic [ref=f7e77]: Schedule checkups & more
+              - generic [ref=f7e80] [cursor=pointer]:
+                - generic [ref=f7e81]: Search Found Pets
+                - generic [ref=f7e82]: Browse database of recovered pets
+              - generic [ref=f7e85] [cursor=pointer]:
+                - generic [ref=f7e86]: View My Pets
+                - generic [ref=f7e87]: Track health & visit history

@@ -135,16 +135,51 @@ async function renderRecentActivity() {
   renderActivityPage();
 }
 
+const PET_STATUS_BADGE = {
+  success: 'badge-approved',
+  warning: 'badge-pending',
+  danger: 'badge-rejected'
+};
+
+function renderPetsRow(pets) {
+  const row = document.getElementById('petsRow');
+  if (!row) return;
+
+  if (!pets.length) {
+    row.innerHTML = '<p class="pets-empty">You don\'t have any pets on file yet. Pets registered with the clinic will appear here automatically.</p>';
+    return;
+  }
+
+  row.innerHTML = pets.map((pet) => {
+    const badgeClass = PET_STATUS_BADGE[pet.statusType] || 'badge-review';
+    const breed = [pet.species, pet.breed].filter(Boolean).join(' · ');
+    return `
+      <a class="pet-mini-card" href="my-pets.html?petId=${encodeURIComponent(pet.id)}">
+        <img src="${pet.photo || '../images/img/upload-pet.png'}" alt="" class="pet-mini-avatar"/>
+        <div class="pet-mini-info">
+          <div class="pet-mini-name">${escapeHtmlProfile(pet.petName)}</div>
+          <div class="pet-mini-breed">${escapeHtmlProfile(breed)}</div>
+          <span class="pet-mini-badge ${badgeClass}">${escapeHtmlProfile(pet.healthStatus || pet.status)}</span>
+        </div>
+      </a>
+    `;
+  }).join('');
+}
+
 async function loadAccountProfile() {
   const session = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
   if (!session) return;
 
-  const [profileResult, reportsResult, claimsResult, appointmentsResult] = await Promise.all([
+  const [profileResult, reportsResult, claimsResult, appointmentsResult, petsResult] = await Promise.all([
     api.getProfile().catch(() => ({ success: false })),
     api.getMyReports().catch(() => ({ success: false, data: [] })),
     api.getClaims().catch(() => ({ success: false, data: [] })),
-    api.getAppointments({ owner_id: session.userId }).catch(() => ({ success: false, data: [] }))
+    api.getAppointments({ owner_id: session.userId }).catch(() => ({ success: false, data: [] })),
+    api.getMyPets().catch(() => ({ success: false, data: [] }))
   ]);
+
+  const pets = petsResult.success && Array.isArray(petsResult.data) ? petsResult.data : [];
+  renderPetsRow(pets);
 
   if (profileResult.success) {
     const profile = profileResult.data;

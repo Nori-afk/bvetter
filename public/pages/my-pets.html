@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<!--
+  Page:    my-pets.html
+  Feature: My Pets — pet grid + slide-in health detail panel
+  CSS:     variables.css → components.css → my-pets.css
+  JS:      nav.js → api.js → my-pets.js
+
+  Data:    api.getMyPets() / api.getMyPet(petId) → api/pets/my_pets.php
+           Pets are matched to this account via pets.owner_id, set when a
+           vet's patient record or an appointment booking used this
+           owner's exact account email.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BVETTER — My Pets</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../css/variables.css"/>
+  <link rel="stylesheet" href="../css/components.css"/>
+  <link rel="stylesheet" href="../css/my-pets.css"/>
+</head>
+<body>
+
+  <!-- ══════════ NAVBAR ══════════ -->
+  <nav class="navbar">
+    <div class="nav-left">
+      <img src="../images/logos/logo-color.png" alt="Baliwag City Vet" class="nav-logo"/>
+      <button class="nav-hamburger" aria-label="Toggle navigation" onclick="toggleMobileNav()">&#9776;</button>
+      <ul class="nav-links">
+        <li><a href="landing.html">Home</a></li>
+        <li><a href="book-appointment.html">Book An Appointment</a></li>
+        <li><a href="lost-found.html">Lost And Found</a></li>
+        <li><a href="my-pets.html" class="active">My Pets</a></li>
+      </ul>
+    </div>
+    <div class="nav-right nav-right-auth">
+      <button class="nav-notif-btn" id="notification-icon-btn">
+        <img src="../images/icons/icon-bell.svg" alt="Notifications" class="nav-notif-icon"/>
+        <span class="nav-notif-dot"></span>
+      </button>
+      <div class="nav-user-pill" onclick="toggleUserMenu()">
+        <div class="nav-user-info">
+          <span class="nav-user-name"></span>
+          <span class="nav-user-role">Pet Owner</span>
+        </div>
+        <img src="../images/img/account-avatar.png" alt="User" class="nav-user-avatar"/>
+      </div>
+      <div class="nav-user-dropdown" id="userDropdown">
+        <a href="account-profile.html" class="dropdown-item">
+          <img src="../images/icons/account-profile.svg" alt="" class="dropdown-icon"/> Account Profile
+        </a>
+        <a href="account-settings.html" class="dropdown-item">
+          <img src="../images/icons/account-settings.svg" alt="" class="dropdown-icon"/> Account Settings
+        </a>
+        <a href="notification-settings.html" class="dropdown-item">
+          <img src="../images/icons/account-notifications.svg" alt="" class="dropdown-icon"/> Notifications
+        </a>
+        <div class="dropdown-divider"></div>
+        <a href="#" class="dropdown-item dropdown-logout" onclick="logout()">
+          <img src="../images/icons/account-logout.svg" alt="" class="dropdown-icon"/> Log Out
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══════════ HERO ══════════ -->
+  <div class="mp-hero-wrap">
+    <section class="mp-hero">
+      <div class="mp-hero-left">
+        <span class="mp-hero-tag">MY PETS</span>
+        <h1>Your Pets</h1>
+        <p>See every pet you have registered with the clinic and track their visit &amp; vaccination history in one place.</p>
+      </div>
+      <div class="mp-hero-stats">
+        <div class="mp-hero-stat">
+          <span class="mp-hero-stat-num" id="mpTotalPets">0</span>
+          <span class="mp-hero-stat-label">Total Pets</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ══════════ PET GRID ══════════ -->
+  <section class="mp-section">
+    <div class="mp-header">
+      <h2 class="mp-title">Registered Pets</h2>
+      <p class="mp-sub">Click a pet to view its full visit and vaccination history.</p>
+    </div>
+
+    <div class="mp-grid" id="mpGrid">
+      <p class="mp-empty">Loading your pets&hellip;</p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════
+       DETAIL PANEL — filled dynamically by my-pets.js
+       position:fixed — overlays page, doesn't push/cut hero
+  ══════════════════════════════════════════════ -->
+  <div class="mp-detail-overlay" id="mpDetailOverlay" onclick="closePetDetailOutside(event)">
+    <div class="mp-detail-panel" role="dialog" aria-modal="true" aria-label="Pet health detail">
+      <div class="mp-detail-panel-header">
+        <div>
+          <h2 class="mp-detail-panel-title" id="mpDetailName">Pet</h2>
+          <span class="mp-detail-panel-sub" id="mpDetailSub"></span>
+        </div>
+        <button class="mp-detail-close" onclick="closePetDetail()" aria-label="Close panel">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="#424750" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="mp-detail-body" id="mpDetailBody">
+        <!-- populated by renderPetDetail() in my-pets.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ FOOTER ══════════ -->
+  <footer class="footer">
+    <img src="../images/img/paw-print.svg" alt="" class="footer-paw"/>
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h3>Baliwag Veterinary Services</h3>
+        <p>Leading the future of veterinary medicine through precision technology and heartfelt dedication.</p>
+      </div>
+      <div class="footer-links">
+        <h4>QUICK LINKS</h4>
+        <ul>
+          <li><a href="#">Privacy Policy</a></li>
+          <li><a href="#">Terms of Service</a></li>
+          <li><a href="#">Emergency Care</a></li>
+          <li><a href="#">Careers</a></li>
+        </ul>
+      </div>
+      <div class="footer-contact">
+        <h4>CONTACT</h4>
+        <p>AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026</p>
+        <p class="footer-email">BaliwagtVC@gmail.com</p>
+        <p class="footer-phone">09959210640</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 Baliwag Veterinary Services. Precision in Medicine, Vitality in Life</span>
+      <div class="footer-socials">
+        <a href="#" class="social-btn">f</a>
+        <a href="#" class="social-btn">in</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../../shared/js/auth.js"></script>
+  <script>
+    requireAuth(['owner']);
+  </script>
+  <script src="../js/nav.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/my-pets.js"></script>
+  <script src="../js/site-settings.js"></script>
+</body>
+</html>
