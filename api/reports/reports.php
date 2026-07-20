@@ -1119,9 +1119,9 @@ body { font-family:Arial,sans-serif; font-size:9pt; color:#1a1a2e; }
 <!-- SIGNATURE -->
 <div class="sig">
     <p>Prepared and Certified By City Veterinarian:</p>
-    <p>Name: <span class="sl"></span></p>
+    <p>Name: <span class="sl">'.htmlspecialchars($generatedBy).'</span></p>
     <p>Signature: <span class="sl"></span></p>
-    <p>Date: <span class="sl"></span></p>
+    <p>Date: <span class="sl">'.htmlspecialchars($dateGenerated).'</span></p>
 </div>
 
 </body></html>';
