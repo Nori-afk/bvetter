@@ -1,0 +1,167 @@
+- generic [ref=f4e2]:
+  - complementary [ref=f4e3]:
+    - img "VBetter Logo" [ref=f4e6]
+    - generic [ref=f4e7]:
+      - navigation [ref=f4e8]:
+        - link [ref=f4e9] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/admin/pages/index.html
+          - img "Dashboard" [ref=f4e10]
+          - generic: Dashboard
+        - link [ref=f4e11] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/appointment.html
+          - img "Appointment Management" [ref=f4e12]
+          - generic: Appointment Management
+        - link [ref=f4e13] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/castration-spay.html
+          - img "Castration & Spay Program" [ref=f4e14]
+          - generic: Castration & Spay Program
+        - link [ref=f4e15] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/patient-records.html
+          - img "Patient Records" [ref=f4e16]
+          - generic: Patient Records
+        - link [ref=f4e17] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/report.html
+          - img "Report" [ref=f4e18]
+          - generic: Report
+        - link [ref=f4e19] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/disease-analytics.html
+          - img "Disease Analytics" [ref=f4e20]
+          - generic: Disease Analytics
+        - link [ref=f4e21] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/lost-and-found.html
+          - img "Lost and Found" [ref=f4e22]
+          - generic: Lost And Found
+        - link [ref=f4e23] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/chatbot-management.html
+          - img "Chatbot Management" [ref=f4e24]
+          - generic: Chatbot Management
+        - link [ref=f4e25] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/mass-vaccination.html
+          - img "Mass Vaccination" [ref=f4e26]
+          - generic: Mass Vaccination
+        - generic [ref=f4e27]: Administration
+        - link [ref=f4e28] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/admin/pages/account-management.html
+          - img "Account Management" [ref=f4e29]
+          - generic: Account Management
+        - link [ref=f4e30] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/admin/pages/website-management.html
+          - img "Website Management" [ref=f4e31]
+          - generic: Website Management
+      - generic [ref=f4e32]:
+        - article "Admin Test profile" [ref=f4e33] [cursor=pointer]:
+          - img "Admin Test" [ref=f4e34]
+        - button [ref=f4e35] [cursor=pointer]:
+          - img "Log Out" [ref=f4e36]
+          - generic: Log Out
+  - generic [ref=f4e37]:
+    - generic [ref=f4e38]:
+      - generic [ref=f4e39]:
+        - generic [ref=f4e40]: AT
+        - generic [ref=f4e41]:
+          - generic [ref=f4e42]: Admin Test
+          - generic [ref=f4e43]: Wednesday, July 22, 2026
+      - generic [ref=f4e44]:
+        - generic [ref=f4e45]:
+          - button "Open notifications" [ref=f4e46] [cursor=pointer]
+          - button "Settings" [ref=f4e50] [cursor=pointer]
+          - button "About us and help" [ref=f4e54] [cursor=pointer]
+        - generic [ref=f4e59]:
+          - button "Add Account" [ref=f4e60] [cursor=pointer]
+          - button "Manage Accounts" [ref=f4e64] [cursor=pointer]
+    - generic [ref=f4e66]:
+      - generic [ref=f4e67]:
+        - generic [ref=f4e68]:
+          - generic [ref=f4e69]: Administrator
+          - heading "Good Day, Admin!" [level=1] [ref=f4e70]
+          - paragraph [ref=f4e71]: Full system overview — accounts, clinic operations, and module activity.
+        - generic [ref=f4e72]:
+          - generic [ref=f4e73]:
+            - generic [ref=f4e74]: "--"
+            - generic [ref=f4e75]: Total Accounts
+          - generic [ref=f4e77]:
+            - generic [ref=f4e78]: "--"
+            - generic [ref=f4e79]: Active
+          - generic [ref=f4e81]:
+            - generic [ref=f4e82]: "--"
+            - generic [ref=f4e83]: Pending
+      - generic [ref=f4e84]:
+        - generic [ref=f4e85]:
+          - paragraph [ref=f4e86]: Total Accounts
+          - heading "--" [level=2] [ref=f4e87]
+          - generic [ref=f4e88]: Across all roles
+        - generic [ref=f4e90]:
+          - paragraph [ref=f4e91]: Pending Approvals
+          - heading "--" [level=2] [ref=f4e92]
+        - generic [ref=f4e93]:
+          - paragraph [ref=f4e94]: System Alerts
+          - heading "--" [level=2] [ref=f4e95]
+          - generic [ref=f4e96]: Lost & found reports awaiting review
+        - generic [ref=f4e98]:
+          - paragraph [ref=f4e99]: Clinic Vaccination Rate
+          - heading "--" [level=2] [ref=f4e102]
+      - generic [ref=f4e103]:
+        - generic [ref=f4e104]:
+          - generic [ref=f4e106]:
+            - generic [ref=f4e107]:
+              - heading "Account Registrations" [level=3] [ref=f4e108]
+              - paragraph [ref=f4e109]: Monthly new accounts created in the system
+            - generic [ref=f4e110]:
+              - button "Monthly" [ref=f4e111] [cursor=pointer]
+              - button "Quarterly" [ref=f4e112] [cursor=pointer]
+          - generic [ref=f4e115]:
+            - generic [ref=f4e116]:
+              - generic [ref=f4e117]:
+                - heading "Recent Accounts" [level=3] [ref=f4e118]
+                - paragraph [ref=f4e119]: Latest registered users in the system
+              - link "View All" [ref=f4e120] [cursor=pointer]:
+                - /url: account-management.html
+            - table [ref=f4e122]:
+              - rowgroup [ref=f4e123]:
+                - row [ref=f4e124]:
+                  - columnheader "Name" [ref=f4e125]
+                  - columnheader "Role" [ref=f4e126]
+                  - columnheader "Email" [ref=f4e127]
+                  - columnheader "Status" [ref=f4e128]
+                  - columnheader "Joined" [ref=f4e129]
+              - rowgroup [ref=f4e130]:
+                - row [ref=f4e131]:
+                  - cell "Loading accounts…" [ref=f4e132]
+          - generic [ref=f4e133]:
+            - generic [ref=f4e135]:
+              - heading "Module Usage by Vets" [level=3] [ref=f4e136]
+              - paragraph [ref=f4e137]: Relative record volume across modules
+            - paragraph [ref=f4e139]: Loading module activity…
+        - generic [ref=f4e140]:
+          - generic [ref=f4e141]:
+            - generic [ref=f4e142]:
+              - generic [ref=f4e143]:
+                - heading "Pending Approvals" [level=3] [ref=f4e144]
+                - paragraph [ref=f4e145]: Accounts awaiting review
+              - generic [ref=f4e146]: "--"
+            - paragraph [ref=f4e148]: Loading pending approvals…
+            - button "View All Pending" [ref=f4e149] [cursor=pointer]
+          - generic [ref=f4e150]:
+            - heading "Clinic Snapshot" [level=3] [ref=f4e151]
+            - paragraph [ref=f4e152]: Key operational numbers
+            - generic [ref=f4e153]:
+              - generic [ref=f4e154]:
+                - paragraph [ref=f4e155]: Appointments Today
+                - heading "--" [level=4] [ref=f4e156]
+                - paragraph [ref=f4e157]: Scheduled for today
+              - generic [ref=f4e158]:
+                - paragraph [ref=f4e159]: Active Lost Reports
+                - heading "--" [level=4] [ref=f4e160]
+                - paragraph [ref=f4e161]: Awaiting resolution
+              - generic [ref=f4e162]:
+                - paragraph [ref=f4e163]: Chatbot Queries
+                - heading "--" [level=4] [ref=f4e164]
+                - paragraph [ref=f4e165]: Total logged queries
+              - generic [ref=f4e166]:
+                - paragraph [ref=f4e167]: Pending Actions
+                - heading "--" [level=4] [ref=f4e168]
+                - paragraph [ref=f4e169]: Appointments needing action
+          - generic [ref=f4e170]:
+            - heading "Recent Activity" [level=3] [ref=f4e171]
+            - paragraph [ref=f4e172]: System-wide account events
+            - paragraph [ref=f4e174]: Loading recent activity…

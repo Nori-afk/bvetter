@@ -233,6 +233,37 @@
     opacity:     0.95;
 }
 
+/* Nested sub-item — visually grouped under its parent nav-item (e.g.
+   Castration & Spay under Appointment Management) via indent + a
+   short connector line. Icon-only collapsed mode looks unchanged. */
+.sidebar.expanded .nav-item.nav-subitem,
+.sidebar.mobile-open .nav-item.nav-subitem {
+    position:    relative;
+    padding-left: 30px;
+}
+
+.sidebar.expanded .nav-item.nav-subitem::before,
+.sidebar.mobile-open .nav-item.nav-subitem::before {
+    content:    '';
+    position:   absolute;
+    left:       18px;
+    top:        50%;
+    width:      8px;
+    height:     1px;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.nav-item.nav-subitem .nav-icon {
+    width:  13px;
+    height: 13px;
+}
+
+.nav-item.nav-subitem .nav-label {
+    font-size:   10px;
+    font-weight: 500;
+    opacity:     0.85;
+}
+
 .nav-label {
     font-size:   11px;
     font-weight: 600;
