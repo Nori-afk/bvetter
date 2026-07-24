@@ -275,6 +275,19 @@ function formatDate(value) {
 	return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function todayIso() {
+	const d = new Date();
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function setFieldError(input, errorEl, message) {
+	if (input) input.classList.toggle('invalid', Boolean(message));
+	if (errorEl) {
+		errorEl.textContent = message || '';
+		errorEl.classList.toggle('visible', Boolean(message));
+	}
+}
+
 function routeFromUrl() {
 	const params = new URLSearchParams(window.location.search);
 	state.mode = params.get('mode') || 'list';
@@ -1104,11 +1117,13 @@ function renderAdd(record) {
 						</div>
 						<div class="field">
 							<label class="field-label" for="visit-date">VISIT DATE</label>
-							<input class="form-input" id="visit-date" name="visitDate" type="date" value="${escapeHtml(data.visitDate)}">
+							<input class="form-input" id="visit-date" name="visitDate" type="date" max="${todayIso()}" value="${escapeHtml(data.visitDate)}">
+							<span class="field-error" id="visit-date-error"></span>
 						</div>
 						<div class="field">
 							<label class="field-label" for="follow-up-date">FOLLOW-UP DATE</label>
-							<input class="form-input" id="follow-up-date" name="followUpDate" type="date" value="${escapeHtml(data.followUpDate)}">
+							<input class="form-input" id="follow-up-date" name="followUpDate" type="date" min="${todayIso()}" value="${escapeHtml(data.followUpDate)}">
+							<span class="field-error" id="follow-up-date-error"></span>
 						</div>
 						<div class="field">
 							<label class="field-label" for="attending-vet">ATTENDING VETERINARIAN</label>
@@ -1227,7 +1242,7 @@ function renderDetail(record) {
 					</div>
 
 					<nav class="detail-tabs" aria-label="Patient detail tabs">
-						${detailTabButton('Patient Info', 'patient-info', activeTab)}
+						${detailTabButton('Pet Info', 'patient-info', activeTab)}
 						${detailTabButton('Visit History', 'visit-history', activeTab)}
 						${detailTabButton('Vaccination History', 'vaccination-history', activeTab)}
 					</nav>
@@ -1493,10 +1508,40 @@ function getPetEntriesData(form) {
 	}).filter((pet) => pet.petName);
 }
 
+function validateVisitDates(form) {
+	const visitDateInput = form.querySelector('#visit-date');
+	const followUpDateInput = form.querySelector('#follow-up-date');
+	const visitDateError = form.querySelector('#visit-date-error');
+	const followUpDateError = form.querySelector('#follow-up-date-error');
+
+	setFieldError(visitDateInput, visitDateError, '');
+	setFieldError(followUpDateInput, followUpDateError, '');
+
+	let hasError = false;
+	let firstInvalid = null;
+
+	if (visitDateInput && visitDateInput.value && visitDateInput.value > todayIso()) {
+		setFieldError(visitDateInput, visitDateError, 'Visit date cannot be in the future.');
+		firstInvalid = firstInvalid || visitDateInput;
+		hasError = true;
+	}
+
+	if (followUpDateInput && followUpDateInput.value && followUpDateInput.value < todayIso()) {
+		setFieldError(followUpDateInput, followUpDateError, 'Follow-up date cannot be in the past.');
+		firstInvalid = firstInvalid || followUpDateInput;
+		hasError = true;
+	}
+
+	if (hasError) firstInvalid?.focus();
+	return !hasError;
+}
+
 async function handleAddSubmit(event) {
 	event.preventDefault();
 	const form = event.currentTarget;
 	const patientId = state.selectedId || 0;
+
+	if (!validateVisitDates(form)) return;
 
 	if (patientId) {
 		const data = getFormData(form);
@@ -1533,6 +1578,11 @@ function render() {
 	const selected = getRecordById(state.selectedId);
 	if (!app) return;
 
+	const activeEl = document.activeElement;
+	const restoreSearchFocus = activeEl && activeEl.id === 'search-input';
+	const selectionStart = restoreSearchFocus ? activeEl.selectionStart : null;
+	const selectionEnd = restoreSearchFocus ? activeEl.selectionEnd : null;
+
 	if (state.mode === 'add') {
 		app.innerHTML = renderAdd(selected ? buildNewVisitRecord(clone(selected)) : null);
 	} else if (state.mode === 'view' || state.mode === 'edit') {
@@ -1542,6 +1592,14 @@ function render() {
 	}
 
 	bindModeSpecificHandlers();
+
+	if (restoreSearchFocus) {
+		const newSearchInput = document.getElementById('search-input');
+		if (newSearchInput) {
+			newSearchInput.focus();
+			newSearchInput.setSelectionRange(selectionStart, selectionEnd);
+		}
+	}
 }
 
 function bindModeSpecificHandlers() {

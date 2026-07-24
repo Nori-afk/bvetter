@@ -53,6 +53,7 @@ const state = {
 	selectedSlot: '',
 	selectedDate: '',
 	rescheduleMonth: null,
+	rescheduleBookedSlots: [],
 	visitTypes: []
 };
 
@@ -94,7 +95,8 @@ function normalizeAppointment(item, index) {
 		owner: String(item.owner || 'Unknown Owner'),
 		service: String(item.service || 'General Service'),
 		status,
-		type: String(item.type || 'General')
+		type: String(item.type || 'General'),
+		veterinarianId: item.veterinarian_id ? Number(item.veterinarian_id) : null
 	};
 }
 
@@ -138,6 +140,17 @@ function toIsoDate(date) {
 	return `${y}-${m}-${d}`;
 }
 
+/* ── Same "today's already-started slot can't be picked" rule as the
+   owner-side booking form (public/js/book-appointment.js) — a reschedule
+   target of "today" shouldn't offer times that have already passed. ── */
+function isRescheduleSlotPast(dateIso, slotValue) {
+	if (!dateIso || dateIso !== toIsoDate(new Date())) return false;
+	const [hours, minutes] = String(slotValue || '').split(':').map(Number);
+	if (Number.isNaN(hours) || Number.isNaN(minutes)) return false;
+	const now = new Date();
+	return (hours * 60 + minutes) <= (now.getHours() * 60 + now.getMinutes());
+}
+
 function formatLongDateFromIso(isoDate) {
 	const date = new Date(`${isoDate}T00:00:00`);
 	if (Number.isNaN(date.getTime())) return isoDate;
@@ -173,9 +186,11 @@ function buildRescheduleCalendar(monthDate, selectedIsoDate) {
 		const iso = toIsoDate(dayDate);
 		const isActive = iso === selectedIsoDate ? ' active' : '';
 		const isPast = iso < todayIso;
-		const disabledAttr = isPast ? ' disabled' : '';
-		const pastClass = isPast ? ' disabled' : '';
-		dayCells.push(`<button type="button" class="day-btn${isActive}${pastClass}" data-resched-date="${iso}"${disabledAttr}>${day}</button>`);
+		const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6; // Sun=0, Sat=6 — clinic is closed
+		const isDisabled = isPast || isWeekend;
+		const disabledAttr = isDisabled ? ' disabled' : '';
+		const disabledClass = isDisabled ? ' disabled' : '';
+		dayCells.push(`<button type="button" class="day-btn${isActive}${disabledClass}" data-resched-date="${iso}"${disabledAttr}>${day}</button>`);
 	}
 
 	return dayCells.join('');
@@ -439,15 +454,18 @@ function rescheduleModalTemplate(appointment) {
 	const selectedDate = state.selectedDate || dt.isoDate;
 	const baseMonth = state.rescheduleMonth || new Date(`${selectedDate}T00:00:00`);
 	const monthDate = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
-	const slotsOpenCount = RESCHEDULE_SLOTS.length;
 	const selectedDateLabel = formatLongDateFromIso(selectedDate);
 	const selectedSlotLabel = state.selectedSlot
 		? (RESCHEDULE_SLOTS.find((slot) => slot.value === state.selectedSlot)?.display || state.selectedSlot)
 		: 'No time selected';
+	let slotsOpenCount = 0;
 	const slotCards = RESCHEDULE_SLOTS.map((slot) => {
 		const active = state.selectedSlot === slot.value ? ' active' : '';
+		const isUnavailable = state.rescheduleBookedSlots.includes(slot.value) || isRescheduleSlotPast(selectedDate, slot.value);
+		if (!isUnavailable) slotsOpenCount += 1;
+		const unavailable = isUnavailable ? ' unavailable' : '';
 		return `
-			<button type="button" class="slot-btn${active}" data-slot="${slot.value}">
+			<button type="button" class="slot-btn${active}${unavailable}" data-slot="${slot.value}"${isUnavailable ? ' disabled' : ''}>
 				<span class="slot-label">${slot.label}</span>
 				<span class="slot-time">${slot.display}</span>
 			</button>
@@ -490,7 +508,7 @@ function rescheduleModalTemplate(appointment) {
 				<section class="reschedule-slots">
 					<div class="reschedule-slots-head">
 						<h4>Available Slots</h4>
-						<span class="rsch-slots-badge">${slotsOpenCount} Open</span>
+						<span class="rsch-slots-badge" data-rsch-slots-badge>${slotsOpenCount} Open</span>
 					</div>
 					<div class="slot-grid">${slotCards}</div>
 					<div class="rsch-summary-card">
@@ -703,14 +721,65 @@ function openRescheduleModal() {
 	state.selectedDate = toIsoDate(selectedDate);
 	state.rescheduleMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
 	const currentTime = `${String(selectedDate.getHours()).padStart(2, '0')}:${String(selectedDate.getMinutes()).padStart(2, '0')}`;
-	state.selectedSlot = RESCHEDULE_SLOTS.some((slot) => slot.value === currentTime) ? currentTime : '';
+	const currentTimeStillValid = RESCHEDULE_SLOTS.some((slot) => slot.value === currentTime)
+		&& !isRescheduleSlotPast(state.selectedDate, currentTime);
+	state.selectedSlot = currentTimeStillValid ? currentTime : '';
+	state.rescheduleBookedSlots = [];
 	openModal(rescheduleModalTemplate(selected));
+	loadRescheduleBookedSlots();
 }
 
 function rerenderRescheduleModal() {
 	const selected = getAppointmentById(state.selectedAppointmentId);
 	if (!selected) return;
 	openModal(rescheduleModalTemplate(selected));
+}
+
+/* ── Fetch which slots are already booked for the appointment's vet on
+   the currently-selected reschedule date, so they render grayed out
+   instead of only failing after the vet picks one and hits confirm. ── */
+async function loadRescheduleBookedSlots() {
+	const selected = getAppointmentById(state.selectedAppointmentId);
+	if (!selected || !state.selectedDate || !window.VetAPI?.getBookedSlots) {
+		state.rescheduleBookedSlots = [];
+		applyRescheduleSlotAvailability();
+		return;
+	}
+
+	const result = await window.VetAPI.getBookedSlots({
+		veterinarian_id: selected.veterinarianId || undefined,
+		preferred_date: state.selectedDate,
+		exclude_id: selected.id
+	});
+	const bookedDisplay = result.ok ? (result.data || []) : [];
+	state.rescheduleBookedSlots = RESCHEDULE_SLOTS
+		.filter((slot) => bookedDisplay.includes(slot.display))
+		.map((slot) => slot.value);
+
+	// Selected date may have moved on again before this resolved — ignore stale responses.
+	if (getAppointmentById(state.selectedAppointmentId) !== selected) return;
+	applyRescheduleSlotAvailability();
+}
+
+/* ── Toggle slot buttons already in the DOM against the latest booked
+   list, without a full modal re-render (keeps the calendar/month in place). ── */
+function applyRescheduleSlotAvailability() {
+	const slotButtons = ui.modalContent.querySelectorAll('[data-slot]');
+	let openCount = 0;
+	slotButtons.forEach((btn) => {
+		const isUnavailable = state.rescheduleBookedSlots.includes(btn.dataset.slot)
+			|| isRescheduleSlotPast(state.selectedDate, btn.dataset.slot);
+		btn.classList.toggle('unavailable', isUnavailable);
+		btn.disabled = isUnavailable;
+		if (isUnavailable && state.selectedSlot === btn.dataset.slot) {
+			state.selectedSlot = '';
+			btn.classList.remove('active');
+		}
+		if (!isUnavailable) openCount += 1;
+	});
+
+	const badge = ui.modalContent.querySelector('[data-rsch-slots-badge]');
+	if (badge) badge.textContent = `${openCount} Open`;
 }
 
 function openCompleteModal() {
@@ -905,6 +974,7 @@ function setupEvents() {
 
 		const slotEl = event.target.closest('[data-slot]');
 		if (slotEl) {
+			if (slotEl.classList.contains('unavailable')) return;
 			state.selectedSlot = slotEl.dataset.slot;
 			ui.modalContent.querySelectorAll('[data-slot]').forEach((slotButton) => {
 				slotButton.classList.remove('active');
@@ -923,7 +993,9 @@ function setupEvents() {
 		const dateEl = event.target.closest('[data-resched-date]');
 		if (dateEl) {
 			state.selectedDate = dateEl.dataset.reschedDate;
+			state.rescheduleBookedSlots = [];
 			rerenderRescheduleModal();
+			loadRescheduleBookedSlots();
 			return;
 		}
 

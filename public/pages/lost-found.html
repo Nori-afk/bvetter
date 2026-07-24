@@ -390,6 +390,12 @@
           <p>These matches were identified by our system based on breed, color, size, sex, and location similarity. Only you can see these matches.</p>
         </div>
 
+        <!-- Toggle between formal Found reports and community Sighting reports.
+             Hidden when this report has no sighting matches. -->
+        <div class="lf-sighting-toggle-row" id="sightingToggleRow" style="display:none;">
+          <button type="button" class="btn-view-sightings" id="viewSightingsBtn" onclick="toggleSightingView()">View Sighting Reports</button>
+        </div>
+
         <!-- Claimant info — shown for a resolved report regardless of whether a
              match card exists, since a claim can be approved directly without
              ever promoting a lost_found_matches row. Populated by JS. -->
@@ -613,7 +619,7 @@
           <input type="hidden" id="reportLatInput" value="14.9577"/>
           <input type="hidden" id="reportLngInput" value="120.9055"/>
           <div class="form-group" style="margin-top:8px;">
-            <label id="notesLabel">Additional Details</label>
+            <label id="notesLabel">Additional Details (Optional)</label>
           <textarea class="form-textarea" id="notesInput" maxlength="500" oninput="updateCharCounter('notesInput','notesCounter')" placeholder="Last behavior, collar color, chip ID if known..."></textarea>
           <span class="char-counter" id="notesCounter">0/500</span>
           </div>
@@ -809,7 +815,7 @@
           </div>
         </div>
         <div class="form-group" style="margin-bottom:20px;">
-          <label>ADDITIONAL DETAILS</label>
+          <label>ADDITIONAL DETAILS (OPTIONAL)</label>
           <textarea class="form-textarea" id="sightingNotesInput" maxlength="500" oninput="updateCharCounter('sightingNotesInput','sightingNotesCounter')" placeholder="Was the pet wearing a collar? What was its temperament?"></textarea>
           <span class="char-counter" id="sightingNotesCounter">0/500</span>
         </div>

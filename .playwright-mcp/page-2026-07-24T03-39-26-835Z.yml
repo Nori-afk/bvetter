@@ -1,0 +1,213 @@
+- generic [ref=f2e2]:
+  - complementary [ref=f2e3]:
+    - img "VBetter Logo" [ref=f2e6]
+    - generic [ref=f2e7]:
+      - navigation [ref=f2e8]:
+        - link [ref=f2e9] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/index.html
+          - img "Dashboard" [ref=f2e10]
+          - generic: Dashboard
+        - link [ref=f2e11] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/appointment.html
+          - img "Appointment Management" [ref=f2e12]
+          - generic: Appointment Management
+        - link [ref=f2e13] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/castration-spay.html
+          - img "Castration & Spay Program" [ref=f2e14]
+          - generic: Castration & Spay Program
+        - link [ref=f2e15] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/patient-records.html
+          - img "Patient Records" [ref=f2e16]
+          - generic: Patient Records
+        - link [ref=f2e17] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/report.html
+          - img "Report" [ref=f2e18]
+          - generic: Report
+        - link [ref=f2e19] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/disease-analytics.html
+          - img "Disease Analytics" [ref=f2e20]
+          - generic: Disease Analytics
+        - link [ref=f2e21] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/lost-and-found.html
+          - img "Lost and Found" [ref=f2e22]
+          - generic: Lost And Found
+        - link [ref=f2e23] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/chatbot-management.html
+          - img "Chatbot Management" [ref=f2e24]
+          - generic: Chatbot Management
+        - link [ref=f2e25] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/mass-vaccination.html
+          - img "Mass Vaccination" [ref=f2e26]
+          - generic: Mass Vaccination
+      - generic [ref=f2e27]:
+        - article "Kizea igaya profile" [ref=f2e28] [cursor=pointer]:
+          - img "Kizea igaya" [ref=f2e29]
+        - button [ref=f2e30] [cursor=pointer]:
+          - img "Log Out" [ref=f2e31]
+          - generic: Log Out
+  - main [ref=f2e32]:
+    - generic [ref=f2e33]:
+      - generic [ref=f2e34]:
+        - heading "Lost And Found Management" [level=1] [ref=f2e35]
+        - paragraph [ref=f2e36]: Review reports, validate claims, and resolve pet match workflows.
+      - button "Upload Found Pet" [ref=f2e37] [cursor=pointer]
+    - generic [ref=f2e56]:
+      - article [ref=f2e57]:
+        - heading "Pending Review" [level=5] [ref=f2e58]
+        - strong [ref=f2e59]: "0"
+        - text: Submissions
+      - article [ref=f2e60]:
+        - heading "Active Reports" [level=5] [ref=f2e61]
+        - strong [ref=f2e62]: "6"
+        - text: Publicly visible
+      - article [ref=f2e63]:
+        - heading "Clinic Uploaded" [level=5] [ref=f2e64]
+        - strong [ref=f2e65]: "0"
+        - text: From clinic staff
+      - article [ref=f2e66]:
+        - heading "Suggested Matches" [level=5] [ref=f2e67]
+        - strong [ref=f2e68]: "20"
+        - text: Candidates
+      - article [ref=f2e69]:
+        - heading "Resolved" [level=5] [ref=f2e70]
+        - strong [ref=f2e71]: "46"
+        - text: Closed reports
+    - generic [ref=f2e41]:
+      - button "Pending Review" [ref=f2e80] [cursor=pointer]
+      - button "Active Reports" [ref=f2e81] [cursor=pointer]
+      - button "Potential MatchesNEW" [ref=f2e82] [cursor=pointer]
+      - button "Resolved Cases" [ref=f2e83] [cursor=pointer]
+      - button "Claims" [ref=f2e84] [cursor=pointer]
+      - button "Sighting" [ref=f2e85] [cursor=pointer]
+    - generic [ref=f2e48]:
+      - textbox "Search lost and found reports" [ref=f2e50]:
+        - /placeholder: Search breed, name, or location...
+      - combobox "Select report type" [ref=f2e51] [cursor=pointer]:
+        - option "All Types" [selected]
+        - option "Lost"
+        - option "Found"
+      - combobox "Select source" [ref=f2e52] [cursor=pointer]:
+        - option "All Sources" [selected]
+        - option "Owner"
+        - option "Admin/Clinic"
+      - combobox "Select barangay" [ref=f2e53] [cursor=pointer]:
+        - option "Select Barangay" [selected]
+        - option "Bagong Nayon"
+        - option "Barangca"
+        - option "Calantipay"
+        - option "Catulinan"
+        - option "Concepcion"
+        - option "Hinukay"
+        - option "Makinabang"
+        - option "Matangtubig"
+        - option "Pagala"
+        - option "Paitan"
+        - option "Piel"
+        - option "Pinagbarilan"
+        - option "Poblacion"
+        - option "Sabang"
+        - option "San Jose"
+        - option "San Roque"
+        - option "Sta. Barbara"
+        - option "Sto. Cristo"
+        - option "Sto. Niño"
+        - option "Subic"
+        - option "Sulivan"
+        - option "Tangos"
+        - option "Tarcan"
+        - option "Tiaong"
+        - option "Tibag"
+        - option "Tilapayong"
+        - option "Virgen Delas Flores"
+    - generic [ref=f2e475]:
+      - generic [ref=f2e476]:
+        - generic [ref=f2e477]:
+          - generic [ref=f2e478]: ⓘ
+          - text: Suggested matches are generated from pet details, image metadata, and location similarity.
+        - button "View Sighting Reports (16)" [ref=f2e480] [cursor=pointer]
+        - article [ref=f2e481] [cursor=pointer]:
+          - generic [ref=f2e482]:
+            - generic [ref=f2e483]:
+              - heading "wdsw" [level=4] [ref=f2e484]
+              - text: wwedfwe
+            - generic [ref=f2e485]: 60%
+            - generic [ref=f2e487]:
+              - heading "Found Pet Report" [level=4] [ref=f2e488]
+              - text: cvxc
+          - generic [ref=f2e489]:
+            - generic [ref=f2e490]: Same species
+            - generic [ref=f2e491]: Same size
+            - generic [ref=f2e492]: Same barangay
+            - generic [ref=f2e493]: Similar photo color profile
+            - generic [ref=f2e494]: Similar image pattern
+          - generic [ref=f2e495]:
+            - button "Dismiss" [ref=f2e496]
+            - button "Approve Match" [ref=f2e497]
+        - article [ref=f2e498] [cursor=pointer]:
+          - generic [ref=f2e499]:
+            - generic [ref=f2e500]:
+              - heading "e2dfwef" [level=4] [ref=f2e501]
+              - text: wwedfwewwedf
+            - generic [ref=f2e502]: 60%
+            - generic [ref=f2e504]:
+              - heading "Found Pet Report" [level=4] [ref=f2e505]
+              - text: cvxc
+          - generic [ref=f2e506]:
+            - generic [ref=f2e507]: Same species
+            - generic [ref=f2e508]: Same size
+            - generic [ref=f2e509]: Same barangay
+            - generic [ref=f2e510]: Similar photo color profile
+            - generic [ref=f2e511]: Similar image pattern
+          - generic [ref=f2e512]:
+            - button "Dismiss" [ref=f2e513]
+            - button "Approve Match" [ref=f2e514]
+        - article [ref=f2e515] [cursor=pointer]:
+          - generic [ref=f2e516]:
+            - generic [ref=f2e517]:
+              - heading "wdsw" [level=4] [ref=f2e518]
+              - text: wwedfwe
+            - generic [ref=f2e519]: 54%
+            - generic [ref=f2e521]:
+              - heading "Found Pet Report" [level=4] [ref=f2e522]
+              - text: wqeqw
+          - generic [ref=f2e523]:
+            - generic [ref=f2e524]: Same species
+            - generic [ref=f2e525]: Same size
+            - generic [ref=f2e526]: Nearby location
+            - generic [ref=f2e527]: Similar photo color profile
+            - generic [ref=f2e528]: Similar image pattern
+          - generic [ref=f2e529]:
+            - button "Dismiss" [ref=f2e530]
+            - button "Approve Match" [ref=f2e531]
+        - article [ref=f2e532] [cursor=pointer]:
+          - generic [ref=f2e533]:
+            - generic [ref=f2e534]:
+              - heading "e2dfwef" [level=4] [ref=f2e535]
+              - text: wwedfwewwedf
+            - generic [ref=f2e536]: 54%
+            - generic [ref=f2e538]:
+              - heading "Found Pet Report" [level=4] [ref=f2e539]
+              - text: wqeqw
+          - generic [ref=f2e540]:
+            - generic [ref=f2e541]: Same species
+            - generic [ref=f2e542]: Same size
+            - generic [ref=f2e543]: Nearby location
+            - generic [ref=f2e544]: Similar photo color profile
+            - generic [ref=f2e545]: Similar image pattern
+          - generic [ref=f2e546]:
+            - button "Dismiss" [ref=f2e547]
+            - button "Approve Match" [ref=f2e548]
+      - complementary [ref=f2e549]:
+        - heading "Approve The Match" [level=3] [ref=f2e550]
+        - paragraph [ref=f2e551]: Approving marks the matching case as resolved and notifies both submitters.
+        - generic [ref=f2e552]:
+          - generic [ref=f2e553]:
+            - generic [ref=f2e554]: Lost
+            - generic [ref=f2e555]: wdsw
+          - generic [ref=f2e556]:
+            - generic [ref=f2e557]: Found
+            - generic [ref=f2e558]: Found Pet Report
+          - generic [ref=f2e559]:
+            - generic [ref=f2e560]: Confidence
+            - generic [ref=f2e561]: 60%
+        - button "Approve Match" [ref=f2e562] [cursor=pointer]

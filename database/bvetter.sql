@@ -72,7 +72,7 @@ CREATE TABLE `visit_types` (
 
 INSERT INTO `visit_types` (`id`, `name`, `is_default`, `is_active`, `created_at`, `updated_at`) VALUES
 (1, 'Consultation', 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-(2, 'Vaccination', 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+(2, 'Anti-Rabies', 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 (3, 'Deworming', 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 (4, 'Castration & Spay', 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 

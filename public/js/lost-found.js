@@ -394,7 +394,7 @@ function openModal(type) {
   if (petDetailsLabel) petDetailsLabel.textContent = isLost ? 'PET DETAILS' : 'ANIMAL DETAILS';
   if (incidentLabel) incidentLabel.textContent = isLost ? 'INCIDENT DETAILS' : 'WHERE AND WHEN FOUND';
   if (dateLostLabel) dateLostLabel.textContent = isLost ? 'Date Lost' : 'Date Found';
-  if (notesLabel) notesLabel.textContent = isLost ? 'Additional Details' : 'Current Status / Notes';
+  if (notesLabel) notesLabel.textContent = (isLost ? 'Additional Details' : 'Current Status / Notes') + ' (Optional)';
 
   openModalById('reportModal');
   setTimeout(() => initReportMap(), 100);
@@ -433,6 +433,13 @@ function requiredValue(id, label, minLength = 2) {
   const value = el ? el.value.trim() : '';
   if (!value) throw new Error(`${label} is required.`);
   if (value.length < minLength) throw new Error(`${label} must be at least ${minLength} characters.`);
+  return value;
+}
+
+function optionalValue(id, label, minLength = 2) {
+  const el = document.getElementById(id);
+  const value = el ? el.value.trim() : '';
+  if (value && value.length < minLength) throw new Error(`${label} must be at least ${minLength} characters.`);
   return value;
 }
 
@@ -522,7 +529,8 @@ async function submitReport() {
     formData.append('barangay', requiredValue('barangayInput', 'Barangay'));
     formData.append('lat', document.getElementById('reportLatInput')?.value || '');
     formData.append('lng', document.getElementById('reportLngInput')?.value || '');
-    formData.append('notes', requiredValue('notesInput', 'Additional details', 5));
+    const notes = optionalValue('notesInput', 'Additional details', 5);
+    if (notes) formData.append('notes', notes);
     formData.append('contact_name', requiredValue('contactName', 'Contact name'));
     formData.append('contact_phone', contactPhone);
 
@@ -586,22 +594,29 @@ function matchScoreClass(confidence) {
 	if (confidence >= 60) return 'mid';
 	return 'low';
 }
+
+// The clicked/owned report always renders in the LEFT ("owner") slot, regardless
+// of whether it's a lost or found report — the counterpart candidate goes right.
 function buildMatchCard(match, index, report) {
 	const cls        = matchScoreClass(match.confidence);
 	const barClass   = cls === 'high' ? 'lf-match-bar' : `lf-match-bar ${cls}-bar`;
 	const isResolved = match.status === 'approved';
 	const foundId    = match.found?.reportId || '';
- 
-	// Infer "Found" source label: sightings come from the community, reports from admin/clinic
-	const foundSource = match.found?.sightingId && !match.found?.reportId
-		? 'Community Report'
-		: 'Admin Upload';
- 
+
+	const ownerIsFound = normalizeType(report?.type) === 'found';
+	const ownerPet    = ownerIsFound ? match.found : match.lost;
+	const otherPet    = ownerIsFound ? match.lost : match.found;
+	const ownerFallbackName = ownerIsFound ? 'Found Pet' : 'Lost Pet';
+	const ownerTagClass = ownerIsFound ? 'found-tag' : 'lost-tag';
+	const ownerTagText  = ownerIsFound ? 'Found (Your Report)' : 'Lost (Your Report)';
+	const otherTagClass = ownerIsFound ? 'lost-tag' : 'found-tag';
+	const otherTagText  = ownerIsFound ? 'Lost Pet Report' : 'Found Pet Report';
+
 	// Similarity reason chips
 	const simTagsHtml = (match.reasons || [])
 		.map((reason) => `<span class="lf-sim-tag">${escapeHtml(reason)}</span>`)
 		.join('');
- 
+
 	// Action buttons — hide claim button for already-resolved matches. Claimant
 	// info for a resolved report is shown once at the panel level (see
 	// matchesClaimantBlock in openMyReportMatches), not per-card, since a claim
@@ -621,10 +636,10 @@ function buildMatchCard(match, index, report) {
 				CLAIM THIS PET
 			</button>
 		`;
- 
+
 	return `
 		<div class="lf-match-card ${cls}" data-match-id="${escapeHtml(String(match.id))}">
- 
+
 			<!-- Score row -->
 			<div class="lf-match-top">
 				<span class="lf-match-label">Potential Match ${index + 1}</span>
@@ -635,26 +650,26 @@ function buildMatchCard(match, index, report) {
 					<span class="lf-match-pct ${cls}">${match.confidence}%</span>
 				</div>
 			</div>
- 
+
 			<!-- Pet pair -->
 			<div class="lf-match-pets">
- 
-				<!-- Lost pet (owner's report) -->
+
+				<!-- Owner's report (the report the user clicked) -->
 				<div class="lf-match-pet-card owner">
-					<img src="${escapeHtml(match.lost.image || FALLBACK_IMAGE)}"
-						alt="${escapeHtml(match.lost.name || 'Lost Pet')}"
+					<img src="${escapeHtml(ownerPet.image || FALLBACK_IMAGE)}"
+						alt="${escapeHtml(ownerPet.name || ownerFallbackName)}"
 						class="lf-match-pet-img"/>
 					<div class="lf-match-pet-info">
 						<h4 class="lf-match-pet-name">
-							${escapeHtml(match.lost.name || report?.petName || report?.title || 'Lost Pet')}
+							${escapeHtml(ownerPet.name || report?.petName || report?.title || ownerFallbackName)}
 						</h4>
-						<p class="lf-match-pet-meta">${escapeHtml(match.lost.breed || '')}</p>
-						<p class="lf-match-pet-meta">${escapeHtml(match.lost.location || '')}</p>
-						<p class="lf-match-pet-meta">Reported: ${escapeHtml(formatDate(match.lost.createdAt))}</p>
-						<span class="lf-match-tag lost-tag">Lost (Your Report)</span>
+						<p class="lf-match-pet-meta">${escapeHtml(ownerPet.breed || '')}</p>
+						<p class="lf-match-pet-meta">${escapeHtml(ownerPet.location || '')}</p>
+						<p class="lf-match-pet-meta">Reported: ${escapeHtml(formatDate(ownerPet.createdAt))}</p>
+						<span class="lf-match-tag ${ownerTagClass}">${ownerTagText}</span>
 					</div>
 				</div>
- 
+
 				<!-- VS connector -->
 				<div class="lf-match-vs">
 					<div class="lf-match-vs-line"></div>
@@ -667,37 +682,188 @@ function buildMatchCard(match, index, report) {
 					</div>
 					<div class="lf-match-vs-line"></div>
 				</div>
- 
-				<!-- Found pet (admin/community report) -->
+
+				<!-- Counterpart candidate report -->
 				<div class="lf-match-pet-card admin">
-					<img src="${escapeHtml(match.found.image || FALLBACK_IMAGE)}"
-						alt="${escapeHtml(match.found.name || 'Found Pet')}"
+					<img src="${escapeHtml(otherPet.image || FALLBACK_IMAGE)}"
+						alt="${escapeHtml(otherPet.name || 'Pet')}"
 						class="lf-match-pet-img"/>
 					<div class="lf-match-pet-info">
 						<h4 class="lf-match-pet-name">
-							${escapeHtml(match.found.name || 'Found Pet')}
+							${escapeHtml(otherPet.name || 'Pet')}
 						</h4>
-						<p class="lf-match-pet-meta">${escapeHtml(match.found.breed || '')}</p>
-						<p class="lf-match-pet-meta">Source: ${escapeHtml(foundSource)}</p>
-						<p class="lf-match-pet-meta">Reported: ${escapeHtml(formatDate(match.found.createdAt))}</p>
-						<span class="lf-match-tag found-tag">Found (Admin)</span>
+						<p class="lf-match-pet-meta">${escapeHtml(otherPet.breed || '')}</p>
+						<p class="lf-match-pet-meta">${escapeHtml(otherPet.location || '')}</p>
+						<p class="lf-match-pet-meta">Reported: ${escapeHtml(formatDate(otherPet.createdAt))}</p>
+						<span class="lf-match-tag ${otherTagClass}">${otherTagText}</span>
 					</div>
 				</div>
- 
+
 			</div>
- 
+
 			<!-- Similarity reason chips -->
 			${simTagsHtml ? `<div class="lf-match-similarity-tags">${simTagsHtml}</div>` : ''}
- 
+
 			<!-- Actions -->
 			<div class="lf-match-actions${isResolved ? ' resolved' : ''}">${actionsHtml}</div>
- 
+
 		</div>
 	`;
 }
+
+// Community sighting matched to the owner's lost report. Rendered separately from
+// the lost/found match cards above — reached only via the "View Sighting Reports"
+// toggle, since a sighting isn't a formal found report and can't be claimed.
+function buildSightingCard(match, index, report) {
+	const cls      = matchScoreClass(match.confidence);
+	const barClass = cls === 'high' ? 'lf-match-bar' : `lf-match-bar ${cls}-bar`;
+
+	const simTagsHtml = (match.reasons || [])
+		.map((reason) => `<span class="lf-sim-tag">${escapeHtml(reason)}</span>`)
+		.join('');
+
+	return `
+		<div class="lf-match-card ${cls}" data-match-id="${escapeHtml(String(match.id))}">
+
+			<div class="lf-match-top">
+				<span class="lf-match-label">Sighting Report ${index + 1}</span>
+				<div class="lf-match-score-wrap">
+					<div class="lf-match-bar-track">
+						<div class="${barClass}" data-width="${match.confidence}" style="width:0%"></div>
+					</div>
+					<span class="lf-match-pct ${cls}">${match.confidence}%</span>
+				</div>
+			</div>
+
+			<div class="lf-match-pets">
+
+				<div class="lf-match-pet-card owner">
+					<img src="${escapeHtml(match.lost.image || FALLBACK_IMAGE)}"
+						alt="${escapeHtml(match.lost.name || 'Lost Pet')}"
+						class="lf-match-pet-img"/>
+					<div class="lf-match-pet-info">
+						<h4 class="lf-match-pet-name">
+							${escapeHtml(match.lost.name || report?.petName || report?.title || 'Lost Pet')}
+						</h4>
+						<p class="lf-match-pet-meta">${escapeHtml(match.lost.breed || '')}</p>
+						<p class="lf-match-pet-meta">${escapeHtml(match.lost.location || '')}</p>
+						<span class="lf-match-tag lost-tag">Lost (Your Report)</span>
+					</div>
+				</div>
+
+				<div class="lf-match-vs">
+					<div class="lf-match-vs-line"></div>
+					<div class="lf-match-vs-icon">
+						<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+							<path d="M3.5 7h7M7.5 4.5L10 7l-2.5 2.5"
+								stroke="#737781" stroke-width="1.2"
+								stroke-linecap="round" stroke-linejoin="round"/>
+						</svg>
+					</div>
+					<div class="lf-match-vs-line"></div>
+				</div>
+
+				<div class="lf-match-pet-card admin">
+					<img src="${escapeHtml(match.found.image || FALLBACK_IMAGE)}"
+						alt="Community Sighting"
+						class="lf-match-pet-img"/>
+					<div class="lf-match-pet-info">
+						<h4 class="lf-match-pet-name">Community Sighting</h4>
+						<p class="lf-match-pet-meta">${escapeHtml(match.found.breed || '')}</p>
+						<p class="lf-match-pet-meta">${escapeHtml(match.found.location || '')}</p>
+						<p class="lf-match-pet-meta">Reported: ${escapeHtml(formatDate(match.found.createdAt))}</p>
+						<span class="lf-match-tag sighting-tag">Sighting Report</span>
+					</div>
+				</div>
+
+			</div>
+
+			${simTagsHtml ? `<div class="lf-match-similarity-tags">${simTagsHtml}</div>` : ''}
+
+			<p class="lf-sighting-note">This is a community-submitted sighting, not a formal found report. It hasn't been verified by the clinic yet.</p>
+
+		</div>
+	`;
+}
+
+let currentFoundMatches = [];
+let currentSightingMatches = [];
+let currentMatchesReport = null;
+let sightingViewOpen = false;
+
+function animateMatchBars(container) {
+	requestAnimationFrame(() => {
+		container.querySelectorAll('.lf-match-bar[data-width]').forEach((bar) => {
+			bar.style.transition = 'width 0.65s cubic-bezier(0.25, 0.8, 0.25, 1)';
+			bar.style.width = bar.dataset.width + '%';
+		});
+	});
+}
+
+// Renders either the found-report matches or the sighting matches for the
+// currently open report, depending on `sightingViewOpen`.
+function renderMatchesBody() {
+	const body = document.querySelector('#matchesPanel .matches-panel-body');
+	const emptyEl = document.getElementById('noMatchesState');
+	const toggleRow = document.getElementById('sightingToggleRow');
+	const toggleBtn = document.getElementById('viewSightingsBtn');
+	if (!body) return;
+
+	body.querySelectorAll('.lf-match-card').forEach((card) => card.remove());
+
+	if (toggleRow) toggleRow.style.display = currentSightingMatches.length ? 'flex' : 'none';
+	if (toggleBtn) {
+		toggleBtn.textContent = sightingViewOpen
+			? '← Back to Potential Matches'
+			: `View Sighting Reports (${currentSightingMatches.length})`;
+	}
+
+	const claimant = myReportClaimants[currentMatchesReport?.id];
+	const list = sightingViewOpen ? currentSightingMatches : currentFoundMatches;
+	const builder = sightingViewOpen ? buildSightingCard : buildMatchCard;
+
+	if (emptyEl) {
+		const showEmpty = !list.length;
+		emptyEl.style.display = showEmpty ? 'flex' : 'none';
+		if (showEmpty) {
+			const titleEl = emptyEl.querySelector('h3');
+			const descEl = emptyEl.querySelector('p');
+			if (sightingViewOpen) {
+				if (titleEl) titleEl.textContent = 'No Sighting Reports';
+				if (descEl) descEl.textContent = 'No community sightings have been reported for this pet yet.';
+			} else if (currentMatchesReport?.status === 'resolved') {
+				if (titleEl) titleEl.textContent = 'Case Resolved';
+				if (descEl) descEl.textContent = claimant
+					? 'This report has been resolved and the pet was claimed.'
+					: 'This report has been marked as resolved.';
+			} else {
+				if (titleEl) titleEl.textContent = 'No More Matches';
+				if (descEl) descEl.textContent = 'The system will notify you when new found pets are reported in your area.';
+			}
+		}
+	}
+
+	if (list.length) {
+		const cardsHtml = list.map((match, i) => builder(match, i, currentMatchesReport)).join('');
+		if (emptyEl) {
+			emptyEl.insertAdjacentHTML('beforebegin', cardsHtml);
+		} else {
+			body.insertAdjacentHTML('beforeend', cardsHtml);
+		}
+		animateMatchBars(body);
+	}
+}
+
+function toggleSightingView() {
+	sightingViewOpen = !sightingViewOpen;
+	renderMatchesBody();
+}
+
 async function openMyReportMatches(reportId) {
 	// Find the owner's report for name/breed fallbacks
 	const report = myReports.find((item) => String(item.id) === String(reportId));
+	currentMatchesReport = report;
+	sightingViewOpen = false;
 
 	// Update the panel subtitle with the pet's name
 	const nameEl = document.getElementById('matchesPetName');
@@ -737,49 +903,14 @@ async function openMyReportMatches(reportId) {
 		console.error('Failed to load matches:', err);
 	}
 
-	// Show empty state if no matches returned. For an already-resolved report,
-	// swap the "still searching" copy for a resolved message so it doesn't read
-	// as if the case is still open.
-	if (emptyEl) {
-		emptyEl.style.display = matches.length ? 'none' : 'flex';
-		if (!matches.length) {
-			const titleEl = emptyEl.querySelector('h3');
-			const descEl = emptyEl.querySelector('p');
-			if (report?.status === 'resolved') {
-				if (titleEl) titleEl.textContent = 'Case Resolved';
-				if (descEl) descEl.textContent = claimant
-					? 'This report has been resolved and the pet was claimed.'
-					: 'This report has been marked as resolved.';
-			} else {
-				if (titleEl) titleEl.textContent = 'No More Matches';
-				if (descEl) descEl.textContent = 'The system will notify you when new found pets are reported in your area.';
-			}
-		}
-	}
- 
-	// Build and inject all match cards before the empty-state element
-	if (matches.length && body) {
-		const cardsHtml = matches
-			.map((match, i) => buildMatchCard(match, i, report))
-			.join('');
- 
-		// Insert cards just before the empty state so they appear above it
-		if (emptyEl) {
-			emptyEl.insertAdjacentHTML('beforebegin', cardsHtml);
-		} else {
-			body.insertAdjacentHTML('beforeend', cardsHtml);
-		}
- 
-		// Animate the score bars after the DOM is painted (mirrors the CSS transition
-		// on the hardcoded cards — bars start at 0% then slide to the real value)
-		requestAnimationFrame(() => {
-			body.querySelectorAll('.lf-match-bar[data-width]').forEach((bar) => {
-				bar.style.transition = 'width 0.65s cubic-bezier(0.25, 0.8, 0.25, 1)';
-				bar.style.width = bar.dataset.width + '%';
-			});
-		});
-	}
- 
+	// Potential Matches only ever shows lost-vs-found report pairs. Sighting-based
+	// candidates (found.sightingId set, found.reportId null) are kept out of this
+	// list and surfaced instead behind the "View Sighting Reports" toggle.
+	currentFoundMatches = matches.filter((match) => match.found?.reportId);
+	currentSightingMatches = matches.filter((match) => !match.found?.reportId && match.found?.sightingId);
+
+	renderMatchesBody();
+
 	// Open the slide-in panel
 	openModalById('matchesPanelOverlay');
 }
@@ -794,6 +925,11 @@ function closeMatchesPanel(event) {
 }
 
 function handleNotMine(btn) {
+  const matchId = btn?.dataset?.matchId;
+  if (matchId) {
+    currentFoundMatches = currentFoundMatches.filter((match) => String(match.id) !== String(matchId));
+    currentSightingMatches = currentSightingMatches.filter((match) => String(match.id) !== String(matchId));
+  }
   btn.closest('.lf-match-card')?.remove();
 }
 
@@ -833,7 +969,7 @@ async function submitSighting() {
     assertDateNotFuture(date, 'Date spotted');
     barangay = requiredValue('sightingBarangayInput', 'Barangay');
     location = requiredValue('sightingLocationInput', 'Specific landmark', 5);
-    notes = requiredValue('sightingNotesInput', 'Additional details', 5);
+    notes = optionalValue('sightingNotesInput', 'Additional details', 5);
     photo = document.getElementById('sightingPhoto')?.files?.[0];
     assertValidPhoto(photo, 'Sighting photo', ['image/jpeg', 'image/png', 'image/webp']);
   } catch (error) {

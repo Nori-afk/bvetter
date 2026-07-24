@@ -969,6 +969,21 @@ body {
   color: var(--text-muted);
 }
 
+.field-row {
+  display: flex;
+  gap: 8px;
+}
+
+.field-row .form-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.field-row select.form-input {
+  flex: 0 0 108px;
+  cursor: pointer;
+}
+
 .field-warning.is-hidden {
   display: none;
 }
@@ -1320,11 +1335,10 @@ body {
   border-radius: 18px;
   overflow: hidden;
   align-items: stretch;
+  background: var(--gradient-hero);
 }
 
 .hist-hero .hero-left {
-  /* background: var(--color-navy); */
-  background-image: url("../images/backgrounds/green-bg.png");
   padding: 32px 40px;
   display: flex;
   flex-direction: column;
@@ -1332,18 +1346,10 @@ body {
 }
 
 .hist-hero-art {
-  background: var(--color-navy);
   display: flex;
   align-items: center;
   justify-content: flex-end;
   padding-right: 20px;
-}
-
-.hist-hero-img {
-  width: 110px;
-  height: 110px;
-  object-fit: contain;
-  opacity: 0.2;
 }
 
 /* Body layout: main list LEFT, green stat card RIGHT */

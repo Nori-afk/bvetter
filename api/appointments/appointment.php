@@ -376,6 +376,12 @@ function createAppointment($pdo, $data)
     if (strtotime($preferredDate) < strtotime(date('Y-m-d'))) {
         respond(422, ['success' => false, 'message' => 'Cannot book an appointment on a past date.']);
     }
+    if ($preferredDate === date('Y-m-d')) {
+        $slotTimestamp = strtotime($preferredDate . ' ' . $timeSlot);
+        if ($slotTimestamp !== false && $slotTimestamp <= time()) {
+            respond(422, ['success' => false, 'message' => 'That time slot has already passed today. Please choose a later time.']);
+        }
+    }
 
     $pdo->beginTransaction();
 
@@ -441,6 +447,7 @@ function createAppointment($pdo, $data)
     $pdo->commit();
 
     notifyNewAppointmentRequest($pdo, $appointmentId, $ownerId, $petId, $appointmentType, $preferredDate, $timeSlot);
+    notifyOwnerAppointmentRequested($pdo, $appointmentId);
 
     respond(201, [
         'success' => true,
@@ -468,6 +475,35 @@ function notifyNewAppointmentRequest($pdo, $appointmentId, $ownerId, $petId, $ap
         $appointmentId,
         true
     );
+}
+
+function notifyOwnerAppointmentRequested($pdo, $appointmentId)
+{
+    $stmt = $pdo->prepare('
+        SELECT appointments.preferred_date, appointments.time_slot,
+               owners.id AS owner_id, owners.full_name AS owner_name, owners.email AS owner_email
+        FROM appointments
+        INNER JOIN users owners ON owners.id = appointments.owner_id
+        WHERE appointments.id = :id
+        LIMIT 1
+    ');
+    $stmt->execute([':id' => (int) $appointmentId]);
+    $row = $stmt->fetch();
+    if (!$row || !$row['owner_email']) return;
+
+    $ownerId = (int) $row['owner_id'];
+    if (!userWantsNotification($pdo, $ownerId, 'appointment_reminders')) return;
+
+    $subject = 'VBetter – We received your appointment request';
+    $body = notificationEmailWrapper(
+        'Appointment Request Received',
+        "<p>We've received your request for <strong>{$row['preferred_date']}</strong> at
+           <strong>{$row['time_slot']}</strong>. We'll email you once it's been reviewed.</p>",
+        null,
+        ['label' => 'View', 'url' => APP_URL . '/public/pages/book-appointment.html']
+    );
+
+    sendAppMail($row['owner_email'], clean($row['owner_name'] ?? ''), $subject, $body);
 }
 
 function updateAppointmentStatus($pdo, $data)
@@ -510,6 +546,7 @@ function updateAppointmentStatus($pdo, $data)
     }
     if (in_array($status, ['cancelled', 'rejected'], true)) {
         $verb = $status === 'cancelled' ? 'cancelled' : 'rejected';
+        notifyOwnerAppointmentRejected($pdo, $appointmentId, $verb);
         notifyStaff($pdo, 'both', 'appointment_status', 'Appointment ' . ucfirst($verb), "Appointment #{$appointmentId} was {$verb}.", $appointmentId, true);
     }
 
@@ -548,6 +585,35 @@ function notifyOwnerAppointmentConfirmed($pdo, $appointmentId)
     sendAppMail($row['owner_email'], clean($row['owner_name'] ?? ''), $subject, $body);
 }
 
+function notifyOwnerAppointmentRejected($pdo, $appointmentId, $verb)
+{
+    $stmt = $pdo->prepare('
+        SELECT appointments.preferred_date, appointments.time_slot,
+               owners.id AS owner_id, owners.full_name AS owner_name, owners.email AS owner_email
+        FROM appointments
+        INNER JOIN users owners ON owners.id = appointments.owner_id
+        WHERE appointments.id = :id
+        LIMIT 1
+    ');
+    $stmt->execute([':id' => (int) $appointmentId]);
+    $row = $stmt->fetch();
+    if (!$row || !$row['owner_email']) return;
+
+    $ownerId = (int) $row['owner_id'];
+    if (!userWantsNotification($pdo, $ownerId, 'appointment_reminders')) return;
+
+    $subject = 'VBetter – Your appointment was ' . $verb;
+    $body = notificationEmailWrapper(
+        'Appointment ' . ucfirst($verb),
+        "<p>Your appointment on <strong>{$row['preferred_date']}</strong> at
+           <strong>{$row['time_slot']}</strong> has been <strong>{$verb}</strong>.</p>",
+        null,
+        ['label' => 'View', 'url' => APP_URL . '/public/pages/book-appointment.html']
+    );
+
+    sendAppMail($row['owner_email'], clean($row['owner_name'] ?? ''), $subject, $body);
+}
+
 function rescheduleAppointment($pdo, $data)
 {
     $appointmentId = (int) ($data['appointment_id'] ?? $data['id'] ?? 0);
@@ -563,8 +629,14 @@ function rescheduleAppointment($pdo, $data)
     if (strtotime($date) < strtotime(date('Y-m-d'))) {
         respond(422, ['success' => false, 'message' => 'Cannot reschedule to a past date.']);
     }
+    if (in_array((int) date('N', strtotime($date)), [6, 7], true)) {
+        respond(422, ['success' => false, 'message' => 'The clinic is closed on Saturdays and Sundays.']);
+    }
     if (!preg_match('/^\d{2}:\d{2}$/', $timeSlot)) {
         respond(422, ['success' => false, 'message' => 'A valid time slot is required.']);
+    }
+    if ($date === date('Y-m-d') && strtotime("{$date} {$timeSlot}") <= time()) {
+        respond(422, ['success' => false, 'message' => 'That time slot has already passed today. Please choose a later time.']);
     }
 
     $stmt = $pdo->prepare('SELECT id, veterinarian_id FROM appointments WHERE id = :id LIMIT 1');
@@ -675,10 +747,17 @@ function getBookedSlots($pdo, $data)
 {
     $date  = clean($data['preferred_date'] ?? $data['date'] ?? '');
     $vetId = (int)($data['veterinarian_id'] ?? 0);
+    // Rescheduling an appointment queries this same date/vet — exclude the
+    // appointment's own existing row so it doesn't gray out its own slot.
+    $excludeId = (int)($data['exclude_id'] ?? 0);
 
     if ($date === '') {
         respond(422, ['success' => false, 'message' => 'preferred_date is required.']);
     }
+
+    $excludeClause = $excludeId > 0 ? ' AND id <> :exclude_id' : '';
+    $params = [':date' => $date];
+    if ($excludeId > 0) $params[':exclude_id'] = $excludeId;
 
     // If a vet is specified, only block slots for that vet.
     // If no vet assigned (NULL), those appointments block ALL vets
@@ -689,15 +768,18 @@ function getBookedSlots($pdo, $data)
             WHERE preferred_date = :date
               AND status IN ('confirmed', 'completed')
               AND (veterinarian_id = :vet_id OR veterinarian_id IS NULL)
+              {$excludeClause}
         ");
-        $stmt->execute([':date' => $date, ':vet_id' => $vetId]);
+        $params[':vet_id'] = $vetId;
+        $stmt->execute($params);
     } else {
         $stmt = $pdo->prepare("
             SELECT time_slot FROM appointments
             WHERE preferred_date = :date
               AND status IN ('confirmed', 'completed')
+              {$excludeClause}
         ");
-        $stmt->execute([':date' => $date]);
+        $stmt->execute($params);
     }
 
     respond(200, [

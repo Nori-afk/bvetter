@@ -2808,8 +2808,40 @@ body {
   letter-spacing: 0.3px;
 }
 
-.lf-match-tag.lost-tag  { background: var(--color-red-light);    color: var(--color-red); }
-.lf-match-tag.found-tag { background: var(--color-green-light);  color: var(--color-green-dark); }
+.lf-match-tag.lost-tag     { background: var(--color-red-light);    color: var(--color-red); }
+.lf-match-tag.found-tag    { background: var(--color-green-light);  color: var(--color-green-dark); }
+.lf-match-tag.sighting-tag { background: #E3ECFB; color: var(--color-navy); }
+
+/* ── Sighting reports toggle ─────────────────── */
+.lf-sighting-toggle-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-view-sightings {
+  padding:       9px 16px;
+  background:    #ffffff;
+  border:        1.5px solid var(--border-default);
+  border-radius: 20px;
+  font-size:     12px;
+  font-weight:   700;
+  font-family:   'Manrope', sans-serif;
+  color:         var(--color-navy);
+  cursor:        pointer;
+  transition:    all 0.2s;
+}
+
+.btn-view-sightings:hover {
+  border-color: var(--color-navy);
+  background:   #E3ECFB;
+}
+
+.lf-sighting-note {
+  font-size:   11px;
+  color:       var(--text-muted);
+  line-height: 1.5;
+  font-style:  italic;
+}
 
 .lf-match-vs {
   display:        flex;

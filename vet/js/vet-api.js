@@ -169,6 +169,26 @@ async function rescheduleAppointment(id, preferredDate, timeSlot) {
     }
 }
 
+/** POST /final-VBETTER/bvetter/api/vet/appointments (action: booked_slots) */
+async function getBookedSlots({ veterinarian_id, preferred_date, exclude_id } = {}) {
+    const formData = new FormData();
+    formData.append('action', 'booked_slots');
+    if (veterinarian_id) formData.append('veterinarian_id', veterinarian_id);
+    formData.append('preferred_date', preferred_date || '');
+    if (exclude_id) formData.append('exclude_id', exclude_id);
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        return { ok: result.success, data: result.booked || [], error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, data: [], error: error.message };
+    }
+}
+
 /** GET /final-VBETTER/bvetter/api/vet/appointments/visit-types */
 async function getVisitTypes() {
     const formData = new FormData();
@@ -704,6 +724,7 @@ window.VetAPI = {
     updateAppointmentStatus,
     rescheduleAppointment,
     deleteAppointment,
+    getBookedSlots,
     getVisitTypes,
     addVisitType,
     removeVisitType,

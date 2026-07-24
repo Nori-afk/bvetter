@@ -101,6 +101,8 @@ function getCurrentUser() {
 
 /** Logs out and redirects to login */
 async function logout() {
+    if (!window.confirm('Are you sure you want to log out?')) return;
+
     const token = sessionStorage.getItem('bvetter_token');
     if (token) {
         try {

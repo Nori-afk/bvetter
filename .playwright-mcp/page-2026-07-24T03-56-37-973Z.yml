@@ -1,0 +1,140 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - img "VBetter Logo" [ref=e6]
+    - generic [ref=e7]:
+      - navigation [ref=e8]:
+        - link [ref=e9] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/index.html
+          - img "Dashboard" [ref=e10]
+          - generic: Dashboard
+        - link [ref=e11] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/appointment.html
+          - img "Appointment Management" [ref=e12]
+          - generic: Appointment Management
+        - link [ref=e13] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/castration-spay.html
+          - img "Castration & Spay Program" [ref=e14]
+          - generic: Castration & Spay Program
+        - link [ref=e15] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/patient-records.html
+          - img "Patient Records" [ref=e16]
+          - generic: Patient Records
+        - link [ref=e17] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/report.html
+          - img "Report" [ref=e18]
+          - generic: Report
+        - link [ref=e19] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/disease-analytics.html
+          - img "Disease Analytics" [ref=e20]
+          - generic: Disease Analytics
+        - link [ref=e21] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/lost-and-found.html
+          - img "Lost and Found" [ref=e22]
+          - generic: Lost And Found
+        - link [ref=e23] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/chatbot-management.html
+          - img "Chatbot Management" [ref=e24]
+          - generic: Chatbot Management
+        - link [ref=e25] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/mass-vaccination.html
+          - img "Mass Vaccination" [ref=e26]
+          - generic: Mass Vaccination
+      - generic [ref=e27]:
+        - article "Unknown profile" [ref=e28] [cursor=pointer]:
+          - img "Unknown" [ref=e29]
+        - button [ref=e30] [cursor=pointer]:
+          - img "Log Out" [ref=e31]
+          - generic: Log Out
+  - main [ref=e32]:
+    - generic [ref=e416]:
+      - generic [ref=e418]:
+        - generic [ref=e419]:
+          - heading "Patient Records" [level=1] [ref=e420]
+          - paragraph [ref=e421]: Manage patient profiles, clinical notes, follow-ups, and record actions from one place.
+        - button [ref=e423] [cursor=pointer]:
+          - img "icon" [ref=e424]
+          - text: Add New Patient
+      - generic [ref=e425]:
+        - article [ref=e426]:
+          - generic [ref=e427]:
+            - text: Total Patients
+            - generic [ref=e428]: Live
+          - generic [ref=e429]: "6"
+        - article [ref=e430]:
+          - generic [ref=e431]:
+            - text: Visits This Month
+            - generic [ref=e432]: Live
+          - generic [ref=e433]: "6"
+        - article [ref=e434]:
+          - generic [ref=e435]:
+            - text: Infectious Cases
+            - generic [ref=e436]: Live
+          - generic [ref=e437]: "0"
+        - article [ref=e438]:
+          - generic [ref=e439]:
+            - text: Follow-ups Due
+            - generic [ref=e440]: Due Now
+          - generic [ref=e441]: "4"
+      - generic [ref=e442]:
+        - searchbox "Search patients, breeds, owners..." [active] [ref=e445]: copper
+        - generic "Patient filters" [ref=e446]:
+          - generic [ref=e447]: "FILTER:"
+          - button "All Pets" [ref=e448] [cursor=pointer]
+          - button "Canine" [ref=e449] [cursor=pointer]
+          - button "Feline" [ref=e450] [cursor=pointer]
+          - button "Avian" [ref=e451] [cursor=pointer]
+          - button "Exotic" [ref=e452] [cursor=pointer]
+          - button "Active Only" [ref=e453] [cursor=pointer]
+        - table [ref=e455]:
+          - rowgroup [ref=e456]:
+            - row [ref=e457]:
+              - columnheader "Patient" [ref=e458]
+              - columnheader "Owner" [ref=e459]
+              - columnheader "Last Visit" [ref=e460]
+              - columnheader "Location" [ref=e461]
+              - columnheader "Status" [ref=e462]
+              - columnheader "Type" [ref=e463]
+              - columnheader "Actions" [ref=e464]
+          - rowgroup [ref=e465]:
+            - row [ref=e466]:
+              - cell "C Copper" [ref=e467]:
+                - generic [ref=e468]:
+                  - generic [ref=e469]: C
+                  - strong [ref=e471]: Copper
+              - cell "Kizea Bien Igaya 09496501168" [ref=e472]:
+                - generic [ref=e473]:
+                  - generic [ref=e474]: Kizea Bien Igaya
+                  - generic [ref=e475]: "09496501168"
+              - cell "Jul 23, 2026" [ref=e476]
+              - cell "Brgy. Makinabang, Baliwag, Bulacan" [ref=e481]
+              - cell [ref=e483]
+              - cell "Dog" [ref=e486]
+              - cell [ref=e488]:
+                - generic [ref=e489]:
+                  - button "Add Record" [ref=e490] [cursor=pointer]
+                  - button "View" [ref=e492] [cursor=pointer]
+                  - button "Delete" [ref=e496] [cursor=pointer]
+            - row [ref=e500]:
+              - cell "C Copper" [ref=e501]:
+                - generic [ref=e502]:
+                  - generic [ref=e503]: C
+                  - strong [ref=e505]: Copper
+              - cell "Mark ivan Jalova. villaster 999224422" [ref=e506]:
+                - generic [ref=e507]:
+                  - generic [ref=e508]: Mark ivan Jalova. villaster
+                  - generic [ref=e509]: "999224422"
+              - cell "May 27, 2026" [ref=e510]
+              - cell "Brgy. San Roque, Baliwag, Bulacan" [ref=e515]
+              - cell [ref=e517]
+              - cell "Feline" [ref=e520]
+              - cell [ref=e522]:
+                - generic [ref=e523]:
+                  - button "Add Record" [ref=e524] [cursor=pointer]
+                  - button "View" [ref=e526] [cursor=pointer]
+                  - button "Delete" [ref=e530] [cursor=pointer]
+        - paragraph [ref=e535]:
+          - text: Click
+          - strong [ref=e536]: View
+          - text: to inspect a patient profile, or
+          - strong [ref=e537]: Add Record
+          - text: to log a visit.

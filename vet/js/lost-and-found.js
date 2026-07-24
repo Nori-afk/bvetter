@@ -92,9 +92,20 @@ const lfState = {
 	sourceFilter: 'All Sources',
 	barangayFilter: 'Select Barangay',
 	selectedMatchId: null,
+	matchesView: 'found', // 'found' = lost/found report pairs, 'sighting' = community sightings
 	modalMaps: [],
 	resolvedPage: 1
 };
+
+// Potential Matches only ever shows lost-vs-found report pairs by default.
+// Sighting-based candidates (found_report_id null, sighting_id set) are kept
+// out of that list and surfaced instead behind the "View Sighting Reports" toggle.
+function splitMatches(matches) {
+	return {
+		found: matches.filter((match) => match.found?.reportId),
+		sighting: matches.filter((match) => !match.found?.reportId && match.found?.sightingId)
+	};
+}
 
 // Desktop gets more rows per page than a phone screen can comfortably show.
 function pageSizeForViewport() {
@@ -229,7 +240,8 @@ async function loadAllData() {
 			lfData.filters.barangays = ['Select Barangay', ...barangays.data.map((item) => item.name)];
 			populateFilterSelects();
 		}
-		lfState.selectedMatchId = lfData.potentialMatches[0]?.id || null;
+		lfState.matchesView = 'found';
+		lfState.selectedMatchId = splitMatches(lfData.potentialMatches).found[0]?.id || null;
 		renderEverything();
 	} catch (error) {
 		if (content) content.innerHTML = `<div class="list-note">${escapeHtml(error.message)}</div>`;
@@ -420,20 +432,39 @@ function confidenceGauge(confidence) {
 }
 
 function renderPotential(root) {
-	const selectedMatch = lfData.potentialMatches.find((item) => String(item.id) === String(lfState.selectedMatchId)) || lfData.potentialMatches[0];
-	root.innerHTML = lfData.potentialMatches.length ? `
+	const { found, sighting } = splitMatches(lfData.potentialMatches);
+	const showingSightings = lfState.matchesView === 'sighting';
+	const list = showingSightings ? sighting : found;
+	const selectedMatch = list.find((item) => String(item.id) === String(lfState.selectedMatchId)) || list[0];
+
+	const toggleBtn = (sighting.length || showingSightings)
+		? `<button type="button" class="btn btn-secondary matches-view-toggle" data-action="toggle-matches-view">
+			${showingSightings ? '&larr; Back to Potential Matches' : `View Sighting Reports (${sighting.length})`}
+		</button>`
+		: '';
+
+	if (!found.length && !sighting.length) {
+		root.innerHTML = empty('No potential matches yet.');
+		bindRootActions(root);
+		return;
+	}
+
+	root.innerHTML = `
 		<div class="potential-layout">
 			<div class="potential-main">
 				<div class="suggested-banner">
 					<span class="suggested-banner-icon">&#9432;</span>
-					Suggested matches are generated from pet details, image metadata, and location similarity.
+					${showingSightings
+						? 'Community-submitted sightings matched to lost reports. Approving marks the sighting as resolved.'
+						: 'Suggested matches are generated from pet details, image metadata, and location similarity.'}
 				</div>
-				${lfData.potentialMatches.map((match) => `
+				${toggleBtn ? `<div class="matches-toggle-row">${toggleBtn}</div>` : ''}
+				${list.length ? list.map((match) => `
 					<article class="match-card ${selectedMatch && String(match.id) === String(selectedMatch.id) ? 'is-selected' : ''}" data-action="select-match" data-id="${match.id}">
 						<div class="match-pair">
 							<div class="match-side"><img src="${escapeHtml(match.lost.image || FALLBACK_IMAGE)}" alt=""><h4>${escapeHtml(match.lost.name)}</h4><small>${escapeHtml(match.lost.breed || '')}</small></div>
 							${confidenceGauge(match.confidence)}
-							<div class="match-side"><img src="${escapeHtml(match.found.image || FALLBACK_IMAGE)}" alt=""><h4>${escapeHtml(match.found.name)}</h4><small>${escapeHtml(match.found.breed || '')}</small></div>
+							<div class="match-side"><img src="${escapeHtml(match.found.image || FALLBACK_IMAGE)}" alt=""><h4>${escapeHtml(showingSightings ? 'Community Sighting' : match.found.name)}</h4><small>${escapeHtml(match.found.breed || '')}</small></div>
 						</div>
 						<div class="reason-row">${(match.reasons || []).map((reason) => `<span class="reason-chip">${escapeHtml(reason)}</span>`).join('')}</div>
 						<div class="match-actions">
@@ -441,7 +472,7 @@ function renderPotential(root) {
 							<button type="button" class="btn btn-success" data-action="approve-match" data-id="${match.id}">Approve Match</button>
 						</div>
 					</article>
-				`).join('')}
+				`).join('') : empty(showingSightings ? 'No sighting matches yet.' : 'No potential matches yet.')}
 			</div>
 			<aside class="approval-card">
 				<h3>Approve The Match</h3>
@@ -449,14 +480,14 @@ function renderPotential(root) {
 					<p>Approving marks the matching case as resolved and notifies both submitters.</p>
 					<div class="summary-box">
 						<div class="summary-row"><span class="summary-label">Lost</span><span class="summary-value">${escapeHtml(selectedMatch.lost.name)}</span></div>
-						<div class="summary-row"><span class="summary-label">Found</span><span class="summary-value">${escapeHtml(selectedMatch.found.name)}</span></div>
+						<div class="summary-row"><span class="summary-label">${showingSightings ? 'Sighting' : 'Found'}</span><span class="summary-value">${escapeHtml(showingSightings ? 'Community Sighting' : selectedMatch.found.name)}</span></div>
 						<div class="summary-row"><span class="summary-label">Confidence</span><span class="summary-value">${escapeHtml(String(selectedMatch.confidence))}%</span></div>
 					</div>
 					<button type="button" class="btn btn-primary approval-card-btn" data-action="approve-match" data-id="${selectedMatch.id}">Approve Match</button>
 				` : '<p>No suggested match selected.</p>'}
 			</aside>
 		</div>
-	` : empty('No potential matches yet.');
+	`;
 	bindRootActions(root);
 }
 
@@ -626,6 +657,12 @@ function bindRootActions(root) {
 				}
 				if (action === 'select-match') {
 					lfState.selectedMatchId = id;
+					return renderContent();
+				}
+				if (action === 'toggle-matches-view') {
+					lfState.matchesView = lfState.matchesView === 'sighting' ? 'found' : 'sighting';
+					const list = splitMatches(lfData.potentialMatches)[lfState.matchesView];
+					lfState.selectedMatchId = list[0]?.id || null;
 					return renderContent();
 				}
 				runConfirmableAction(action, id);

@@ -125,15 +125,10 @@ function sendEmailOtp(PDO $pdo): never
         $mail->isHTML(true);
         $mail->Subject = 'VBetter – Your Email Verification Code';
 
-        $logoPath = __DIR__ . '/../../public/images/logos/logo-color.png';
-        if (is_file($logoPath)) {
-            $mail->addEmbeddedImage($logoPath, 'logo', 'logo.png');
-        }
-
         $mail->Body    = "
             <div style='font-family:sans-serif;max-width:480px;margin:auto;padding:32px;
                         border:1px solid #eee;border-radius:12px;text-align:center;'>
-                <img src='cid:logo' alt='Baliwag City Vet' style='height:56px;margin-bottom:20px;'>
+                <img src='" . APP_URL . "/public/images/logos/logo-color.png' alt='Baliwag City Vet' style='height:56px;margin-bottom:20px;'>
                 <h2 style='color:#00B928;margin-bottom:8px;'>Email Verification</h2>
                 <p style='color:#555;'>Use the code below to verify your email address.
                    It expires in <strong>10 minutes</strong>.</p>
@@ -347,9 +342,10 @@ $resetUrl = APP_URL . '/public/pages/reset-password.html?token='
           . urlencode($token);
     $subject = 'VBetter – Password Reset Request';
     $name    = htmlspecialchars($user['full_name'], ENT_QUOTES);
+    $logoUrl = APP_URL . '/public/images/logos/logo-color.png';
     $body    = "
         <div style='font-family:sans-serif;max-width:480px;margin:auto;padding:32px;border:1px solid #eee;border-radius:12px;text-align:center;'>
-            <img src='cid:logo' alt='Baliwag City Vet' style='height:56px;margin-bottom:20px;'>
+            <img src='{$logoUrl}' alt='Baliwag City Vet' style='height:56px;margin-bottom:20px;'>
             <h2 style='color:#00B928;margin-bottom:8px;'>Password Reset</h2>
             <p>Hi <strong>{$name}</strong>,</p>
             <p style='color:#555;'>We received a request to reset your VBetter password.
@@ -385,11 +381,6 @@ $resetUrl = APP_URL . '/public/pages/reset-password.html?token='
         $mail->isHTML(true);
         $mail->Subject = $subject;
         $mail->Body    = $body;
-
-        $logoPath = __DIR__ . '/../../public/images/logos/logo-color.png';
-        if (is_file($logoPath)) {
-            $mail->addEmbeddedImage($logoPath, 'logo', 'logo.png');
-        }
 
         $mail->send();
         $mailSent = true;

@@ -374,6 +374,20 @@ function listRecords($pdo)
     ]);
 }
 
+function validateVisitDates($data)
+{
+    $today = date('Y-m-d');
+    $visitDate = clean($data['visitDate'] ?? '');
+    $followUpDate = clean($data['followUpDate'] ?? '');
+
+    if ($visitDate !== '' && $visitDate > $today) {
+        respond(400, ['success' => false, 'message' => 'Visit date cannot be in the future.']);
+    }
+    if ($followUpDate !== '' && $followUpDate < $today) {
+        respond(400, ['success' => false, 'message' => 'Follow-up date cannot be in the past.']);
+    }
+}
+
 function insertVisit($pdo, $petId, $ownerId, $data)
 {
     $stmt = $pdo->prepare("
@@ -468,6 +482,8 @@ function finalizePetVisit($pdo, $petId, $ownerId, $data)
 
 function saveRecord($pdo, $data)
 {
+    validateVisitDates($data);
+
     $petId = (int) ($data['id'] ?? $data['pet_id'] ?? 0);
     $isNewPet = $petId <= 0;
 
@@ -491,6 +507,8 @@ function saveRecord($pdo, $data)
 
 function saveBatch($pdo, $data)
 {
+    validateVisitDates($data);
+
     $pets = $data['pets'] ?? [];
     if (!is_array($pets)) $pets = [];
 

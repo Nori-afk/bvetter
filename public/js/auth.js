@@ -105,6 +105,8 @@ function loginAs(userData) {
    TODO backend: call api.logout() first to
    invalidate the token on the server, then clear. */
 function logout() {
+  if (!window.confirm('Are you sure you want to log out?')) return;
+
   sessionStorage.removeItem('bvetter_user');
   sessionStorage.removeItem('bvetter_token');
   window.location.replace(LOGIN_URL);

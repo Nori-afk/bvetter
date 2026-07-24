@@ -46,11 +46,11 @@ function toLocalIsoDate(date = new Date()) {
 }
 
 function buildCalendar(year, month) {
-  const vaccDate = document.getElementById("petVaccDate");
   const today_input = toLocalIsoDate();
   const apptDate = document.getElementById("apptDate");
   apptDate.min = today_input;
-  vaccDate.min = today_input;
+  // petVaccDate intentionally has no min/max — owners can log a past
+  // vaccination date or one scheduled for the future.
 
   calYear = year;
   calMonth = month;
@@ -206,6 +206,30 @@ const ALL_TIME_SLOTS = [
   '1:00 PM', '2:00 PM',  '3:00 PM',  '4:00 PM'
 ];
 
+/* ── Slot-time helpers ────────────────────────
+   A time slot for TODAY that has already started shouldn't stay
+   clickable — otherwise an owner can "book" 8:00 AM at 4:00 PM.
+   Slots for any other date are never affected by this check.
+─────────────────────────────────────────────── */
+function parseSlotMinutes(slot) {
+  const match = String(slot || '').match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hour = parseInt(match[1], 10);
+  const minute = parseInt(match[2], 10);
+  const meridiem = match[3].toUpperCase();
+  if (meridiem === 'PM' && hour !== 12) hour += 12;
+  if (meridiem === 'AM' && hour === 12) hour = 0;
+  return hour * 60 + minute;
+}
+
+function isSlotPast(dateIso, slot) {
+  if (!dateIso || dateIso !== toLocalIsoDate()) return false;
+  const slotMinutes = parseSlotMinutes(slot);
+  if (slotMinutes === null) return false;
+  const now = new Date();
+  return slotMinutes <= (now.getHours() * 60 + now.getMinutes());
+}
+
 function buildTimeSlots(unavailableSlots = []) {
   const grid = document.getElementById('timeGrid');
   if (!grid) return;
@@ -214,7 +238,7 @@ function buildTimeSlots(unavailableSlots = []) {
 
   ALL_TIME_SLOTS.forEach(slot => {
     const div    = document.createElement('div');
-    const isNA   = unavailableSlots.includes(slot);
+    const isNA   = unavailableSlots.includes(slot) || isSlotPast(selectedCalDate, slot);
     div.className   = 'time-slot ' + (isNA ? 'na' : 'available');
     div.textContent = slot;
 
@@ -676,7 +700,7 @@ initRatingStars();async function loadAppointmentHistory() {
             <div class="appt-col-label">PET NAME</div>
             <div class="appt-pet-name">${appt.patient}</div>
             <div class="appt-pet-meta">
-              ${appt.pet.species} &bull; ${appt.pet.age} yrs
+              ${appt.pet.species} &bull; ${appt.pet.age}
             </div>
           </div>
 
@@ -1021,15 +1045,15 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       if (!validateRequiredField('petName',  "Please enter your pet's name."))    valid = false;
       if (!validateRequiredField('petType',  'Please select a pet type.'))        valid = false;
       if (!validateRequiredField('petBreed', "Please enter your pet's breed."))   valid = false;
-      if (!validateRequiredField('petAge',   "Please enter your pet's age."))     valid = false;
+      if (!validateRequiredField('petAgeValue', "Please enter your pet's age."))  valid = false;
       if (!validateRequiredField('petSex',   "Please select your pet's sex."))    valid = false;
       // petVaccDate is optional — not validated
     } else if (n === 3) {
       if (!validateRequiredField('visitType', 'Please select the type of visit.')) valid = false;
       if (!isCspMode()) {
-        if (!validateRequiredField('apptDate', 'Please select a preferred date.'))                          valid = false;
-        if (!validateTimeSlotField())                                                                        valid = false;
-        if (!validateRequiredField('apptNotes', "Please describe your pet's condition or reason for visit.")) valid = false;
+        if (!validateRequiredField('apptDate', 'Please select a preferred date.')) valid = false;
+        if (!validateTimeSlotField())                                             valid = false;
+        // apptNotes is optional — not validated
       }
     }
 
@@ -1095,9 +1119,10 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     }
 
     slotButtons.forEach(btn => {
-      const isBooked = booked.includes(btn.dataset.slot);
-      btn.classList.toggle('unavailable', isBooked);
-      if (isBooked && btn.classList.contains('selected')) {
+      const slot = btn.dataset.slot;
+      const isUnavailable = booked.includes(slot) || isSlotPast(dateVal, slot);
+      btn.classList.toggle('unavailable', isUnavailable);
+      if (isUnavailable && btn.classList.contains('selected')) {
         btn.classList.remove('selected');
       }
     });
@@ -1156,15 +1181,48 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     document.getElementById('apptDateGroup')?.classList.toggle('is-hidden', cspMode);
     document.getElementById('apptTimeGroup')?.classList.toggle('is-hidden', cspMode);
     document.getElementById('cspProgramNotice')?.classList.toggle('is-hidden', !cspMode);
-
-    const notesLabel = document.getElementById('apptNotesLabel');
-    if (notesLabel) notesLabel.textContent = cspMode ? 'Additional Details (optional)' : 'Additional Details *';
   }
   document.getElementById('visitType')?.addEventListener('change', toggleCspMode);
   toggleCspMode();
 
-  /* ── Submit appointment ──────────────────── */
+  /* ── Combine the Age value + unit fields into one string
+     (e.g. "2 Years") the same way patient records stores it,
+     so history/detail views don't need their own unit suffix. ── */
+  function formatPetAge() {
+    const value = document.getElementById('petAgeValue')?.value.trim() || '';
+    const unit  = document.getElementById('petAgeUnit')?.value          || 'Years';
+    return value ? `${value} ${unit}` : '';
+  }
+
+  /* ── Submit appointment ──────────────────────
+     Guards against double-submits: without this, clicking Confirm
+     several times before the request resolves fired one booking per
+     click (all landing on the same slot on the vet/admin side). ── */
+  let isBookingSubmit = false;
+
   async function submitAppointment() {
+    if (isBookingSubmit) return;
+    isBookingSubmit = true;
+
+    const confirmBtn = document.getElementById('s4Confirm');
+    const confirmBtnOriginal = confirmBtn ? confirmBtn.innerHTML : '';
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      confirmBtn.innerHTML = 'Booking...';
+    }
+
+    try {
+      await submitAppointmentRequest();
+    } finally {
+      isBookingSubmit = false;
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = confirmBtnOriginal;
+      }
+    }
+  }
+
+  async function submitAppointmentRequest() {
 const selectedSlot = document.querySelector('.slot-btn.selected');
     const session = JSON.parse(
       sessionStorage.getItem('vbetter_session') ||
@@ -1184,7 +1242,7 @@ const selectedSlot = document.querySelector('.slot-btn.selected');
       pet_name:             document.getElementById('petName')?.value.trim()      || '',
       pet_type:             document.getElementById('petType')?.value             || '',
       pet_breed:            document.getElementById('petBreed')?.value.trim()     || '',
-      pet_age:              document.getElementById('petAge')?.value.trim()       || '',
+      pet_age:              formatPetAge(),
       pet_sex:              document.getElementById('petSex')?.value              || '',
       pet_vaccination_date: document.getElementById('petVaccDate')?.value         || '',
       appointment_type:     document.getElementById('visitType')?.value           || '',
@@ -1313,7 +1371,7 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     document.getElementById('rv-barangay') .textContent = selText('ownerBarangay');
     document.getElementById('rv-petname')  .textContent = val('petName');
     document.getElementById('rv-pettype')  .textContent = selText('petType');
-    document.getElementById('rv-ageSex')   .textContent = val('petAge') + ' / ' + selText('petSex');
+    document.getElementById('rv-ageSex')   .textContent = (formatPetAge() || '—') + ' / ' + selText('petSex');
     document.getElementById('rv-visitType').textContent = selText('visitType');
 
     if (isCspMode()) {

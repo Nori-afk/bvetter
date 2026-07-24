@@ -347,7 +347,7 @@
             <label class="form-label">Pet Type *</label>
             <div class="select-wrap">
               <select class="form-select" id="petType">
-                <option>Dog</option><option>Cat</option><option>Other</option>
+                <option>Dog</option><option>Cat</option>
               </select>
               <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
@@ -358,7 +358,13 @@
           </div>
           <div class="form-group">
             <label class="form-label">Age *</label>
-            <input type="text" class="form-input" placeholder="e.g. 2 years" id="petAge"/>
+            <div class="field-row">
+              <input type="number" min="0" step="1" class="form-input" placeholder="e.g. 2" id="petAgeValue"/>
+              <select class="form-input" id="petAgeUnit">
+                <option>Years</option>
+                <option>Months</option>
+              </select>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Sex *</label>
@@ -397,7 +403,7 @@
             <label class="form-label">Type of Visit *</label>
             <div class="select-wrap">
               <select class="form-select" id="visitType">
-                <option>Consultation</option><option>Vaccination</option>
+                <option>Consultation</option><option>Anti-Rabies</option>
                 <option>Deworming</option>
               </select>
               <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
@@ -433,7 +439,7 @@
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label" id="apptNotesLabel">Additional Details *</label>
+            <label class="form-label" id="apptNotesLabel">Additional Details (optional)</label>
             <textarea class="form-textarea" placeholder="Describe your pet’s condition or reason for visit" id="apptNotes"></textarea>
           </div>
         </div>
@@ -542,9 +548,7 @@
         <h1>Complete Care History</h1>
         <p>Review past visits, medical summaries, and help us improve with your feedback.</p>
       </div>
-      <div class="hist-hero-art">
-        <img src="../images/icons/book-edit.svg" alt="" class="hist-hero-img"/>
-      </div>
+      <div class="hist-hero-art"></div>
     </div>
   </div>
 

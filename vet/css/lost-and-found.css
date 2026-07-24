@@ -672,6 +672,15 @@ body {
 	flex-shrink: 0;
 }
 
+.matches-toggle-row {
+	display: flex;
+	justify-content: flex-end;
+}
+
+.matches-view-toggle {
+	font-size: 0.8rem;
+}
+
 .match-card {
 	border-radius: var(--lf-radius);
 	border: 1px solid var(--lf-border);

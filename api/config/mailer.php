@@ -11,17 +11,30 @@ if (!defined('APP_URL')) {
     define('APP_URL', getenv('APP_BASE_URL') ?: 'http://localhost/final-VBETTER/bvetter');
 }
 
-define('EMAIL_LOGO_PATH', __DIR__ . '/../../public/images/logos/logo-color.png');
+define('EMAIL_LOGO_URL', rtrim(APP_URL, '/') . '/public/images/logos/logo-color.png');
+
+/**
+ * Turns a site-relative path (e.g. a pet photo's "/final-VBETTER/bvetter/storage/..."
+ * value straight from the DB) into an absolute URL for use in an email.
+ */
+function emailAssetUrl(string $sitePath): string
+{
+    $parts = parse_url(APP_URL);
+    $origin = ($parts['scheme'] ?? 'http') . '://' . ($parts['host'] ?? 'localhost')
+        . (isset($parts['port']) ? ':' . $parts['port'] : '');
+    return $origin . $sitePath;
+}
 
 /**
  * Best-effort email send: never throws, logs and returns false on failure
  * so callers can fire-and-forget without risking their own API response.
  *
- * $embeds: extra inline images beyond the logo, e.g. [['path' => 'C:/.../pet.jpg', 'cid' => 'pet_photo']].
- * Embedding (not linking) is required because these emails render outside
- * the local network — a recipient's inbox can't reach http://localhost.
+ * Images are always linked (hosted URLs), never embedded/attached — an
+ * attached image makes an otherwise legitimate notification look like a
+ * phishing email in most inboxes. See notificationEmailWrapper()'s
+ * $photoUrl param for showing a photo inline via <img src>.
  */
-function sendAppMail(string $toEmail, string $toName, string $subject, string $htmlBody, array $embeds = []): bool
+function sendAppMail(string $toEmail, string $toName, string $subject, string $htmlBody): bool
 {
     try {
         $mail = new PHPMailer(true);
@@ -40,15 +53,6 @@ function sendAppMail(string $toEmail, string $toName, string $subject, string $h
         $mail->Subject = $subject;
         $mail->Body    = $htmlBody;
 
-        if (is_file(EMAIL_LOGO_PATH)) {
-            $mail->addEmbeddedImage(EMAIL_LOGO_PATH, 'logo', 'logo.png');
-        }
-        foreach ($embeds as $embed) {
-            if (!empty($embed['path']) && is_file($embed['path'])) {
-                $mail->addEmbeddedImage($embed['path'], $embed['cid'], basename($embed['path']));
-            }
-        }
-
         $mail->send();
         return true;
     } catch (MailException $e) {
@@ -63,9 +67,9 @@ function sendAppMail(string $toEmail, string $toName, string $subject, string $h
  * window. Falls back to the column's schema default when the user has no
  * preferences row yet (see api/users/profile.php setupProfileTables()).
  *
- * Quiet Hours only applies here — it never suppresses notifyStaff()'s fixed
- * STAFF_ALERT_EMAIL alerts, which is what keeps "critical alerts always
- * bypass quiet hours" true without needing a separate urgency flag.
+ * Quiet Hours only applies here — it never suppresses notifyStaff()'s admin
+ * alerts, which is what keeps "critical alerts always bypass quiet hours"
+ * true without needing a separate urgency flag.
  */
 function userWantsNotification(PDO $pdo, int $userId, string $column): bool
 {
@@ -110,14 +114,14 @@ function isWithinQuietHours(bool $enabled, string $start, string $end): bool
 }
 
 /**
- * $photoCid: cid of an image already passed to sendAppMail()'s $embeds, shown below the body text.
+ * $photoUrl: absolute URL of an image (see emailAssetUrl()), shown below the body text.
  * $button: ['label' => 'View', 'url' => '...'] rendered as a centered green pill button.
  */
-function notificationEmailWrapper(string $heading, string $bodyHtml, ?string $photoCid = null, ?array $button = null): string
+function notificationEmailWrapper(string $heading, string $bodyHtml, ?string $photoUrl = null, ?array $button = null): string
 {
-    $photoHtml = $photoCid ? "
+    $photoHtml = $photoUrl ? "
         <div style='text-align:center;margin:24px 0;'>
-            <img src='cid:{$photoCid}' alt='' style='max-width:280px;max-height:280px;border-radius:12px;object-fit:cover;'>
+            <img src='{$photoUrl}' alt='' style='max-width:280px;max-height:280px;border-radius:12px;object-fit:cover;'>
         </div>
     " : '';
 
@@ -134,7 +138,7 @@ function notificationEmailWrapper(string $heading, string $bodyHtml, ?string $ph
     return "
         <div style='font-family:sans-serif;max-width:480px;margin:auto;padding:32px;
                     border:1px solid #eee;border-radius:12px;text-align:center;'>
-            <img src='cid:logo' alt='Baliwag City Vet' style='height:56px;margin-bottom:20px;'>
+            <img src='" . EMAIL_LOGO_URL . "' alt='Baliwag City Vet' style='height:56px;margin-bottom:20px;'>
             <h2 style='color:#00B928;margin-bottom:8px;'>{$heading}</h2>
             <div style='color:#555;text-align:center;'>{$bodyHtml}</div>
             {$photoHtml}

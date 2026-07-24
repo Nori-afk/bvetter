@@ -1,0 +1,74 @@
+- generic [ref=f2e2]:
+  - complementary [ref=f2e3]:
+    - img "VBetter Logo" [ref=f2e6]
+    - generic [ref=f2e7]:
+      - navigation [ref=f2e8]:
+        - link [ref=f2e9] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/index.html
+          - img "Dashboard" [ref=f2e10]
+          - generic: Dashboard
+        - link [ref=f2e11] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/appointment.html
+          - img "Appointment Management" [ref=f2e12]
+          - generic: Appointment Management
+        - link [ref=f2e13] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/castration-spay.html
+          - img "Castration & Spay Program" [ref=f2e14]
+          - generic: Castration & Spay Program
+        - link [ref=f2e15] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/patient-records.html
+          - img "Patient Records" [ref=f2e16]
+          - generic: Patient Records
+        - link [ref=f2e17] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/report.html
+          - img "Report" [ref=f2e18]
+          - generic: Report
+        - link [ref=f2e19] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/disease-analytics.html
+          - img "Disease Analytics" [ref=f2e20]
+          - generic: Disease Analytics
+        - link [ref=f2e21] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/lost-and-found.html
+          - img "Lost and Found" [ref=f2e22]
+          - generic: Lost And Found
+        - link [ref=f2e23] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/chatbot-management.html
+          - img "Chatbot Management" [ref=f2e24]
+          - generic: Chatbot Management
+        - link [ref=f2e25] [cursor=pointer]:
+          - /url: /final-VBETTER/bvetter/vet/html/mass-vaccination.html
+          - img "Mass Vaccination" [ref=f2e26]
+          - generic: Mass Vaccination
+      - generic [ref=f2e27]:
+        - article "Kizea igaya profile" [ref=f2e28] [cursor=pointer]:
+          - img "Kizea igaya" [ref=f2e29]
+        - button [ref=f2e30] [cursor=pointer]:
+          - img "Log Out" [ref=f2e31]
+          - generic: Log Out
+  - main [ref=f2e32]:
+    - generic [ref=f2e33]:
+      - generic [ref=f2e34]:
+        - heading "Lost And Found Management" [level=1] [ref=f2e35]
+        - paragraph [ref=f2e36]: Review reports, validate claims, and resolve pet match workflows.
+      - button "Upload Found Pet" [ref=f2e37] [cursor=pointer]
+    - generic [ref=f2e41]:
+      - button "Pending Review" [ref=f2e42] [cursor=pointer]
+      - button "Active Reports" [ref=f2e43] [cursor=pointer]
+      - button "Potential Matches" [ref=f2e44] [cursor=pointer]
+      - button "Resolved Cases" [ref=f2e45] [cursor=pointer]
+      - button "Claims" [ref=f2e46] [cursor=pointer]
+      - button "Sighting" [ref=f2e47] [cursor=pointer]
+    - generic [ref=f2e48]:
+      - textbox "Search lost and found reports" [ref=f2e50]:
+        - /placeholder: Search breed, name, or location...
+      - combobox "Select report type" [ref=f2e51] [cursor=pointer]:
+        - option "All Types" [selected]
+        - option "Lost"
+        - option "Found"
+      - combobox "Select source" [ref=f2e52] [cursor=pointer]:
+        - option "All Sources" [selected]
+        - option "Owner"
+        - option "Admin/Clinic"
+      - combobox "Select barangay" [ref=f2e53] [cursor=pointer]:
+        - option "Select Barangay" [selected]
+    - generic [ref=f2e54]: Loading lost and found records...

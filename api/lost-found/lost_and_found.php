@@ -725,10 +725,7 @@ function createReport($pdo, $data)
         respond(422, ['success' => false, 'message' => 'Color or markings are required.']);
     }
     $notes = nullableClean($data['notes'] ?? '');
-    if (!$notes) {
-        respond(422, ['success' => false, 'message' => 'Additional notes are required.']);
-    }
-    if (mb_strlen($notes) > 500) {
+    if ($notes && mb_strlen($notes) > 500) {
         respond(422, ['success' => false, 'message' => 'Additional details must be 500 characters or fewer.']);
     }
     $incidentDate = normalizeDate($data['incident_date'] ?? $data['dateLost'] ?? $data['date'] ?? '');
@@ -792,7 +789,7 @@ function createReport($pdo, $data)
     rebuildMatchesForReport($pdo, $reportId);
 
     if ($status === 'active') {
-        notifyReportOwnerActive($pdo, $ownerId, $reportId);
+        notifyReportOwnerStatus($pdo, $ownerId, $reportId, 'active');
     } else {
         $label = $type === 'lost' ? 'lost pet' : 'found pet';
         notifyStaff(
@@ -841,10 +838,13 @@ function updateReportStatus($pdo, $data, $status)
 
     if ($status === 'active') {
         rebuildMatchesForReport($pdo, $id);
+    }
+
+    if (in_array($status, ['active', 'rejected'], true)) {
         $ownerStmt = $pdo->prepare('SELECT owner_id FROM lost_found_reports WHERE id = :id LIMIT 1');
         $ownerStmt->execute([':id' => $id]);
         $ownerId = (int) ($ownerStmt->fetchColumn() ?: 0);
-        notifyReportOwnerActive($pdo, $ownerId, $id);
+        notifyReportOwnerStatus($pdo, $ownerId, $id, $status);
     }
 
     respond(200, ['success' => true, 'message' => 'Report status updated.']);
@@ -857,16 +857,7 @@ function fetchReportForMatch($pdo, $id)
     return $stmt->fetch();
 }
 
-function reportPhotoAbsolutePath($photoPath)
-{
-    if (!$photoPath) return null;
-    $marker = '/storage/';
-    $pos = strpos($photoPath, $marker);
-    if ($pos === false) return null;
-    return dirname(dirname(__DIR__)) . substr($photoPath, $pos);
-}
-
-function notifyReportOwnerActive($pdo, $ownerId, $reportId)
+function notifyReportOwnerStatus($pdo, $ownerId, $reportId, $status)
 {
     $ownerId = (int) $ownerId;
     if ($ownerId <= 0 || !userWantsNotification($pdo, $ownerId, 'lost_found_alerts')) {
@@ -884,25 +875,28 @@ function notifyReportOwnerActive($pdo, $ownerId, $reportId)
     if (!$user || !$user['email']) return;
 
     $label = $report['report_type'] === 'lost' ? 'lost pet' : 'found pet';
-    $subject = 'VBetter – Your ' . $label . ' report is now live';
+    $petLabel = $report['pet_name'] ? " for <strong>" . htmlspecialchars($report['pet_name']) . "</strong>" : '';
 
-    $embeds = [];
-    $photoCid = null;
-    $photoAbsolute = reportPhotoAbsolutePath($report['photo_path'] ?? null);
-    if ($photoAbsolute && is_file($photoAbsolute)) {
-        $photoCid = 'pet_photo';
-        $embeds[] = ['path' => $photoAbsolute, 'cid' => $photoCid];
+    if ($status === 'active') {
+        $subject = 'VBetter – Your ' . $label . ' report is now live';
+        $photoUrl = !empty($report['photo_path']) ? emailAssetUrl($report['photo_path']) : null;
+        $body = notificationEmailWrapper(
+            'Report Published',
+            "<p>Your {$label} report{$petLabel} (case #{$report['case_number']}) is now live and visible to the community.</p>",
+            $photoUrl,
+            ['label' => 'View', 'url' => APP_URL . '/public/pages/lost-found.html?tab=myreports']
+        );
+    } else {
+        $subject = 'VBetter – Your ' . $label . ' report was rejected';
+        $body = notificationEmailWrapper(
+            'Report Rejected',
+            "<p>Your {$label} report{$petLabel} (case #{$report['case_number']}) has been <strong>rejected</strong>.</p>",
+            null,
+            ['label' => 'View', 'url' => APP_URL . '/public/pages/lost-found.html?tab=myreports']
+        );
     }
 
-    $body = notificationEmailWrapper(
-        'Report Published',
-        "<p>Your {$label} report" . ($report['pet_name'] ? " for <strong>" . htmlspecialchars($report['pet_name']) . "</strong>" : '') . "
-           (case #{$report['case_number']}) is now live and visible to the community.</p>",
-        $photoCid,
-        ['label' => 'View', 'url' => APP_URL . '/public/pages/lost-found.html?tab=myreports']
-    );
-
-    sendAppMail($user['email'], nullableClean($user['full_name'] ?? ''), $subject, $body, $embeds);
+    sendAppMail($user['email'], nullableClean($user['full_name'] ?? ''), $subject, $body);
 }
 
 function userContactFromAccount($pdo, $data)

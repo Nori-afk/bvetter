@@ -1377,6 +1377,16 @@ body {
 .slot-btn.active .slot-label { color: #2563eb; }
 .slot-btn.active .slot-time  { color: #002A58; }
 
+.slot-btn.unavailable {
+    background:    #f1f5f9;
+    border-color:  #e2e8f0;
+    cursor:        not-allowed;
+    opacity:       0.6;
+}
+.slot-btn.unavailable:hover { border-color: #e2e8f0; background: #f1f5f9; }
+.slot-btn.unavailable .slot-label,
+.slot-btn.unavailable .slot-time { color: #94a3b8; }
+
 /* Slot summary */
 .rsch-summary-card {
     background:    #f8faff;
