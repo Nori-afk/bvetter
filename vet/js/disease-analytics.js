@@ -117,7 +117,7 @@ async function diseaseAnalyticsRequest(disease, period) {
         period:  period  || 'year',
     });
     try {
-        const res    = await fetch(`/final-VBETTER/bvetter/api/dashboard/dashboard.php?${params}`, { cache: 'no-store' });
+        const res    = await fetch(`/api/dashboard/dashboard.php?${params}`, { cache: 'no-store' });
         const result = await res.json();
         return { ok: result.success, data: result.data || {}, error: result.success ? null : result.message };
     } catch (e) {
@@ -128,7 +128,7 @@ async function diseaseAnalyticsRequest(disease, period) {
 async function diseaseRiskRequest(barangays, currentCasesByBarangay, disease, period) {
     try {
         const res = await fetch(
-            '/final-VBETTER/bvetter/api/dashboard/dashboard.php?scope=disease_risk_prediction',
+            '/api/dashboard/dashboard.php?scope=disease_risk_prediction',
             {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -194,7 +194,7 @@ async function submitCreateEvent() {
         let result, successMsg;
         if (type === 'vaccination') {
             const vaccine = document.getElementById('eventVaccine')?.value || 'Others';
-            const res = await fetch('/final-VBETTER/bvetter/api/mass-vaccination/events.php', {
+            const res = await fetch('/api/mass-vaccination/events.php', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
                 body: JSON.stringify({ action: 'create', date: today, barangay, vaccine }),
             });
@@ -206,7 +206,7 @@ async function submitCreateEvent() {
                 (riskClassification ? ` Risk level: ${riskClassification}.` : '') +
                 ' Please observe preventive measures and report symptoms in pets to your barangay vet team.';
             const eventDate = document.getElementById('eventAnnouncementDate')?.value || today;
-            const res = await fetch('/final-VBETTER/bvetter/api/announcements/announcements.php', {
+            const res = await fetch('/api/announcements/announcements.php', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
                 body: JSON.stringify({
                     action: 'create', title, description,
@@ -508,7 +508,7 @@ function renderOverview() {
     document.getElementById('predictionBanner').innerHTML = `
         <div class="prediction">
             <span>Predicted</span>
-            <img src="/final-VBETTER/bvetter/vet/images/shares.svg" alt="">
+            <img src="/vet/images/shares.svg" alt="">
         </div>
         <strong>${pred.total}</strong>
         <span>${pred.label}</span>

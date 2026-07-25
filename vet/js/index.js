@@ -418,7 +418,7 @@
     const addAppointmentBtn = document.querySelector('.btn-add-appointment');
     if (addAppointmentBtn) {
         addAppointmentBtn.addEventListener('click', function() {
-            window.location.href = '/final-VBETTER/bvetter/vet/html/appointment.html';
+            window.location.href = '/vet/html/appointment.html';
         });
     }
 
@@ -426,13 +426,13 @@
     const manageEventBtn = document.querySelector('.btn-manage-event');
     if (manageEventBtn) {
         manageEventBtn.addEventListener('click', function() {
-            window.location.href = '/final-VBETTER/bvetter/vet/html/mass-vaccination.html';
+            window.location.href = '/vet/html/mass-vaccination.html';
         });
     }
 
     document.querySelectorAll('.icon-btn[aria-label="Settings"]').forEach((button) => {
         button.addEventListener('click', () => {
-            window.location.href = '/final-VBETTER/bvetter/public/pages/account-settings.html';
+            window.location.href = '/public/pages/account-settings.html';
         });
     });
 
@@ -814,10 +814,10 @@ function openAnnouncementEditorModal({ mode, item }) {
                                     </div>
                                     <div class="dash-announcement-actions">
                                         <button type="button" class="dash-icon-btn" data-edit-id="${escapeHtml(item.id)}" aria-label="Edit announcement">
-                                            <img src="/final-VBETTER/bvetter/vet/images/pen.svg" alt="Edit">
+                                            <img src="/vet/images/pen.svg" alt="Edit">
                                         </button>
                                         <button type="button" class="dash-icon-btn" data-delete-id="${escapeHtml(item.id)}" aria-label="Delete announcement">
-                                            <img src="/final-VBETTER/bvetter/vet/images/trash.svg" alt="Delete">
+                                            <img src="/vet/images/trash.svg" alt="Delete">
                                         </button>
                                     </div>
                                 </article>
@@ -1099,7 +1099,7 @@ function renderRecentPatientAppointment(appointments) {
     const viewLink = document.querySelector('.patient-header .view-link');
     if (!patientCard || !patientItem) return;
 
-    if (viewLink) viewLink.href = '/final-VBETTER/bvetter/vet/html/appointment.html';
+    if (viewLink) viewLink.href = '/vet/html/appointment.html';
 
     const sorted = [...appointments].sort((a, b) => {
         const left = new Date(`${a.preferred_date || toDateKey(a.datetime)}T${a.time_slot || '00:00'}`).getTime();

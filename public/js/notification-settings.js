@@ -68,7 +68,7 @@
   });
 
   /* ── Clear notification history ─────────────
-     TODO backend: DELETE /final-VBETTER/bvetter/api/notifications/history */
+     TODO backend: DELETE /api/notifications/history */
   const btnClear = document.querySelector('.btn-clear-all');
   if (btnClear) {
     btnClear.addEventListener('click', () => {

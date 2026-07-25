@@ -11,7 +11,7 @@
  */
 
 header('Content-Type: application/json');
-define('APP_URL', getenv('APP_BASE_URL') ?: 'http://localhost/final-VBETTER/bvetter');
+define('APP_URL', getenv('APP_BASE_URL') ?: 'http://localhost');
 header('Content-Type: application/json');
 ini_set('display_errors', 0);  // ADD THIS
 error_reporting(E_ALL);   

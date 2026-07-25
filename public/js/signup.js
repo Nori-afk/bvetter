@@ -9,7 +9,7 @@ const otpState = {
     email: { verified: false, timer: null, verifiedValue: '' },
 };
 
-const VERIFY_API = 'http://localhost/final-VBETTER/bvetter/api/admin/verify-contact.php';
+const VERIFY_API = '/api/admin/verify-contact.php';
 
 /* ══════════════════════════════════════════════
    PROOF UPLOAD PREVIEW

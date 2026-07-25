@@ -8,13 +8,13 @@ require_once __DIR__ . '/../phpMailer/PHPMailer-master/src/PHPMailer.php';
 require_once __DIR__ . '/../phpMailer/PHPMailer-master/src/SMTP.php';
 
 if (!defined('APP_URL')) {
-    define('APP_URL', getenv('APP_BASE_URL') ?: 'http://localhost/final-VBETTER/bvetter');
+    define('APP_URL', getenv('APP_BASE_URL') ?: 'http://localhost');
 }
 
 define('EMAIL_LOGO_URL', rtrim(APP_URL, '/') . '/public/images/logos/logo-color.png');
 
 /**
- * Turns a site-relative path (e.g. a pet photo's "/final-VBETTER/bvetter/storage/..."
+ * Turns a site-relative path (e.g. a pet photo's "/storage/..."
  * value straight from the DB) into an absolute URL for use in an email.
  */
 function emailAssetUrl(string $sitePath): string

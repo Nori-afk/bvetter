@@ -108,7 +108,7 @@ function saveImage()
         ]);
     }
 
-    return '/final-VBETTER/bvetter/storage/announcements/' . $fileName;
+    return '/storage/announcements/' . $fileName;
 }
 
 function formatAnnouncement($row)

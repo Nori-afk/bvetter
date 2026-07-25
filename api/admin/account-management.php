@@ -119,7 +119,7 @@ function listUsers($pdo)
             'verificationStatus' => $row['verification_status'],
             'barangay' => $row['barangay_name'],
             'created' => $row['created_at'],
-            'idImage' => $row['proof_path'] ? '/final-VBETTER/bvetter/' . $row['proof_path'] : '',
+            'idImage' => $row['proof_path'] ? '/' . $row['proof_path'] : '',
             'proofName' => $row['proof_name'],
         ];
     }, $rows);
@@ -302,7 +302,7 @@ function createUser($pdo)
             ]);
         }
 
-        $profilePhoto = '/final-VBETTER/bvetter/storage/profile/' . $fileName;
+        $profilePhoto = '/storage/profile/' . $fileName;
     }
 
     ensureEmailVerificationSchema($pdo);

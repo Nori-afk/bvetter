@@ -1,5 +1,5 @@
 ﻿document.addEventListener("DOMContentLoaded", () => {
-	const PROFILE_API = "/final-VBETTER/bvetter/api/users/profile.php";
+	const PROFILE_API = "/api/users/profile.php";
 	const session = window.VBetterAuth?.getSession?.() || JSON.parse(sessionStorage.getItem("vbetter_session") || "null");
 	const userId = session?.userId || session?.id || 0;
 
@@ -213,7 +213,7 @@
 			const formData = new FormData();
 			formData.append("action", "list");
 			formData.append("date", today);
-			const response = await fetch("/final-VBETTER/bvetter/api/appointments/appointment.php", { method: "POST", body: formData });
+			const response = await fetch("/api/appointments/appointment.php", { method: "POST", body: formData });
 			const result = await response.json();
 			const items = (result.data || [])
 				.filter((a) => (a.preferred_date || "").slice(0, 10) === today)

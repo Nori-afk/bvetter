@@ -168,7 +168,7 @@ function saveUploadedImage($fieldName, $prefix)
         ]);
     }
 
-    return '/final-VBETTER/bvetter/storage/site_settings/' . $fileName;
+    return '/storage/site_settings/' . $fileName;
 }
 
 function saveSettings($pdo, $data)

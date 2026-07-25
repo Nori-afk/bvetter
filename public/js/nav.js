@@ -150,7 +150,7 @@ async function buildOwnerNotifications() {
     const formData = new FormData();
     formData.append('action', 'list');
     formData.append('owner_id', ownerId);
-    const apptRes = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
+    const apptRes = await fetch('/api/appointments/appointment.php', {
       method: 'POST',
       body: formData
     }).then((r) => r.json());

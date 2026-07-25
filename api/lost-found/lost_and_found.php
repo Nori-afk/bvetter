@@ -259,7 +259,7 @@ function assertDateNotFuture($normalizedDate, $label)
 
 function publicUploadPath($fileName, $folder)
 {
-    return '/final-VBETTER/bvetter/storage/' . $folder . '/' . $fileName;
+    return '/storage/' . $folder . '/' . $fileName;
 }
 
 function absoluteUploadPath($publicPath)

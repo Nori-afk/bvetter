@@ -39,7 +39,7 @@ function appBasePath() {
 	if (path.includes(jsMarker)) return path.slice(0, path.indexOf(jsMarker));
 	const pageMarker = '/vet/html/';
 	if (path.includes(pageMarker)) return path.slice(0, path.indexOf(pageMarker));
-	return '/final-VBETTER/bvetter';
+	return '';
 }
 
 const PATIENT_API = `${appBasePath()}/api/patient-records/patient_records.php`;
@@ -743,7 +743,7 @@ function renderList() {
 						<p>Manage patient profiles, clinical notes, follow-ups, and record actions from one place.</p>
 					</div>
 					<div class="hero-actions">
-						<button type="button" class="btn btn-accent" data-nav="add"><img src="/final-VBETTER/bvetter/vet/images/add.svg" alt="icon"> Add New Patient</button>
+						<button type="button" class="btn btn-accent" data-nav="add"><img src="/vet/images/add.svg" alt="icon"> Add New Patient</button>
 					</div>
 				</div>
 			</header>
@@ -1188,7 +1188,7 @@ function renderAdd(record) {
 					</div>
 					<div class="form-footer">
 						<button type="button" class="btn btn-soft" data-nav="list">Cancel</button>
-						<button type="submit" class="btn btn-primary">${submitLabel} <img src="/final-VBETTER/bvetter/vet/images/plus.svg" alt="add"></button>
+						<button type="submit" class="btn btn-primary">${submitLabel} <img src="/vet/images/plus.svg" alt="add"></button>
 					</div>
 				</article>
 			</form>
@@ -1216,7 +1216,7 @@ function renderDetail(record) {
 	return `
 		<section class="records-shell">
 			<div class="profile-topbar">
-				<button type="button" class="back-link" data-nav="list"><img src="/final-VBETTER/bvetter/vet/images/back.svg" alt="Back"> Back to Patient Records</button>
+				<button type="button" class="back-link" data-nav="list"><img src="/vet/images/back.svg" alt="Back"> Back to Patient Records</button>
 			</div>
 
 			<section class="detail-shell">
@@ -1237,7 +1237,7 @@ function renderDetail(record) {
 							</div>
 						</div>
 						<div class="detail-actions">
-							<button type="button" class="btn btn-primary" data-nav="add" data-id="${record.id}"><img src="/final-VBETTER/bvetter/vet/images/addView.svg" alt="Add New Record"> Add New Record</button>
+							<button type="button" class="btn btn-primary" data-nav="add" data-id="${record.id}"><img src="/vet/images/addView.svg" alt="Add New Record"> Add New Record</button>
 						</div>
 					</div>
 

@@ -1,7 +1,7 @@
 ﻿'use strict';
 
-const LF_ENDPOINT = '/final-VBETTER/bvetter/api/lost-found/lost_and_found.php';
-const FALLBACK_IMAGE = '/final-VBETTER/bvetter/public/images/img/upload-pet.png';
+const LF_ENDPOINT = '/api/lost-found/lost_and_found.php';
+const FALLBACK_IMAGE = '/public/images/img/upload-pet.png';
 const PET_TYPES = ['Dog', 'Cat'];
 
 const lfData = {
@@ -227,7 +227,7 @@ async function loadAllData() {
 			lfRequest('matches'),
 			lfRequest('management_claims', { status: 'pending' }),
 			lfRequest('list_sightings', { status: 'pending' }),
-			fetch('/final-VBETTER/bvetter/api/barangays/list.php').then((r) => r.json()).catch(() => null)
+			fetch('/api/barangays/list.php').then((r) => r.json()).catch(() => null)
 		]);
 
 		lfData.pendingReports = (pending.data || []).map(normalizeReport);

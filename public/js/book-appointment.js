@@ -179,7 +179,7 @@ async function fetchAndBuildSlots() {
   console.log('[slots] fetching for vet:', selectedVetId, 'date:', selectedCalDate);
 
   try {
-    const res  = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
+    const res  = await fetch('/api/appointments/appointment.php', {
       method : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body   : JSON.stringify({
@@ -349,7 +349,7 @@ async function loadRecentHistory() {
       'null'
     );
 
-    const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
+    const res = await fetch('/api/appointments/appointment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -510,7 +510,7 @@ async function loadCspStatus() {
 
 async function submitReview(appointmentId, rating, comment) {
   try {
-    const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
+    const res = await fetch('/api/appointments/appointment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -535,7 +535,7 @@ async function submitReview(appointmentId, rating, comment) {
 }
 async function replaceContent(){
    try {
-    const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
+    const res = await fetch('/api/appointments/appointment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -620,7 +620,7 @@ initRatingStars();async function loadAppointmentHistory() {
       'null'
     );
 
-    const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
+    const res = await fetch('/api/appointments/appointment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -733,7 +733,7 @@ initRatingStars();async function loadAppointmentHistory() {
 }
 async function loadVetFeedback(vetId) {
   try {
-    const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
+    const res = await fetch('/api/appointments/appointment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -801,7 +801,7 @@ async function loadCommonCases(vetId) {
   let cases = [];
 
   try {
-    const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
+    const res = await fetch('/api/appointments/appointment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -842,7 +842,7 @@ async function openReviewsModal() {
   overlay.classList.add('active');
 
   try {
-    const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
+    const res = await fetch('/api/appointments/appointment.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1102,7 +1102,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
 
     let booked = [];
     try {
-      const res = await fetch('/final-VBETTER/bvetter/api/appointments/appointment.php', {
+      const res = await fetch('/api/appointments/appointment.php', {
         method : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify({
@@ -1400,24 +1400,14 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
 /**
  * Converts whatever the DB returns for avatar into a browser-accessible URL.
  *
- * DB returns full filesystem paths like:
- *   /final-VBETTER/bvetter/api/uploads/profile/profile_xxx.png
- *
- * The backend serves those files from:
- *   http://localhost:3000/uploads/profile/profile_xxx.png
- *
- * Change BASE_URL below if your backend runs on a different port.
+ * DB returns a site-relative path, e.g. /storage/profile/profile_xxx.png —
+ * resolved against the current origin so it works on any host.
  */
-const BASE_URL = 'http://localhost';
-
 function getAvatarUrl(avatarPath) {
   const FALLBACK = '../images/img/vet-profile.png';
   if (!avatarPath) return FALLBACK;
   if (avatarPath.startsWith('http')) return avatarPath;  // already a full URL
-  // DB returns the full web-accessible path e.g.
-  // /final-VBETTER/bvetter/api/uploads/profile/xxx.png
-  // so just prepend the host — no stripping needed
-  return `${BASE_URL}${avatarPath.startsWith('/') ? '' : '/'}${avatarPath}`;
+  return avatarPath.startsWith('/') ? avatarPath : `/${avatarPath}`;
 }
 
 function escapeHtml(value) {

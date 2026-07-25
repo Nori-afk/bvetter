@@ -6,7 +6,7 @@
 		if (path.includes(jsMarker)) return path.slice(0, path.indexOf(jsMarker));
 		const pageMarker = '/vet/html/';
 		if (path.includes(pageMarker)) return path.slice(0, path.indexOf(pageMarker));
-		return '/final-VBETTER/bvetter';
+		return '';
 	}
 
 	const CHATBOT_API = `${appBasePath()}/api/chatbot/chatbot.php`;

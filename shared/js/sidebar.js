@@ -2,13 +2,13 @@
  * VBetter – Shared Sidebar Controller  (shared/js/sidebar.js)
  * ─────────────────────────────────────────────────────────────
  * FIXES:
- *  1. All nav routes are ABSOLUTE so they work from /final-VBETTER/bvetter/vet/html/
+ *  1. All nav routes are ABSOLUTE so they work from /vet/html/
  *     AND /admin/pages/ — no more "Cannot GET" errors.
  *  2. Profile card is always built from sessionStorage, so the
  *     real name (Dr. Kizea) always shows — never "Guest".
  *  3. data-roles hides admin-only items from vet users.
  *  4. Dashboard route is role-aware — admin goes to
- *     /admin/pages/index.html, vet goes to /final-VBETTER/bvetter/vet/html/index.html.
+ *     /admin/pages/index.html, vet goes to /vet/html/index.html.
  * ─────────────────────────────────────────────────────────────
  */
 
@@ -17,17 +17,17 @@
 
     /* ── Absolute routes — work from ANY page in ANY folder ─── */
     const ROUTES = {
-        'appointment management': '/final-VBETTER/bvetter/vet/html/appointment.html',
-        'patient records':        '/final-VBETTER/bvetter/vet/html/patient-records.html',
-        'report':                 '/final-VBETTER/bvetter/vet/html/report.html',
-        'disease analytics':      '/final-VBETTER/bvetter/vet/html/disease-analytics.html',
-        'lost and found':         '/final-VBETTER/bvetter/vet/html/lost-and-found.html',
-        'chatbot management':     '/final-VBETTER/bvetter/vet/html/chatbot-management.html',
-        'mass vaccination':       '/final-VBETTER/bvetter/vet/html/mass-vaccination.html',
-        'castration & spay program': '/final-VBETTER/bvetter/vet/html/castration-spay.html',
+        'appointment management': '/vet/html/appointment.html',
+        'patient records':        '/vet/html/patient-records.html',
+        'report':                 '/vet/html/report.html',
+        'disease analytics':      '/vet/html/disease-analytics.html',
+        'lost and found':         '/vet/html/lost-and-found.html',
+        'chatbot management':     '/vet/html/chatbot-management.html',
+        'mass vaccination':       '/vet/html/mass-vaccination.html',
+        'castration & spay program': '/vet/html/castration-spay.html',
         // Admin-only — absolute paths
-        'account management':     '/final-VBETTER/bvetter/admin/pages/account-management.html',
-        'website management':     '/final-VBETTER/bvetter/admin/pages/website-management.html', // input here the directory of the Website management.
+        'account management':     '/admin/pages/account-management.html',
+        'website management':     '/admin/pages/website-management.html', // input here the directory of the Website management.
     };
 
     /* Default profile photos — used until the user uploads their own.
@@ -36,8 +36,8 @@
        (book-appointment.html); account-avatar.png is the generic
        silhouette already used as the pet-owner default. */
     const DEFAULT_AVATARS = {
-        vet:   '/final-VBETTER/bvetter/public/images/img/vet-profile.png',
-        admin: '/final-VBETTER/bvetter/public/images/img/account-avatar.png'
+        vet:   '/public/images/img/vet-profile.png',
+        admin: '/public/images/img/account-avatar.png'
     };
 
     const ACTIVE_ICON_CAPABLE = new Set([
@@ -216,7 +216,7 @@
         '</div>' +
         '</article>' +
         '<button type="button" class="nav-item logout-item" id="sidebar-logout-btn" title="Log Out">' +
-        '<img src="/final-VBETTER/bvetter/shared/images/sidebar/logout.svg" class="nav-icon" alt="Log Out">' +
+        '<img src="/shared/images/sidebar/logout.svg" class="nav-icon" alt="Log Out">' +
         '<span class="nav-label">Log Out</span>' +
         '</button>';
 
@@ -224,8 +224,8 @@
     if (card) {
         card.addEventListener('click', function () {
             const dest = role === 'admin'
-                ? '/final-VBETTER/bvetter/admin/pages/profile.html'
-                : '/final-VBETTER/bvetter/vet/html/profile.html';
+                ? '/admin/pages/profile.html'
+                : '/vet/html/profile.html';
             if (!window.location.pathname.toLowerCase().endsWith('profile.html')) {
                 window.location.href = dest;
             }
@@ -257,8 +257,8 @@
 
         // Dashboard route depends on role — admin gets admin dashboard
         ROUTES['dashboard'] = (role === 'admin')
-            ? '/final-VBETTER/bvetter/admin/pages/index.html'
-            : '/final-VBETTER/bvetter/vet/html/index.html';
+            ? '/admin/pages/index.html'
+            : '/vet/html/index.html';
 
         navItems.forEach(function (item) {
             if (item.style.display === 'none') return;
