@@ -24,7 +24,6 @@
         'lost and found':         '/vet/html/lost-and-found.html',
         'chatbot management':     '/vet/html/chatbot-management.html',
         'mass vaccination':       '/vet/html/mass-vaccination.html',
-        'castration & spay program': '/vet/html/castration-spay.html',
         // Admin-only — absolute paths
         'account management':     '/admin/pages/account-management.html',
         'website management':     '/admin/pages/website-management.html', // input here the directory of the Website management.

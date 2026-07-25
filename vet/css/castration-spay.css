@@ -1,4 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
+/* ============================================================
+   VBetter – Castration & Spay Program panel
+   /bvetter/vet/css/castration-spay.css
+   Scoped under #panel-castration-spay (in-page panel content)
+   and #program-modal (create/manage program modal) so this file
+   can be loaded alongside appointment.css without colliding with
+   its generic .btn/.card/.modal*/.field* selectors.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
 	--csp-bg: #eff2f8;
@@ -9,30 +18,11 @@
 	--csp-line: #d5deea;
 }
 
-* {
-	box-sizing: border-box;
-}
-
-body {
-	margin: 0;
+#panel-castration-spay, #program-modal {
 	font-family: 'Inter', 'Manrope', sans-serif;
-	background: linear-gradient(180deg, #f9fbff 0%, var(--csp-bg) 100%);
-	color: var(--csp-navy);
 }
 
-.main-holder {
-	min-height: 100vh;
-	display: flex;
-}
-
-.csp-main {
-	margin-left: calc(var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap));
-	width: calc(100% - (var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap)));
-	padding: 28px 32px 40px;
-	transition: all 0.28s ease;
-}
-
-.hero {
+#panel-castration-spay .hero {
 	background: linear-gradient(110deg, #002A58 0%, #00497A 40%, #006B50 100%);
 	border-radius: 16px;
 	color: #fff;
@@ -41,10 +31,9 @@ body {
 	align-items: center;
 	justify-content: space-between;
 	gap: 16px;
-	margin-bottom: 20px;
 }
 
-.hero h1 {
+#panel-castration-spay .hero h1 {
 	margin: 0;
 	font-size: 26px;
 	font-weight: 800;
@@ -52,7 +41,7 @@ body {
 	line-height: 1.1;
 }
 
-.hero p {
+#panel-castration-spay .hero p {
 	margin: 6px 0 0;
 	color: rgba(255,255,255,0.72);
 	font-size: 13px;
@@ -60,7 +49,8 @@ body {
 	line-height: 1.65;
 }
 
-.btn {
+#panel-castration-spay .btn,
+#program-modal .btn {
 	border: 0;
 	border-radius: 10px;
 	padding: 10px 18px;
@@ -75,48 +65,53 @@ body {
 	transition: all 0.18s;
 }
 
-.btn-primary {
+#panel-castration-spay .btn-primary,
+#program-modal .btn-primary {
 	background: #ffffff;
 	color: #002A58;
 	border: 1px solid rgba(255,255,255,0.35);
 	box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 }
 
-.btn-primary:hover {
+#panel-castration-spay .btn-primary:hover,
+#program-modal .btn-primary:hover {
 	background: #f0f4ff;
 	box-shadow: 0 4px 14px rgba(0,0,0,0.18);
 }
 
-.btn-success {
+#panel-castration-spay .btn-success,
+#program-modal .btn-success {
 	background: var(--csp-green);
 	color: #fff;
 }
 
-.btn-outline {
+#panel-castration-spay .btn-outline,
+#program-modal .btn-outline {
 	background: transparent;
 	color: #76809a;
 	border: 1px solid #8c96ac;
 }
 
-.btn-danger {
+#panel-castration-spay .btn-danger,
+#program-modal .btn-danger {
 	background: #fef2f2;
 	color: #dc2626;
 	border: 1px solid #fecaca;
 }
 
-.btn-sm {
+#panel-castration-spay .btn-sm,
+#program-modal .btn-sm {
 	padding: 6px 12px;
 	font-size: 12px;
 }
 
-.metric-grid {
+#panel-castration-spay .metric-grid {
 	display: grid;
 	grid-template-columns: repeat(5, minmax(0, 1fr));
 	gap: 14px;
-	margin-bottom: 18px;
 }
 
-.metric-card {
+#panel-castration-spay .metric-card {
 	background: #ffffff;
 	border-radius: 14px;
 	padding: 16px 18px;
@@ -129,13 +124,13 @@ body {
 	min-width: 0;
 }
 
-.metric-card:nth-child(1) { border-left-color: #002A58; }
-.metric-card:nth-child(2) { border-left-color: #3B82F6; }
-.metric-card:nth-child(3) { border-left-color: #059669; }
-.metric-card:nth-child(4) { border-left-color: #EF4444; }
-.metric-card:nth-child(5) { border-left-color: #D97706; }
+#panel-castration-spay .metric-card:nth-child(1) { border-left-color: #002A58; }
+#panel-castration-spay .metric-card:nth-child(2) { border-left-color: #3B82F6; }
+#panel-castration-spay .metric-card:nth-child(3) { border-left-color: #059669; }
+#panel-castration-spay .metric-card:nth-child(4) { border-left-color: #EF4444; }
+#panel-castration-spay .metric-card:nth-child(5) { border-left-color: #D97706; }
 
-.metric-card h2 {
+#panel-castration-spay .metric-card h2 {
 	margin: 0;
 	font-size: 10px;
 	font-weight: 700;
@@ -144,14 +139,14 @@ body {
 	color: #94A3B8;
 }
 
-.metric-value {
+#panel-castration-spay .metric-value {
 	margin: 2px 0 0;
 	font-size: 20px;
 	font-weight: 800;
 	color: #0F172A;
 }
 
-.card {
+#panel-castration-spay .card {
 	background: var(--csp-surface);
 	border-radius: 14px;
 	border: 1px solid #E8EEF6;
@@ -159,11 +154,7 @@ body {
 	box-shadow: 0 2px 10px rgba(12, 35, 64, 0.04);
 }
 
-.table-card {
-	margin-top: 18px;
-}
-
-.card-head {
+#panel-castration-spay .card-head {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -174,7 +165,7 @@ body {
 	flex-wrap: wrap;
 }
 
-.card-head h3 {
+#panel-castration-spay .card-head h3 {
 	margin: 0;
 	font-size: 13px;
 	font-weight: 700;
@@ -182,33 +173,34 @@ body {
 	letter-spacing: -0.2px;
 }
 
-.card-head small {
+#panel-castration-spay .card-head small {
 	font-size: 11px;
 	color: #94A3B8;
 	font-weight: 500;
 }
 
-.csp-assign-controls {
+#panel-castration-spay .csp-assign-controls {
 	display: flex;
 	gap: 8px;
 	align-items: center;
 }
 
-.csp-assign-controls select {
+#panel-castration-spay .csp-assign-controls select {
 	min-width: 220px;
 }
 
-.table-wrap {
+#panel-castration-spay .table-wrap {
 	overflow-x: auto;
 }
 
-table {
+#panel-castration-spay table {
 	width: 100%;
 	border-collapse: collapse;
 	min-width: 560px;
 }
 
-th, td {
+#panel-castration-spay th,
+#panel-castration-spay td {
 	text-align: left;
 	padding: 10px 8px;
 	font-size: 13px;
@@ -216,7 +208,7 @@ th, td {
 	color: #334155;
 }
 
-th {
+#panel-castration-spay th {
 	font-size: 11px;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
@@ -224,18 +216,18 @@ th {
 	font-weight: 700;
 }
 
-.csp-loading-cell {
+#panel-castration-spay .csp-loading-cell {
 	text-align: center;
 	color: #94A3B8;
 	padding: 24px;
 }
 
-.csp-muted {
+#panel-castration-spay .csp-muted {
 	color: #94A3B8;
 	font-size: 12px;
 }
 
-.pill {
+#panel-castration-spay .pill {
 	border-radius: 999px;
 	padding: 4px 10px;
 	font-weight: 700;
@@ -243,14 +235,17 @@ th {
 	display: inline-block;
 }
 
-.pill-planning { background: #F1F5F9; color: #475569; }
-.pill-open { background: #EFF6FF; color: #2563EB; }
-.pill-scheduled { background: #F0FDF4; color: #16A34A; }
-.pill-completed { background: #ECFDF5; color: #059669; }
-.pill-cancelled { background: #FEF2F2; color: #DC2626; }
-.pill-pending_schedule { background: #FFFBEB; color: #D97706; }
+#panel-castration-spay .pill-planning { background: #F1F5F9; color: #475569; }
+#panel-castration-spay .pill-open { background: #EFF6FF; color: #2563EB; }
+#panel-castration-spay .pill-scheduled { background: #F0FDF4; color: #16A34A; }
+#panel-castration-spay .pill-completed { background: #ECFDF5; color: #059669; }
+#panel-castration-spay .pill-cancelled { background: #FEF2F2; color: #DC2626; }
+#panel-castration-spay .pill-pending_schedule { background: #FFFBEB; color: #D97706; }
 
-select, input {
+#panel-castration-spay select,
+#panel-castration-spay input,
+#program-modal select,
+#program-modal input {
 	width: 100%;
 	padding: 9px 12px;
 	border-radius: 8px;
@@ -261,13 +256,16 @@ select, input {
 	background: #fff;
 }
 
-select:focus, input:focus {
+#panel-castration-spay select:focus,
+#panel-castration-spay input:focus,
+#program-modal select:focus,
+#program-modal input:focus {
 	outline: none;
 	border-color: #2563EB;
 }
 
-/* ── Modal (shared pattern with mass-vaccination.html) ───────── */
-.modal {
+/* ── Create / Manage Program modal ───────────────────────── */
+#program-modal {
 	position: fixed;
 	inset: 0;
 	background: rgba(0, 0, 0, 0.4);
@@ -278,11 +276,11 @@ select:focus, input:focus {
 	z-index: 1200;
 }
 
-.modal.hidden {
+#program-modal.hidden {
 	display: none;
 }
 
-.modal-card {
+#program-modal .modal-card {
 	width: min(480px, 100%);
 	background: #fff;
 	border-radius: 16px;
@@ -292,7 +290,7 @@ select:focus, input:focus {
 	overflow-y: auto;
 }
 
-.modal-close {
+#program-modal .modal-close {
 	position: absolute;
 	top: 16px;
 	right: 16px;
@@ -306,9 +304,9 @@ select:focus, input:focus {
 	color: #64748B;
 }
 
-.modal-close:hover { background: #F3F4F6; color: #111827; }
+#program-modal .modal-close:hover { background: #F3F4F6; color: #111827; }
 
-.modal-header-block {
+#program-modal .modal-header-block {
 	display: flex;
 	align-items: flex-start;
 	gap: 12px;
@@ -317,7 +315,7 @@ select:focus, input:focus {
 	border-bottom: 1px solid #E8EEF6;
 }
 
-.modal-header-icon {
+#program-modal .modal-header-icon {
 	width: 40px;
 	height: 40px;
 	border-radius: 10px;
@@ -329,14 +327,14 @@ select:focus, input:focus {
 	flex-shrink: 0;
 }
 
-.modal-card h2 {
+#program-modal .modal-card h2 {
 	margin: 0;
 	font-size: 18px;
 	font-weight: 700;
 	color: #0F172A;
 }
 
-.modal-subtitle {
+#program-modal .modal-subtitle {
 	margin: 2px 0 0;
 	font-size: 13px;
 	color: #64748B;
@@ -347,18 +345,18 @@ select:focus, input:focus {
 	gap: 16px;
 }
 
-.field-row {
+#program-modal .field-row {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	gap: 12px;
 }
 
-.field {
+#program-modal .field {
 	display: grid;
 	gap: 6px;
 }
 
-.field-label {
+#program-modal .field-label {
 	font-size: 11px;
 	font-weight: 600;
 	text-transform: uppercase;
@@ -366,32 +364,32 @@ select:focus, input:focus {
 	color: #64748B;
 }
 
-.field-hint {
+#program-modal .field-hint {
 	margin: 0;
 	font-size: 11.5px;
 	color: #94A3B8;
 	font-weight: 500;
 }
 
-.field-error {
+#program-modal .field-error {
 	display: none;
 	font-size: 11.5px;
 	font-weight: 600;
 	color: #EF4444;
 }
 
-.field-error.visible-msg {
+#program-modal .field-error.visible-msg {
 	display: block;
 }
 
-.modal-actions {
+#program-modal .modal-actions {
 	margin-top: 8px;
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	gap: 8px;
 }
 
-.modal-actions .btn {
+#program-modal .modal-actions .btn {
 	justify-content: center;
 	height: 44px;
 	padding: 0 18px;
@@ -399,11 +397,7 @@ select:focus, input:focus {
 }
 
 @media (max-width: 900px) {
-	.csp-main {
-		margin-left: 0;
-		width: 100%;
-	}
-	.metric-grid {
+	#panel-castration-spay .metric-grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 }

@@ -58,6 +58,49 @@ body {
     width:       calc(100% - var(--sidebar-width-expanded) - var(--sidebar-main-gap) - var(--shell-gap));
 }
 
+/* ── Panel tabs (Appointments / Castration & Spay) ───── */
+.appt-tabbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    border-bottom: 1px solid var(--appt-line);
+}
+
+.appt-tabbar .tab-btn {
+    border: 0;
+    background: transparent;
+    padding: 10px 16px;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--appt-muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    cursor: pointer;
+    transition: color 0.15s;
+    white-space: nowrap;
+}
+
+.appt-tabbar .tab-btn:hover {
+    color: var(--appt-navy);
+}
+
+.appt-tabbar .tab-btn.active {
+    color: var(--appt-navy);
+    border-bottom-color: var(--appt-navy);
+    font-weight: 700;
+}
+
+.appt-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.appt-panel[hidden] {
+    display: none;
+}
+
 /* ── Header ─────────────────────────────────────────── */
 .header {
     background: linear-gradient(110deg, #002A58 0%, #00497A 40%, #006B50 100%);

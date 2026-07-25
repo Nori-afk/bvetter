@@ -4,6 +4,9 @@
    Depends: vet-api.js (window.VetAPI)
    ============================================= */
 
+(function () {
+'use strict';
+
 const state = {
   programs: [],
   waiting: [],
@@ -307,3 +310,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
   refreshAll();
 });
+
+}());
