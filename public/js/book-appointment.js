@@ -266,7 +266,10 @@ function updateVetProfile(vet) {
 
   // FIX: profile image src was never set
   const profileImg = document.getElementById('profile-heads');
-  if (profileImg) profileImg.src = avatarSrc;
+  if (profileImg) {
+    profileImg.onerror = function () { this.onerror = null; this.src = '../images/img/vet-profile.png'; };
+    profileImg.src = avatarSrc;
+  }
 
   const set = (id, val, fallback = '—') =>
     (document.getElementById(id) || {}).textContent = val || fallback;
