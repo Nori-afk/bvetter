@@ -189,7 +189,7 @@ function renderPublicGrid() {
       <div class="pet-card" data-status="${type}">
         <div class="pet-card-img-wrap">
           <span class="pet-badge ${type}">${escapeHtml(report.type)}</span>
-          <img src="${escapeHtml(reportImage(report))}" alt="" class="pet-card-img"/>
+          <img src="${escapeHtml(reportImage(report))}" alt="" class="pet-card-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/>
         </div>
         <div class="pet-card-body">
           <div class="pet-card-title-row">
@@ -245,7 +245,7 @@ function renderMyReports() {
       <div class="active-report-card" id="reportCard-${report.id}">
         <div class="active-report-img-wrap">
           <span class="pet-badge ${type}">${escapeHtml(report.type)}</span>
-          <img src="${escapeHtml(reportImage(report))}" alt="" class="active-report-img"/>
+          <img src="${escapeHtml(reportImage(report))}" alt="" class="active-report-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/>
         </div>
         <div class="active-report-body">
           <h3 class="active-report-name">${escapeHtml(report.petName || report.title || 'Unknown')}</h3>
@@ -284,7 +284,7 @@ function renderHistory(reports) {
       return `
         <div class="history-row">
           <span class="history-date">${escapeHtml(formatDate(report.date || report.created_at))}</span>
-          <span class="history-pet"><img src="${escapeHtml(reportImage(report))}" alt="" class="history-pet-img"/> ${escapeHtml(report.petName || report.title || 'Unknown')}</span>
+          <span class="history-pet"><img src="${escapeHtml(reportImage(report))}" alt="" class="history-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/> ${escapeHtml(report.petName || report.title || 'Unknown')}</span>
           <span><span class="type-tag ${type}-tag">${escapeHtml(report.type)}</span></span>
           <span><span class="final-status ${report.status === 'resolved' ? 'reunited' : 'pending'}">${escapeHtml(report.status)}</span></span>
           <span class="history-claimant">${escapeHtml(claimant || '—')}</span>
@@ -658,7 +658,7 @@ function buildMatchCard(match, index, report) {
 				<div class="lf-match-pet-card owner">
 					<img src="${escapeHtml(ownerPet.image || FALLBACK_IMAGE)}"
 						alt="${escapeHtml(ownerPet.name || ownerFallbackName)}"
-						class="lf-match-pet-img"/>
+						class="lf-match-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/>
 					<div class="lf-match-pet-info">
 						<h4 class="lf-match-pet-name">
 							${escapeHtml(ownerPet.name || report?.petName || report?.title || ownerFallbackName)}
@@ -687,7 +687,7 @@ function buildMatchCard(match, index, report) {
 				<div class="lf-match-pet-card admin">
 					<img src="${escapeHtml(otherPet.image || FALLBACK_IMAGE)}"
 						alt="${escapeHtml(otherPet.name || 'Pet')}"
-						class="lf-match-pet-img"/>
+						class="lf-match-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/>
 					<div class="lf-match-pet-info">
 						<h4 class="lf-match-pet-name">
 							${escapeHtml(otherPet.name || 'Pet')}
@@ -740,7 +740,7 @@ function buildSightingCard(match, index, report) {
 				<div class="lf-match-pet-card owner">
 					<img src="${escapeHtml(match.lost.image || FALLBACK_IMAGE)}"
 						alt="${escapeHtml(match.lost.name || 'Lost Pet')}"
-						class="lf-match-pet-img"/>
+						class="lf-match-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/>
 					<div class="lf-match-pet-info">
 						<h4 class="lf-match-pet-name">
 							${escapeHtml(match.lost.name || report?.petName || report?.title || 'Lost Pet')}
@@ -766,7 +766,7 @@ function buildSightingCard(match, index, report) {
 				<div class="lf-match-pet-card admin">
 					<img src="${escapeHtml(match.found.image || FALLBACK_IMAGE)}"
 						alt="Community Sighting"
-						class="lf-match-pet-img"/>
+						class="lf-match-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/>
 					<div class="lf-match-pet-info">
 						<h4 class="lf-match-pet-name">Community Sighting</h4>
 						<p class="lf-match-pet-meta">${escapeHtml(match.found.breed || '')}</p>

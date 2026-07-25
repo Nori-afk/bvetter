@@ -98,11 +98,11 @@
         wrap.className = 'sidebar-mobile-actions';
         wrap.innerHTML =
             '<button type="button" class="sidebar-mobile-notif-btn" id="sidebar-mobile-notif-btn" aria-label="Notifications">' +
-            '<img src="/bvetter/public/images/icons/icon-bell.svg" class="sidebar-mobile-notif-icon" alt="">' +
+            '<img src="/public/images/icons/icon-bell.svg" class="sidebar-mobile-notif-icon" alt="">' +
             '<span class="sidebar-mobile-notif-dot"></span>' +
             '</button>' +
             '<img src="' + avatarUrl + '" alt="' + name + '" class="sidebar-mobile-avatar" id="sidebar-mobile-avatar-btn" ' +
-            'onerror="this.onerror=null;this.src=\'/bvetter/public/images/img/account-avatar.png\'">';
+            'onerror="this.onerror=null;this.src=\'/public/images/img/account-avatar.png\'">';
 
         sidebar.appendChild(wrap);
 
@@ -243,7 +243,7 @@
             // Fallback: some pages don't load auth.js yet — clear the
             // session directly so logout still works everywhere.
             sessionStorage.removeItem('vbetter_session');
-            window.location.href = '/bvetter/public/pages/login.html';
+            window.location.href = '/public/pages/login.html';
         });
     }
 }

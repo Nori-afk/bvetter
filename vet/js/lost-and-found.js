@@ -351,7 +351,7 @@ function reportCard(report, mode) {
 	return `
 		<article class="report-card ${report.type === 'Found' ? 'pending-found' : 'pending-lost'}">
 			<div class="report-image">
-				<img src="${escapeHtml(report.image)}" alt="${escapeHtml(report.petName)}">
+				<img src="${escapeHtml(report.image)}" alt="${escapeHtml(report.petName)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
 				<span class="tag-chip ${report.type.toLowerCase()}">${escapeHtml(report.type.toUpperCase())}</span>
 			</div>
 			<div class="report-body">
@@ -400,7 +400,7 @@ function renderActive(root) {
 	root.innerHTML = list.length ? `<div class="active-grid">${list.map((item) => `
 		<article class="active-card" data-action="view-active" data-id="${item.id}">
 			<div class="active-card-media">
-				<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}">
+				<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
 				<span class="tag-chip ${(item.type || 'lost').toLowerCase()}">${escapeHtml((item.type || 'Lost').toUpperCase())}</span>
 			</div>
 			<div class="active-card-body">
@@ -462,9 +462,9 @@ function renderPotential(root) {
 				${list.length ? list.map((match) => `
 					<article class="match-card ${selectedMatch && String(match.id) === String(selectedMatch.id) ? 'is-selected' : ''}" data-action="select-match" data-id="${match.id}">
 						<div class="match-pair">
-							<div class="match-side"><img src="${escapeHtml(match.lost.image || FALLBACK_IMAGE)}" alt=""><h4>${escapeHtml(match.lost.name)}</h4><small>${escapeHtml(match.lost.breed || '')}</small></div>
+							<div class="match-side"><img src="${escapeHtml(match.lost.image || FALLBACK_IMAGE)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"><h4>${escapeHtml(match.lost.name)}</h4><small>${escapeHtml(match.lost.breed || '')}</small></div>
 							${confidenceGauge(match.confidence)}
-							<div class="match-side"><img src="${escapeHtml(match.found.image || FALLBACK_IMAGE)}" alt=""><h4>${escapeHtml(showingSightings ? 'Community Sighting' : match.found.name)}</h4><small>${escapeHtml(match.found.breed || '')}</small></div>
+							<div class="match-side"><img src="${escapeHtml(match.found.image || FALLBACK_IMAGE)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"><h4>${escapeHtml(showingSightings ? 'Community Sighting' : match.found.name)}</h4><small>${escapeHtml(match.found.breed || '')}</small></div>
 						</div>
 						<div class="reason-row">${(match.reasons || []).map((reason) => `<span class="reason-chip">${escapeHtml(reason)}</span>`).join('')}</div>
 						<div class="match-actions">
@@ -572,7 +572,7 @@ function renderTablePagination(shown, total, page, totalPages) {
 function renderClaims(root) {
 	root.innerHTML = lfData.claims.length ? lfData.claims.map((claim) => `
 		<article class="report-card pending-found">
-			<div class="report-image"><img src="${escapeHtml(claim.image)}" alt="${escapeHtml(claim.petName)}"><span class="tag-chip found">CLAIM</span></div>
+			<div class="report-image"><img src="${escapeHtml(claim.image)}" alt="${escapeHtml(claim.petName)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"><span class="tag-chip found">CLAIM</span></div>
 			<div class="report-body">
 				<h3>Claimant: ${escapeHtml(claim.title)}</h3>
 				<p class="meta-line">Uploaded: ${escapeHtml(claim.uploadedAt)}</p>
@@ -592,7 +592,7 @@ function renderClaims(root) {
 function renderSightings(root) {
 	root.innerHTML = lfData.sightings.length ? lfData.sightings.map((sighting) => `
 		<article class="report-card pending-found">
-			<div class="report-image"><img src="${escapeHtml(sighting.image)}" alt="${escapeHtml(sighting.title)}"><span class="tag-chip found">SIGHTING</span></div>
+			<div class="report-image"><img src="${escapeHtml(sighting.image)}" alt="${escapeHtml(sighting.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"><span class="tag-chip found">SIGHTING</span></div>
 			<div class="report-body">
 				<h3>${escapeHtml(sighting.title)}</h3>
 				<p class="meta-line">Uploaded: ${escapeHtml(sighting.uploadedAt)}</p>
@@ -767,13 +767,13 @@ function buildDetailModal(report, mode = 'view') {
 						<article class="match-card static">
 							<div class="match-pair">
 								<div class="match-side">
-									<img src="${escapeHtml(m.lost.image || FALLBACK_IMAGE)}" alt="">
+									<img src="${escapeHtml(m.lost.image || FALLBACK_IMAGE)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
 									<h4>${escapeHtml(m.lost.name || 'Lost Pet')}</h4>
 									<small>${escapeHtml(m.lost.breed || '')}</small>
 								</div>
 								${confidenceGauge(m.confidence)}
 								<div class="match-side">
-									<img src="${escapeHtml(m.found.image || FALLBACK_IMAGE)}" alt="">
+									<img src="${escapeHtml(m.found.image || FALLBACK_IMAGE)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
 									<h4>${escapeHtml(m.found.name || 'Found Pet')}</h4>
 									<small>${escapeHtml(m.found.breed || '')}</small>
 								</div>
@@ -811,7 +811,7 @@ function buildDetailModal(report, mode = 'view') {
 	return `
     <div class="details-modal-box">
         <div class="details-img-side">
-            <img src="${escapeHtml(report.image)}" alt="${escapeHtml(report.petName || report.title)}" class="details-pet-img">
+            <img src="${escapeHtml(report.image)}" alt="${escapeHtml(report.petName || report.title)}" class="details-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
             <div class="details-status-badge ${isLost ? 'lost' : 'found'}">${escapeHtml(report.type || 'Lost')}</div>
         </div>
 
@@ -843,7 +843,7 @@ function buildDetailModal(report, mode = 'view') {
                     data-map-zoom="14">
                 </div>
                 <div class="details-location-info">
-                    <img src="/bvetter/public/images/icons/icon-location.svg" alt="" class="details-loc-icon">
+                    <img src="/public/images/icons/icon-location.svg" alt="" class="details-loc-icon">
                     <div>
                         <span class="details-date">${dateValue}${timeValue ? ` &middot; ${timeValue}` : ''}</span>
                         <span class="details-location-text">${escapeHtml(report.barangay || '')}, Baliwag</span>
@@ -878,7 +878,7 @@ function buildClaimModal(claim) {
 	return `
 		<div class="modal-layout">
 			<aside class="modal-media">
-				<img src="${escapeHtml(claim.image)}" alt="${escapeHtml(claim.petName)}">
+				<img src="${escapeHtml(claim.image)}" alt="${escapeHtml(claim.petName)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
 			</aside>
 			<section class="modal-content" style="overflow-y:auto;">
 				<header class="modal-head">
@@ -929,7 +929,7 @@ function buildSightingModal(sighting) {
 	return `
 		<div class="modal-layout">
 			<aside class="modal-media">
-				<img src="${escapeHtml(sighting.image)}" alt="${escapeHtml(sighting.title)}">
+				<img src="${escapeHtml(sighting.image)}" alt="${escapeHtml(sighting.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
 			</aside>
 			<section class="modal-content" style="overflow-y:auto; ">
 				<header class="modal-head">
@@ -999,7 +999,7 @@ function buildUploadModal() {
 			<div class="modal-header">
 				<div class="modal-header-left">
 					<div class="modal-header-icon">
-						<img src="/bvetter/public/images/icons/report-paw.svg" alt="" class="modal-header-icon-img">
+						<img src="/public/images/icons/report-paw.svg" alt="" class="modal-header-icon-img">
 					</div>
 					<div>
 						<h2 class="modal-title" id="lfModalTitle">Report Lost Pet</h2>
@@ -1009,10 +1009,10 @@ function buildUploadModal() {
 				<div class="modal-header-right">
 					<div class="report-type-toggle" role="group" aria-label="Report type">
 						<button type="button" class="type-toggle-btn active" data-type="lost">
-							<img src="/bvetter/public/images/icons/report-paw.svg" alt="" class="type-toggle-icon">Lost
+							<img src="/public/images/icons/report-paw.svg" alt="" class="type-toggle-icon">Lost
 						</button>
 						<button type="button" class="type-toggle-btn" data-type="found">
-							<img src="/bvetter/public/images/icons/report-paw.svg" alt="" class="type-toggle-icon">Found
+							<img src="/public/images/icons/report-paw.svg" alt="" class="type-toggle-icon">Found
 						</button>
 					</div>
 				</div>
@@ -1025,7 +1025,7 @@ function buildUploadModal() {
 					<div class="modal-section-label">Pet Identification Photo</div>
 					<label class="upload-box" for="uploadPhotoInput">
 						<div id="uploadPhotoPreviewText">
-							<img src="/bvetter/public/images/icons/report-upload.svg" alt="" class="upload-cam-icon">
+							<img src="/public/images/icons/report-upload.svg" alt="" class="upload-cam-icon">
 							<span class="upload-text">Upload Clear Portrait</span>
 							<span class="upload-hint">High-res JPG or PNG preferred</span>
 						</div>
@@ -1047,7 +1047,7 @@ function buildUploadModal() {
 							<label>Type</label>
 							<div class="select-wrap">
 								<select name="species" class="form-select">${speciesOpts}</select>
-								<img src="/bvetter/public/images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img">
+								<img src="/public/images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img">
 							</div>
 						</div>
 						<div class="form-group">
@@ -1073,7 +1073,7 @@ function buildUploadModal() {
 									<option>Medium (10-25kg)</option>
 									<option>Large (25kg+)</option>
 								</select>
-								<img src="/bvetter/public/images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img">
+								<img src="/public/images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img">
 							</div>
 						</div>
 					</div>
@@ -1098,7 +1098,7 @@ function buildUploadModal() {
 							<label>Barangay Last Seen</label>
 							<div class="select-wrap">
 								<select name="barangay" id="uploadBarangay" class="form-select">${barangayOpts}</select>
-								<img src="/bvetter/public/images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img">
+								<img src="/public/images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img">
 							</div>
 						</div>
 					</div>
@@ -1130,7 +1130,7 @@ function buildUploadModal() {
 					<button type="button" class="vlf-cancel" data-modal-action="close">Cancel</button>
 					<button type="submit" class="vlf-submit" id="submitReportBtn">
 						<span id="submitReportBtnText">Submit Lost Pet Report</span>
-						<img src="/bvetter/public/images/icons/report-submit.svg" alt="" class="btn-icon-img">
+						<img src="/public/images/icons/report-submit.svg" alt="" class="btn-icon-img">
 					</button>
 				</div>
 			</footer>
