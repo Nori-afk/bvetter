@@ -2,9 +2,8 @@
 
 /**
  * Notification emails for a newly-booked appointment — extracted out of
- * appointment.php so both the request handler and notify_worker.php (the
- * detached background process that actually sends them) can share the
- * same logic. See notify_worker.php for why this runs out-of-process.
+ * appointment.php only so the logic has one clear home; called
+ * synchronously from createAppointment() via runAppointmentNotifications().
  */
 
 function notifyNewAppointmentRequest($pdo, $appointmentId, $ownerId, $petId, $appointmentType, $preferredDate, $timeSlot)
@@ -59,9 +58,7 @@ function notifyOwnerAppointmentRequested($pdo, $appointmentId)
 
 /**
  * Looks up everything notifyNewAppointmentRequest() needs from just the
- * appointment ID, then sends both notifications. Used by notify_worker.php
- * (the normal, detached path) and as the synchronous fallback in
- * spawnAppointmentNotifications() if the server can't spawn processes.
+ * appointment ID, then sends both notifications.
  */
 function runAppointmentNotifications(PDO $pdo, int $appointmentId): void
 {
@@ -83,70 +80,4 @@ function runAppointmentNotifications(PDO $pdo, int $appointmentId): void
         $row['time_slot']
     );
     notifyOwnerAppointmentRequested($pdo, $appointmentId);
-}
-
-/**
- * Hands the (slow — one HTTPS call per recipient) notification emails off
- * to a fully separate OS process instead of running them inline.
- *
- * Why: under mod_php (no PHP-FPM), an Apache worker stays occupied for a
- * PHP script's *entire* runtime — there's no fastcgi_finish_request()
- * equivalent to release it early. Running these emails inline, even after
- * the response was flushed, kept the worker (and the emails) blocking on
- * Brevo for the full duration; a couple of slow/queued bookings at once
- * was enough to exhaust Apache's worker pool and freeze the whole site.
- * Spawning a detached `php notify_worker.php <id> &` process instead means
- * this request's worker is freed the instant this function returns.
- */
-function spawnAppointmentNotifications(PDO $pdo, int $appointmentId): void
-{
-    $script = __DIR__ . '/notify_worker.php';
-
-    // NOTE: PHP_BINARY is NOT usable here — under any web SAPI (apache2handler,
-    // php-fpm, etc.) it points at the *server's own* binary (httpd.exe,
-    // apache2, php-fpm...), not a standalone `php` CLI executable. Always
-    // locate the real CLI binary instead.
-    $phpBinary = locatePhpCliBinary();
-    if ($phpBinary === null || !function_exists('exec')) {
-        // Couldn't find a CLI binary, or exec() is disabled on this host —
-        // fall back to sending inline so the notification still goes out,
-        // even though it reintroduces the wait.
-        runAppointmentNotifications($pdo, $appointmentId);
-        return;
-    }
-
-    if (stripos(PHP_OS, 'WIN') === 0) {
-        // Local XAMPP/Windows dev — best-effort background via `start /B`.
-        $cmd = 'start /B "" ' . escapeshellarg($phpBinary) . ' ' . escapeshellarg($script) . ' ' . $appointmentId;
-        pclose(popen($cmd, 'r'));
-        return;
-    }
-
-    exec(
-        escapeshellarg($phpBinary) . ' ' . escapeshellarg($script) . ' ' . $appointmentId
-        . ' > /dev/null 2>&1 &'
-    );
-}
-
-/**
- * Finds a real `php` CLI executable, since PHP_BINARY can't be trusted from
- * a web request (see spawnAppointmentNotifications() above). Returns null if
- * none of the usual spots have it, so callers can fall back gracefully.
- */
-function locatePhpCliBinary(): ?string
-{
-    if (stripos(PHP_OS, 'WIN') === 0) {
-        foreach (['C:\\xampp\\php\\php.exe'] as $candidate) {
-            if (file_exists($candidate)) return $candidate;
-        }
-        return null;
-    }
-
-    $found = trim((string) shell_exec('command -v php 2>/dev/null'));
-    if ($found !== '') return $found;
-
-    foreach (['/usr/bin/php', '/usr/local/bin/php'] as $candidate) {
-        if (file_exists($candidate)) return $candidate;
-    }
-    return null;
 }

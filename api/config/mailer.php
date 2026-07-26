@@ -71,7 +71,7 @@ function sendViaBrevo(string $apiKey, string $toEmail, string $toName, string $s
             'content-type: application/json',
             'api-key: ' . $apiKey,
         ],
-        CURLOPT_TIMEOUT => 15,
+        CURLOPT_TIMEOUT => 6,
     ]);
     $response = curl_exec($ch);
     $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);

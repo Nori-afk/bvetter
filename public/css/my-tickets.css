@@ -2,6 +2,13 @@
    BVETTER — My Tickets (public/css/my-tickets.css)
    ============================================================ */
 
+body {
+  font-family: var(--font-main);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  overflow-x: hidden;
+}
+
 .mt-main {
   max-width: 900px;
   margin: 0 auto;
@@ -17,14 +24,14 @@
 }
 
 .mt-hero p {
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
 .mt-main .card {
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0, 42, 88, 0.08);
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
   padding: 20px 24px;
 }
 
@@ -36,7 +43,7 @@
 .field-label {
   font-size: 12px;
   font-weight: 700;
-  color: #6b7280;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
   margin-top: 8px;
@@ -45,8 +52,8 @@
 .mt-form input,
 .mt-form textarea {
   font-family: inherit;
-  border: 1px solid rgba(0, 42, 88, 0.15);
-  border-radius: 8px;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   font-size: 14px;
   resize: vertical;
@@ -55,10 +62,10 @@
 .btn-submit-ticket {
   justify-self: start;
   margin-top: 12px;
-  background: #00B928;
-  color: #fff;
+  background: var(--color-green-mid);
+  color: var(--text-white);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 10px 22px;
   font-weight: 700;
   font-size: 14px;
@@ -75,31 +82,31 @@
   text-align: left;
   font-size: 12px;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--text-muted);
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(0, 42, 88, 0.1);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .mt-table-card td {
   padding: 12px;
   font-size: 14px;
-  border-bottom: 1px solid rgba(0, 42, 88, 0.06);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .mt-badge {
   display: inline-block;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-size: 12px;
   font-weight: 700;
 }
 
-.mt-badge-open { background: #fdecea; color: #b3202c; }
-.mt-badge-in_progress { background: #fff4de; color: #a3670c; }
-.mt-badge-resolved { background: #e6f7ea; color: #1B6D24; }
+.mt-badge-open { background: var(--color-red-pale); color: var(--color-red); }
+.mt-badge-in_progress { background: var(--color-yellow-light); color: var(--color-yellow); }
+.mt-badge-resolved { background: var(--color-green-pale); color: var(--color-green-dark); }
 
 .mt-empty {
   text-align: center;
-  color: #6b7280;
+  color: var(--text-muted);
   padding: 24px 0;
 }

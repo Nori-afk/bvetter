@@ -447,10 +447,11 @@ function createAppointment($pdo, $data)
     $appointmentId = (int) $pdo->lastInsertId();
     $pdo->commit();
 
-    // Hand the (slow — one HTTPS call per recipient) notification emails off
-    // to a fully separate background process *before* responding, so this
-    // request can send a normal, clean response immediately afterward.
-    spawnAppointmentNotifications($pdo, $appointmentId);
+    // Sent synchronously and directly, on purpose: two different attempts at
+    // deferring this (an early-flush trick, then a detached background
+    // process) each broke in a way specific to this server that wasn't
+    // reproducible locally. Simple and correct beats clever and broken.
+    runAppointmentNotifications($pdo, $appointmentId);
 
     respond(201, [
         'success' => true,
