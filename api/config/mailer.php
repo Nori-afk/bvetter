@@ -33,8 +33,59 @@ function emailAssetUrl(string $sitePath): string
  * attached image makes an otherwise legitimate notification look like a
  * phishing email in most inboxes. See notificationEmailWrapper()'s
  * $photoUrl param for showing a photo inline via <img src>.
+ *
+ * Sends over Brevo's HTTPS API (port 443) when BREVO_API_KEY is set —
+ * many cloud hosts (DigitalOcean, etc.) block outbound SMTP ports 25/465/587
+ * by default, which silently breaks the PHPMailer/SMTP path in production
+ * even though it works fine on a local dev machine. Falls back to SMTP
+ * when no Brevo key is configured, so local XAMPP setups are unaffected.
  */
 function sendAppMail(string $toEmail, string $toName, string $subject, string $htmlBody): bool
+{
+    $brevoKey = getenv('BREVO_API_KEY') ?: '';
+    if ($brevoKey !== '') {
+        return sendViaBrevo($brevoKey, $toEmail, $toName, $subject, $htmlBody);
+    }
+    return sendViaSmtp($toEmail, $toName, $subject, $htmlBody);
+}
+
+function sendViaBrevo(string $apiKey, string $toEmail, string $toName, string $subject, string $htmlBody): bool
+{
+    $payload = [
+        'sender' => [
+            'name' => getenv('BREVO_FROM_NAME') ?: 'VBetter',
+            'email' => getenv('BREVO_FROM_EMAIL') ?: getenv('SMTP_FROM') ?: '',
+        ],
+        'to' => [['email' => $toEmail, 'name' => $toName ?: $toEmail]],
+        'subject' => $subject,
+        'htmlContent' => $htmlBody,
+    ];
+
+    $ch = curl_init('https://api.brevo.com/v3/smtp/email');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_HTTPHEADER => [
+            'accept: application/json',
+            'content-type: application/json',
+            'api-key: ' . $apiKey,
+        ],
+        CURLOPT_TIMEOUT => 15,
+    ]);
+    $response = curl_exec($ch);
+    $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    if ($curlError !== '' || $statusCode < 200 || $statusCode >= 300) {
+        error_log('[VBetter Mailer] Brevo send failed (' . $statusCode . '): ' . ($curlError ?: $response));
+        return false;
+    }
+    return true;
+}
+
+function sendViaSmtp(string $toEmail, string $toName, string $subject, string $htmlBody): bool
 {
     try {
         $mail = new PHPMailer(true);
@@ -56,7 +107,7 @@ function sendAppMail(string $toEmail, string $toName, string $subject, string $h
         $mail->send();
         return true;
     } catch (MailException $e) {
-        error_log('[VBetter Mailer] Send failed: ' . $e->getMessage());
+        error_log('[VBetter Mailer] SMTP send failed: ' . $e->getMessage());
         return false;
     }
 }

@@ -631,6 +631,26 @@ forgotPassword: (email) => {
     }).then(r => r.json());
   },
 
+  /* ══════════════════════════════════════════
+     SUPPORT TICKETS
+     ══════════════════════════════════════════ */
+
+  submitTicket: (data) =>
+    fetch(`${API_BASE_REG}/tickets/tickets.php`, {
+      method: 'POST',
+      body: JSON.stringify({ ...data, action: 'create' })
+    }).then(r => r.json()),
+
+  getMyTickets: (ownerId) => {
+    const formData = new FormData();
+    formData.append('action', 'list');
+    formData.append('role', 'owner');
+    formData.append('reporter_id', ownerId || '');
+    return fetch(`${API_BASE_REG}/tickets/tickets.php`, {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json());
+  },
 
   /* ══════════════════════════════════════════
      USER / ACCOUNT

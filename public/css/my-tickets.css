@@ -1,0 +1,105 @@
+/* ============================================================
+   BVETTER — My Tickets (public/css/my-tickets.css)
+   ============================================================ */
+
+.mt-main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 24px 60px;
+  display: grid;
+  gap: 20px;
+}
+
+.mt-hero h1 {
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.mt-hero p {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.mt-main .card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 42, 88, 0.08);
+  padding: 20px 24px;
+}
+
+.card-head { margin-bottom: 14px; }
+.card-head h3 { font-size: 17px; font-weight: 700; }
+
+.mt-form { display: grid; gap: 6px; }
+
+.field-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-top: 8px;
+}
+
+.mt-form input,
+.mt-form textarea {
+  font-family: inherit;
+  border: 1px solid rgba(0, 42, 88, 0.15);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.btn-submit-ticket {
+  justify-self: start;
+  margin-top: 12px;
+  background: #00B928;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 22px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn-submit-ticket:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.table-wrap { overflow-x: auto; }
+
+.mt-table-card table { width: 100%; border-collapse: collapse; }
+
+.mt-table-card th {
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #6b7280;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(0, 42, 88, 0.1);
+}
+
+.mt-table-card td {
+  padding: 12px;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(0, 42, 88, 0.06);
+}
+
+.mt-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mt-badge-open { background: #fdecea; color: #b3202c; }
+.mt-badge-in_progress { background: #fff4de; color: #a3670c; }
+.mt-badge-resolved { background: #e6f7ea; color: #1B6D24; }
+
+.mt-empty {
+  text-align: center;
+  color: #6b7280;
+  padding: 24px 0;
+}

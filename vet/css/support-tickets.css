@@ -1,0 +1,160 @@
+/* ============================================================
+   VBetter – Support Tickets
+   /bvetter/vet/css/support-tickets.css
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+    --st-navy:    #002A58;
+    --st-blue:    #004080;
+    --st-green:   #00B928;
+    --st-muted:   #6b7fa0;
+    --st-surface: #ffffff;
+    --st-shadow:  0 8px 24px rgba(0, 42, 88, 0.08);
+    --st-radius:  14px;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+    min-height: 100vh;
+    width: 100%;
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
+    background: #F0F2F5;
+    color: var(--st-navy);
+}
+
+.main-holder.st-page {
+    min-height: 100vh;
+    display: flex;
+}
+
+.st-main {
+    margin-left: calc(var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap));
+    width: calc(100% - (var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap)));
+    padding: 28px 32px 40px;
+    min-width: 0;
+    display: grid;
+    gap: 18px;
+    align-content: start;
+    transition: margin-left 0.28s ease, width 0.28s ease;
+}
+
+.sidebar.expanded ~ .st-main {
+    margin-left: calc(var(--shell-gap) + var(--sidebar-width-expanded) + var(--sidebar-main-gap));
+    width: calc(100% - (var(--shell-gap) + var(--sidebar-width-expanded) + var(--sidebar-main-gap)));
+}
+
+.card {
+    border-radius: var(--st-radius);
+    background: var(--st-surface);
+    box-shadow: var(--st-shadow);
+    padding: 20px 24px;
+}
+
+.st-hero h1 { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
+.st-hero p { color: var(--st-muted); font-size: 14px; }
+
+.card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.card-head h3 { font-size: 17px; font-weight: 700; }
+
+.st-form { display: grid; gap: 6px; max-width: 640px; }
+
+.field-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--st-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-top: 8px;
+}
+
+.st-form input,
+.st-form textarea,
+.st-admin-controls textarea,
+.dropdown {
+    font-family: inherit;
+    border: 1px solid rgba(0, 42, 88, 0.15);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: var(--st-navy);
+    resize: vertical;
+}
+
+.btn-submit-ticket,
+.btn-save-ticket {
+    justify-self: start;
+    margin-top: 12px;
+    background: var(--st-green);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 22px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.btn-submit-ticket:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.table-wrap { overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; }
+
+th {
+    text-align: left;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--st-muted);
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(0, 42, 88, 0.1);
+}
+
+td {
+    padding: 12px;
+    font-size: 14px;
+    border-bottom: 1px solid rgba(0, 42, 88, 0.06);
+}
+
+.st-row { cursor: pointer; }
+.st-row:hover { background: #f7f9fc; }
+
+.st-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.st-badge-open { background: #fdecea; color: #b3202c; }
+.st-badge-in_progress { background: #fff4de; color: #a3670c; }
+.st-badge-resolved { background: #e6f7ea; color: #1B6D24; }
+
+.st-detail-row td { background: #fafbfd; }
+.st-detail { display: grid; gap: 10px; padding: 4px 8px; }
+.st-detail-desc { white-space: pre-wrap; font-size: 14px; }
+.st-detail-notes { font-size: 13px; color: var(--st-muted); }
+
+.st-admin-controls { display: grid; gap: 6px; max-width: 480px; }
+
+.st-empty {
+    text-align: center;
+    color: var(--st-muted);
+    padding: 24px 0;
+}
+
+@media (max-width: 900px) {
+    .st-main { margin-left: 0; width: 100%; }
+    .sidebar.expanded ~ .st-main { margin-left: 0; width: 100%; }
+}

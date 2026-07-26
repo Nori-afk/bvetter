@@ -297,10 +297,6 @@ body {
 	height: 355px !important;
 }
 
-#vaccineTypesChart {
-	height: 220px !important;
-}
-
 #vaccinesNeededChart {
 	height: 245px !important;
 }
@@ -1321,7 +1317,6 @@ tr[data-event-id]:hover {
 
 	#vaccinatedPerBarangayChart,
 	#predictedAnimalsChart,
-	#vaccineTypesChart,
 	#vaccinesNeededChart { height: 230px !important; }
 
 	.hero { flex-direction: column; align-items: flex-start; }
@@ -1413,7 +1408,6 @@ tr[data-event-id]:hover {
 
 	#vaccinatedPerBarangayChart,
 	#predictedAnimalsChart,
-	#vaccineTypesChart,
 	#vaccinesNeededChart { height: 200px !important; }
 
 	/* Barangay bar charts: scroll horizontally instead of squashing

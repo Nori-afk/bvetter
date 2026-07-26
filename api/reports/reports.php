@@ -188,6 +188,13 @@ function db_patient_rows($pdo){
         LEFT JOIN users owners ON owners.id = pets.owner_id
         $barangayJoin
         $visitJoin
+        WHERE (
+            pvr.pet_id IS NOT NULL
+            OR EXISTS (
+                SELECT 1 FROM appointments a
+                WHERE a.pet_id = pets.id AND a.status IN ('confirmed', 'completed')
+            )
+        )
         GROUP BY pets.id, pets.pet_name, pets.species, pets.breed, pets.sex, pets.created_at, owners.full_name, owners.phone_number, barangay
         ORDER BY $orderDate DESC
     ";

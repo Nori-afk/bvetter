@@ -1197,6 +1197,57 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     return value ? `${value} ${unit}` : '';
   }
 
+  /* ── Loading/success window shown while the booking request (and its
+     confirmation email) is processing, instead of just swapping the
+     Confirm button's label. Self-contained (styles injected once) so it
+     renders the same regardless of what CSS this page happens to load. ── */
+  function ensureBookingOverlay() {
+    let overlay = document.getElementById('vbBookingOverlay');
+    if (overlay) return overlay;
+
+    const style = document.createElement('style');
+    style.textContent = `
+      #vbBookingOverlay { position:fixed; inset:0; z-index:9999; display:none;
+        align-items:center; justify-content:center; background:rgba(15,23,42,0.55); }
+      #vbBookingOverlay .vb-box { background:#fff; border-radius:16px; padding:32px 40px;
+        text-align:center; min-width:260px; max-width:90vw; box-shadow:0 20px 60px rgba(0,0,0,0.25); }
+      #vbBookingOverlay .vb-spinner { width:44px; height:44px; margin:0 auto 16px;
+        border:4px solid #dbe4f0; border-top-color:#00B928; border-radius:50%;
+        animation:vb-spin 0.8s linear infinite; }
+      #vbBookingOverlay .vb-check { width:44px; height:44px; margin:0 auto 16px;
+        border-radius:50%; background:#00B928; color:#fff; display:flex; align-items:center;
+        justify-content:center; font-size:24px; animation:vb-pop 0.25s ease; }
+      #vbBookingOverlay .vb-msg { color:#1f2937; font-size:15px; font-weight:600; font-family:inherit; }
+      @keyframes vb-spin { to { transform:rotate(360deg); } }
+      @keyframes vb-pop { from { transform:scale(0.5); opacity:0; } to { transform:scale(1); opacity:1; } }
+    `;
+    document.head.appendChild(style);
+
+    overlay = document.createElement('div');
+    overlay.id = 'vbBookingOverlay';
+    overlay.innerHTML = '<div class="vb-box"><div class="vb-icon"></div><div class="vb-msg"></div></div>';
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  function showBookingLoading(message) {
+    const overlay = ensureBookingOverlay();
+    overlay.querySelector('.vb-icon').innerHTML = '<div class="vb-spinner"></div>';
+    overlay.querySelector('.vb-msg').textContent = message;
+    overlay.style.display = 'flex';
+  }
+
+  function showBookingSuccess(message) {
+    const overlay = ensureBookingOverlay();
+    overlay.querySelector('.vb-icon').innerHTML = '<div class="vb-check">&#10003;</div>';
+    overlay.querySelector('.vb-msg').textContent = message;
+  }
+
+  function hideBookingOverlay() {
+    const overlay = document.getElementById('vbBookingOverlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
   /* ── Submit appointment ──────────────────────
      Guards against double-submits: without this, clicking Confirm
      several times before the request resolves fired one booking per
@@ -1208,20 +1259,14 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     isBookingSubmit = true;
 
     const confirmBtn = document.getElementById('s4Confirm');
-    const confirmBtnOriginal = confirmBtn ? confirmBtn.innerHTML : '';
-    if (confirmBtn) {
-      confirmBtn.disabled = true;
-      confirmBtn.innerHTML = 'Booking...';
-    }
+    if (confirmBtn) confirmBtn.disabled = true;
+    showBookingLoading('Submitting your appointment…');
 
     try {
       await submitAppointmentRequest();
     } finally {
       isBookingSubmit = false;
-      if (confirmBtn) {
-        confirmBtn.disabled = false;
-        confirmBtn.innerHTML = confirmBtnOriginal;
-      }
+      if (confirmBtn) confirmBtn.disabled = false;
     }
   }
 
@@ -1257,18 +1302,24 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     if (isCspMode()) {
       const required = ['owner_name','owner_contact','owner_email','pet_name','pet_type'];
       if (required.some(k => !payload[k])) {
+        hideBookingOverlay();
         alert('Please complete all required fields.');
         return;
       }
       try {
         const result = await api.registerCspProgram(payload);
         if (!result.success) {
+          hideBookingOverlay();
           alert(result.message || 'Failed to submit registration.');
           return;
         }
+        showBookingSuccess('Registration submitted successfully!');
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        hideBookingOverlay();
         showCspSuccess(result.waiting_count);
         goStep(5);
       } catch (error) {
+        hideBookingOverlay();
         alert('Failed to submit registration. Please try again.');
       }
       return;
@@ -1280,12 +1331,14 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
       'preferred_date','time_slot'
     ];
     if (required.some(k => !payload[k])) {
+      hideBookingOverlay();
       alert('Please complete all required appointment fields.');
       return;
     }
 
     const todayIso = toLocalIsoDate();
     if (payload.preferred_date < todayIso) {
+      hideBookingOverlay();
       alert('Please select a date that has not yet passed.');
       return;
     }
@@ -1293,12 +1346,17 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     try {
       const result = await api.bookAppointment(payload);
       if (!result.success) {
+        hideBookingOverlay();
         alert(result.message || 'Failed to book appointment.');
         return;
       }
+      showBookingSuccess('Successfully booked! We’ve sent a confirmation to your email.');
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      hideBookingOverlay();
       showDefaultSuccess();
       goStep(5);
     } catch (error) {
+      hideBookingOverlay();
       alert('Failed to book appointment. Please try again.');
     }
   }

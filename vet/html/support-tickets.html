@@ -1,25 +1,24 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VBetter | Patient Records</title>
+    <title>VBetter | Support Tickets</title>
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="/shared/css/sidebar.css">
-    <link rel="stylesheet" href="/vet/css/patient-records.css">
-
+    <link rel="stylesheet" href="/vet/css/support-tickets.css">
 </head>
 
 <body>
-    <div class="main-holder">
+    <div class="main-holder st-page">
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="logo"><img src="/vet/images/logo.png" alt="VBetter Logo"></div>
             </div>
-             <nav class="sidebar-nav">
+            <nav class="sidebar-nav">
                 <a href="/vet/html/index.html" class="nav-item" title="Dashboard">
                     <img src="/shared/images/sidebar/dashboard.svg" class="nav-icon" alt="Dashboard">
                     <span class="nav-label">Dashboard</span>
@@ -52,7 +51,7 @@
                     <img src="/shared/images/sidebar/mass-vacc.svg" class="nav-icon" alt="Mass Vaccination">
                     <span class="nav-label">Mass Vaccination</span>
                 </a>
-                <a href="/vet/html/support-tickets.html" class="nav-item" title="Support Tickets">
+                <a href="/vet/html/support-tickets.html" class="nav-item active" title="Support Tickets">
                     <img src="/shared/images/sidebar/report.svg" class="nav-icon" alt="Support Tickets">
                     <span class="nav-label">Support Tickets</span>
                 </a>
@@ -70,30 +69,58 @@
             <div class="sidebar-footer"></div>
         </aside>
 
-        <main class="right-side">
+        <main class="st-main">
+            <section class="st-hero card">
+                <div>
+                    <h1>Support Tickets</h1>
+                    <p id="st-subtitle">Report a bug or issue, and track its status here.</p>
+                </div>
+            </section>
 
+            <section class="card st-form-card">
+                <div class="card-head"><h3>Submit a Ticket</h3></div>
+                <form id="ticketForm" class="st-form">
+                    <label class="field-label" for="st-subject">Subject</label>
+                    <input type="text" id="st-subject" name="subject" maxlength="150" required placeholder="Short summary of the issue">
 
-            <!-- records.js renders the full UI into this div -->
-            <div id="records-app" class="records-app"></div>
+                    <label class="field-label" for="st-description">Description</label>
+                    <textarea id="st-description" name="description" rows="4" required placeholder="What happened? What did you expect instead?"></textarea>
 
-            <!-- Records modal -->
-            <div class="modal-overlay" id="records-modal-overlay" hidden>
-                <section class="modal-shell" id="records-modal-shell" role="dialog" aria-modal="true"
-                    aria-labelledby="records-modal-title">
-                    <button type="button" class="modal-close" id="records-modal-close"
-                        aria-label="Close modal">&times;</button>
-                    <div id="records-modal-content"></div>
-                </section>
-            </div>
+                    <button type="submit" class="btn btn-submit-ticket" id="st-submit-btn">Submit Ticket</button>
+                </form>
+            </section>
+
+            <section class="card st-table-card">
+                <div class="card-head">
+                    <h3 id="st-list-title">My Tickets</h3>
+                    <select id="st-status-filter" class="dropdown" style="display:none;">
+                        <option value="all">All Statuses</option>
+                        <option value="open">Open</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="resolved">Resolved</option>
+                    </select>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ticket #</th>
+                                <th id="st-reporter-col" style="display:none;">Reporter</th>
+                                <th>Subject</th>
+                                <th>Status</th>
+                                <th>Submitted</th>
+                            </tr>
+                        </thead>
+                        <tbody id="st-table-body"></tbody>
+                    </table>
+                </div>
+                <p id="st-empty-state" class="st-empty" style="display:none;">No tickets yet.</p>
+            </section>
         </main>
     </div>
 
-    <!-- <script src="/shared/js/auth.js"></script> -->
-    <!-- <script>VBetterAuth.requireAuth(['vet']);</script> -->
+    <script src="/shared/js/auth.js"></script>
     <script src="/shared/js/sidebar.js"></script>
-    <script src="/shared/js/vaccine-types.js"></script>
-    <script src="/vet/js/patient-records.js"></script>
-
+    <script src="/vet/js/support-tickets.js"></script>
 </body>
-
 </html>

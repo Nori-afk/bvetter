@@ -330,7 +330,13 @@ function refreshUI() {
 	rebuildCalendarEvents();
 }
 
-async function updateStatus(id, nextStatus) {
+async function reloadFromServer() {
+	if (!window.VetAPI?.getAppointments) return;
+	const result = await window.VetAPI.getAppointments();
+	if (result.ok) loadAppointments(result.data);
+}
+
+async function updateStatus(id, nextStatus, { skipReload } = {}) {
 	const selected = getAppointmentById(id);
 	if (!selected) return;
 	if (window.VetAPI?.updateAppointmentStatus) {
@@ -340,9 +346,13 @@ async function updateStatus(id, nextStatus) {
 			return;
 		}
 	}
-	selected.status = nextStatus;
-	state.page = 1;
-	refreshUI();
+	if (skipReload) {
+		selected.status = nextStatus;
+		return;
+	}
+	// Re-fetch from the server (rather than just patching the local copy) so the
+	// table reflects the real DB state instead of going stale until a manual reload.
+	await reloadFromServer();
 }
 
 function removeAppointment(id) {
@@ -913,8 +923,8 @@ function setupEvents() {
 
 	ui.acceptAllButton.addEventListener('click', async () => {
 		const pending = state.appointments.filter((item) => item.status === 'pending');
-		await Promise.all(pending.map((item) => updateStatus(item.id, 'confirmed')));
-		refreshUI();
+		await Promise.all(pending.map((item) => updateStatus(item.id, 'confirmed', { skipReload: true })));
+		await reloadFromServer();
 	});
 
 	ui.pendingHolder.addEventListener('click', (event) => {

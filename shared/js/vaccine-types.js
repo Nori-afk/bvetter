@@ -4,7 +4,7 @@
 // (per browser) for future mass-vaccination events and patient visits.
 (function () {
     const STORAGE_KEY = 'vbetter.vaccineTypes';
-    const DEFAULT_TYPES = ['Anti-Rabies'];
+    const DEFAULT_TYPES = ['None', 'Anti-Rabies'];
 
     function loadCustom() {
         try {

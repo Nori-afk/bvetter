@@ -351,6 +351,13 @@ function listRecords($pdo)
         LEFT JOIN barangays ON barangays.id = owner_profiles.barangay_id
         LEFT JOIN patient_record_profiles ON patient_record_profiles.pet_id = pets.id
         WHERE COALESCE(patient_record_profiles.is_archived, 0) = 0
+          AND (
+              patient_record_profiles.pet_id IS NOT NULL
+              OR EXISTS (
+                  SELECT 1 FROM appointments a
+                  WHERE a.pet_id = pets.id AND a.status IN ('confirmed', 'completed')
+              )
+          )
         ORDER BY pets.updated_at DESC, pets.id DESC
     ")->fetchAll();
 

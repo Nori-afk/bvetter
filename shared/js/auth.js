@@ -31,9 +31,60 @@ const SESSION_CHECK_INTERVAL_MS = 30000;
 function getSession() {
     try {
         const raw = sessionStorage.getItem(SESSION_KEY);
-        console.log(raw)
         return raw ? JSON.parse(raw) : null;
     } catch { return null; }
+}
+
+/**
+ * Self-contained confirm modal (styles injected once) used in place of the
+ * native window.confirm() dialog — works identically on every page since it
+ * doesn't depend on that page's stylesheet.
+ */
+function vbConfirm(message, confirmLabel) {
+    return new Promise((resolve) => {
+        let overlay = document.getElementById('vbConfirmOverlay');
+        if (!overlay) {
+            const style = document.createElement('style');
+            style.textContent = `
+                #vbConfirmOverlay { position:fixed; inset:0; z-index:9999; display:none;
+                    align-items:center; justify-content:center; background:rgba(15,23,42,0.55); }
+                #vbConfirmOverlay .vb-confirm-box { background:#fff; border-radius:16px; padding:28px 32px;
+                    text-align:center; max-width:340px; box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:inherit; }
+                #vbConfirmOverlay .vb-confirm-msg { color:#1f2937; font-size:15px; font-weight:600; margin-bottom:20px; }
+                #vbConfirmOverlay .vb-confirm-actions { display:flex; gap:12px; justify-content:center; }
+                #vbConfirmOverlay button { border:none; border-radius:8px; padding:10px 20px;
+                    font-weight:700; font-size:14px; cursor:pointer; font-family:inherit; }
+                #vbConfirmOverlay .vb-confirm-yes { background:#00B928; color:#fff; }
+                #vbConfirmOverlay .vb-confirm-no { background:#eef2f7; color:#1f2937; }
+            `;
+            document.head.appendChild(style);
+            overlay = document.createElement('div');
+            overlay.id = 'vbConfirmOverlay';
+            document.body.appendChild(overlay);
+        }
+
+        overlay.innerHTML = `
+            <div class="vb-confirm-box">
+                <div class="vb-confirm-msg"></div>
+                <div class="vb-confirm-actions">
+                    <button type="button" class="vb-confirm-no">Cancel</button>
+                    <button type="button" class="vb-confirm-yes">${confirmLabel || 'Confirm'}</button>
+                </div>
+            </div>
+        `;
+        overlay.querySelector('.vb-confirm-msg').textContent = message;
+        overlay.style.display = 'flex';
+
+        const cleanup = (result) => {
+            overlay.style.display = 'none';
+            resolve(result);
+        };
+        overlay.querySelector('.vb-confirm-yes').addEventListener('click', () => cleanup(true), { once: true });
+        overlay.querySelector('.vb-confirm-no').addEventListener('click', () => cleanup(false), { once: true });
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) cleanup(false);
+        }, { once: true });
+    });
 }
 
 function setSession(session) {
@@ -101,7 +152,8 @@ function getCurrentUser() {
 
 /** Logs out and redirects to login */
 async function logout() {
-    if (!window.confirm('Are you sure you want to log out?')) return;
+    const confirmed = await vbConfirm('Are you sure you want to log out?', 'Log Out');
+    if (!confirmed) return;
 
     const token = sessionStorage.getItem('bvetter_token');
     if (token) {

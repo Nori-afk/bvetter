@@ -91,7 +91,7 @@
             if (noteEl)  noteEl.innerHTML  = skeletonBar('75%', '10px');
         });
 
-        ['vaccinatedPerBarangayChart', 'predictedAnimalsChart', 'vaccineTypesChart', 'vaccinesNeededChart'].forEach((id) => {
+        ['vaccinatedPerBarangayChart', 'predictedAnimalsChart', 'vaccinesNeededChart'].forEach((id) => {
             const canvas = document.getElementById(id);
             if (!canvas || canvas.dataset.skeletonApplied) return;
             canvas.dataset.skeletonApplied = 'true';
@@ -501,7 +501,7 @@
         range = range || document.getElementById('range-filter')?.value || 'This Year';
 
         document.querySelectorAll('.chart-skeleton').forEach((el) => el.remove());
-        ['vaccinatedPerBarangayChart', 'predictedAnimalsChart', 'vaccineTypesChart', 'vaccinesNeededChart'].forEach((id) => {
+        ['vaccinatedPerBarangayChart', 'predictedAnimalsChart', 'vaccinesNeededChart'].forEach((id) => {
             const canvas = document.getElementById(id);
             if (canvas) canvas.style.display = '';
         });
@@ -751,124 +751,6 @@
                             }
                         }
                     }
-                });
-            }
-        }
-
-        // ── Chart 3: Vaccine Types Distribution
-        // PRIMARY:  DB events grouped by vaccine type (live source)
-        // MERGED:   Excel vaccineDemand totals added as baseline when DB has no entries for a vaccine
-        // SHOWS BOTH if both sources have data, with clear labeling
-        destroyChart('vaccineTypes');
-        {
-            // Aggregate DB events by vaccine type
-            var dbVaccineTotals = {};
-            getFilteredEvents(range).forEach(e => {
-                var vaccineName = e.vaccine || 'Unspecified';
-                var tv = Number(e.totalVaccinated) || 0;
-                if (tv === 0 && e.breakdown) {
-                    tv = (Number(e.breakdown.dogs) || 0)
-                       + (Number(e.breakdown.cats) || 0)
-                       + (Number(e.breakdown.others) || 0);
-                }
-                dbVaccineTotals[vaccineName] = (dbVaccineTotals[vaccineName] || 0) + tv;
-            });
-            var dbVaccineLabels = Object.keys(dbVaccineTotals);
-            var dbVaccineValues = dbVaccineLabels.map(l => dbVaccineTotals[l]);
-
-            // Excel vaccine demand as baseline reference
-            var excelVaccineMap = {};
-            if (state.dashboardData?.vaccineDemand?.length) {
-                state.dashboardData.vaccineDemand.forEach(row => {
-                    excelVaccineMap[row.label] = Number(row.units) || 0;
-                });
-            }
-
-            if (dbVaccineLabels.length > 0) {
-                // DB data exists — show DB totals as primary bars
-                // If Excel also has matching labels, show them as a secondary dataset
-                var hasExcelVaccine = Object.keys(excelVaccineMap).length > 0;
-                var c3Datasets = [
-                    {
-                        label: 'Doses Injected (Live DB)',
-                        data: dbVaccineValues,
-                        backgroundColor: '#002A58',
-                        borderRadius: 6
-                    }
-                ];
-
-                if (hasExcelVaccine) {
-                    // Only add Excel bars for labels that exist in both sources
-                    var excelValues = dbVaccineLabels.map(l => excelVaccineMap[l] || 0);
-                    var hasOverlap = excelValues.some(v => v > 0);
-                    if (hasOverlap) {
-                        c3Datasets.push({
-                            label: 'Historical Demand (Excel)',
-                            data: excelValues,
-                            backgroundColor: '#60A5FA',
-                            borderRadius: 6
-                        });
-                    }
-                }
-
-                charts['vaccineTypes'] = new Chart(
-                    document.getElementById('vaccineTypesChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: dbVaccineLabels,
-                        datasets: c3Datasets
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        scales: {
-                            y: { beginAtZero: true, ticks: { color: '#456084' }, grid: { color: '#edf2f9' } },
-                            x: { ticks: { color: '#456084' }, grid: { display: false } }
-                        },
-                        plugins: {
-                            legend: { position: 'bottom' },
-                            title: { display: true, text: `Vaccine Types Injected — ${range}`, font: { size: 11 }, color: '#456084' }
-                        }
-                    }
-                });
-
-            } else if (Object.keys(excelVaccineMap).length) {
-                // No DB events — show Excel vaccineDemand only
-                var excelLabels = Object.keys(excelVaccineMap);
-                charts['vaccineTypes'] = new Chart(
-                    document.getElementById('vaccineTypesChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: excelLabels,
-                        datasets: [{
-                            label: 'Historical Demand (Excel)',
-                            data: excelLabels.map(l => excelVaccineMap[l]),
-                            backgroundColor: '#0f2a6d',
-                            borderRadius: 6
-                        }]
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        scales: {
-                            y: { beginAtZero: true, ticks: { color: '#456084' }, grid: { color: '#edf2f9' } },
-                            x: { ticks: { color: '#456084' }, grid: { display: false } }
-                        },
-                        plugins: {
-                            legend: { position: 'bottom' },
-                            title: { display: true, text: `Vaccine Demand (Excel Baseline) — ${range}`, font: { size: 11 }, color: '#456084' }
-                        }
-                    }
-                });
-
-            } else {
-                // Completely empty — placeholder doughnut
-                charts['vaccineTypes'] = new Chart(
-                    document.getElementById('vaccineTypesChart'), {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['No reported vaccines'],
-                        datasets: [{ data: [1], backgroundColor: ['#dbe4f0'], borderWidth: 0 }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, cutout: '45%', plugins: { legend: { position: 'right' } } }
                 });
             }
         }
