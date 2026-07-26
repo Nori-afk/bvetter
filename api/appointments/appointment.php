@@ -1,11 +1,5 @@
 ﻿<?php
 
-// respondAndContinue() below closes the client connection early so slow
-// notification emails don't block the response — but PHP's default behavior
-// is to abort the whole script the instant it notices the client is gone.
-// This keeps the script (and the emails) running after that point.
-ignore_user_abort(true);
-
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -20,38 +14,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/mailer.php';
 require_once __DIR__ . '/../config/notifications.php';
+require_once __DIR__ . '/appointment_notifications.php';
 
 function respond($statusCode, $payload)
 {
     http_response_code($statusCode);
     echo json_encode($payload);
     exit;
-}
-
-/**
- * Sends the response to the browser immediately and keeps the script running
- * afterward — used so slow, non-essential work (notification emails) doesn't
- * make the client wait. Under PHP-FPM, fastcgi_finish_request() genuinely
- * closes the client connection first. Under plain mod_php there's no real
- * equivalent, so this best-effort flushes what it can — harmless either way,
- * and a real win wherever FPM is available (the common case on Linux hosts).
- */
-function respondAndContinue($statusCode, $payload)
-{
-    http_response_code($statusCode);
-    $body = json_encode($payload);
-    header('Content-Length: ' . strlen($body));
-    header('Connection: close');
-    echo $body;
-
-    if (function_exists('fastcgi_finish_request')) {
-        fastcgi_finish_request();
-    } else {
-        while (ob_get_level() > 0) {
-            ob_end_flush();
-        }
-        flush();
-    }
 }
 
 function inputData()
@@ -478,68 +447,16 @@ function createAppointment($pdo, $data)
     $appointmentId = (int) $pdo->lastInsertId();
     $pdo->commit();
 
-    // Client gets its response now — the notification emails below can take
-    // several seconds (one HTTPS call per staff recipient plus the owner) and
-    // shouldn't make the booking flow feel stuck.
-    respondAndContinue(201, [
+    // Hand the (slow — one HTTPS call per recipient) notification emails off
+    // to a fully separate background process *before* responding, so this
+    // request can send a normal, clean response immediately afterward.
+    spawnAppointmentNotifications($pdo, $appointmentId);
+
+    respond(201, [
         'success' => true,
         'message' => 'Appointment request submitted.',
         'appointment_id' => $appointmentId
     ]);
-
-    notifyNewAppointmentRequest($pdo, $appointmentId, $ownerId, $petId, $appointmentType, $preferredDate, $timeSlot);
-    notifyOwnerAppointmentRequested($pdo, $appointmentId);
-    exit;
-}
-
-function notifyNewAppointmentRequest($pdo, $appointmentId, $ownerId, $petId, $appointmentType, $preferredDate, $timeSlot)
-{
-    $ownerStmt = $pdo->prepare('SELECT full_name FROM users WHERE id = :id LIMIT 1');
-    $ownerStmt->execute([':id' => $ownerId]);
-    $ownerName = $ownerStmt->fetchColumn() ?: 'A pet owner';
-
-    $petStmt = $pdo->prepare('SELECT pet_name FROM pets WHERE id = :id LIMIT 1');
-    $petStmt->execute([':id' => $petId]);
-    $petName = $petStmt->fetchColumn() ?: 'a pet';
-
-    notifyStaff(
-        $pdo,
-        'both',
-        'appointment_new',
-        'New Appointment Request',
-        "{$ownerName} requested a {$appointmentType} appointment for {$petName} on {$preferredDate} at {$timeSlot}.",
-        $appointmentId,
-        true
-    );
-}
-
-function notifyOwnerAppointmentRequested($pdo, $appointmentId)
-{
-    $stmt = $pdo->prepare('
-        SELECT appointments.preferred_date, appointments.time_slot,
-               owners.id AS owner_id, owners.full_name AS owner_name, owners.email AS owner_email
-        FROM appointments
-        INNER JOIN users owners ON owners.id = appointments.owner_id
-        WHERE appointments.id = :id
-        LIMIT 1
-    ');
-    $stmt->execute([':id' => (int) $appointmentId]);
-    $row = $stmt->fetch();
-    if (!$row || !$row['owner_email']) return;
-
-    $ownerId = (int) $row['owner_id'];
-    if (!userWantsNotification($pdo, $ownerId, 'appointment_reminders')) return;
-
-    $subject = 'VBetter – We received your appointment request';
-    $body = notificationEmailWrapper(
-        'Appointment Request Received',
-        "<p>We've received your request for <strong>{$row['preferred_date']}</strong> at
-           <strong>{$row['time_slot']}</strong>. We'll email you once it's been reviewed.</p>",
-        null,
-        ['label' => 'View', 'url' => APP_URL . '/public/pages/book-appointment.html']
-    );
-
-    sendAppMail($row['owner_email'], clean($row['owner_name'] ?? ''), $subject, $body);
 }
 
 function updateAppointmentStatus($pdo, $data)
