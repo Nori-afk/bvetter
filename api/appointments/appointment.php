@@ -22,6 +22,32 @@ function respond($statusCode, $payload)
     exit;
 }
 
+/**
+ * Sends the response to the browser immediately and keeps the script running
+ * afterward — used so slow, non-essential work (notification emails) doesn't
+ * make the client wait. Under PHP-FPM, fastcgi_finish_request() genuinely
+ * closes the client connection first. Under plain mod_php there's no real
+ * equivalent, so this best-effort flushes what it can — harmless either way,
+ * and a real win wherever FPM is available (the common case on Linux hosts).
+ */
+function respondAndContinue($statusCode, $payload)
+{
+    http_response_code($statusCode);
+    $body = json_encode($payload);
+    header('Content-Length: ' . strlen($body));
+    header('Connection: close');
+    echo $body;
+
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    } else {
+        while (ob_get_level() > 0) {
+            ob_end_flush();
+        }
+        flush();
+    }
+}
+
 function inputData()
 {
     $json = json_decode(file_get_contents('php://input'), true);
@@ -446,14 +472,18 @@ function createAppointment($pdo, $data)
     $appointmentId = (int) $pdo->lastInsertId();
     $pdo->commit();
 
-    notifyNewAppointmentRequest($pdo, $appointmentId, $ownerId, $petId, $appointmentType, $preferredDate, $timeSlot);
-    notifyOwnerAppointmentRequested($pdo, $appointmentId);
-
-    respond(201, [
+    // Client gets its response now — the notification emails below can take
+    // several seconds (one HTTPS call per staff recipient plus the owner) and
+    // shouldn't make the booking flow feel stuck.
+    respondAndContinue(201, [
         'success' => true,
         'message' => 'Appointment request submitted.',
         'appointment_id' => $appointmentId
     ]);
+
+    notifyNewAppointmentRequest($pdo, $appointmentId, $ownerId, $petId, $appointmentType, $preferredDate, $timeSlot);
+    notifyOwnerAppointmentRequested($pdo, $appointmentId);
+    exit;
 }
 
 function notifyNewAppointmentRequest($pdo, $appointmentId, $ownerId, $petId, $appointmentType, $preferredDate, $timeSlot)

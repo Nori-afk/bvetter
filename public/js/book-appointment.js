@@ -1314,7 +1314,7 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
           return;
         }
         showBookingSuccess('Registration submitted successfully!');
-        await new Promise((resolve) => setTimeout(resolve, 1200));
+        await new Promise((resolve) => setTimeout(resolve, 400));
         hideBookingOverlay();
         showCspSuccess(result.waiting_count);
         goStep(5);
@@ -1351,7 +1351,7 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
         return;
       }
       showBookingSuccess('Successfully booked! We’ve sent a confirmation to your email.');
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await new Promise((resolve) => setTimeout(resolve, 400));
       hideBookingOverlay();
       showDefaultSuccess();
       goStep(5);
