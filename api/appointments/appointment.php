@@ -1,5 +1,11 @@
 ﻿<?php
 
+// respondAndContinue() below closes the client connection early so slow
+// notification emails don't block the response — but PHP's default behavior
+// is to abort the whole script the instant it notices the client is gone.
+// This keeps the script (and the emails) running after that point.
+ignore_user_abort(true);
+
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
