@@ -23,14 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 require_once __DIR__ . '/../config/connection.php';
-
-// PHPMailer
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\SMTP;
-use PHPMailer\PHPMailer\Exception as MailException;
-require_once __DIR__ . '/../phpMailer/PHPMailer-master/src/Exception.php';
-require_once __DIR__ . '/../phpMailer/PHPMailer-master/src/PHPMailer.php';
-require_once __DIR__ . '/../phpMailer/PHPMailer-master/src/SMTP.php';
+require_once __DIR__ . '/../config/mailer.php';
 
 /* ── helpers ────────────────────────────────────────────── */
 
@@ -108,44 +101,24 @@ function sendEmailOtp(PDO $pdo): never
         ':expires_at' => $expiresAt,
     ]);
 
-    // Use PHPMailer instead of mail()
-    try {
-        $mail = new PHPMailer(true);
-        $mail->CharSet    = PHPMailer::CHARSET_UTF8;
-        $mail->isSMTP();
-        $mail->Host       = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
-        $mail->SMTPAuth   = true;
-        $mail->Username   = getenv('SMTP_USER') ?: '';
-        $mail->Password   = getenv('SMTP_PASS') ?: '';
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = (int) (getenv('SMTP_PORT') ?: 587);
-
-        $mail->setFrom(getenv('SMTP_FROM') ?: $mail->Username, 'VBetter');
-        $mail->addAddress($email);
-        $mail->isHTML(true);
-        $mail->Subject = 'VBetter – Your Email Verification Code';
-
-        $mail->Body    = "
-            <div style='font-family:sans-serif;max-width:480px;margin:auto;padding:32px;
-                        border:1px solid #eee;border-radius:12px;text-align:center;'>
-                <img src='" . APP_URL . "/public/images/logos/logo-color.png' alt='Baliwag City Vet' style='height:56px;margin-bottom:20px;'>
-                <h2 style='color:#00B928;margin-bottom:8px;'>Email Verification</h2>
-                <p style='color:#555;'>Use the code below to verify your email address.
-                   It expires in <strong>10 minutes</strong>.</p>
-                <div style='font-size:36px;font-weight:800;letter-spacing:10px;text-align:center;
-                            background:#f4f4f4;padding:20px;border-radius:8px;margin:24px 0;'>
-                    {$otp}
-                </div>
-                <p style='color:#999;font-size:12px;'>
-                    If you did not request this, please ignore this email.
-                </p>
+    $body = "
+        <div style='font-family:sans-serif;max-width:480px;margin:auto;padding:32px;
+                    border:1px solid #eee;border-radius:12px;text-align:center;'>
+            <img src='" . APP_URL . "/public/images/logos/logo-color.png' alt='Baliwag City Vet' style='height:56px;margin-bottom:20px;'>
+            <h2 style='color:#00B928;margin-bottom:8px;'>Email Verification</h2>
+            <p style='color:#555;'>Use the code below to verify your email address.
+               It expires in <strong>10 minutes</strong>.</p>
+            <div style='font-size:36px;font-weight:800;letter-spacing:10px;text-align:center;
+                        background:#f4f4f4;padding:20px;border-radius:8px;margin:24px 0;'>
+                {$otp}
             </div>
-        ";
+            <p style='color:#999;font-size:12px;'>
+                If you did not request this, please ignore this email.
+            </p>
+        </div>
+    ";
 
-        $mail->send();
-
-    } catch (MailException $e) {
-        error_log("[VBetter OTP] Mailer error: " . $e->getMessage());
+    if (!sendAppMail($email, $email, 'VBetter – Your Email Verification Code', $body)) {
         respond(500, ['success' => false, 'message' => 'Failed to send verification email. Please try again.']);
     }
 
@@ -363,31 +336,12 @@ $resetUrl = APP_URL . '/public/pages/reset-password.html?token='
         </div>
     ";
 
-    $mailSent = false;
+    $mailSent = sendAppMail($email, $user['full_name'], $subject, $body);
 
-    try {
-        $mail = new PHPMailer(true);
-        $mail->CharSet    = PHPMailer::CHARSET_UTF8;
-        $mail->isSMTP();
-        $mail->Host       = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
-        $mail->SMTPAuth   = true;
-        $mail->Username   = getenv('SMTP_USER') ?: '';
-        $mail->Password   = getenv('SMTP_PASS') ?: '';
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = (int) (getenv('SMTP_PORT') ?: 587);
-
-        $mail->setFrom(getenv('SMTP_FROM') ?: $mail->Username, 'VBetter');
-        $mail->addAddress($email, $user['full_name']);
-        $mail->isHTML(true);
-        $mail->Subject = $subject;
-        $mail->Body    = $body;
-
-        $mail->send();
-        $mailSent = true;
-
+    if ($mailSent) {
         error_log("[VBetter Reset] email sent to {$email}");
-    } catch (MailException $e) {
-        error_log("[VBetter Reset] Mailer error: " . $e->getMessage());
+    } else {
+        error_log("[VBetter Reset] Mailer error: sendAppMail() returned false");
     }
 
     $response = [
