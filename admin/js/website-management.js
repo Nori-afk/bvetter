@@ -16,9 +16,11 @@ const DEFAULT_CONFIG = {
   email:    'BaliwagtVC@gmail.com',
   phone:    '09959210640',
   address:  'AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026',
-  clinicCapacity:      '24/7',
-  surgeryRecoveryRate: '98.4%',
-  specialistsCount:    0
+  visitsCountOverride:     '',
+  visitsCountComputed:     0,
+  avgRatingPerVetOverride: '',
+  avgRatingPerVetComputed: null,
+  specialistsCount:        0
 };
 
 let config        = { ...DEFAULT_CONFIG };
@@ -66,8 +68,8 @@ async function saveConfig() {
   formData.append('email', document.getElementById('cp-email').value);
   formData.append('phone', document.getElementById('cp-phone').value);
   formData.append('address', document.getElementById('cp-address').value);
-  formData.append('clinicCapacity', document.getElementById('cp-clinic-capacity').value);
-  formData.append('surgeryRecoveryRate', document.getElementById('cp-surgery-recovery').value);
+  formData.append('visitsCountOverride', document.getElementById('cp-visits-count').value);
+  formData.append('avgRatingPerVetOverride', document.getElementById('cp-avg-rating').value);
 
   const fileFieldMap = {
     logo: 'logo_file',
@@ -142,9 +144,15 @@ function applyConfigToForm() {
   document.getElementById('cp-email').value   = config.email   || '';
   document.getElementById('cp-phone').value   = config.phone   || '';
   document.getElementById('cp-address').value = config.address || '';
-  document.getElementById('cp-clinic-capacity').value  = config.clinicCapacity      || '';
-  document.getElementById('cp-surgery-recovery').value = config.surgeryRecoveryRate || '';
+  document.getElementById('cp-visits-count').value = config.visitsCountOverride || '';
+  document.getElementById('cp-avg-rating').value   = config.avgRatingPerVetOverride || '';
   document.getElementById('cp-specialists-count').value = config.specialistsCount ?? 0;
+
+  document.getElementById('cp-visits-computed-hint').textContent =
+    `Auto-calculated from completed appointments: ${Number(config.visitsCountComputed || 0).toLocaleString()}. Leave blank to use it.`;
+  document.getElementById('cp-rating-computed-hint').textContent = config.avgRatingPerVetComputed != null
+    ? `Auto-calculated from client reviews: ${config.avgRatingPerVetComputed}/5. Leave blank to use it.`
+    : 'Auto-calculated from client reviews — no reviews yet. Leave blank to use it once reviews come in.';
 
   sendLivePreviewUpdate();
 }
@@ -242,11 +250,11 @@ setupAssetInput('hero-banner-input',    'hero-banner');
 setupAssetInput('team-workspace-input', 'team-workspace');
 
 /* ── Profile sync ── */
-['cp-about', 'cp-email', 'cp-phone', 'cp-address', 'cp-clinic-capacity', 'cp-surgery-recovery'].forEach(id => {
+['cp-about', 'cp-email', 'cp-phone', 'cp-address', 'cp-visits-count', 'cp-avg-rating'].forEach(id => {
   document.getElementById(id).addEventListener('input', e => {
     const map = {
       'cp-about': 'about', 'cp-email': 'email', 'cp-phone': 'phone', 'cp-address': 'address',
-      'cp-clinic-capacity': 'clinicCapacity', 'cp-surgery-recovery': 'surgeryRecoveryRate'
+      'cp-visits-count': 'visitsCountOverride', 'cp-avg-rating': 'avgRatingPerVetOverride'
     };
     config[map[id]] = e.target.value;
     sendLivePreviewUpdate();
@@ -422,9 +430,21 @@ function sizeLivePreview() {
 function sendLivePreviewUpdate() {
   const iframe = document.getElementById('wm-live-preview-iframe');
   if (!iframe || !iframe.contentWindow) return;
+
+  /* The preview page only understands the *effective* display values
+     (visitsCount / avgRatingPerVet), same as the public API response —
+     mirror the override-or-computed fallback here so typing/clearing the
+     override field updates the preview correctly. */
+  const settings = {
+    ...config,
+    visitsCount: config.visitsCountOverride || Number(config.visitsCountComputed || 0).toLocaleString(),
+    avgRatingPerVet: config.avgRatingPerVetOverride ||
+      (config.avgRatingPerVetComputed != null ? `${config.avgRatingPerVetComputed}/5` : 'N/A')
+  };
+
   iframe.contentWindow.postMessage({
     type: 'vbetter-preview-update',
-    settings: config
+    settings
   }, window.location.origin);
 }
 

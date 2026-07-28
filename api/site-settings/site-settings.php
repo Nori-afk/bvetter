@@ -39,6 +39,12 @@ function truthy($value)
     return in_array($value, [1, '1', true, 'true', 'on'], true);
 }
 
+/* How long a computed stat (visits, rating) is trusted before re-querying.
+   Keeps the public landing page from running COUNT()/AVG() on every visit —
+   appointments/reviews grow without bound, unlike the small users table
+   activeSpecialistsCount() scans. */
+const STATS_CACHE_TTL_SECONDS = 900;
+
 function setupSiteSettings($pdo)
 {
     $pdo->exec("
@@ -64,14 +70,43 @@ function setupSiteSettings($pdo)
              'AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026')
     ");
 
-    $clinicCapacityCheck = $pdo->query("SHOW COLUMNS FROM site_settings LIKE 'clinic_capacity'")->fetch();
-    if (!$clinicCapacityCheck) {
-        $pdo->exec("ALTER TABLE site_settings ADD COLUMN clinic_capacity VARCHAR(20) NOT NULL DEFAULT '24/7' AFTER address");
+    /* visits_override / rating_override: admin-typed text that, when non-blank,
+       wins over the computed value. Renamed in place from the old
+       clinic_capacity / surgery_recovery_rate columns so existing admin
+       input is preserved as an override rather than lost. */
+    $visitsOverrideCheck = $pdo->query("SHOW COLUMNS FROM site_settings LIKE 'visits_override'")->fetch();
+    if (!$visitsOverrideCheck) {
+        $oldColumn = $pdo->query("SHOW COLUMNS FROM site_settings LIKE 'clinic_capacity'")->fetch();
+        if ($oldColumn) {
+            $pdo->exec("ALTER TABLE site_settings CHANGE clinic_capacity visits_override VARCHAR(30) NOT NULL DEFAULT ''");
+        } else {
+            $pdo->exec("ALTER TABLE site_settings ADD COLUMN visits_override VARCHAR(30) NOT NULL DEFAULT '' AFTER address");
+        }
     }
 
-    $surgeryRecoveryCheck = $pdo->query("SHOW COLUMNS FROM site_settings LIKE 'surgery_recovery_rate'")->fetch();
-    if (!$surgeryRecoveryCheck) {
-        $pdo->exec("ALTER TABLE site_settings ADD COLUMN surgery_recovery_rate VARCHAR(20) NOT NULL DEFAULT '98.4%' AFTER clinic_capacity");
+    $ratingOverrideCheck = $pdo->query("SHOW COLUMNS FROM site_settings LIKE 'rating_override'")->fetch();
+    if (!$ratingOverrideCheck) {
+        $oldColumn = $pdo->query("SHOW COLUMNS FROM site_settings LIKE 'surgery_recovery_rate'")->fetch();
+        if ($oldColumn) {
+            $pdo->exec("ALTER TABLE site_settings CHANGE surgery_recovery_rate rating_override VARCHAR(30) NOT NULL DEFAULT ''");
+        } else {
+            $pdo->exec("ALTER TABLE site_settings ADD COLUMN rating_override VARCHAR(30) NOT NULL DEFAULT '' AFTER visits_override");
+        }
+    }
+
+    /* visits_cache / rating_cache (+ _at timestamps): last computed value and
+       when it was computed, so the public page can reuse it until it goes
+       stale instead of re-querying appointments/reviews on every load. */
+    $visitsCacheCheck = $pdo->query("SHOW COLUMNS FROM site_settings LIKE 'visits_cache'")->fetch();
+    if (!$visitsCacheCheck) {
+        $pdo->exec("ALTER TABLE site_settings ADD COLUMN visits_cache INT NULL AFTER visits_override");
+        $pdo->exec("ALTER TABLE site_settings ADD COLUMN visits_cached_at TIMESTAMP NULL AFTER visits_cache");
+    }
+
+    $ratingCacheCheck = $pdo->query("SHOW COLUMNS FROM site_settings LIKE 'rating_cache'")->fetch();
+    if (!$ratingCacheCheck) {
+        $pdo->exec("ALTER TABLE site_settings ADD COLUMN rating_cache DECIMAL(3,1) NULL AFTER rating_override");
+        $pdo->exec("ALTER TABLE site_settings ADD COLUMN rating_cached_at TIMESTAMP NULL AFTER rating_cache");
     }
 }
 
@@ -85,21 +120,67 @@ function activeSpecialistsCount($pdo)
     return (int) $stmt->fetchColumn();
 }
 
-function formatSettings($row, $specialistsCount)
+function computeVisitsCount($pdo)
 {
+    if (!$pdo->query("SHOW TABLES LIKE 'appointments'")->fetch()) {
+        return 0;
+    }
+    $stmt = $pdo->query("SELECT COUNT(*) FROM appointments WHERE status = 'completed'");
+    return (int) $stmt->fetchColumn();
+}
+
+function computeAverageRating($pdo)
+{
+    if (!$pdo->query("SHOW TABLES LIKE 'reviews'")->fetch()) {
+        return null;
+    }
+    $stmt = $pdo->query("SELECT AVG(rating) FROM reviews");
+    $value = $stmt->fetchColumn();
+    return $value !== null ? round((float) $value, 1) : null;
+}
+
+/* Returns the fresh-enough cached value, or recomputes + persists it (and
+   returns the new value) once it's older than STATS_CACHE_TTL_SECONDS. */
+function cachedStat($pdo, $row, $cacheCol, $cachedAtCol, callable $compute)
+{
+    $cachedAt = $row[$cachedAtCol] ?? null;
+    if ($cachedAt !== null && strtotime($cachedAt) > time() - STATS_CACHE_TTL_SECONDS) {
+        return $row[$cacheCol];
+    }
+
+    $value = $compute($pdo);
+    $stmt = $pdo->prepare("UPDATE site_settings SET {$cacheCol} = :value, {$cachedAtCol} = NOW() WHERE id = 1");
+    $stmt->execute([':value' => $value]);
+    return $value;
+}
+
+function formatSettings($row, $specialistsCount, $visitsComputed, $ratingComputed)
+{
+    $visitsOverride = trim((string) $row['visits_override']);
+    $ratingOverride = trim((string) $row['rating_override']);
+
     return [
-        'primaryColor'        => $row['primary_color'],
-        'logo'                => $row['logo_path'],
-        'heroBanner'          => $row['hero_banner_path'],
-        'teamImage'           => $row['team_image_path'],
-        'about'               => $row['about_text'],
-        'email'               => $row['contact_email'],
-        'phone'               => $row['contact_phone'],
-        'address'             => $row['address'],
-        'clinicCapacity'      => $row['clinic_capacity'],
-        'surgeryRecoveryRate' => $row['surgery_recovery_rate'],
-        'specialistsCount'    => $specialistsCount,
-        'updatedAt'           => $row['updated_at'],
+        'primaryColor'  => $row['primary_color'],
+        'logo'          => $row['logo_path'],
+        'heroBanner'    => $row['hero_banner_path'],
+        'teamImage'     => $row['team_image_path'],
+        'about'         => $row['about_text'],
+        'email'         => $row['contact_email'],
+        'phone'         => $row['contact_phone'],
+        'address'       => $row['address'],
+
+        /* Effective value shown on the public page: admin override wins,
+           otherwise the live/cached computed value. */
+        'visitsCount'            => $visitsOverride !== '' ? $visitsOverride : number_format($visitsComputed),
+        'visitsCountOverride'    => $visitsOverride,
+        'visitsCountComputed'    => $visitsComputed,
+
+        'avgRatingPerVet'         => $ratingOverride !== '' ? $ratingOverride : ($ratingComputed !== null ? number_format($ratingComputed, 1) . '/5' : 'N/A'),
+        'avgRatingPerVetOverride' => $ratingOverride,
+        'avgRatingPerVetComputed' => $ratingComputed,
+
+        'specialistsCount' => $specialistsCount,
+        'updatedAt'         => $row['updated_at'],
     ];
 }
 
@@ -108,9 +189,12 @@ function getSettings($pdo)
     $stmt = $pdo->query('SELECT * FROM site_settings WHERE id = 1');
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
+    $visitsComputed = cachedStat($pdo, $row, 'visits_cache', 'visits_cached_at', 'computeVisitsCount');
+    $ratingComputed = cachedStat($pdo, $row, 'rating_cache', 'rating_cached_at', 'computeAverageRating');
+
     respond(200, [
         'success' => true,
-        'data' => formatSettings($row, activeSpecialistsCount($pdo))
+        'data' => formatSettings($row, activeSpecialistsCount($pdo), $visitsComputed, $ratingComputed)
     ]);
 }
 
@@ -179,18 +263,20 @@ function saveSettings($pdo, $data)
         'contact_email = :contact_email',
         'contact_phone = :contact_phone',
         'address = :address',
-        'clinic_capacity = :clinic_capacity',
-        'surgery_recovery_rate = :surgery_recovery_rate',
+        'visits_override = :visits_override',
+        'rating_override = :rating_override',
     ];
 
     $params = [
-        ':primary_color'          => clean($data['primary_color'] ?? '') ?: '#002A58',
-        ':about_text'             => clean($data['about'] ?? ''),
-        ':contact_email'          => nullableClean($data['email'] ?? ''),
-        ':contact_phone'          => nullableClean($data['phone'] ?? ''),
-        ':address'                => nullableClean($data['address'] ?? ''),
-        ':clinic_capacity'        => clean($data['clinicCapacity'] ?? '') ?: '24/7',
-        ':surgery_recovery_rate'  => clean($data['surgeryRecoveryRate'] ?? '') ?: '98.4%',
+        ':primary_color'    => clean($data['primary_color'] ?? '') ?: '#002A58',
+        ':about_text'       => clean($data['about'] ?? ''),
+        ':contact_email'    => nullableClean($data['email'] ?? ''),
+        ':contact_phone'    => nullableClean($data['phone'] ?? ''),
+        ':address'          => nullableClean($data['address'] ?? ''),
+        /* Blank means "no override" — the effective value falls back to the
+           computed count/rating (see formatSettings()). */
+        ':visits_override'  => clean($data['visitsCountOverride'] ?? ''),
+        ':rating_override'  => clean($data['avgRatingPerVetOverride'] ?? ''),
     ];
 
     $imageFields = [

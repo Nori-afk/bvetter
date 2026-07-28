@@ -56,14 +56,14 @@ function applySiteSettings(settings) {
     if (el) el.textContent = settings.phone;
   }
 
-  if (settings.clinicCapacity) {
-    const el = document.getElementById('statClinicCapacity');
-    if (el) el.textContent = settings.clinicCapacity;
+  if (settings.visitsCount) {
+    const el = document.getElementById('statNumberOfVisits');
+    if (el) el.textContent = settings.visitsCount;
   }
 
-  if (settings.surgeryRecoveryRate) {
-    const el = document.getElementById('statSurgeryRecovery');
-    if (el) el.textContent = settings.surgeryRecoveryRate;
+  if (settings.avgRatingPerVet) {
+    const el = document.getElementById('statAvgRating');
+    if (el) el.textContent = settings.avgRatingPerVet;
   }
 
   if (settings.specialistsCount !== undefined && settings.specialistsCount !== null) {
