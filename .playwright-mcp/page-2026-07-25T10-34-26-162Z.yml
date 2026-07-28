@@ -1,0 +1,138 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - img "VBetter Logo" [ref=e6]
+      - navigation [ref=e7]:
+        - link [ref=e8] [cursor=pointer]:
+          - /url: /vet/html/index.html
+          - img "Dashboard" [ref=e9]
+          - text: Dashboard
+        - link [ref=e10] [cursor=pointer]:
+          - /url: /vet/html/appointment.html
+          - img "Appointment Management" [ref=e11]
+          - text: Appointment Management
+        - link [ref=e12] [cursor=pointer]:
+          - /url: /vet/html/patient-records.html
+          - img "Patient Records" [ref=e13]
+          - text: Patient Records
+        - link [ref=e14] [cursor=pointer]:
+          - /url: /vet/html/report.html
+          - img "Report" [ref=e15]
+          - text: Report
+        - link [ref=e16] [cursor=pointer]:
+          - /url: /vet/html/disease-analytics.html
+          - img "Disease Analytics" [ref=e17]
+          - text: Disease Analytics
+        - link [ref=e18] [cursor=pointer]:
+          - /url: /vet/html/lost-and-found.html
+          - img "Lost and Found" [ref=e19]
+          - text: Lost And Found
+        - link [ref=e20] [cursor=pointer]:
+          - /url: /vet/html/chatbot-management.html
+          - img "Chatbot Management" [ref=e21]
+          - text: Chatbot Management
+        - link [ref=e22] [cursor=pointer]:
+          - /url: /vet/html/mass-vaccination.html
+          - img "Mass Vaccination" [ref=e23]
+          - text: Mass Vaccination
+        - generic [ref=e24]: Administration
+        - link [ref=e25] [cursor=pointer]:
+          - /url: /admin/pages/account-management.html
+          - img "Account Management" [ref=e26]
+          - text: Account Management
+        - link [ref=e27] [cursor=pointer]:
+          - /url: /admin/pages/website-management.html
+          - img "Website Management" [ref=e28]
+          - text: Website Management
+    - main [ref=e29]:
+      - generic [ref=e30]:
+        - button "Appointments" [ref=e31]
+        - button "Castration & Spay" [ref=e32]
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - generic [ref=e35]:
+            - heading "Manage Appointments" [level=2] [ref=e36]
+            - paragraph [ref=e37]: Coordinate pending requests and confirmed visits for today.
+          - button "Settings" [ref=e38]
+        - generic [ref=e42]:
+          - generic [ref=e43]:
+            - paragraph [ref=e44]: Today's Status
+            - heading "Pending Requests" [level=3] [ref=e45]
+            - generic [ref=e46]: 0 New
+          - generic [ref=e47]:
+            - paragraph [ref=e48]: Schedule Overview
+            - heading "Confirmed Appointments" [level=3] [ref=e49]
+            - generic [ref=e50]: 0 Slots Filled
+        - generic [ref=e51]:
+          - generic [ref=e53]:
+            - heading "Pending Appointments" [level=2] [ref=e54]
+            - button "Accept All" [ref=e55]
+          - generic [ref=e56]:
+            - generic [ref=e57]:
+              - heading "All Appointments" [level=2] [ref=e58]
+              - paragraph [ref=e59]: Manage and monitor clinical scheduling across all departments.
+            - generic [ref=e61]:
+              - textbox "Search patient, owner, or service..." [ref=e62]
+              - combobox "Filter by status" [ref=e63]:
+                - option "All Statuses" [selected]
+                - option "Pending"
+                - option "Confirmed"
+                - option "Completed"
+                - option "Canceled"
+              - textbox "Filter by date" [ref=e64]
+              - button "Clear" [ref=e65]
+            - table [ref=e67]:
+              - rowgroup [ref=e68]:
+                - row [ref=e69]:
+                  - columnheader "Date and Time" [ref=e70]
+                  - columnheader "Patient" [ref=e71]
+                  - columnheader "Owner" [ref=e72]
+                  - columnheader "Service" [ref=e73]
+                  - columnheader "Status" [ref=e74]
+                  - columnheader "Actions" [ref=e75]
+              - rowgroup
+            - generic [ref=e76]:
+              - paragraph [ref=e77]: Showing 0 appointments
+              - generic [ref=e78]:
+                - button "Previous page" [ref=e79]: ‹
+                - text: "1"
+                - button "Next page" [ref=e80]: ›
+  - dialog [ref=e81]:
+    - generic [ref=e82]:
+      - button "Close modal" [ref=e83]: ×
+      - generic [ref=e88]:
+        - heading "Create Program" [level=2] [ref=e89]
+        - paragraph [ref=e90]: Municipal Castration & Spay Program event
+      - generic [ref=e91]:
+        - generic [ref=e92]:
+          - text: TITLE
+          - textbox "TITLE" [ref=e93]:
+            - /placeholder: Municipal Castration & Spay Program
+        - generic [ref=e94]:
+          - generic [ref=e95]:
+            - text: DATE
+            - textbox "DATE" [ref=e96]
+          - generic [ref=e97]:
+            - text: TIME
+            - textbox "TIME" [ref=e98]:
+              - /placeholder: e.g. 8:00 AM
+        - generic [ref=e99]:
+          - generic [ref=e100]:
+            - text: VENUE
+            - textbox "VENUE" [ref=e101]:
+              - /placeholder: Municipal Veterinary Office
+          - generic [ref=e102]:
+            - text: CAPACITY *
+            - spinbutton "CAPACITY *" [ref=e103]
+        - generic [ref=e104]:
+          - text: STATUS
+          - combobox "STATUS" [ref=e105]:
+            - option "Planning" [selected]
+            - option "Open"
+            - option "Scheduled"
+            - option "Completed"
+            - option "Cancelled"
+          - paragraph [ref=e106]: Date and venue are required before marking a program Scheduled.
+        - generic [ref=e107]:
+          - button "Cancel" [ref=e108]
+          - button "Save Program" [ref=e109]
