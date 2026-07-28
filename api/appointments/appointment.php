@@ -425,11 +425,19 @@ function createAppointment($pdo, $data)
     $ownerId = findOrCreateOwner($pdo, $data);
     $petId = findOrCreatePet($pdo, $ownerId, $data);
 
+    // Stored on the appointment (not just used in-memory) so that later
+    // status-change emails (confirmed/rejected) also reach the address typed
+    // on the booking form, not just the initial "request received" email.
+    // findOrCreateOwner() ignores owner_email once an owner_id is resolved,
+    // so a logged-in owner's account email is otherwise all downstream code
+    // ever sees, even if they typed something different in step 1.
+    $contactEmail = clean($data['owner_email'] ?? '');
+
     $insert = $pdo->prepare('
         INSERT INTO appointments
-            (owner_id, pet_id, veterinarian_id, appointment_type, preferred_date, time_slot, status, description, notes)
+            (owner_id, pet_id, veterinarian_id, appointment_type, preferred_date, time_slot, contact_email, status, description, notes)
         VALUES
-            (:owner_id, :pet_id, :veterinarian_id, :appointment_type, :preferred_date, :time_slot, :status, :description, :notes)
+            (:owner_id, :pet_id, :veterinarian_id, :appointment_type, :preferred_date, :time_slot, :contact_email, :status, :description, :notes)
     ');
 
     $insert->execute([
@@ -439,6 +447,7 @@ function createAppointment($pdo, $data)
         ':appointment_type' => $appointmentType,
         ':preferred_date' => $preferredDate,
         ':time_slot' => $timeSlot,
+        ':contact_email' => $contactEmail !== '' ? $contactEmail : null,
         ':status' => 'pending',
         ':description' => $description,
         ':notes' => $notes,
@@ -513,7 +522,7 @@ function updateAppointmentStatus($pdo, $data)
 function notifyOwnerAppointmentConfirmed($pdo, $appointmentId)
 {
     $stmt = $pdo->prepare('
-        SELECT appointments.preferred_date, appointments.time_slot,
+        SELECT appointments.preferred_date, appointments.time_slot, appointments.contact_email,
                owners.id AS owner_id, owners.full_name AS owner_name, owners.email AS owner_email
         FROM appointments
         INNER JOIN users owners ON owners.id = appointments.owner_id
@@ -522,7 +531,10 @@ function notifyOwnerAppointmentConfirmed($pdo, $appointmentId)
     ');
     $stmt->execute([':id' => (int) $appointmentId]);
     $row = $stmt->fetch();
-    if (!$row || !$row['owner_email']) return;
+    if (!$row) return;
+
+    $recipientEmail = $row['contact_email'] ?: $row['owner_email'];
+    if (!$recipientEmail) return;
 
     $ownerId = (int) $row['owner_id'];
     if (!userWantsNotification($pdo, $ownerId, 'appointment_reminders')) return;
@@ -536,13 +548,13 @@ function notifyOwnerAppointmentConfirmed($pdo, $appointmentId)
         ['label' => 'View', 'url' => APP_URL . '/public/pages/book-appointment.html']
     );
 
-    sendAppMail($row['owner_email'], clean($row['owner_name'] ?? ''), $subject, $body);
+    sendAppMail($recipientEmail, clean($row['owner_name'] ?? ''), $subject, $body);
 }
 
 function notifyOwnerAppointmentRejected($pdo, $appointmentId, $verb)
 {
     $stmt = $pdo->prepare('
-        SELECT appointments.preferred_date, appointments.time_slot,
+        SELECT appointments.preferred_date, appointments.time_slot, appointments.contact_email,
                owners.id AS owner_id, owners.full_name AS owner_name, owners.email AS owner_email
         FROM appointments
         INNER JOIN users owners ON owners.id = appointments.owner_id
@@ -551,7 +563,10 @@ function notifyOwnerAppointmentRejected($pdo, $appointmentId, $verb)
     ');
     $stmt->execute([':id' => (int) $appointmentId]);
     $row = $stmt->fetch();
-    if (!$row || !$row['owner_email']) return;
+    if (!$row) return;
+
+    $recipientEmail = $row['contact_email'] ?: $row['owner_email'];
+    if (!$recipientEmail) return;
 
     $ownerId = (int) $row['owner_id'];
     if (!userWantsNotification($pdo, $ownerId, 'appointment_reminders')) return;
@@ -565,7 +580,7 @@ function notifyOwnerAppointmentRejected($pdo, $appointmentId, $verb)
         ['label' => 'View', 'url' => APP_URL . '/public/pages/book-appointment.html']
     );
 
-    sendAppMail($row['owner_email'], clean($row['owner_name'] ?? ''), $subject, $body);
+    sendAppMail($recipientEmail, clean($row['owner_name'] ?? ''), $subject, $body);
 }
 
 function rescheduleAppointment($pdo, $data)

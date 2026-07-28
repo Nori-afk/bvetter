@@ -30,7 +30,7 @@ function notifyNewAppointmentRequest($pdo, $appointmentId, $ownerId, $petId, $ap
 function notifyOwnerAppointmentRequested($pdo, $appointmentId)
 {
     $stmt = $pdo->prepare('
-        SELECT appointments.preferred_date, appointments.time_slot,
+        SELECT appointments.preferred_date, appointments.time_slot, appointments.contact_email,
                owners.id AS owner_id, owners.full_name AS owner_name, owners.email AS owner_email
         FROM appointments
         INNER JOIN users owners ON owners.id = appointments.owner_id
@@ -39,7 +39,14 @@ function notifyOwnerAppointmentRequested($pdo, $appointmentId)
     ');
     $stmt->execute([':id' => (int) $appointmentId]);
     $row = $stmt->fetch();
-    if (!$row || !$row['owner_email']) return;
+    if (!$row) return;
+
+    // The booking form always asks for a contact email (even for logged-in
+    // owners), specifically so the confirmation goes wherever the user
+    // typed rather than their account's login email. Fall back to the
+    // account email only when nothing was submitted on the form.
+    $recipientEmail = $row['contact_email'] ?: $row['owner_email'];
+    if (!$recipientEmail) return;
 
     $ownerId = (int) $row['owner_id'];
     if (!userWantsNotification($pdo, $ownerId, 'appointment_reminders')) return;
@@ -53,7 +60,7 @@ function notifyOwnerAppointmentRequested($pdo, $appointmentId)
         ['label' => 'View', 'url' => APP_URL . '/public/pages/book-appointment.html']
     );
 
-    sendAppMail($row['owner_email'], clean($row['owner_name'] ?? ''), $subject, $body);
+    sendAppMail($recipientEmail, clean($row['owner_name'] ?? ''), $subject, $body);
 }
 
 /**

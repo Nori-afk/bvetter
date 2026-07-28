@@ -90,6 +90,7 @@ CREATE TABLE `appointments` (
   `appointment_type` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `preferred_date` date NOT NULL,
   `time_slot` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `contact_email` varchar(190) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` enum('pending','confirmed','completed','cancelled','rejected') COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
   `description` text COLLATE utf8mb4_unicode_ci,
   `notes` text COLLATE utf8mb4_unicode_ci,
