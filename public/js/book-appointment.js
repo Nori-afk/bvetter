@@ -93,6 +93,7 @@ function buildCalendar(year, month) {
     cellDate.setHours(0, 0, 0, 0);
 
     const isPast = cellDate < today;
+    const isWeekend = cellDate.getDay()==0 || cellDate.getDay()==6;
 
     const isToday =
       d === today.getDate() &&
@@ -102,12 +103,12 @@ function buildCalendar(year, month) {
     cell.className = 'cal-day';
 
     if (isToday) cell.classList.add('today');
-    if (isPast) cell.classList.add('disabled');
+    if (isPast || isWeekend) cell.classList.add('disabled');
 
     cell.textContent = d;
 
-    // Only allow clicking today and future dates
-    if (!isPast) {
+    // Only allow clicking today/future weekdays — vet isn't available weekends
+    if (!isPast && !isWeekend) {
       cell.addEventListener('click', () => {
         grid.querySelectorAll('.cal-day').forEach(c => c.classList.remove('today'));
 
