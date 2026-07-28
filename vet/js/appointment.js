@@ -96,7 +96,8 @@ function normalizeAppointment(item, index) {
 		service: String(item.service || 'General Service'),
 		status,
 		type: String(item.type || 'General'),
-		veterinarianId: item.veterinarian_id ? Number(item.veterinarian_id) : null
+		veterinarianId: item.veterinarian_id ? Number(item.veterinarian_id) : null,
+		veterinarian: item.veterinarian ? String(item.veterinarian) : ''
 	};
 }
 
@@ -425,6 +426,7 @@ function detailsModalTemplate(appointment) {
 						<div class="appt-info-row"><span>Date</span><strong>${dt.date}</strong></div>
 						<div class="appt-info-row"><span>Time</span><strong>${dt.time}</strong></div>
 						<div class="appt-info-row"><span>Service</span><strong>${appointment.service}</strong></div>
+						<div class="appt-info-row"><span>Veterinarian</span><strong>${appointment.veterinarian || 'Not yet assigned'}</strong></div>
 					</div>
 				</div>
 				<div class="appt-info-card">
@@ -443,9 +445,9 @@ function detailsModalTemplate(appointment) {
 			<div class="appt-notes-card">
 				<div class="appt-info-label">
 					<i data-lucide="clipboard-list"></i>
-					Medical Notes
+					Additional Notes
 				</div>
-				<p>${appointment.notes || 'No medical notes recorded for this appointment.'}</p>
+				<p>${appointment.notes || 'No additional notes recorded for this appointment.'}</p>
 			</div>
 
 			<div class="modal-footer">
