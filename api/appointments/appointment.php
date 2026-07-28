@@ -14,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/mailer.php';
 require_once __DIR__ . '/../config/notifications.php';
+require_once __DIR__ . '/../includes/patient_tables.php';
 require_once __DIR__ . '/appointment_notifications.php';
 
 function respond($statusCode, $payload)
@@ -504,6 +505,7 @@ function updateAppointmentStatus($pdo, $data)
     ]);
 
     if ($status === 'confirmed') {
+        ensurePatientRecordFromAppointment($pdo, $appointmentId);
         notifyOwnerAppointmentConfirmed($pdo, $appointmentId);
         notifyStaff($pdo, 'both', 'appointment_status', 'Appointment Confirmed', "Appointment #{$appointmentId} was confirmed.", $appointmentId, false);
     }

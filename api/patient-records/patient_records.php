@@ -3,6 +3,7 @@
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../includes/patient_tables.php';
 
 function respond($statusCode, $payload)
 {
@@ -45,74 +46,6 @@ function displayDate($value)
     if (!$value) return '';
     $time = strtotime($value);
     return $time ? date('M j, Y', $time) : $value;
-}
-
-function setupPatientTables($pdo)
-{
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS patient_record_profiles (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            pet_id INT NOT NULL UNIQUE,
-            patient_status VARCHAR(60) NOT NULL DEFAULT 'Active Patient',
-            health_status VARCHAR(120) NULL,
-            alert_text VARCHAR(120) NULL,
-            is_archived TINYINT(1) NOT NULL DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            INDEX idx_prp_pet (pet_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
-    $columnCheck = $pdo->query("SHOW COLUMNS FROM patient_record_profiles LIKE 'is_archived'")->fetch();
-    if (!$columnCheck) {
-        $pdo->exec("ALTER TABLE patient_record_profiles ADD COLUMN is_archived TINYINT(1) NOT NULL DEFAULT 0");
-    }
-
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS patient_visit_records (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            pet_id INT NOT NULL,
-            owner_id INT NOT NULL,
-            visit_title VARCHAR(160) NULL,
-            visit_date DATE NULL,
-            follow_up_date DATE NULL,
-            symptoms TEXT NULL,
-            diagnosis TEXT NULL,
-            treatment TEXT NULL,
-            medications_json JSON NULL,
-            category VARCHAR(80) NULL,
-            attending_vet VARCHAR(160) NULL,
-            vaccination_status VARCHAR(120) NULL,
-            vaccine_brand VARCHAR(120) NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            INDEX idx_pvr_pet (pet_id),
-            INDEX idx_pvr_visit_date (visit_date),
-            INDEX idx_pvr_followup (follow_up_date),
-            INDEX idx_pvr_category (category)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
-    $diseaseCategoryCheck = $pdo->query("SHOW COLUMNS FROM patient_visit_records LIKE 'disease_category'")->fetch();
-    if (!$diseaseCategoryCheck) {
-        $pdo->exec("ALTER TABLE patient_visit_records ADD COLUMN disease_category VARCHAR(40) NOT NULL DEFAULT 'General/Other' AFTER category");
-        $pdo->exec("ALTER TABLE patient_visit_records ADD INDEX idx_pvr_disease_category (disease_category)");
-    }
-
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS patient_vaccination_records (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            pet_id INT NOT NULL,
-            visit_id INT NULL,
-            vaccine_name VARCHAR(160) NOT NULL,
-            description VARCHAR(255) NULL,
-            administered_date DATE NULL,
-            provider VARCHAR(160) NULL,
-            next_due DATE NULL,
-            status VARCHAR(120) NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            INDEX idx_pvacc_pet (pet_id),
-            INDEX idx_pvacc_visit (visit_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
 }
 
 function getRoleId($pdo, $roleName)
@@ -468,9 +401,13 @@ function insertPetRow($pdo, $ownerId, $data)
 
 function finalizePetVisit($pdo, $petId, $ownerId, $data)
 {
+    // This path is reached only from the manual Add/Save Patient Record form,
+    // so a freshly-created profile is always a walk-in. 'source' is left out
+    // of the UPDATE clause so re-saving a visit never overwrites an existing
+    // profile's origin (e.g. one created via ensurePatientRecordFromAppointment).
     $profile = $pdo->prepare("
-        INSERT INTO patient_record_profiles (pet_id, patient_status, health_status, alert_text, is_archived)
-        VALUES (:pet_id, :patient_status, :health_status, :alert_text, 0)
+        INSERT INTO patient_record_profiles (pet_id, patient_status, health_status, alert_text, source, is_archived)
+        VALUES (:pet_id, :patient_status, :health_status, :alert_text, 'walk_in', 0)
         ON DUPLICATE KEY UPDATE
             patient_status = VALUES(patient_status),
             health_status = VALUES(health_status),
@@ -579,9 +516,12 @@ function updateRecord($pdo, $data)
 
     upsertOwnerProfile($pdo, $ownerId, $data);
 
+    // 'source' defaults to walk_in only on first insert (e.g. editing a
+    // pet that has appointments but no profile row yet); it's excluded from
+    // the UPDATE clause so an existing 'appointment' origin isn't overwritten.
     $profile = $pdo->prepare("
-        INSERT INTO patient_record_profiles (pet_id, patient_status, health_status, alert_text, is_archived)
-        VALUES (:pet_id, :patient_status, :health_status, :alert_text, 0)
+        INSERT INTO patient_record_profiles (pet_id, patient_status, health_status, alert_text, source, is_archived)
+        VALUES (:pet_id, :patient_status, :health_status, :alert_text, 'walk_in', 0)
         ON DUPLICATE KEY UPDATE
             patient_status = VALUES(patient_status),
             health_status = VALUES(health_status),
@@ -605,8 +545,8 @@ function deleteRecord($pdo, $data)
     if ($petId <= 0) respond(422, ['success' => false, 'message' => 'Invalid patient id.']);
 
     $stmt = $pdo->prepare("
-        INSERT INTO patient_record_profiles (pet_id, patient_status, health_status, alert_text, is_archived)
-        VALUES (:pet_id, 'Archived', 'Archived', 'Archived', 1)
+        INSERT INTO patient_record_profiles (pet_id, patient_status, health_status, alert_text, source, is_archived)
+        VALUES (:pet_id, 'Archived', 'Archived', 'Archived', 'walk_in', 1)
         ON DUPLICATE KEY UPDATE is_archived = 1, patient_status = 'Archived', alert_text = 'Archived'
     ");
     $stmt->execute([':pet_id' => $petId]);

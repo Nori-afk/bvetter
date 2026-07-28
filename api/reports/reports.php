@@ -167,6 +167,7 @@ function dataset_patient_rows()
 function db_patient_rows($pdo){
      $barangayJoin ='LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id LEFT JOIN barangays b ON b.id = op.barangay_id';
      $visitJoin ='LEFT JOIN patient_visit_records pvr ON pvr.pet_id = pets.id';
+     $profileJoin = 'LEFT JOIN patient_record_profiles prp ON prp.pet_id = pets.id';
       $lastVisitSelect= 'MAX(pvr.visit_date)';
         $diagnosisSelect= 'MAX(pvr.diagnosis)';
     $orderDate= 'COALESCE(MAX(pvr.visit_date), pets.created_at)';
@@ -183,11 +184,13 @@ function db_patient_rows($pdo){
             owners.phone_number AS owner_phone,
             " . ($barangayJoin ? "b.name" : "''") . " AS barangay,
             $lastVisitSelect AS last_visit,
-            $diagnosisSelect AS diagnosis
+            $diagnosisSelect AS diagnosis,
+            MAX(prp.source) AS source
         FROM pets
         LEFT JOIN users owners ON owners.id = pets.owner_id
         $barangayJoin
         $visitJoin
+        $profileJoin
         WHERE (
             pvr.pet_id IS NOT NULL
             OR EXISTS (
@@ -218,6 +221,7 @@ function db_patient_rows($pdo){
             'date' => $row['last_visit'] ?: substr((string) $row['created_at'], 0, 10),
             'disease' => $row['diagnosis'] ?: '',
             'category' => strtolower($row['species'] ?? ''),
+            'source' => $row['source'] ?: '',
         ];
     }, $rows);
     
@@ -251,6 +255,10 @@ function db_consultation_rows($pdo)
         : '';
     $barangayExpr = $barangayJoin ? "COALESCE(NULLIF(b.name, ''), NULLIF(op.complete_address, ''), 'N/A')" : "'N/A'";
 
+    $profileJoin = bv_table_exists($pdo, 'patient_record_profiles')
+        ? 'LEFT JOIN patient_record_profiles prp ON prp.pet_id = pets.id'
+        : '';
+
     try {
         $rows = $pdo->query("
             SELECT
@@ -259,10 +267,12 @@ function db_consultation_rows($pdo)
                 pvr.diagnosis,
                 pvr.disease_category,
                 pets.species,
-                {$barangayExpr} AS barangay
+                {$barangayExpr} AS barangay,
+                " . ($profileJoin ? 'prp.source' : "''") . " AS source
             FROM patient_visit_records pvr
             INNER JOIN pets ON pets.id = pvr.pet_id
             {$barangayJoin}
+            {$profileJoin}
             WHERE pvr.diagnosis IS NOT NULL AND pvr.diagnosis != ''
             ORDER BY pvr.visit_date DESC, pvr.id DESC
         ")->fetchAll();
@@ -280,6 +290,7 @@ function db_consultation_rows($pdo)
             'diseaseCategory' => $row['disease_category'] ?: 'General/Other',
             'riskLevel' => 'N/A',
             'cases' => 1,
+            'source' => $row['source'] ?: '',
         ];
     }, $rows);
 }
@@ -968,10 +979,17 @@ function pdf_export($columns, $rows, $category, $title, $input = [])
     $summaryRows = '';
     if (in_array($category, ['consultation_summary','all_patient'])) {
         $t = count($rows);
+        // Counted from patient_record_profiles.source, set at record-creation
+        // time (walk_in = manual Add Patient form, appointment = confirmed via
+        // ensurePatientRecordFromAppointment()). Rows with no linked profile
+        // (e.g. legacy historical dataset rows) are honestly left uncounted
+        // rather than guessed at.
+        $walkIn = count(array_filter($rows, fn($r) => ($r['source'] ?? '') === 'walk_in'));
+        $appointment = count(array_filter($rows, fn($r) => ($r['source'] ?? '') === 'appointment'));
         $summaryRows = '
             <tr><td>Total Consultation</td><td class="sv">'.$t.'</td></tr>
-            <tr><td>Walk-in Patient</td><td class="sv">'.(int)round($t*0.4).'</td></tr>
-            <tr><td>Scheduled Appointment</td><td class="sv">'.(int)round($t*0.08).'</td></tr>';
+            <tr><td>Walk-in Patient</td><td class="sv">'.$walkIn.'</td></tr>
+            <tr><td>Scheduled Appointment</td><td class="sv">'.$appointment.'</td></tr>';
     } elseif ($category === 'mass_vaccination') {
         $summaryRows = '
             <tr><td>Total Vaccinated</td><td class="sv">'.array_sum(array_column($rows,'totalVaccinated')).'</td></tr>
