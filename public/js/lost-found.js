@@ -725,74 +725,50 @@ function buildMatchCard(match, index, report) {
 
 // Community sighting matched to the owner's lost report. Rendered separately from
 // the lost/found match cards above — reached only via the "View Sighting Reports"
-// toggle, since a sighting isn't a formal found report and can't be claimed.
-function buildSightingCard(match, index, report) {
-	const cls      = matchScoreClass(match.confidence);
-	const barClass = cls === 'high' ? 'lf-match-bar' : `lf-match-bar ${cls}-bar`;
+// toggle, since a sighting isn't a formal found report and can't be claimed. Owners
+// only ever see a sighting once staff has already approved it (enforced server-side
+// in listMatches()), so this is plain info, not a match to evaluate — no confidence
+// score or "is this the same pet" comparison, that judgment call is staff's alone.
+function buildSightingCard(match, index) {
+	const sighting = match.found;
+	const spottedDate = sighting.spottedDate || sighting.createdAt;
 
-	const simTagsHtml = (match.reasons || [])
-		.map((reason) => `<span class="lf-sim-tag">${escapeHtml(reason)}</span>`)
-		.join('');
+	const contactRows = [
+		sighting.contactPhone ? `<a href="tel:${escapeHtml(sighting.contactPhone)}" class="pet-meta-item"><img src="../images/icons/report-phone.svg" alt="" class="meta-icon-sm"/> ${escapeHtml(sighting.contactPhone)}</a>` : '',
+		sighting.contactEmail ? `<a href="mailto:${escapeHtml(sighting.contactEmail)}" class="pet-meta-item"><img src="../images/icons/report-mail.svg" alt="" class="meta-icon-sm"/> ${escapeHtml(sighting.contactEmail)}</a>` : '',
+	].filter(Boolean).join('');
 
 	return `
-		<div class="lf-match-card ${cls}" data-match-id="${escapeHtml(String(match.id))}">
+		<div class="lf-sighting-card" data-match-id="${escapeHtml(String(match.id))}">
 
-			<div class="lf-match-top">
-				<span class="lf-match-label">Sighting Report ${index + 1}</span>
-				<div class="lf-match-score-wrap">
-					<div class="lf-match-bar-track">
-						<div class="${barClass}" data-width="${match.confidence}" style="width:0%"></div>
+			<div class="lf-sighting-card-head">
+				<span class="lf-match-tag sighting-tag">Sighting Report ${index + 1}</span>
+				<span class="lf-sighting-date">Spotted ${escapeHtml(formatDate(spottedDate))}</span>
+			</div>
+
+			<div class="lf-sighting-card-body">
+				<img src="${escapeHtml(sighting.image || FALLBACK_IMAGE)}"
+					alt="Sighting photo"
+					class="lf-sighting-photo" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/>
+
+				<div class="lf-sighting-info">
+					<p class="pet-meta-item"><img src="../images/icons/icon-location.svg" alt="" class="meta-icon-sm"/> ${escapeHtml(sighting.location || 'Location not provided')}</p>
+					${sighting.notes ? `<p class="lf-sighting-notes">${escapeHtml(sighting.notes)}</p>` : ''}
+
+					<div class="lf-sighting-contact">
+						<span class="lf-sighting-contact-name">${escapeHtml(sighting.contactName || 'Community member')}</span>
+						${contactRows || '<span class="lf-sighting-notes">No contact details were provided.</span>'}
 					</div>
-					<span class="lf-match-pct ${cls}">${match.confidence}%</span>
 				</div>
 			</div>
 
-			<div class="lf-match-pets">
-
-				<div class="lf-match-pet-card owner">
-					<img src="${escapeHtml(match.lost.image || FALLBACK_IMAGE)}"
-						alt="${escapeHtml(match.lost.name || 'Lost Pet')}"
-						class="lf-match-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/>
-					<div class="lf-match-pet-info">
-						<h4 class="lf-match-pet-name">
-							${escapeHtml(match.lost.name || report?.petName || report?.title || 'Lost Pet')}
-						</h4>
-						<p class="lf-match-pet-meta">${escapeHtml(match.lost.breed || '')}</p>
-						<p class="lf-match-pet-meta">${escapeHtml(match.lost.location || '')}</p>
-						<span class="lf-match-tag lost-tag">Lost (Your Report)</span>
-					</div>
-				</div>
-
-				<div class="lf-match-vs">
-					<div class="lf-match-vs-line"></div>
-					<div class="lf-match-vs-icon">
-						<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-							<path d="M3.5 7h7M7.5 4.5L10 7l-2.5 2.5"
-								stroke="#737781" stroke-width="1.2"
-								stroke-linecap="round" stroke-linejoin="round"/>
-						</svg>
-					</div>
-					<div class="lf-match-vs-line"></div>
-				</div>
-
-				<div class="lf-match-pet-card admin">
-					<img src="${escapeHtml(match.found.image || FALLBACK_IMAGE)}"
-						alt="Community Sighting"
-						class="lf-match-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/>
-					<div class="lf-match-pet-info">
-						<h4 class="lf-match-pet-name">Community Sighting</h4>
-						<p class="lf-match-pet-meta">${escapeHtml(match.found.breed || '')}</p>
-						<p class="lf-match-pet-meta">${escapeHtml(match.found.location || '')}</p>
-						<p class="lf-match-pet-meta">Reported: ${escapeHtml(formatDate(match.found.createdAt))}</p>
-						<span class="lf-match-tag sighting-tag">Sighting Report</span>
-					</div>
-				</div>
-
+			<div class="lf-match-actions resolved">
+				<button type="button" class="lfd-btn-claim"
+					data-match-id="${escapeHtml(String(match.id))}"
+					onclick="handleResolveSighting(this)">
+					MARK AS RESOLVED — GOT MY PET BACK
+				</button>
 			</div>
-
-			${simTagsHtml ? `<div class="lf-match-similarity-tags">${simTagsHtml}</div>` : ''}
-
-			<p class="lf-sighting-note">This is a community-submitted sighting, not a formal found report. It hasn't been verified by the clinic yet.</p>
 
 		</div>
 	`;
@@ -821,7 +797,7 @@ function renderMatchesBody() {
 	const toggleBtn = document.getElementById('viewSightingsBtn');
 	if (!body) return;
 
-	body.querySelectorAll('.lf-match-card').forEach((card) => card.remove());
+	body.querySelectorAll('.lf-match-card, .lf-sighting-card').forEach((card) => card.remove());
 
 	if (toggleRow) toggleRow.style.display = currentSightingMatches.length ? 'flex' : 'none';
 	if (toggleBtn) {
@@ -953,6 +929,26 @@ function handleClaim(btn) {
     return;
   }
   openClaimModal();
+}
+
+async function handleResolveSighting(btn) {
+  const matchId = btn?.dataset?.matchId;
+  if (!matchId) return;
+  if (!confirm('Mark this case as resolved? This will remove it from the active lost pets list.')) return;
+
+  btn.disabled = true;
+  const result = await api.resolveSightingMatch(matchId);
+  if (!result.success) {
+    alert(result.message || 'Could not resolve this report.');
+    btn.disabled = false;
+    return;
+  }
+
+  currentSightingMatches = currentSightingMatches.filter((match) => String(match.id) !== String(matchId));
+  closeMatchesPanelDirect();
+  await loadReports();
+  await loadMyReports();
+  alert('Marked as resolved. Glad you got your pet back!');
 }
 
 function openSightingModal() {

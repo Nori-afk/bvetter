@@ -2843,6 +2843,82 @@ body {
   font-style:  italic;
 }
 
+/* ── Sighting report card (plain info, no match/comparison UI — that
+   judgment call belongs to staff, not the owner) ── */
+.lf-sighting-card {
+  border-radius: 16px;
+  padding:       20px 22px;
+  display:       flex;
+  flex-direction: column;
+  gap:           14px;
+  background:    #F7FAFF;
+  border:        1.5px solid #DCE6F7;
+  box-shadow:    var(--shadow-card);
+}
+
+.lf-sighting-card-head {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             14px;
+}
+
+.lf-sighting-date {
+  font-size:   11px;
+  font-weight: 700;
+  color:       var(--text-muted);
+}
+
+.lf-sighting-card-body {
+  display: flex;
+  gap:     14px;
+}
+
+.lf-sighting-photo {
+  width:         84px;
+  height:        84px;
+  border-radius: 10px;
+  object-fit:    cover;
+  background:    #e0e0e0;
+  flex-shrink:   0;
+}
+
+.lf-sighting-info {
+  display:        flex;
+  flex-direction: column;
+  gap:            6px;
+  min-width:      0;
+}
+
+.lf-sighting-notes {
+  font-size:   11px;
+  color:       var(--text-body);
+  line-height: 1.5;
+}
+
+.lf-sighting-contact {
+  display:        flex;
+  flex-direction: column;
+  gap:            4px;
+  margin-top:     4px;
+  padding-top:    10px;
+  border-top:     1px solid #E2E8F0;
+}
+
+.lf-sighting-contact-name {
+  font-size:   12px;
+  font-weight: 800;
+  color:       var(--text-primary);
+}
+
+.lf-sighting-contact a.pet-meta-item {
+  text-decoration: none;
+}
+
+.lf-sighting-contact a.pet-meta-item:hover {
+  color: var(--color-navy);
+}
+
 .lf-match-vs {
   display:        flex;
   flex-direction: column;

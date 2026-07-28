@@ -449,6 +449,14 @@ forgotPassword: (email) => {
     lostFoundRequest('matches', { report_id: reportId, include_resolved: 1 }),
 
   /**
+   * Self-resolve a lost report from a sighting lead (owner reunited with their
+   * pet without going through the formal Claim/proof-of-ownership flow).
+   * @param {string} matchId
+   */
+  resolveSightingMatch: (matchId) =>
+    lostFoundRequest('resolve_sighting_match', { match_id: matchId }),
+
+  /**
    * Submit lost or found report (includes photo upload)
    * @param {string} type — 'lost' | 'found'
    * @param {FormData} formData — use FormData, NOT JSON (photo upload)

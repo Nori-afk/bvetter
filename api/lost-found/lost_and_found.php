@@ -1094,7 +1094,8 @@ function listMatches($pdo, $data)
             lost_found_matches.*,
             lost.case_number AS lost_case, lost.pet_name AS lost_name, lost.species AS lost_species, lost.breed AS lost_breed, lost.photo_path AS lost_photo, lost.barangay_name AS lost_barangay, lost.created_at AS lost_created_at,
             found.case_number AS found_case, found.pet_name AS found_name, found.species AS found_species, found.breed AS found_breed, found.photo_path AS found_photo, found.barangay_name AS found_barangay, found.created_at AS found_created_at,
-            sightings.case_number AS sighting_case, sightings.photo_path AS sighting_photo, sightings.barangay_name AS sighting_barangay, sightings.notes AS sighting_notes, sightings.created_at AS sighting_created_at
+            sightings.case_number AS sighting_case, sightings.photo_path AS sighting_photo, sightings.barangay_name AS sighting_barangay, sightings.notes AS sighting_notes, sightings.created_at AS sighting_created_at,
+            sightings.sighting_date AS sighting_spotted_date, sightings.contact_name AS sighting_contact_name, sightings.contact_phone AS sighting_contact_phone, sightings.contact_email AS sighting_contact_email
         FROM lost_found_matches
         INNER JOIN lost_found_reports lost ON lost.id = lost_found_matches.lost_report_id
         LEFT JOIN lost_found_reports found ON found.id = lost_found_matches.found_report_id
@@ -1134,6 +1135,10 @@ function listMatches($pdo, $data)
                 'image' => $row['found_photo'] ?: $row['sighting_photo'],
                 'notes' => $row['sighting_notes'],
                 'createdAt' => $row['found_report_id'] ? $row['found_created_at'] : $row['sighting_created_at'],
+                'spottedDate' => $row['sighting_spotted_date'],
+                'contactName' => $row['sighting_contact_name'],
+                'contactPhone' => $row['sighting_contact_phone'],
+                'contactEmail' => $row['sighting_contact_email'],
             ],
         ];
     }
@@ -1177,6 +1182,51 @@ function updateMatchStatus($pdo, $data, $status)
 
     $pdo->commit();
     respond(200, ['success' => true, 'message' => 'Match updated.']);
+}
+
+// Lets a pet owner self-resolve their own lost report directly from a sighting
+// lead, without going through the Claim flow (which requires proof-of-ownership
+// and only applies to formal found reports — a sighting is just a tip, there's no
+// custody handoff to prove). Reuses the same resolve cascade updateMatchStatus()
+// uses when staff approve a match, but scoped strictly to sighting-based matches
+// and to the report's actual owner, since this endpoint is reachable from the
+// public pet-owner portal.
+function resolveSightingMatch($pdo, $data)
+{
+    $matchId = (int) ($data['match_id'] ?? $data['id'] ?? 0);
+    $ownerId = (int) ($data['owner_id'] ?? $data['user_id'] ?? 0);
+    if ($matchId <= 0 || $ownerId <= 0) {
+        respond(422, ['success' => false, 'message' => 'Invalid request.']);
+    }
+
+    $stmt = $pdo->prepare('
+        SELECT lost_found_matches.*, lost.owner_id AS lost_owner_id
+        FROM lost_found_matches
+        INNER JOIN lost_found_reports lost ON lost.id = lost_found_matches.lost_report_id
+        WHERE lost_found_matches.id = :id
+        LIMIT 1
+    ');
+    $stmt->execute([':id' => $matchId]);
+    $match = $stmt->fetch();
+    if (!$match) respond(404, ['success' => false, 'message' => 'Sighting match not found.']);
+
+    if (!$match['sighting_id']) {
+        respond(422, ['success' => false, 'message' => 'This action is only available for sighting reports.']);
+    }
+    if ((int) $match['lost_owner_id'] !== $ownerId) {
+        respond(403, ['success' => false, 'message' => 'You can only resolve your own reports.']);
+    }
+
+    $pdo->beginTransaction();
+    $pdo->prepare("UPDATE lost_found_matches SET status = 'approved', reviewed_by_user_id = :user_id, reviewed_at = NOW() WHERE id = :id")
+        ->execute([':user_id' => $ownerId, ':id' => $matchId]);
+    $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id")
+        ->execute([':id' => (int) $match['lost_report_id']]);
+    $pdo->prepare("UPDATE lost_found_sightings SET status = 'resolved', reviewed_at = NOW() WHERE id = :id")
+        ->execute([':id' => (int) $match['sighting_id']]);
+    $pdo->commit();
+
+    respond(200, ['success' => true, 'message' => 'Case marked as resolved.']);
 }
 
 function createSighting($pdo, $data)
@@ -1383,7 +1433,9 @@ function listClaims($pdo, $data, $management = false)
         SELECT lost_found_claims.*, lost_found_reports.case_number AS report_case, lost_found_reports.pet_name,
                lost_found_reports.photo_path, lost_found_reports.barangay_name, lost_found_reports.owner_id AS report_owner_id,
                lost_found_reports.contact_name AS finder_name, lost_found_reports.contact_phone AS finder_phone,
-               lost_found_reports.contact_email AS finder_email
+               lost_found_reports.contact_email AS finder_email, lost_found_reports.species AS report_species,
+               lost_found_reports.breed AS report_breed, lost_found_reports.sex AS report_sex,
+               lost_found_reports.size AS report_size, lost_found_reports.color_markings AS report_markings
         FROM lost_found_claims
         INNER JOIN lost_found_reports ON lost_found_reports.id = lost_found_claims.report_id
     ";
@@ -1553,6 +1605,7 @@ try {
     if ($action === 'matches' || $action === 'list_matches') listMatches($pdo, $input);
     if ($action === 'approve_match') updateMatchStatus($pdo, $input, 'approved');
     if ($action === 'dismiss_match') updateMatchStatus($pdo, $input, 'dismissed');
+    if ($action === 'resolve_sighting_match') resolveSightingMatch($pdo, $input);
     if ($action === 'create_sighting' || $action === 'submit_sighting') createSighting($pdo, $input);
     if ($action === 'list_sightings') listSightings($pdo, $input);
     if ($action === 'approve_sighting') updateSightingStatus($pdo, $input, 'active');

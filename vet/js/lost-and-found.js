@@ -186,7 +186,19 @@ function normalizeClaim(claim) {
 		contact: claim.claimant_phone || '',
 		image: claim.photo_path || FALLBACK_IMAGE,
 		finderName: claim.finder_name || 'Unknown',
-		finderContact: claim.finder_phone || claim.finder_email || 'No contact provided'
+		finderContact: claim.finder_phone || claim.finder_email || 'No contact provided',
+		// Found report's own attributes, for the staff-only side-by-side comparison
+		// against what the claimant submitted — a claim has no structured pet data
+		// of its own (just contact info + a proof document), so there's nothing to
+		// auto-score; staff compare these against the proof themselves.
+		species: claim.report_species || '',
+		breed: claim.report_breed || '',
+		sex: claim.report_sex || '',
+		size: claim.report_size || '',
+		markings: claim.report_markings || '',
+		proofFile: claim.proof_file_path || null,
+		proofType: claim.proof_type || 'Evidence',
+		proofNotes: claim.proof_notes || ''
 	};
 }
 
@@ -872,6 +884,40 @@ function buildDetailModal(report, mode = 'view') {
 `;
 }
 
+// Side-by-side comparison of the found report vs. what the claimant submitted.
+// Unlike sightings, a claim has no structured pet data of its own (just contact
+// info + a proof document) and there's no image-similarity scoring between a
+// found-pet photo and a proof document — so no confidence score here, just the
+// facts laid out for staff to judge themselves. Staff-only, never shown to owners.
+function claimComparisonSection(claim) {
+	const proofIsPdf = String(claim.proofFile || '').toLowerCase().endsWith('.pdf');
+	return `
+		<div class="modal-grid">
+			<div class="field"><label>Species</label><p>${escapeHtml(claim.species || 'Not on file')}</p></div>
+			<div class="field"><label>Breed</label><p>${escapeHtml(claim.breed || 'Not on file')}</p></div>
+			<div class="field"><label>Sex</label><p>${escapeHtml(claim.sex || 'Not on file')}</p></div>
+			<div class="field"><label>Size</label><p>${escapeHtml(claim.size || 'Not on file')}</p></div>
+			<div class="field"><label>Markings (from found report)</label><p>${escapeHtml(claim.markings || 'Not on file')}</p></div>
+		</div>
+		<div class="match-pair" style="margin-top:12px;">
+			<div class="match-side">
+				<img src="${escapeHtml(claim.image)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
+				<h4>Found Pet Photo</h4>
+			</div>
+			<div class="match-side">
+				${claim.proofFile
+					? (proofIsPdf
+						? `<a href="${escapeHtml(claim.proofFile)}" target="_blank" rel="noopener" class="btn btn-secondary">View Proof (PDF)</a>`
+						: `<img src="${escapeHtml(claim.proofFile)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">`)
+					: `<img src="${FALLBACK_IMAGE}" alt="">`}
+				<h4>Claimant's Proof</h4>
+				<small>${escapeHtml(claim.proofType)}</small>
+			</div>
+		</div>
+		${claim.proofNotes ? `<p class="details-section-text" style="margin-top:8px;">${escapeHtml(claim.proofNotes)}</p>` : ''}
+	`;
+}
+
 // ─── BUG FIX 4: Dedicated modal for Claim records with proper Approve / Reject buttons.
 function buildClaimModal(claim) {
 	if (!claim) return '<div class="upload-success"><h2 id="lfModalTitle">Record not found</h2></div>';
@@ -902,7 +948,10 @@ function buildClaimModal(claim) {
 					</div>
 				</div>
 
-				<span class="section-title">03. Claimant Information</span>
+				<span class="section-title">03. Comparison to Found Report (Staff Only)</span>
+				${claimComparisonSection(claim)}
+
+				<span class="section-title">04. Claimant Information</span>
 				<div class="uploader">
 					<div class="profile-initial">${getInitials(claim.title)}</div>
 					<div>
@@ -919,6 +968,41 @@ function buildClaimModal(claim) {
 					</div>
 				</footer>
 			</section>
+		</div>
+	`;
+}
+
+// Same-pet comparison for a sighting against the lost report(s) it's been
+// automatically matched to, reusing the confidence score already computed by the
+// image/attribute matcher (see splitMatches/lfData.potentialMatches) instead of
+// judging similarity ourselves — staff-only, never shown to the reporting owner.
+function sightingComparisonSection(sighting) {
+	const matches = (lfData.potentialMatches || []).filter((m) => String(m.found?.sightingId) === String(sighting.id));
+	if (!matches.length) {
+		return '<div class="list-note" style="margin:8px 0;font-size:0.85rem;">No automatic comparison available yet — this sighting hasn\'t been matched to a lost report.</div>';
+	}
+	return `
+		<div class="potential-main">
+			${matches.map((m) => `
+				<article class="match-card static">
+					<div class="match-pair">
+						<div class="match-side">
+							<img src="${escapeHtml(m.lost.image || FALLBACK_IMAGE)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
+							<h4>${escapeHtml(m.lost.name || 'Lost Pet')}</h4>
+							<small>${escapeHtml(m.lost.breed || '')}</small>
+						</div>
+						${confidenceGauge(m.confidence)}
+						<div class="match-side">
+							<img src="${escapeHtml(sighting.image)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
+							<h4>This Sighting</h4>
+							<small>${escapeHtml(sighting.barangay || '')}</small>
+						</div>
+					</div>
+					<div class="reason-row">
+						${(m.reasons || []).map((r) => `<span class="reason-chip">${escapeHtml(r)}</span>`).join('')}
+					</div>
+				</article>
+			`).join('')}
 		</div>
 	`;
 }
@@ -945,14 +1029,17 @@ function buildSightingModal(sighting) {
 					<div class="field"><label>Time Sighted</label><p>${escapeHtml(sighting.timeLost || '')}</p></div>
 					<div class="field"><label>Submitted</label><p>${escapeHtml(sighting.uploadedAt || '')}</p></div>
 				</div>
-				<span class="section-title">02. Last Seen Location</span>
+				<span class="section-title">02. Comparison to Lost Report (Staff Only)</span>
+				${sightingComparisonSection(sighting)}
+
+				<span class="section-title">03. Last Seen Location</span>
 				<div id="mapSighting${escapeHtml(sighting.id)}" class="map-api"
 					data-map-lat="${mapLat(sighting)}"
 					data-map-lng="${mapLng(sighting)}"
 					data-map-zoom="14">
 				</div>
 
-				<span class="section-title">03. Reporter Information</span>
+				<span class="section-title">04. Reporter Information</span>
 				<div class="uploader">
 					<div class="profile-initial">${getInitials(sighting.uploader)}</div>
 					<div>
