@@ -315,7 +315,25 @@ function saveUpload($field, $folder, $required = false)
     $name = $folder . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $allowed[$mime];
     $absolute = $directory . '/' . $name;
 
-    if (!move_uploaded_file($file['tmp_name'], $absolute)) {
+    $moved = move_uploaded_file($file['tmp_name'], $absolute);
+    if (!$moved) {
+        // Transient lock/permission-propagation issues (common right after a fresh
+        // deploy or under momentary disk contention) can make the first attempt fail
+        // even though the directory is otherwise writable — one short retry self-heals
+        // those without bothering the user.
+        usleep(150000);
+        $moved = move_uploaded_file($file['tmp_name'], $absolute);
+    }
+
+    if (!$moved) {
+        $lastError = error_get_last();
+        error_log(sprintf(
+            'Lost & Found upload failed: field=%s dest=%s dir_writable=%s reason=%s',
+            $field,
+            $absolute,
+            is_writable($directory) ? 'yes' : 'no',
+            $lastError['message'] ?? 'unknown'
+        ));
         respond(500, ['success' => false, 'message' => 'Could not save uploaded file.']);
     }
 

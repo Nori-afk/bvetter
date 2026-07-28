@@ -1130,7 +1130,8 @@ body {
 .lf-modal {
 	width: min(700px, 100%);
 	max-height: 94vh;
-	overflow: auto;
+	overflow-y: auto;
+	overflow-x: hidden;
 	border-radius: 18px;
 	background: #ffffff;
 	position: relative;
