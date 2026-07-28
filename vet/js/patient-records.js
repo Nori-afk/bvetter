@@ -356,6 +356,12 @@ function getStatusClass(statusType) {
 	return 'neutral';
 }
 
+function healthStatusFromType(statusType) {
+	if (statusType === 'warning') return { label: 'Needs Attention', cls: 'kpi-status-warn' };
+	if (statusType === 'danger') return { label: 'Critical', cls: 'kpi-status-danger' };
+	return { label: 'Good Health', cls: 'kpi-status-ok' };
+}
+
 function filteredRecords() {
 	const query = state.query.trim().toLowerCase();
 	return state.records.filter((record) => {
@@ -417,8 +423,8 @@ function renderPatientInfoTab(record) {
 							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
 						</div>
 					</div>
-					<p class="kpi-tile-value kpi-tile-value-status kpi-status-ok">
-						<span class="status-dot"></span>${escapeHtml(record.healthStatus)}
+					<p class="kpi-tile-value kpi-tile-value-status ${healthStatusFromType(record.statusType).cls}">
+						<span class="status-dot"></span>${escapeHtml(healthStatusFromType(record.statusType).label)}
 					</p>
 					<p class="kpi-tile-sub">Current health standing</p>
 				</div>

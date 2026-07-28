@@ -1194,8 +1194,10 @@ body {
     letter-spacing: 0;
 }
 
-.kpi-status-ok    { color: #059669; }
-.kpi-status-alert { color: #DC2626; }
+.kpi-status-ok     { color: #059669; }
+.kpi-status-warn   { color: #B45309; }
+.kpi-status-danger { color: #B91C1C; }
+.kpi-status-alert  { color: #DC2626; }
 
 .kpi-tile-sub {
     font-size: 11px;
