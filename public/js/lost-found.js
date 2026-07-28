@@ -115,6 +115,18 @@ async function getKPI(){
     const res1 = await api.getActiveReports();
     document.getElementById('ResolvedCases').textContent = res.count;
     document.getElementById('ActiveAlerts').textContent = res1.count;
+
+    const resolvedCount = res.count || 0;
+    const casesCount = resolvedCount + (res1.count || 0);
+    const successRateEl = document.getElementById('successRate');
+    const successRateDescEl = document.getElementById('successRateDesc');
+    if (casesCount === 0) {
+      successRateEl.textContent = '—';
+      successRateDescEl.textContent = 'No active reports or cases yet.';
+    } else {
+      successRateEl.textContent = `${Math.round((resolvedCount / casesCount) * 100)}%`;
+      successRateDescEl.textContent = 'Pets reunited around Baliwag thanks to the BVETTER community.';
+    }
   }
   catch(error){
     console.error('Error fetching KPIs:', error);
