@@ -45,6 +45,20 @@ function toLocalIsoDate(date = new Date()) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// getDay() → 0=Sun … 6=Sat, so weekend is either end of that range.
+// Shared by the calendar grid and the native apptDate input so both
+// agree on what counts as a weekend.
+function isWeekendDate(date) {
+  const day = date.getDay();
+  return day === 0 || day === 6;
+}
+
+function isWeekendIso(dateIso) {
+  if (!dateIso) return false;
+  const [y, m, d] = dateIso.split('-').map(Number);
+  return isWeekendDate(new Date(y, m - 1, d));
+}
+
 function buildCalendar(year, month) {
   const today_input = toLocalIsoDate();
   const apptDate = document.getElementById("apptDate");
@@ -93,7 +107,7 @@ function buildCalendar(year, month) {
     cellDate.setHours(0, 0, 0, 0);
 
     const isPast = cellDate < today;
-    const isWeekend = cellDate.getDay()==0 || cellDate.getDay()==6;
+    const isWeekend = isWeekendDate(cellDate);
 
     const isToday =
       d === today.getDate() &&
@@ -1025,6 +1039,18 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     return true;
   }
 
+  function validateApptDateWeekend() {
+    const el = document.getElementById('apptDate');
+    if (!el || !el.value) return true;
+    const group = el.closest('.form-group');
+    if (isWeekendIso(el.value)) {
+      setGroupError(group, 'Weekends are not available — please choose a weekday.');
+      return false;
+    }
+    clearGroupError(group);
+    return true;
+  }
+
   function validateTimeSlotField() {
     const slotGrid = document.querySelector('#step3 .slot-grid');
     const group = slotGrid ? slotGrid.closest('.form-group') : null;
@@ -1056,6 +1082,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       if (!validateRequiredField('visitType', 'Please select the type of visit.')) valid = false;
       if (!isCspMode()) {
         if (!validateRequiredField('apptDate', 'Please select a preferred date.')) valid = false;
+        else if (!validateApptDateWeekend())                                      valid = false;
         if (!validateTimeSlotField())                                             valid = false;
         // apptNotes is optional — not validated
       }
@@ -1142,7 +1169,10 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     }
   }
 
-  document.getElementById('apptDate')?.addEventListener('change', refreshStep3Slots);
+  document.getElementById('apptDate')?.addEventListener('change', () => {
+    validateApptDateWeekend();
+    refreshStep3Slots();
+  });
 
   /* ── Populate "Type of Visit" from the vet/admin-managed visit_types
      table so new types added in Appointment Management show up here
