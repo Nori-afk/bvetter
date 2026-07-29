@@ -776,6 +776,7 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
+	align-items: center;
 }
 
 .reason-chip {
@@ -786,6 +787,41 @@ body {
 	background: var(--lf-green-soft);
 	color: var(--lf-green-dark);
 	border: 1px solid #c8eec8;
+}
+
+/* Fills the .match-pair middle slot for a directly-linked lost report (sighting.reportId)
+   in place of the confidence gauge — there's no score to show, just the fact that the
+   finder pointed at this specific report. */
+.link-indicator {
+	width: 68px;
+	height: 68px;
+	border-radius: 50%;
+	justify-self: center;
+	background: #eef2ff;
+	border: 2px solid #c7d5f5;
+	display: grid;
+	place-items: center;
+	color: var(--lf-brand);
+}
+
+.link-indicator svg {
+	width: 26px;
+	height: 26px;
+}
+
+.comparison-secondary {
+	margin-top: 14px;
+	padding-top: 14px;
+	border-top: 1px dashed var(--lf-border);
+}
+
+.comparison-secondary-title {
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--lf-muted);
+	margin-bottom: 8px;
 }
 
 .match-actions {
@@ -1108,6 +1144,17 @@ body {
 .lf-pill-found::before {
 	background-color: #166534;
 	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6l3 3 5-5' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+}
+
+/* Rejected — same red/× styling as Lost, used for a rejected report's status pill */
+.lf-pill-rejected {
+	background: #FEE2E2;
+	color: #991B1B;
+	border: 1px solid #FCA5A5;
+}
+.lf-pill-rejected::before {
+	background-color: #B91C1C;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M4 4l4 4M8 4l-4 4' stroke='white' stroke-width='1.8' stroke-linecap='round' fill='none'/%3E%3C/svg%3E");
 }
 
 .lf-modal-overlay {

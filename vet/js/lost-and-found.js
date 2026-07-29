@@ -23,7 +23,11 @@ const lfData = {
 	potentialMatches: [],
 	resolvedCases: [],
 	claims: [],
-	sightings: []
+	sightings: [],
+	// Every report regardless of status (pending/active/resolved/rejected) — separate
+	// from the status-scoped lists above, used only to look up the specific lost report
+	// a sighting was filed against (sighting.reportId), which can be in any status.
+	allReports: []
 };
 
 const barangayCoordinates = {
@@ -216,7 +220,12 @@ function normalizeSighting(sighting) {
 		contact: sighting.contact_phone || '',
 		image: sighting.photo_path || FALLBACK_IMAGE,
 		lat: sighting.latitude ?? null,
-		lng: sighting.longitude ?? null
+		lng: sighting.longitude ?? null,
+		// The specific lost report this sighting was filed against — captured when the
+		// finder clicked "Report a Sighting" from that report's page (see
+		// public/js/lost-found.js submitSighting -> report_id). Null for the rare
+		// sighting submitted without that context.
+		reportId: sighting.report_id ? String(sighting.report_id) : null
 	};
 }
 
@@ -232,10 +241,11 @@ async function loadAllData() {
 	if (content) content.innerHTML = '<div class="list-note">Loading lost and found records...</div>';
 
 	try {
-		const [pending, active, resolved, matches, claims, sightings, barangays] = await Promise.all([
+		const [pending, active, resolved, all, matches, claims, sightings, barangays] = await Promise.all([
 			lfRequest('management_list', { status: 'pending' }),
 			lfRequest('management_list', { status: 'active' }),
 			lfRequest('management_list', { status: 'resolved' }),
+			lfRequest('management_list', { status: 'all' }),
 			lfRequest('matches'),
 			lfRequest('management_claims', { status: 'pending' }),
 			lfRequest('list_sightings', { status: 'pending' }),
@@ -245,6 +255,7 @@ async function loadAllData() {
 		lfData.pendingReports = (pending.data || []).map(normalizeReport);
 		lfData.activeReports = (active.data || []).map(normalizeReport);
 		lfData.resolvedCases = (resolved.data || []).map(normalizeReport);
+		lfData.allReports = (all.data || []).map(normalizeReport);
 		lfData.potentialMatches = matches.data || [];
 		lfData.claims = (claims.data || []).map(normalizeClaim);
 		lfData.sightings = (sightings.data || []).map(normalizeSighting);
@@ -972,15 +983,61 @@ function buildClaimModal(claim) {
 	`;
 }
 
-// Same-pet comparison for a sighting against the lost report(s) it's been
-// automatically matched to, reusing the confidence score already computed by the
-// image/attribute matcher (see splitMatches/lfData.potentialMatches) instead of
-// judging similarity ourselves — staff-only, never shown to the reporting owner.
-function sightingComparisonSection(sighting) {
-	const matches = (lfData.potentialMatches || []).filter((m) => String(m.found?.sightingId) === String(sighting.id));
-	if (!matches.length) {
-		return '<div class="list-note" style="margin:8px 0;font-size:0.85rem;">No automatic comparison available yet — this sighting hasn\'t been matched to a lost report.</div>';
-	}
+function findReportById(id) {
+	if (id === null || id === undefined) return null;
+	return (lfData.allReports || []).find((r) => String(r.id) === String(id)) || null;
+}
+
+const REPORT_STATUS_PILLS = {
+	pending: ['Pending Review', 'lf-pill-pending'],
+	active: ['Active', 'lf-pill-active'],
+	resolved: ['Resolved', 'lf-pill-resolved'],
+	rejected: ['Rejected', 'lf-pill-rejected']
+};
+
+function reportStatusPill(status) {
+	const [label, cls] = REPORT_STATUS_PILLS[String(status || '').toLowerCase()] || ['Unknown', 'lf-pill-pending'];
+	return `<span class="lf-status-pill ${cls}">${escapeHtml(label)}</span>`;
+}
+
+// The specific lost report a finder was responding to when they filed this sighting
+// (sighting.reportId) — the direct, authoritative comparison target, as opposed to
+// the algorithmic image/attribute matcher below. Its status is surfaced (e.g.
+// "Resolved") since staff should know if the case it responds to is already closed.
+function linkedReportCard(report, sighting) {
+	return `
+		<article class="match-card static">
+			<div class="match-pair">
+				<div class="match-side">
+					<img src="${escapeHtml(report.image || FALLBACK_IMAGE)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
+					<h4>${escapeHtml(report.petName || 'Lost Pet')}</h4>
+					<small>${escapeHtml(report.breed || '')}</small>
+				</div>
+				<div class="link-indicator" title="The lost report this sighting was filed against">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+						<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+					</svg>
+				</div>
+				<div class="match-side">
+					<img src="${escapeHtml(sighting.image)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
+					<h4>This Sighting</h4>
+					<small>${escapeHtml(sighting.barangay || '')}</small>
+				</div>
+			</div>
+			<div class="reason-row">
+				<span class="reason-chip">Reported in response to this lost report</span>
+				${reportStatusPill(report.status)}
+			</div>
+		</article>
+	`;
+}
+
+// Same-pet comparison for a sighting against lost report(s), reusing the confidence
+// score already computed by the image/attribute matcher (see splitMatches/
+// lfData.potentialMatches) instead of judging similarity ourselves — staff-only,
+// never shown to the reporting owner.
+function renderAutoMatchCards(matches, sighting) {
 	return `
 		<div class="potential-main">
 			${matches.map((m) => `
@@ -1007,56 +1064,103 @@ function sightingComparisonSection(sighting) {
 	`;
 }
 
-// ─── BUG FIX 4: Dedicated modal for Sighting records with proper Approve / Reject buttons.
+// Staff-only comparison. Primary signal is the specific lost report the finder was
+// responding to (sighting.reportId — captured when they clicked "Report a Sighting"
+// from that report's page, see public/js/lost-found.js submitSighting). The separate
+// algorithmic auto-matcher is shown underneath only when it surfaces a *different*
+// candidate than the direct link — a safety net for a finder picking the wrong report,
+// without cluttering the common case where the direct link is the whole story.
+function sightingComparisonSection(sighting) {
+	const linkedReport = findReportById(sighting.reportId);
+	const autoMatches = (lfData.potentialMatches || []).filter((m) => String(m.found?.sightingId) === String(sighting.id));
+
+	if (!linkedReport && !autoMatches.length) {
+		return '<div class="list-note" style="margin:8px 0;font-size:0.85rem;">No automatic comparison available yet — this sighting hasn\'t been matched to a lost report.</div>';
+	}
+
+	if (!linkedReport) {
+		return renderAutoMatchCards(autoMatches, sighting);
+	}
+
+	const otherMatches = autoMatches.filter((m) => String(m.lost?.reportId) !== String(linkedReport.id));
+	const secondary = otherMatches.length ? `
+		<div class="comparison-secondary">
+			<h5 class="comparison-secondary-title">Other Possible Matches</h5>
+			${renderAutoMatchCards(otherMatches, sighting)}
+		</div>
+	` : '';
+
+	return `<div class="potential-main">${linkedReportCard(linkedReport, sighting)}</div>${secondary}`;
+}
+
+// Dedicated modal for Sighting records — mirrors buildDetailModal's .details-modal-box
+// layout (used by Pending Review / Active Reports) for visual consistency across the
+// three report-review modals, adapted for a sighting's data shape (no breed/age/size/sex —
+// a sighting is an observation, not a full pet profile).
 function buildSightingModal(sighting) {
 	if (!sighting) return '<div class="upload-success"><h2 id="lfModalTitle">Record not found</h2></div>';
 	return `
-		<div class="modal-layout">
-			<aside class="modal-media">
-				<img src="${escapeHtml(sighting.image)}" alt="${escapeHtml(sighting.title)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
-			</aside>
-			<section class="modal-content" style="overflow-y:auto; ">
-				<header class="modal-head">
-					<h2 id="lfModalTitle">Sighting Report</h2>
-					<p>Case ID: ${escapeHtml(sighting.caseId || '')}</p>
-				</header>
+		<div class="details-modal-box">
+			<div class="details-img-side">
+				<img src="${escapeHtml(sighting.image)}" alt="${escapeHtml(sighting.title)}" class="details-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
+				<div class="details-status-badge found">Sighting</div>
+			</div>
 
-				<span class="section-title">01. Sighting Details</span>
-				<div class="modal-grid">
-					<div class="field"><label>Notes</label><p>${escapeHtml(sighting.title || 'No notes provided')}</p></div>
-					<div class="field"><label>Barangay</label><p>${escapeHtml(sighting.barangay || '')}, Baliwag, Bulacan</p></div>
-					<div class="field"><label>Date Sighted</label><p>${escapeHtml(sighting.dateLost || '')}</p></div>
-					<div class="field"><label>Time Sighted</label><p>${escapeHtml(sighting.timeLost || '')}</p></div>
-					<div class="field"><label>Submitted</label><p>${escapeHtml(sighting.uploadedAt || '')}</p></div>
-				</div>
-				<span class="section-title">02. Comparison to Lost Report (Staff Only)</span>
-				${sightingComparisonSection(sighting)}
-
-				<span class="section-title">03. Last Seen Location</span>
-				<div id="mapSighting${escapeHtml(sighting.id)}" class="map-api"
-					data-map-lat="${mapLat(sighting)}"
-					data-map-lng="${mapLng(sighting)}"
-					data-map-zoom="14">
+			<div class="details-info-side">
+				<div class="details-info-header">
+					<h2 id="lfModalTitle" class="details-pet-name">Sighting Report</h2>
+					<span class="details-case-id">Case ID: ${escapeHtml(sighting.caseId || '')}</span>
 				</div>
 
-				<span class="section-title">04. Reporter Information</span>
-				<div class="uploader">
-					<div class="profile-initial">${getInitials(sighting.uploader)}</div>
-					<div>
-						<strong>${escapeHtml(sighting.uploader || 'Unknown')}</strong><br>
-						<small>${escapeHtml(sighting.contact || 'No contact provided')}</small>
+				<div class="details-tags">
+					<div class="details-tag"><span class="tag-label">Barangay</span><span class="tag-value">${escapeHtml(sighting.barangay || '')}</span></div>
+					<div class="details-tag"><span class="tag-label">Date Sighted</span><span class="tag-value">${escapeHtml(sighting.dateLost || '')}</span></div>
+					<div class="details-tag"><span class="tag-label">Submitted</span><span class="tag-value">${escapeHtml(sighting.uploadedAt || '')}</span></div>
+				</div>
+
+				<div class="details-section">
+					<h4 class="details-section-title">Notes</h4>
+					<p class="details-section-text">${escapeHtml(sighting.title || 'No notes provided')}</p>
+				</div>
+
+				<div class="details-section">
+					<h4 class="details-section-title green">Last Seen Location</h4>
+					<div id="mapSighting${escapeHtml(sighting.id)}" class="map-api details-map-api"
+						data-map-lat="${mapLat(sighting)}"
+						data-map-lng="${mapLng(sighting)}"
+						data-map-zoom="14">
+					</div>
+					<div class="details-location-info">
+						<img src="/public/images/icons/icon-location.svg" alt="" class="details-loc-icon">
+						<div>
+							<span class="details-date">${escapeHtml(sighting.dateLost || '')}</span>
+							<span class="details-location-text">${escapeHtml(sighting.barangay || '')}, Baliwag</span>
+						</div>
 					</div>
 				</div>
-				
 
-				<footer class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-modal-action="close">Close</button>
-				<div class="modal-footer-actions">
-				<button type="button" class="btn btn-danger"  data-action="reject-sighting"  data-id="${sighting.id}">Reject</button>
-				<button type="button" class="btn btn-success" data-action="approve-sighting" data-id="${sighting.id}">Approve</button>
+				<div class="details-section">
+					<h4 class="details-section-title">Reporter Information</h4>
+					<div class="uploader">
+						<div class="profile-initial">${getInitials(sighting.uploader)}</div>
+						<div>
+							<strong>${escapeHtml(sighting.uploader || 'Unknown')}</strong><br>
+							<small>${escapeHtml(sighting.contact || 'No contact provided')}</small>
+						</div>
+					</div>
 				</div>
-				</footer>
-			</section>
+
+				<div class="details-section">
+					<h4 class="details-section-title green">Comparison to Lost Report (Staff Only)</h4>
+					${sightingComparisonSection(sighting)}
+				</div>
+
+				<div class="details-footer">
+					<button type="button" class="btn-details-close" data-modal-action="close">Close</button>
+					<button type="button" class="btn-details-danger" data-action="reject-sighting" data-id="${sighting.id}">Reject</button>
+					<button type="button" class="btn-details-success" data-action="approve-sighting" data-id="${sighting.id}">Approve</button>
+				</div>
+			</div>
 		</div>
 	`;
 }
