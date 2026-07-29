@@ -929,56 +929,65 @@ function claimComparisonSection(claim) {
 	`;
 }
 
-// ─── BUG FIX 4: Dedicated modal for Claim records with proper Approve / Reject buttons.
+// Dedicated modal for Claim records — mirrors buildDetailModal's .details-modal-box
+// layout (used by Pending Review / Active Reports / Sighting Report) for visual
+// consistency across every report-review modal. Unlike the sighting modal, this
+// intentionally has no algorithmic "potential matches" section — a claim has no
+// image-similarity scoring, staff compare claimComparisonSection's fields directly.
 function buildClaimModal(claim) {
 	if (!claim) return '<div class="upload-success"><h2 id="lfModalTitle">Record not found</h2></div>';
 	return `
-		<div class="modal-layout">
-			<aside class="modal-media">
-				<img src="${escapeHtml(claim.image)}" alt="${escapeHtml(claim.petName)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
-			</aside>
-			<section class="modal-content" style="overflow-y:auto;">
-				<header class="modal-head">
-					<h2 id="lfModalTitle">Claim Report</h2>
-					<p>Case ID: ${escapeHtml(claim.caseId || '')}</p>
-				</header>
+		<div class="details-modal-box">
+			<div class="details-img-side">
+				<img src="${escapeHtml(claim.image)}" alt="${escapeHtml(claim.petName)}" class="details-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
+				<div class="details-status-badge found">Claim</div>
+			</div>
 
-				<span class="section-title">01. Pet Details</span>
-				<div class="modal-grid">
-					<div class="field"><label>Pet Name</label><p>${escapeHtml(claim.petName || 'Found Pet Report')}</p></div>
-					<div class="field"><label>Barangay</label><p>${escapeHtml(claim.barangay || '')}</p></div>
-					<div class="field"><label>Submitted</label><p>${escapeHtml(claim.uploadedAt || '')}</p></div>
+			<div class="details-info-side">
+				<div class="details-info-header">
+					<h2 id="lfModalTitle" class="details-pet-name">Claim Report</h2>
+					<span class="details-case-id">Case ID: ${escapeHtml(claim.caseId || '')}</span>
 				</div>
 
-				<span class="section-title">02. Found/Uploaded By</span>
-				<div class="uploader">
-					<div class="profile-initial">${getInitials(claim.finderName)}</div>
-					<div>
-						<strong>${escapeHtml(claim.finderName)}</strong><br>
-						<small>${escapeHtml(claim.finderContact)}</small>
+				<div class="details-tags">
+					<div class="details-tag"><span class="tag-label">Pet Name</span><span class="tag-value">${escapeHtml(claim.petName || 'Found Pet Report')}</span></div>
+					<div class="details-tag"><span class="tag-label">Barangay</span><span class="tag-value">${escapeHtml(claim.barangay || '')}</span></div>
+					<div class="details-tag"><span class="tag-label">Submitted</span><span class="tag-value">${escapeHtml(claim.uploadedAt || '')}</span></div>
+				</div>
+
+				<div class="details-section">
+					<h4 class="details-section-title">Found/Uploaded By</h4>
+					<div class="uploader">
+						<div class="profile-initial">${getInitials(claim.finderName)}</div>
+						<div>
+							<strong>${escapeHtml(claim.finderName)}</strong><br>
+							<small>${escapeHtml(claim.finderContact)}</small>
+						</div>
 					</div>
 				</div>
 
-				<span class="section-title">03. Comparison to Found Report (Staff Only)</span>
-				${claimComparisonSection(claim)}
-
-				<span class="section-title">04. Claimant Information</span>
-				<div class="uploader">
-					<div class="profile-initial">${getInitials(claim.title)}</div>
-					<div>
-						<strong>${escapeHtml(claim.title)}</strong><br>
-						<small>${escapeHtml(claim.contact || 'No contact provided')}</small>
+				<div class="details-section">
+					<h4 class="details-section-title">Claimant Information</h4>
+					<div class="uploader">
+						<div class="profile-initial">${getInitials(claim.title)}</div>
+						<div>
+							<strong>${escapeHtml(claim.title)}</strong><br>
+							<small>${escapeHtml(claim.contact || 'No contact provided')}</small>
+						</div>
 					</div>
 				</div>
 
-				<footer class="modal-footer">
-					<button type="button" class="btn btn-secondary" data-modal-action="close">Close</button>
-					<div class="modal-footer-actions">
-						<button type="button" class="btn btn-danger"  data-action="reject-claim"  data-id="${claim.id}">Reject</button>
-						<button type="button" class="btn btn-success" data-action="approve-claim" data-id="${claim.id}">Approve</button>
-					</div>
-				</footer>
-			</section>
+				<div class="details-section">
+					<h4 class="details-section-title green">Comparison to Found Report (Staff Only)</h4>
+					${claimComparisonSection(claim)}
+				</div>
+
+				<div class="details-footer">
+					<button type="button" class="btn-details-close" data-modal-action="close">Close</button>
+					<button type="button" class="btn-details-danger" data-action="reject-claim" data-id="${claim.id}">Reject</button>
+					<button type="button" class="btn-details-success" data-action="approve-claim" data-id="${claim.id}">Approve</button>
+				</div>
+			</div>
 		</div>
 	`;
 }

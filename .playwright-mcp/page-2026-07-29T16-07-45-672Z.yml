@@ -1,0 +1,61 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - img "VBetter Logo" [ref=e6]
+    - navigation [ref=e7]:
+      - link [ref=e8] [cursor=pointer]:
+        - /url: /vet/html/index.html
+        - img "Dashboard" [ref=e9]
+        - text: Dashboard
+      - link [ref=e10] [cursor=pointer]:
+        - /url: /vet/html/appointment.html
+        - img "Appointment Management" [ref=e11]
+        - text: Appointment Management
+      - link [ref=e12] [cursor=pointer]:
+        - /url: /vet/html/patient-records.html
+        - img "Patient Records" [ref=e13]
+        - text: Patient Records
+      - link [ref=e14] [cursor=pointer]:
+        - /url: /vet/html/report.html
+        - img "Report" [ref=e15]
+        - text: Report
+      - link [ref=e16] [cursor=pointer]:
+        - /url: /vet/html/disease-analytics.html
+        - img "Disease Analytics" [ref=e17]
+        - text: Disease Analytics
+      - link [ref=e18] [cursor=pointer]:
+        - /url: /vet/html/lost-and-found.html
+        - img "Lost and Found" [ref=e19]
+        - text: Lost And Found
+      - link [ref=e20] [cursor=pointer]:
+        - /url: /vet/html/chatbot-management.html
+        - img "Chatbot Management" [ref=e21]
+        - text: Chatbot Management
+      - link [ref=e22] [cursor=pointer]:
+        - /url: /vet/html/mass-vaccination.html
+        - img "Mass Vaccination" [ref=e23]
+        - text: Mass Vaccination
+      - link [ref=e24] [cursor=pointer]:
+        - /url: /vet/html/support-tickets.html
+        - img "Support Tickets" [ref=e25]
+        - text: Support Tickets
+      - generic [ref=e26]: Administration
+      - link [ref=e27] [cursor=pointer]:
+        - /url: /admin/pages/account-management.html
+        - img "Account Management" [ref=e28]
+        - text: Account Management
+      - link [ref=e29] [cursor=pointer]:
+        - /url: /admin/pages/website-management.html
+        - img "Website Management" [ref=e30]
+        - text: Website Management
+  - main [ref=e31]:
+    - generic [ref=e32]:
+      - generic [ref=e33]:
+        - heading "Lost And Found Management" [level=1] [ref=e34]
+        - paragraph [ref=e35]: Review reports, validate claims, and resolve pet match workflows.
+      - button "Upload Found Pet" [ref=e36]
+    - generic [ref=e40]:
+      - textbox "Search lost and found reports" [ref=e42]:
+        - /placeholder: Search breed, name, or location...
+      - combobox "Select report type" [ref=e43]
+      - combobox "Select source" [ref=e44]
+      - combobox "Select barangay" [ref=e45]

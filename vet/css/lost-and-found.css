@@ -1212,34 +1212,6 @@ body {
 
 .modal-close:hover { background: #F1F5F9; color: #0F172A; }
 
-.modal-layout {
-	display: grid;
-	grid-template-columns: 320px 1fr;
-}
-
-/* Grid items default to min-width:auto, which lets long/unbreakable content
-   force the 1fr column wider than the modal and produce a horizontal scrollbar.
-   min-width:0 lets the column shrink and wrap normally instead. */
-.modal-layout > * {
-	min-width: 0;
-}
-
-.modal-media {
-	background: #F1F5F9;
-	min-height: 640px;
-	padding: 12px;
-	display: grid;
-	grid-template-rows: 320px 1fr;
-	gap: 10px;
-}
-
-.modal-media img {
-	width: 100%;
-	height: 100%;
-	object-fit: cover;
-	border-radius: 12px;
-}
-
 .map-mock {
 	border-radius: 10px;
 	border: 1px solid #d0dbc9;
@@ -1403,52 +1375,6 @@ body {
 	border: 3px solid #d7ebff;
 }
 
-.modal-content {
-	padding: 28px;
-	display: grid;
-	gap: 22px;
-	min-width: 0;
-}
-
-/* Same min-width:auto grid trap as .modal-layout > * above, one level
-   deeper: .modal-content is itself a grid, so its own children (the field
-   grid, the map, the comparison section...) default to min-width:auto and
-   refuse to shrink below their content's natural width, pushing past the
-   modal's right edge instead of wrapping. */
-.modal-content > * {
-	min-width: 0;
-}
-
-.modal-head h2 {
-	font-size: 1.5rem;
-	font-weight: 800;
-	color: var(--lf-ink);
-	letter-spacing: -0.01em;
-}
-
-.modal-head p {
-	color: #5a7089;
-	font-size: 0.8rem;
-	margin-top: 3px;
-}
-
-.section-title {
-	text-transform: uppercase;
-	font-size: 0.7rem;
-	letter-spacing: 0.09em;
-	color: var(--lf-green-dark);
-	font-weight: 600;
-	margin-top: 6px;
-	padding-top: 18px;
-	border-top: 1px solid var(--lf-border);
-}
-
-.section-title:first-of-type {
-	margin-top: 0;
-	padding-top: 0;
-	border-top: none;
-}
-
 .modal-grid {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
@@ -1534,22 +1460,6 @@ body {
 	color: var(--lf-muted);
 	overflow-wrap: break-word;
 	word-break: break-word;
-}
-
-.modal-footer {
-	margin-top: 6px;
-	border-top: 1px solid #E2E8F0;
-	padding: 14px 18px;
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: space-between;
-	align-items: center;
-	gap: 10px;
-}
-
-.modal-footer-actions {
-	display: flex;
-	gap: 8px;
 }
 
 /* ================================================ */
@@ -2092,10 +2002,6 @@ body {
 	min-width: 0;
 }
 
-.modal-footer .btn {
-	min-width: 120px;
-}
-
 @media (max-width: 1280px) {
 	.lf-stats {
 		grid-template-columns: repeat(3, 1fr);
@@ -2209,15 +2115,6 @@ body {
 		flex-direction: row;
 		align-items: center;
 		justify-content: flex-start;
-	}
-
-	.modal-layout {
-		grid-template-columns: 1fr;
-	}
-
-	.modal-media {
-		grid-template-rows: 260px 220px;
-		min-height: unset;
 	}
 
 	.modal-grid {
