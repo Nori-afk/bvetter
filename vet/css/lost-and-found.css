@@ -1363,6 +1363,15 @@ body {
 	min-width: 0;
 }
 
+/* Same min-width:auto grid trap as .modal-layout > * above, one level
+   deeper: .modal-content is itself a grid, so its own children (the field
+   grid, the map, the comparison section...) default to min-width:auto and
+   refuse to shrink below their content's natural width, pushing past the
+   modal's right edge instead of wrapping. */
+.modal-content > * {
+	min-width: 0;
+}
+
 .modal-head h2 {
 	font-size: 1.5rem;
 	font-weight: 800;
@@ -1485,6 +1494,7 @@ body {
 	border-top: 1px solid #E2E8F0;
 	padding: 14px 18px;
 	display: flex;
+	flex-wrap: wrap;
 	justify-content: space-between;
 	align-items: center;
 	gap: 10px;

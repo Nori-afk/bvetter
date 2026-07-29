@@ -1,0 +1,27 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - img "Baliwag City Veterinary Services" [ref=e4]
+    - generic [ref=e5]:
+      - heading "Keep your pets healthy and happy" [level=1] [ref=e6]: Keep your petshealthy andhappy
+      - paragraph [ref=e7]: BOOK APPOINTMENTS, VIEW RECORDS, AND TRACK YOUR PET'S WELLNESS JOURNEY.
+    - generic [ref=e8]: +
+    - generic [ref=e9]: +
+  - generic [ref=e11]:
+    - img "Baliwag City Veterinary Services" [ref=e12]
+    - heading "Welcome Back!" [level=2] [ref=e13]
+    - paragraph [ref=e14]: Enter your credentials to access your account.
+    - generic [ref=e15]:
+      - generic [ref=e16]: EMAIL ADDRESS
+      - textbox "your@email.com" [ref=e18]: admin@test.com
+    - generic [ref=e19]:
+      - generic [ref=e20]: PASSWORD
+      - generic [ref=e21]:
+        - textbox "••••••••••••" [ref=e22]: test12345
+        - img "Show password" [ref=e23] [cursor=pointer]
+      - link "Forgot Password?" [ref=e25] [cursor=pointer]:
+        - /url: forgot-password.html
+    - button "Login" [ref=e26] [cursor=pointer]
+    - paragraph [ref=e27]:
+      - text: Don't Have An Account?
+      - link "Sign up" [ref=e28] [cursor=pointer]:
+        - /url: create-account.html

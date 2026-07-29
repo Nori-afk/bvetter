@@ -1,0 +1,190 @@
+- generic [ref=f5e1]:
+  - generic [ref=f5e2]:
+    - complementary [ref=f5e3]:
+      - img "VBetter Logo" [ref=f5e6]
+      - generic [ref=f5e7]:
+        - navigation [ref=f5e8]:
+          - link [ref=f5e9] [cursor=pointer]:
+            - /url: /vet/html/index.html
+            - img "Dashboard" [ref=f5e10]
+            - generic: Dashboard
+          - link [ref=f5e11] [cursor=pointer]:
+            - /url: /vet/html/appointment.html
+            - img "Appointment Management" [ref=f5e12]
+            - generic: Appointment Management
+          - link [ref=f5e13] [cursor=pointer]:
+            - /url: /vet/html/patient-records.html
+            - img "Patient Records" [ref=f5e14]
+            - generic: Patient Records
+          - link [ref=f5e15] [cursor=pointer]:
+            - /url: /vet/html/report.html
+            - img "Report" [ref=f5e16]
+            - generic: Report
+          - link [ref=f5e17] [cursor=pointer]:
+            - /url: /vet/html/disease-analytics.html
+            - img "Disease Analytics" [ref=f5e18]
+            - generic: Disease Analytics
+          - link [ref=f5e19] [cursor=pointer]:
+            - /url: /vet/html/lost-and-found.html
+            - img "Lost and Found" [ref=f5e20]
+            - generic: Lost And Found
+          - link [ref=f5e21] [cursor=pointer]:
+            - /url: /vet/html/chatbot-management.html
+            - img "Chatbot Management" [ref=f5e22]
+            - generic: Chatbot Management
+          - link [ref=f5e23] [cursor=pointer]:
+            - /url: /vet/html/mass-vaccination.html
+            - img "Mass Vaccination" [ref=f5e24]
+            - generic: Mass Vaccination
+          - link [ref=f5e25] [cursor=pointer]:
+            - /url: /vet/html/support-tickets.html
+            - img "Support Tickets" [ref=f5e26]
+            - generic: Support Tickets
+        - generic [ref=f5e27]:
+          - article "Kizea igaya profile" [ref=f5e28] [cursor=pointer]:
+            - img "Kizea igaya" [ref=f5e29]
+          - button [ref=f5e30] [cursor=pointer]:
+            - img "Log Out" [ref=f5e31]
+            - generic: Log Out
+    - main [ref=f5e32]:
+      - generic [ref=f5e33]:
+        - generic [ref=f5e34]:
+          - heading "Lost And Found Management" [level=1] [ref=f5e35]
+          - paragraph [ref=f5e36]: Review reports, validate claims, and resolve pet match workflows.
+        - button "Upload Found Pet" [ref=f5e37] [cursor=pointer]
+      - generic [ref=f5e56]:
+        - article [ref=f5e57]:
+          - heading "Pending Review" [level=5] [ref=f5e58]
+          - strong [ref=f5e59]: "0"
+          - text: Submissions
+        - article [ref=f5e60]:
+          - heading "Active Reports" [level=5] [ref=f5e61]
+          - strong [ref=f5e62]: "6"
+          - text: Publicly visible
+        - article [ref=f5e63]:
+          - heading "Clinic Uploaded" [level=5] [ref=f5e64]
+          - strong [ref=f5e65]: "0"
+          - text: From clinic staff
+        - article [ref=f5e66]:
+          - heading "Suggested Matches" [level=5] [ref=f5e67]
+          - strong [ref=f5e68]: "17"
+          - text: Candidates
+        - article [ref=f5e69]:
+          - heading "Resolved" [level=5] [ref=f5e70]
+          - strong [ref=f5e71]: "26"
+          - text: Closed reports
+      - generic [ref=f5e41]:
+        - button "Pending Review" [ref=f5e72] [cursor=pointer]
+        - button "Active Reports" [ref=f5e73] [cursor=pointer]
+        - button "Potential MatchesNEW" [ref=f5e74] [cursor=pointer]
+        - button "Resolved Cases" [ref=f5e75] [cursor=pointer]
+        - button "Claims" [ref=f5e76] [cursor=pointer]
+        - button "Sighting" [ref=f5e77] [cursor=pointer]
+      - generic [ref=f5e48]:
+        - textbox "Search lost and found reports" [ref=f5e50]:
+          - /placeholder: Search breed, name, or location...
+        - combobox "Select report type" [ref=f5e51] [cursor=pointer]:
+          - option "All Types" [selected]
+          - option "Lost"
+          - option "Found"
+        - combobox "Select source" [ref=f5e52] [cursor=pointer]:
+          - option "All Sources" [selected]
+          - option "Owner"
+          - option "Admin/Clinic"
+        - combobox "Select barangay" [ref=f5e53] [cursor=pointer]:
+          - option "Select Barangay" [selected]
+          - option "Bagong Nayon"
+          - option "Barangca"
+          - option "Calantipay"
+          - option "Catulinan"
+          - option "Concepcion"
+          - option "Hinukay"
+          - option "Makinabang"
+          - option "Matangtubig"
+          - option "Pagala"
+          - option "Paitan"
+          - option "Piel"
+          - option "Pinagbarilan"
+          - option "Poblacion"
+          - option "Sabang"
+          - option "San Jose"
+          - option "San Roque"
+          - option "Sta. Barbara"
+          - option "Sto. Cristo"
+          - option "Sto. Niño"
+          - option "Subic"
+          - option "Sulivan"
+          - option "Tangos"
+          - option "Tarcan"
+          - option "Tiaong"
+          - option "Tibag"
+          - option "Tilapayong"
+          - option "Virgen Delas Flores"
+      - article [ref=f5e78]:
+        - generic [ref=f5e79]:
+          - img "asdasdasdadad" [ref=f5e80]
+          - generic [ref=f5e81]: SIGHTING
+        - generic [ref=f5e82]:
+          - heading "asdasdasdadad" [level=3] [ref=f5e83]
+          - paragraph [ref=f5e84]: "Uploaded: 2026-07-12 09:54:39"
+          - paragraph [ref=f5e85]: Catulinan, Baliwag, Bulacan
+          - generic [ref=f5e86]:
+            - button "Approve" [ref=f5e87] [cursor=pointer]
+            - button "Reject" [ref=f5e88] [cursor=pointer]
+            - button "View" [active] [ref=f5e89] [cursor=pointer]
+        - generic [ref=f5e90]: Catulinan
+  - dialog [ref=f5e93]:
+    - button "Close modal" [ref=f5e94] [cursor=pointer]: ×
+    - generic [ref=f5e96]:
+      - complementary [ref=f5e97]:
+        - img "asdasdasdadad" [ref=f5e98]
+      - generic [ref=f5e99]:
+        - generic [ref=f5e100]:
+          - heading "Sighting Report" [level=2] [ref=f5e101]
+          - paragraph [ref=f5e102]: "Case ID: SGT-20260712-9DC727"
+        - generic [ref=f5e103]: 01. Sighting Details
+        - generic [ref=f5e104]:
+          - generic [ref=f5e105]:
+            - generic [ref=f5e106]: Notes
+            - paragraph [ref=f5e107]: asdasdasdadad
+          - generic [ref=f5e108]:
+            - generic [ref=f5e109]: Barangay
+            - paragraph [ref=f5e110]: Catulinan, Baliwag, Bulacan
+          - generic [ref=f5e111]:
+            - generic [ref=f5e112]: Date Sighted
+            - paragraph [ref=f5e113]: 2026-07-11
+          - generic [ref=f5e114]:
+            - generic [ref=f5e115]: Time Sighted
+            - paragraph
+          - generic [ref=f5e116]:
+            - generic [ref=f5e117]: Submitted
+            - paragraph [ref=f5e118]: 2026-07-12 09:54:39
+        - generic [ref=f5e119]: 02. Comparison to Lost Report (Staff Only)
+        - generic [ref=f5e120]: No automatic comparison available yet — this sighting hasn't been matched to a lost report.
+        - generic [ref=f5e121]: 03. Last Seen Location
+        - generic [ref=f5e122]:
+          - generic:
+            - generic:
+              - button "Marker" [ref=f5e123] [cursor=pointer]
+              - button "Marker" [ref=f5e124] [cursor=pointer]
+            - generic:
+              - tooltip "Last Seen Location"
+          - generic:
+            - generic [ref=f5e125]:
+              - button "Zoom in" [ref=f5e126] [cursor=pointer]: +
+              - button "Zoom out" [ref=f5e127] [cursor=pointer]: −
+            - generic [ref=f5e128]:
+              - link "Leaflet" [ref=f5e129] [cursor=pointer]:
+                - /url: https://leafletjs.com
+              - text: "| © OpenStreetMap contributors"
+        - generic [ref=f5e134]: 04. Reporter Information
+        - generic [ref=f5e135]:
+          - generic [ref=f5e136]: MI
+          - generic [ref=f5e137]:
+            - strong [ref=f5e138]: Mark ivan Jalova. villaster
+            - text: "09999224422"
+        - generic [ref=f5e139]:
+          - button "Close" [ref=f5e140] [cursor=pointer]
+          - generic [ref=f5e141]:
+            - button "Reject" [ref=f5e142] [cursor=pointer]
+            - button "Approve" [ref=f5e143] [cursor=pointer]
