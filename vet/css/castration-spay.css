@@ -96,6 +96,12 @@
 	border: 1px solid #8c96ac;
 }
 
+#panel-castration-spay #notify-program-btn {
+	background: #002A58;
+	color: #fff;
+	border: 1px solid #002A58;
+}
+
 #panel-castration-spay .btn-danger,
 #program-modal .btn-danger {
 	background: #fef2f2;
