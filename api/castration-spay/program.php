@@ -598,7 +598,7 @@ function notifyProgram($pdo, $data)
         if (!userWantsNotification($pdo, (int) $reg['owner_id'], 'appointment_reminders')) continue;
 
         $dateLabel = $program['program_date'] ? date('F j, Y', strtotime($program['program_date'])) : 'To be announced';
-        $subject = 'VBetter – Castration & Spay Program Scheduled';
+        $subject = 'BVetter – Castration & Spay Program Scheduled';
         $body = notificationEmailWrapper(
             'Castration & Spay Program Scheduled',
             "<p>Hi {$reg['owner_name']}, {$reg['pet_name']} has been assigned to the <strong>{$program['title']}</strong>.</p>

@@ -1,6 +1,6 @@
 <?php
 /**
- * VBetter – Server-side session tracking
+ * BVetter – Server-side session tracking
  *
  * Every login writes a row here (IP, best-effort geolocated city/country,
  * a parsed device/browser label). This is what powers the "Manage Security"

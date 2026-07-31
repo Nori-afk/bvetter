@@ -1,6 +1,6 @@
 <?php
 /**
- * VBetter dashboard.php — v3 (Disease-Specific Forecasting)
+ * BVetter dashboard.php — v3 (Disease-Specific Forecasting)
  * ─────────────────────────────────────────────────────────
  * Changes from v2:
  *   • disease_analytics_data() routes disease-specific requests to the

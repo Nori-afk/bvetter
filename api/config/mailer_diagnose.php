@@ -56,12 +56,12 @@ if ($brevoKey === '') {
 echo "=== Making one real Brevo API call to {$toEmail} ===\n";
 
 $fromEmail = getenv('BREVO_FROM_EMAIL') ?: getenv('SMTP_FROM') ?: '';
-$fromName = getenv('BREVO_FROM_NAME') ?: 'VBetter';
+$fromName = getenv('BREVO_FROM_NAME') ?: 'BVetter';
 
 $payload = [
     'sender' => ['name' => $fromName, 'email' => $fromEmail],
     'to' => [['email' => $toEmail]],
-    'subject' => 'VBetter mailer diagnostic',
+    'subject' => 'BVetter mailer diagnostic',
     'htmlContent' => '<p>If you got this, the app-level Brevo path works.</p>',
 ];
 

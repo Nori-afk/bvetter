@@ -1,5 +1,5 @@
 ﻿/**
- * VBetter – Shared Sidebar Controller  (shared/js/sidebar.js)
+ * BVetter – Shared Sidebar Controller  (shared/js/sidebar.js)
  * ─────────────────────────────────────────────────────────────
  * FIXES:
  *  1. All nav routes are ABSOLUTE so they work from /vet/html/

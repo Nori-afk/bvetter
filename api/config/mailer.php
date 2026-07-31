@@ -8,7 +8,7 @@ require_once __DIR__ . '/../phpMailer/PHPMailer-master/src/PHPMailer.php';
 require_once __DIR__ . '/../phpMailer/PHPMailer-master/src/SMTP.php';
 
 if (!defined('APP_URL')) {
-    define('APP_URL', getenv('APP_BASE_URL') ?: 'http://localhost');
+    define('APP_URL', getenv('APP_BASE_URL') ?: 'http://68.183.182.176');
 }
 
 define('EMAIL_LOGO_URL', rtrim(APP_URL, '/') . '/public/images/logos/logo-color.png');
@@ -53,7 +53,7 @@ function sendViaBrevo(string $apiKey, string $toEmail, string $toName, string $s
 {
     $payload = [
         'sender' => [
-            'name' => getenv('BREVO_FROM_NAME') ?: 'VBetter',
+            'name' => getenv('BREVO_FROM_NAME') ?: 'BVetter',
             'email' => getenv('BREVO_FROM_EMAIL') ?: getenv('SMTP_FROM') ?: '',
         ],
         'to' => [['email' => $toEmail, 'name' => $toName ?: $toEmail]],
@@ -79,7 +79,7 @@ function sendViaBrevo(string $apiKey, string $toEmail, string $toName, string $s
     curl_close($ch);
 
     if ($curlError !== '' || $statusCode < 200 || $statusCode >= 300) {
-        error_log('[VBetter Mailer] Brevo send failed (' . $statusCode . '): ' . ($curlError ?: $response));
+        error_log('[BVetter Mailer] Brevo send failed (' . $statusCode . '): ' . ($curlError ?: $response));
         return false;
     }
     return true;
@@ -98,7 +98,7 @@ function sendViaSmtp(string $toEmail, string $toName, string $subject, string $h
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = (int) (getenv('SMTP_PORT') ?: 587);
 
-        $mail->setFrom(getenv('SMTP_FROM') ?: $mail->Username, 'VBetter');
+        $mail->setFrom(getenv('SMTP_FROM') ?: $mail->Username, 'BVetter');
         $mail->addAddress($toEmail, $toName);
         $mail->isHTML(true);
         $mail->Subject = $subject;
@@ -107,7 +107,7 @@ function sendViaSmtp(string $toEmail, string $toName, string $subject, string $h
         $mail->send();
         return true;
     } catch (MailException $e) {
-        error_log('[VBetter Mailer] SMTP send failed: ' . $e->getMessage());
+        error_log('[BVetter Mailer] SMTP send failed: ' . $e->getMessage());
         return false;
     }
 }
@@ -186,6 +186,8 @@ function notificationEmailWrapper(string $heading, string $bodyHtml, ?string $ph
         </div>
     " : '';
 
+    $year = date('Y');
+
     return "
         <div style='font-family:sans-serif;max-width:480px;margin:auto;padding:32px;
                     border:1px solid #eee;border-radius:12px;text-align:center;'>
@@ -194,6 +196,11 @@ function notificationEmailWrapper(string $heading, string $bodyHtml, ?string $ph
             <div style='color:#555;text-align:center;'>{$bodyHtml}</div>
             {$photoHtml}
             {$buttonHtml}
+            <hr style='border:none;border-top:1px solid #eee;margin:28px 0 16px;'>
+            <p style='color:#999;font-size:11.5px;line-height:1.6;margin:0;'>
+                This is an automated message from BVETTER. If you didn't expect this email, you can safely ignore it.<br>
+                &copy; {$year} BVETTER &mdash; Baliwag City Veterinary Office
+            </p>
         </div>
     ";
 }

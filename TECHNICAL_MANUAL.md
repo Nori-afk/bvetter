@@ -1,14 +1,14 @@
-# VBetter (BVETTER) Technical Manual
+# BVetter (BVETTER) Technical Manual
 
 Audience: developers, system administrators, and IT personnel maintaining or extending the
-VBetter veterinary services platform for Baliuag City. This manual documents architecture,
+BVetter veterinary services platform for Baliuag City. This manual documents architecture,
 setup, configuration, module internals, API surface, and operational procedures.
 
 ---
 
 ## 1. System Overview
 
-VBetter is a web-based veterinary management system composed of three portals (Public/pet
+BVetter is a web-based veterinary management system composed of three portals (Public/pet
 owner, Veterinarian, Administrator) backed by a PHP REST-style API, a MySQL database, and a
 standalone Python analytics microservice for forecasting.
 

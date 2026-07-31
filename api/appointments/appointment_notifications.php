@@ -51,7 +51,7 @@ function notifyOwnerAppointmentRequested($pdo, $appointmentId)
     $ownerId = (int) $row['owner_id'];
     if (!userWantsNotification($pdo, $ownerId, 'appointment_reminders')) return;
 
-    $subject = 'VBetter – We received your appointment request';
+    $subject = 'BVetter – We received your appointment request';
     $body = notificationEmailWrapper(
         'Appointment Request Received',
         "<p>We've received your request for <strong>{$row['preferred_date']}</strong> at

@@ -1,6 +1,6 @@
 <?php
 /**
- * VBetter – Email Verification for admin-created vet/admin accounts
+ * BVetter – Email Verification for admin-created vet/admin accounts
  *
  * A user created from Account Management (role veterinarian or admin)
  * cannot log in until they click the link emailed here. See:
@@ -69,7 +69,7 @@ function sendEmailVerificationLink(PDO $pdo, int $userId, string $email, string 
     $body = notificationEmailWrapper(
         'Verify Your Email',
         "<p>Hi <strong>{$name}</strong>,</p>
-         <p>An account has been created for you on VBetter. Please verify your email address
+         <p>An account has been created for you on BVetter. Please verify your email address
             to activate your account &mdash; you won't be able to log in until you do.</p>
          <p style='color:#999;font-size:12px;'>This link expires in 24 hours. If you did not
             expect this account, you can safely ignore this email.</p>",
@@ -77,5 +77,5 @@ function sendEmailVerificationLink(PDO $pdo, int $userId, string $email, string 
         ['label' => 'Verify Email', 'url' => $verifyUrl]
     );
 
-    return sendAppMail($email, $fullName, 'VBetter – Verify Your Email Address', $body);
+    return sendAppMail($email, $fullName, 'BVetter – Verify Your Email Address', $body);
 }

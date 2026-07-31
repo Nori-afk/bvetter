@@ -1,6 +1,6 @@
 <?php
 /**
- * VBetter – Email Verification Link Consumer
+ * BVetter – Email Verification Link Consumer
  * GET /api/auth/verify-email.php?token=...
  * Redirects to public/pages/email-verified.html?status=success|invalid|used|expired
  */

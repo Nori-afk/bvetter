@@ -541,7 +541,7 @@ function notifyOwnerAppointmentConfirmed($pdo, $appointmentId)
     $ownerId = (int) $row['owner_id'];
     if (!userWantsNotification($pdo, $ownerId, 'appointment_reminders')) return;
 
-    $subject = 'VBetter – Your appointment is confirmed';
+    $subject = 'BVetter – Your appointment is confirmed';
     $body = notificationEmailWrapper(
         'Appointment Confirmed',
         "<p>Your appointment on <strong>{$row['preferred_date']}</strong> at
@@ -573,7 +573,7 @@ function notifyOwnerAppointmentRejected($pdo, $appointmentId, $verb)
     $ownerId = (int) $row['owner_id'];
     if (!userWantsNotification($pdo, $ownerId, 'appointment_reminders')) return;
 
-    $subject = 'VBetter – Your appointment was ' . $verb;
+    $subject = 'BVetter – Your appointment was ' . $verb;
     $body = notificationEmailWrapper(
         'Appointment ' . ucfirst($verb),
         "<p>Your appointment on <strong>{$row['preferred_date']}</strong> at

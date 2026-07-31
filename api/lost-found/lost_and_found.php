@@ -896,7 +896,7 @@ function notifyReportOwnerStatus($pdo, $ownerId, $reportId, $status)
     $petLabel = $report['pet_name'] ? " for <strong>" . htmlspecialchars($report['pet_name']) . "</strong>" : '';
 
     if ($status === 'active') {
-        $subject = 'VBetter – Your ' . $label . ' report is now live';
+        $subject = 'BVetter – Your ' . $label . ' report is now live';
         $photoUrl = !empty($report['photo_path']) ? emailAssetUrl($report['photo_path']) : null;
         $body = notificationEmailWrapper(
             'Report Published',
@@ -905,7 +905,7 @@ function notifyReportOwnerStatus($pdo, $ownerId, $reportId, $status)
             ['label' => 'View', 'url' => APP_URL . '/public/pages/lost-found.html?tab=myreports']
         );
     } else {
-        $subject = 'VBetter – Your ' . $label . ' report was rejected';
+        $subject = 'BVetter – Your ' . $label . ' report was rejected';
         $body = notificationEmailWrapper(
             'Report Rejected',
             "<p>Your {$label} report{$petLabel} (case #{$report['case_number']}) has been <strong>rejected</strong>.</p>",
@@ -1342,7 +1342,7 @@ function updateSightingStatus($pdo, $data, $status)
         $submitterEmail = nullableClean($sightingInfo['contact_email'] ?? '');
         if ($submitterEmail && userWantsNotification($pdo, $submitterId, 'lost_found_alerts')) {
             $verb = $status === 'active' ? 'approved' : 'rejected';
-            $subject = 'VBetter – Your sighting report has been ' . $verb;
+            $subject = 'BVetter – Your sighting report has been ' . $verb;
             $body = notificationEmailWrapper(
                 'Sighting Update',
                 "<p>Your sighting report (case #{$sightingInfo['case_number']}) has been <strong>{$verb}</strong>.</p>",
@@ -1521,7 +1521,7 @@ function updateClaimStatus($pdo, $data, $status)
         $claimantEmail = nullableClean($claimInfo['claimant_email'] ?? '');
         if ($claimantEmail && userWantsNotification($pdo, $claimantId, 'lost_found_alerts')) {
             $verb = $status === 'approved' ? 'approved' : 'rejected';
-            $subject = 'VBetter – Your claim has been ' . $verb;
+            $subject = 'BVetter – Your claim has been ' . $verb;
             $petLabel = $claimInfo['pet_name'] ? " for <strong>" . htmlspecialchars($claimInfo['pet_name']) . "</strong>" : '';
             $body = notificationEmailWrapper(
                 'Claim Update',

@@ -1,5 +1,5 @@
 """
-VBetter Model Evaluation — Figures & Explanations
+BVetter Model Evaluation — Figures & Explanations
 ==================================================
 Evaluates both models used in the analytics pipeline:
   1. Random Forest (Risk Classifier + Case Regressor)
@@ -956,7 +956,7 @@ high_rec  = recall_score(y_cls_test, y_cls_pred, average=None, zero_division=0)[
 fig = plt.figure(figsize=(14, 8), facecolor="#F9FAFB")
 gs  = gridspec.GridSpec(2, 3, figure=fig, hspace=0.5, wspace=0.4)
 
-fig.suptitle("VBetter Analytics — Model Evaluation Summary",
+fig.suptitle("BVetter Analytics — Model Evaluation Summary",
              fontsize=16, fontweight="bold", y=1.01)
 
 # ── KPI tiles ──
@@ -992,7 +992,7 @@ for idx, (title, value, color, note) in enumerate(kpi_data):
 
 fig.text(0.5, -0.04, (
     "Summary: The Random Forest risk classifier and ARIMA case forecaster work "
-    "together in the VBetter pipeline. RF classifies each barangay's risk level using "
+    "together in the BVetter pipeline. RF classifies each barangay's risk level using "
     "lag features and rolling statistics; ARIMA extrapolates the time series trend "
     "for up to 12 months ahead, after an Augmented Dickey-Fuller (ADF) test confirms "
     "whether each series is stationary and needs differencing first. High-Risk Recall "
@@ -1012,7 +1012,7 @@ _section("Evaluation Complete")
 
 print(f"""
 ╔══════════════════════════════════════════════════════════════╗
-║           VBETTER — MODEL EVALUATION RESULTS                ║
+║           BVETTER — MODEL EVALUATION RESULTS                ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  RANDOM FOREST RISK CLASSIFIER                              ║
 ║    Accuracy (weighted)   : {acc_val:.4f}                         ║

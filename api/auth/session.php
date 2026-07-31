@@ -1,6 +1,6 @@
 <?php
 /**
- * VBetter – Session check / list / end (Manage Security page)
+ * BVetter – Session check / list / end (Manage Security page)
  *
  * Actions (all require an "Authorization: Bearer <token>" header):
  *   check         – is my current session still valid? (polled by shared/js/auth.js)

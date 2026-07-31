@@ -543,21 +543,22 @@ function report_metrics($pdo, $filteredRows, $category)
             ? round((($thisCount - $lastCount) / $lastCount) * 100)
             : null;
 
-        $petTypeCounts = bv_count_by($thisMonth, 'petType');
+        $diseaseField = $category === 'consultation_summary' ? 'diagnosis' : 'disease';
+        $diseaseCounts = bv_count_by($thisMonth, $diseaseField);
         $barangayCounts = bv_count_by($thisMonth, 'barangay');
 
-        arsort($petTypeCounts);
+        arsort($diseaseCounts);
         arsort($barangayCounts);
 
-        $topPetType = array_key_first($petTypeCounts) ?: 'N/A';
+        $topDisease    = array_key_first($diseaseCounts) ?: 'N/A';
         $topBarangay   = array_key_first($barangayCounts) ?: 'N/A';
         $barangayCount = $barangayCounts[$topBarangay] ?? 0;
-        $totalRows     = count($allRows);
+        $totalDiagnosed = array_sum($diseaseCounts);
 
-        $petKeys = array_keys($petTypeCounts);
-        $secondPetType = $petKeys[1] ?? null;
-        $petCount = $petTypeCounts[$topPetType] ?? 0;
-        $petShare  = $totalRows > 0 ? round(($petCount / $totalRows) * 100) : 0;
+        $diseaseKeys   = array_keys($diseaseCounts);
+        $secondDisease = $diseaseKeys[1] ?? null;
+        $diseaseCount  = $diseaseCounts[$topDisease] ?? 0;
+        $diseaseShare  = $totalDiagnosed > 0 ? round(($diseaseCount / $totalDiagnosed) * 100) : 0;
 
         return [
             'left' => [
@@ -568,12 +569,12 @@ function report_metrics($pdo, $filteredRows, $category)
                 'trend'  => $diff === null ? 'neutral' : ($diff >= 0 ? 'up' : 'down'),
             ],
             'center' => [
-                    'value'  => $topPetType,
-                    'subset' => $secondPetType
-                        ? "{$petShare}% of patients · 2nd: {$secondPetType}"
-                        : "{$petShare}% of patients in {$now}",
-                    'trend'  => 'neutral',
-],
+                'value'  => $topDisease,
+                'subset' => $secondDisease
+                    ? "{$diseaseShare}% of diagnosed cases · 2nd: {$secondDisease}"
+                    : ($topDisease !== 'N/A' ? "{$diseaseShare}% of diagnosed cases in {$now}" : "No diagnosis data for {$now}"),
+                'trend'  => 'neutral',
+            ],
             'right' => [
                 'value'  => $topBarangay,
                 'subset' => $barangayCount > 0
@@ -1168,7 +1169,7 @@ body { font-family:Arial,sans-serif; font-size:9pt; color:#1a1a2e; }
     $fileSlug = trim($fileSlug, '-') ?: 'vet';
     $fileName = 'vbetter-' . $category . '-report-' . $fileSlug . '-' . date('Y-m-d') . '.pdf';
 
-    $mpdf->SetTitle('VBetter ' . $categoryLabel);
+    $mpdf->SetTitle('BVetter ' . $categoryLabel);
     $mpdf->WriteHTML($html);
     $mpdf->Output($fileName, 'D');
     exit;
@@ -1183,7 +1184,7 @@ sort_rows($rows, $input['sort'] ?? 'asc');
 
 $columns = report_columns($category);
 if ($format === 'csv') csv_export($columns, $rows, 'vbetter-' . $category . '-report.csv');
-if ($format === 'pdf') pdf_export($columns, $rows, $category, 'VBetter ' . ucwords(str_replace('_', ' ', $category)) . ' Report', $input);
+if ($format === 'pdf') pdf_export($columns, $rows, $category, 'BVetter ' . ucwords(str_replace('_', ' ', $category)) . ' Report', $input);
 
 $page = max(1, (int) ($input['page'] ?? 1));
 $pageSize = max(1, min(100, (int) ($input['page_size'] ?? $input['pageSize'] ?? 10)));

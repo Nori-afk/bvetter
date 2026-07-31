@@ -1,5 +1,5 @@
 /**
- * VBetter – Admin Dashboard JS
+ * BVetter – Admin Dashboard JS
  * Backed by api.getAdminDashboard() (api/dashboard/dashboard.php?scope=admin)
  * and api.allUsers() / api.accountRoles() / api.createAccountUser() /
  * api.approveUser() / api.rejectUser() (api/admin/account-management.php).

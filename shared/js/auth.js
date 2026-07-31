@@ -1,5 +1,5 @@
 ﻿/**
- * VBetter – auth.js  (shared/js/auth.js)
+ * BVetter – auth.js  (shared/js/auth.js)
  * ─────────────────────────────────────────────────────────────
  * Single source of truth for authentication + role routing.
  *

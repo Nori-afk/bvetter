@@ -224,6 +224,6 @@ try {
             break;
     }
 } catch (Throwable $e) {
-    error_log('[VBetter Tickets] ' . $e->getMessage());
+    error_log('[BVetter Tickets] ' . $e->getMessage());
     respond(500, ['success' => false, 'message' => 'Server error while processing tickets.']);
 }

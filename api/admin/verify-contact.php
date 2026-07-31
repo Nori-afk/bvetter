@@ -1,6 +1,6 @@
 ﻿<?php
 /**
- * VBetter – Contact Verification & Forgot Password
+ * BVetter – Contact Verification & Forgot Password
  *
  * Actions:
  *   send_email_otp     – generate & email a 6-digit OTP
@@ -11,7 +11,7 @@
  */
 
 header('Content-Type: application/json');
-define('APP_URL', getenv('APP_BASE_URL') ?: 'http://localhost');
+define('APP_URL', getenv('APP_BASE_URL') ?: 'http://68.183.182.176');
 header('Content-Type: application/json');
 ini_set('display_errors', 0);  // ADD THIS
 error_reporting(E_ALL);   
@@ -118,7 +118,7 @@ function sendEmailOtp(PDO $pdo): never
         </div>
     ";
 
-    if (!sendAppMail($email, $email, 'VBetter – Your Email Verification Code', $body)) {
+    if (!sendAppMail($email, $email, 'BVetter – Your Email Verification Code', $body)) {
         respond(500, ['success' => false, 'message' => 'Failed to send verification email. Please try again.']);
     }
 
@@ -170,12 +170,12 @@ function sendPhoneOtp(PDO $pdo): never
 
     // ── Semaphore SMS ────────────────────────────────────────
     $apiKey     = getenv('SEMAPHORE_API_KEY') ?: '';
-    $senderName = getenv('SEMAPHORE_SENDER_NAME') ?: 'VBETTER';
+    $senderName = getenv('SEMAPHORE_SENDER_NAME') ?: 'BVETTER';
 
     $payload = http_build_query([
         'apikey'      => $apiKey,
         'number'      => $normalised,
-        'message'     => "Your VBetter verification code is: {$otp}. Valid for 10 minutes. Do not share this with anyone.",
+        'message'     => "Your BVetter verification code is: {$otp}. Valid for 10 minutes. Do not share this with anyone.",
         'sendername'  => $senderName,
     ]);
 
@@ -193,7 +193,7 @@ function sendPhoneOtp(PDO $pdo): never
     curl_close($ch);
 
     if ($curlErr) {
-        error_log("[VBetter SMS] cURL error: {$curlErr}");
+        error_log("[BVetter SMS] cURL error: {$curlErr}");
         respond(500, ['success' => false, 'message' => 'Failed to send SMS. Please try again.']);
     }
 
@@ -201,11 +201,11 @@ function sendPhoneOtp(PDO $pdo): never
 
     // Semaphore returns an array of message objects on success
     if (empty($result) || isset($result['status']) && $result['status'] === 'error') {
-        error_log("[VBetter SMS] Semaphore error: {$response}");
+        error_log("[BVetter SMS] Semaphore error: {$response}");
         respond(500, ['success' => false, 'message' => 'Failed to send SMS. Please try again.']);
     }
 
-    error_log("[VBetter SMS] Sent to {$normalised}");
+    error_log("[BVetter SMS] Sent to {$normalised}");
 
     respond(200, [
         'success' => true,
@@ -313,7 +313,7 @@ function forgotPassword(PDO $pdo): never
     // Build reset URL – adjust base URL to match your deployment
 $resetUrl = APP_URL . '/public/pages/reset-password.html?token='
           . urlencode($token);
-    $subject = 'VBetter – Password Reset Request';
+    $subject = 'BVetter – Password Reset Request';
     $name    = htmlspecialchars($user['full_name'], ENT_QUOTES);
     $logoUrl = APP_URL . '/public/images/logos/logo-color.png';
     $body    = "
@@ -321,7 +321,7 @@ $resetUrl = APP_URL . '/public/pages/reset-password.html?token='
             <img src='{$logoUrl}' alt='Baliwag City Vet' style='height:56px;margin-bottom:20px;'>
             <h2 style='color:#00B928;margin-bottom:8px;'>Password Reset</h2>
             <p>Hi <strong>{$name}</strong>,</p>
-            <p style='color:#555;'>We received a request to reset your VBetter password.
+            <p style='color:#555;'>We received a request to reset your BVetter password.
                Click the button below — the link expires in <strong>1 hour</strong>.</p>
             <div style='text-align:center;margin:32px 0;'>
                 <a href='{$resetUrl}'
@@ -339,9 +339,9 @@ $resetUrl = APP_URL . '/public/pages/reset-password.html?token='
     $mailSent = sendAppMail($email, $user['full_name'], $subject, $body);
 
     if ($mailSent) {
-        error_log("[VBetter Reset] email sent to {$email}");
+        error_log("[BVetter Reset] email sent to {$email}");
     } else {
-        error_log("[VBetter Reset] Mailer error: sendAppMail() returned false");
+        error_log("[BVetter Reset] Mailer error: sendAppMail() returned false");
     }
 
     $response = [

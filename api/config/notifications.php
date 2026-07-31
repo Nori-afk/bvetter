@@ -2,7 +2,7 @@
 
 require_once __DIR__ . '/mailer.php';
 
-define('STAFF_ALERT_NAME', 'VBetter Staff');
+define('STAFF_ALERT_NAME', 'BVetter Staff');
 
 /**
  * Every active admin account's name + email — the actual inboxes that
@@ -48,7 +48,7 @@ function notifyStaff(
     ]);
 
     if ($emailImportant) {
-        $subject = 'VBetter Alert – ' . $title;
+        $subject = 'BVetter Alert – ' . $title;
         $body = notificationEmailWrapper($title, '<p>' . htmlspecialchars($message, ENT_QUOTES) . '</p>');
         foreach (staffAlertRecipients($pdo) as $admin) {
             sendAppMail($admin['email'], $admin['full_name'] ?: STAFF_ALERT_NAME, $subject, $body);

@@ -1,5 +1,5 @@
 ﻿/**
- * VBetter – Vet API Layer
+ * BVetter – Vet API Layer
  * /vet/js/vet-api.js
  * ─────────────────────────────────────────────────────────────
  * Centralises every fetch() call used by the vet-side pages.

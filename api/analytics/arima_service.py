@@ -1,5 +1,5 @@
 """
-VBetter Analytics Backend — v3.1 (Speed + Scaling fixes applied to v3)
+BVetter Analytics Backend — v3.1 (Speed + Scaling fixes applied to v3)
 =======================================================================
 Changes from v3:
   SPEED-1  : CACHE_TTL 300 → 600 s
@@ -1640,7 +1640,7 @@ def disease_list():
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({
-        "status": "ok", "service": "VBetter Analytics v3.1",
+        "status": "ok", "service": "BVetter Analytics v3.1",
         "fixes": ["CACHE_TTL 300→600", "SARIMA grid 81→16 combos",
                   "Bootstrap CI 1000→200", "RF warm-start at boot",
                   "Annual predicted = sum(12-month ARIMA forecast)"],

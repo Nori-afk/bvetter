@@ -1,5 +1,5 @@
 /**
- * VBetter – Account Management JS
+ * BVetter – Account Management JS
  * Backed by api.allUsers() / api.accountRoles() / api.createAccountUser()
  * / api.approveUser() / api.rejectUser() / api.deleteUser() / api.updateUserStatus()
  * (all hitting api/admin/account-management.php).

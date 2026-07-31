@@ -1,10 +1,10 @@
 /* ============================================================
-   VBetter – Castration & Spay Program panel
+   BVetter – Castration & Spay Program panel
    /bvetter/vet/css/castration-spay.css
    Scoped under #panel-castration-spay (in-page panel content)
    and #program-modal (create/manage program modal) so this file
    can be loaded alongside appointment.css without colliding with
-   its generic .btn/.card/.modal*/.field* selectors.
+   its generic .btn / .card / .modal / .field selectors.
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -83,6 +83,10 @@
 #program-modal .btn-success {
 	background: var(--csp-green);
 	color: #fff;
+}
+
+#panel-castration-spay #assign-selected-btn {
+	background: #2563EB;
 }
 
 #panel-castration-spay .btn-outline,

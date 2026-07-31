@@ -579,8 +579,8 @@
             </header>
             <div class="dash-modal-content">
                 <section class="dash-help-section">
-                    <h3>About VBetter</h3>
-                    <p>VBetter is a veterinary operations dashboard for appointments, records, vaccination planning, chatbot insights, and lost & found management.</p>
+                    <h3>About BVetter</h3>
+                    <p>BVetter is a veterinary operations dashboard for appointments, records, vaccination planning, chatbot insights, and lost & found management.</p>
                 </section>
                 <section class="dash-help-section">
                     <h3>Quick Help</h3>

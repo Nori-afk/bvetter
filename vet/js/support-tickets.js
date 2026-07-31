@@ -1,5 +1,5 @@
 /**
- * VBetter – Support Tickets (vet/html/support-tickets.html)
+ * BVetter – Support Tickets (vet/html/support-tickets.html)
  * Shared by both vet and admin (same page, same pattern as Appointment
  * Management): vets submit + see only their own tickets, admins see and
  * manage every ticket.
