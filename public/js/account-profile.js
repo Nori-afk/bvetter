@@ -1,5 +1,5 @@
 /* =============================================
-   BVETTER — Account Profile JS
+   BVetter — Account Profile JS
    File: js/account-profile.js
    Depends: nav.js (nav pill + buildOwnerNotifications), api.js
 

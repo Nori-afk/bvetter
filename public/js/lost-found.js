@@ -1,4 +1,4 @@
-/* BVETTER - Lost & Found public page backed by PHP API. */
+/* BVetter - Lost & Found public page backed by PHP API. */
 'use strict';
 
 let currentReportType = 'lost';
@@ -125,7 +125,7 @@ async function getKPI(){
       successRateDescEl.textContent = 'No active reports or cases yet.';
     } else {
       successRateEl.textContent = `${Math.round((resolvedCount / casesCount) * 100)}%`;
-      successRateDescEl.textContent = 'Pets reunited around Baliwag thanks to the BVETTER community.';
+      successRateDescEl.textContent = 'Pets reunited around Baliwag thanks to the BVetter community.';
     }
   }
   catch(error){

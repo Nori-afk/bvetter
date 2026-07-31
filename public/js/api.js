@@ -1,5 +1,5 @@
 /* =============================================
-   BVETTER — Centralized API Layer
+   BVetter — Centralized API Layer
    File: js/api.js
    Depends: nothing (load before all page JS)
 

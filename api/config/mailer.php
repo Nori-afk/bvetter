@@ -198,8 +198,8 @@ function notificationEmailWrapper(string $heading, string $bodyHtml, ?string $ph
             {$buttonHtml}
             <hr style='border:none;border-top:1px solid #eee;margin:28px 0 16px;'>
             <p style='color:#999;font-size:11.5px;line-height:1.6;margin:0;'>
-                This is an automated message from BVETTER. If you didn't expect this email, you can safely ignore it.<br>
-                &copy; {$year} BVETTER &mdash; Baliwag City Veterinary Office
+                This is an automated message from BVetter. If you didn't expect this email, you can safely ignore it.<br>
+                &copy; {$year} BVetter &mdash; Baliwag City Veterinary Office
             </p>
         </div>
     ";

@@ -1,5 +1,5 @@
 /* =============================================
-   BVETTER — Notification Settings JS
+   BVetter — Notification Settings JS
    File: js/notification-settings.js
    Depends: nav.js, api.js
 

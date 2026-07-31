@@ -1,5 +1,5 @@
 /* =============================================
-   BVETTER - Login Page JS
+   BVetter - Login Page JS
    Depends: ../../shared/js/auth.js and ../js/api.js
    ============================================= */
 

@@ -1,5 +1,5 @@
 /* =============================================
-   BVETTER — Public Nav JS
+   BVetter — Public Nav JS
    File: public/js/nav.js
    Depends: ../../shared/js/auth.js (loaded first)
 

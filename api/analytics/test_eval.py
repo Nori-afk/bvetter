@@ -1012,7 +1012,7 @@ _section("Evaluation Complete")
 
 print(f"""
 ╔══════════════════════════════════════════════════════════════╗
-║           BVETTER — MODEL EVALUATION RESULTS                ║
+║           BVetter — MODEL EVALUATION RESULTS                ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  RANDOM FOREST RISK CLASSIFIER                              ║
 ║    Accuracy (weighted)   : {acc_val:.4f}                         ║

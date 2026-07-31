@@ -1,4 +1,4 @@
-# BVETTER — Data-Driven Veterinary Services System
+# BVetter — Data-Driven Veterinary Services System
 
 A web-based veterinary management system for Baliuag City, Bulacan, with ARIMA-based
 disease trend prediction, AI chatbot, lost & found pet image matching, and multi-role

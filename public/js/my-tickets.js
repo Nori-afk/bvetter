@@ -1,5 +1,5 @@
 /* =============================================
-   BVETTER — My Tickets (public/pages/my-tickets.html)
+   BVetter — My Tickets (public/pages/my-tickets.html)
    Pet owner: submit a bug report + track its status.
    ============================================= */
 'use strict';

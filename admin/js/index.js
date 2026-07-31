@@ -32,7 +32,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const nameEl = document.getElementById('headerUserName');
         const dateEl = document.getElementById('headerDate');
         const avatarEl = document.getElementById('headerAvatar');
-        if (!nameEl && !dateEl && !avatarEl) return;
+        const greetingEl = document.getElementById('greeting-name');
+        if (!nameEl && !dateEl && !avatarEl && !greetingEl) return;
 
         let session = null;
         try {
@@ -57,6 +58,9 @@ document.addEventListener('DOMContentLoaded', function () {
             dateEl.textContent = new Date().toLocaleDateString('en-US', {
                 weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
             });
+        }
+        if (greetingEl) {
+            greetingEl.textContent = `Good Day, ${titleCaseName(name)}!`;
         }
     })();
 
@@ -595,6 +599,19 @@ function pad2(n) {
 
 function capitalize(s) {
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+}
+
+/**
+ * Title-case a full name (e.g. "kizea igaya" -> "Kizea Igaya") so the
+ * greeting reads consistently regardless of how it was typed at signup.
+ */
+function titleCaseName(name) {
+    return String(name || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ') || 'Unknown';
 }
 
 function escapeHtml(str) {

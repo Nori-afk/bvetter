@@ -1,5 +1,5 @@
 /* =============================================
-   BVETTER — Account Settings JS
+   BVetter — Account Settings JS
    File: js/account-settings.js
    Depends: nav.js, api.js
 

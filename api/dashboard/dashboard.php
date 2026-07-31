@@ -707,6 +707,13 @@ function vet_dashboard($pdo, string $patientRange = 'monthly', string $disease =
         }
     }
 
+    // Last 6 months of real vaccination totals (historical dataset merged
+    // with live mass_vaccination_events) — purely historical, no forecast.
+    $vaccinationTrend = array_map(fn($r) => [
+        'label' => $r['month'] !== '' ? substr((string) $r['month'], 0, 3) : date('M', mktime(0, 0, 0, max(1, (int) $r['month_no']), 1)),
+        'value' => (int) $r['total_vaccinated'],
+    ], array_slice(monthly_vaccination_series($pdo), -6));
+
     return [
         'kpis' => [
             'totalAppointments' => $appointmentTotal ?: array_sum(array_map(fn($r) => (int) ($r['clients_served'] ?? 0), $latestRabies)),
@@ -723,8 +730,9 @@ function vet_dashboard($pdo, string $patientRange = 'monthly', string $disease =
             'cats'  => (int) ($latest['cats_vaccinated'] ?? 0),
             'total' => $totalVaccinated,
         ],
-        'vaccineDemand' => $vaccineDemand,
-        'annualSummary' => $annualRows,
+        'vaccineDemand'     => $vaccineDemand,
+        'vaccinationTrend'  => $vaccinationTrend,
+        'annualSummary'     => $annualRows,
     ];
 }
 
@@ -866,10 +874,16 @@ function admin_dashboard($pdo)
     ];
 }
 
-function mass_vaccination_dataset_data($pdo)
+/**
+ * Monthly vaccination totals — historical dataset (Combined_Rabies_3Years)
+ * with any month that has live mass_vaccination_events coverage replaced
+ * by the real DB sum (Excel's monthly totals are a citywide rollup of the
+ * same barangay records now in the DB — verified identical for overlapping
+ * months — so this avoids double-counting both).
+ */
+function monthly_vaccination_series($pdo): array
 {
     $rabiesRows = bv_sheet_rows('Combined_Rabies_3Years');
-    $latestYear = bv_latest_dataset_year();
     $byMonth    = [];
 
     foreach ($rabiesRows as $row) {
@@ -890,49 +904,22 @@ function mass_vaccination_dataset_data($pdo)
         $byMonth[$key]['clients_served']   += (int) ($row['clients_served']   ?? 0);
     }
 
-    $barangayVacc = [];
-    $dbMonthly    = [];
-    try {
-        $rows = $pdo->query("
-            SELECT barangay,
-                   SUM(dogs_count) AS dogs_vaccinated,
-                   SUM(cats_count) AS cats_vaccinated,
-                   SUM(others_count) AS others_vaccinated,
-                   SUM(COALESCE(total_vaccinated, dogs_count + cats_count + others_count)) AS total_vaccinated
-            FROM mass_vaccination_events
-            WHERE status = 'Completed'
-            GROUP BY barangay
-            ORDER BY total_vaccinated DESC
-        ")->fetchAll();
-        foreach ($rows as $row) {
-            $barangayVacc[] = [
-                'barangay'          => $row['barangay'],
-                'dogs_vaccinated'   => (int) $row['dogs_vaccinated'],
-                'cats_vaccinated'   => (int) $row['cats_vaccinated'],
-                'others_vaccinated' => (int) $row['others_vaccinated'],
-                'total_vaccinated'  => (int) $row['total_vaccinated'],
-            ];
-        }
-
-        // Excel's monthly totals are a citywide rollup of the same barangay
-        // records now in the DB (verified: identical totals for overlapping
-        // months). Replace Excel's row with the real DB sum for any month
-        // that has DB coverage, instead of double-counting both.
-        $monthlyRows = $pdo->query("
-            SELECT DATE_FORMAT(event_date, '%Y-%m') AS ym,
-                   SUM(dogs_count) AS dogs_vaccinated,
-                   SUM(cats_count) AS cats_vaccinated,
-                   SUM(COALESCE(total_vaccinated, dogs_count + cats_count + others_count)) AS total_vaccinated
-            FROM mass_vaccination_events
-            WHERE status = 'Completed'
-            GROUP BY ym
-        ")->fetchAll();
-        foreach ($monthlyRows as $row) {
-            $dbMonthly[$row['ym']] = $row;
-        }
-    } catch (Throwable $e) {
-        $barangayVacc = [];
-        $dbMonthly    = [];
+    $dbMonthly = [];
+    if (bv_table_exists($pdo, 'mass_vaccination_events')) {
+        try {
+            $monthlyRows = $pdo->query("
+                SELECT DATE_FORMAT(event_date, '%Y-%m') AS ym,
+                       SUM(dogs_count) AS dogs_vaccinated,
+                       SUM(cats_count) AS cats_vaccinated,
+                       SUM(COALESCE(total_vaccinated, dogs_count + cats_count + others_count)) AS total_vaccinated
+                FROM mass_vaccination_events
+                WHERE status = 'Completed'
+                GROUP BY ym
+            ")->fetchAll();
+            foreach ($monthlyRows as $row) {
+                $dbMonthly[$row['ym']] = $row;
+            }
+        } catch (Throwable $e) { $dbMonthly = []; }
     }
 
     foreach ($dbMonthly as $ym => $sums) {
@@ -950,7 +937,39 @@ function mass_vaccination_dataset_data($pdo)
     }
 
     ksort($byMonth);
-    $byMonth = array_values($byMonth);
+    return array_values($byMonth);
+}
+
+function mass_vaccination_dataset_data($pdo)
+{
+    $latestYear = bv_latest_dataset_year();
+    $byMonth    = monthly_vaccination_series($pdo);
+
+    $barangayVacc = [];
+    if (bv_table_exists($pdo, 'mass_vaccination_events')) {
+        try {
+            $rows = $pdo->query("
+                SELECT barangay,
+                       SUM(dogs_count) AS dogs_vaccinated,
+                       SUM(cats_count) AS cats_vaccinated,
+                       SUM(others_count) AS others_vaccinated,
+                       SUM(COALESCE(total_vaccinated, dogs_count + cats_count + others_count)) AS total_vaccinated
+                FROM mass_vaccination_events
+                WHERE status = 'Completed'
+                GROUP BY barangay
+                ORDER BY total_vaccinated DESC
+            ")->fetchAll();
+            foreach ($rows as $row) {
+                $barangayVacc[] = [
+                    'barangay'          => $row['barangay'],
+                    'dogs_vaccinated'   => (int) $row['dogs_vaccinated'],
+                    'cats_vaccinated'   => (int) $row['cats_vaccinated'],
+                    'others_vaccinated' => (int) $row['others_vaccinated'],
+                    'total_vaccinated'  => (int) $row['total_vaccinated'],
+                ];
+            }
+        } catch (Throwable $e) { $barangayVacc = []; }
+    }
 
     $latestYearRows = array_values(array_filter($byMonth, fn($r) => $r['year'] === $latestYear));
     return [

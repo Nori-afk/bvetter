@@ -1,4 +1,4 @@
-# BVetter (BVETTER) Technical Manual
+# BVetter (BVetter) Technical Manual
 
 Audience: developers, system administrators, and IT personnel maintaining or extending the
 BVetter veterinary services platform for Baliuag City. This manual documents architecture,

@@ -374,6 +374,34 @@
         });
     }
 
+    const vaccinationTrendCtx = document.getElementById('vaccinationTrendChart');
+    if (vaccinationTrendCtx) {
+        const trend = dashboardData?.vaccinationTrend?.length ? dashboardData.vaccinationTrend : [];
+        new Chart(vaccinationTrendCtx, {
+            type: 'bar',
+            data: {
+                labels: trend.map((item) => item.label),
+                datasets: [
+                    {
+                        label: 'Animals Vaccinated',
+                        data: trend.map((item) => item.value),
+                        backgroundColor: '#1B6D24',
+                        borderRadius: 6,
+                        maxBarThickness: 28
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
+            }
+        });
+    }
+
     // ===========================
     // EVENT LISTENERS
     // ===========================
@@ -383,7 +411,8 @@
         const nameEl = document.getElementById('headerUserName');
         const dateEl = document.getElementById('headerDate');
         const avatarEl = document.getElementById('headerAvatar');
-        if (!nameEl && !dateEl && !avatarEl) return;
+        const greetingEl = document.getElementById('greeting-name');
+        if (!nameEl && !dateEl && !avatarEl && !greetingEl) return;
 
         let session = null;
         try {
@@ -408,6 +437,10 @@
             dateEl.textContent = new Date().toLocaleDateString('en-US', {
                 weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
             });
+        }
+        if (greetingEl) {
+            const titleCased = titleCaseName(name);
+            greetingEl.textContent = `Good Day, Dr. ${titleCased}!`;
         }
     })();
 
@@ -771,7 +804,7 @@ function openAnnouncementEditorModal({ mode, item }) {
         showModal(`
             <div class="dash-confirm-box">
                 <div class="dash-confirm-icon">🔒</div>
-                <h3>Are You sure You Want to<br>Post This announcement?</h3>
+                <h3>Are you sure you want to<br>post this announcement?</h3>
                 <p>Upon posting the announcement, pet owner can see it in their landing page.</p>
                 <button type="button" class="dash-primary-btn" id="confirm-announcement-btn">Yes</button>
                 <button type="button" class="dash-text-btn" data-modal-close>No</button>
@@ -1066,6 +1099,19 @@ function formatNumber(num) {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+/**
+ * Title-case a full name (e.g. "kizea igaya" -> "Kizea Igaya") so the
+ * greeting reads consistently regardless of how it was typed at signup.
+ */
+function titleCaseName(name) {
+    return String(name || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ') || 'Unknown';
+}
+
 function safeHtml(value) {
     return String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -1288,14 +1334,12 @@ function applyDashboardKpis(data) {
     const progress = document.querySelector('.vaccination-progress .progress-fill');
     if (progress) progress.style.width = `${Math.min(100, data.kpis.vaccinationRate || 0)}%`;
 
-    // Clinic only administers Anti-Rabies, so only the first forecasted
-    // demand figure is shown, always labeled "Anti-Rabies".
-    const demandCard = document.querySelector('.vaccine-item');
-    const demandEntry = (data.vaccineDemand || [])[0];
-    if (demandCard && demandEntry) {
-        const value = demandCard.querySelector('.vaccine-item-value');
-        if (value) value.textContent = formatNumber(demandEntry.units || 0);
-    }
+    // Greeting banner stats mirror the KPI cards above — same figures,
+    // just surfaced closer to the top of the page.
+    const greetStats = document.querySelectorAll('.greet-stat-val');
+    if (greetStats[0]) greetStats[0].textContent = formatNumber(data.kpis.totalAppointments || 0);
+    if (greetStats[1]) greetStats[1].textContent = formatNumber(data.kpis.pendingActions || 0);
+    if (greetStats[2]) greetStats[2].textContent = `${data.kpis.vaccinationRate || 0}%`;
 }
 
 /**

@@ -1,5 +1,5 @@
 ﻿/* =============================================
-   BVETTER — Create Account JS
+   BVetter — Create Account JS
    File: js/signup.js
 ============================================= */
 

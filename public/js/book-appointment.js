@@ -1,5 +1,5 @@
 /* =============================================
-   BVETTER — Book Appointment Page JS
+   BVetter — Book Appointment Page JS
    File: js/book-appointment.js
    Depends: nav.js, api.js
 

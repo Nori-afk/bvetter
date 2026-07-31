@@ -1,5 +1,5 @@
 /* =============================================
-   BVETTER — Castration & Spay Program (vet/admin)
+   BVetter — Castration & Spay Program (vet/admin)
    File: vet/js/castration-spay.js
    Depends: vet-api.js (window.VetAPI)
    ============================================= */

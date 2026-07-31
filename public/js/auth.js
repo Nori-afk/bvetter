@@ -1,5 +1,5 @@
 ﻿/* =============================================
-   BVETTER — Auth & Role Guard
+   BVetter — Auth & Role Guard
    File: shared/js/auth.js
 
    INCLUDE THIS FIRST on every protected page,

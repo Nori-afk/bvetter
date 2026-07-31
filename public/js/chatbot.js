@@ -1,5 +1,5 @@
 ﻿/* =============================================
-   BVETTER — Chatbot Widget v4.0
+   BVetter — Chatbot Widget v4.0
    No stepper · Doctor + Heart avatar
    Smooth intro on landing page load
    ============================================= */

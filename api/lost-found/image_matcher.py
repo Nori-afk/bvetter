@@ -1,4 +1,4 @@
-"""Image feature helper for BVETTER Lost & Found.
+"""Image feature helper for BVetter Lost & Found.
 
 The PHP endpoint calls this script when Python is available. It intentionally
 returns compact JSON features so PHP can keep owning persistence and matching.

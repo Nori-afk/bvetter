@@ -170,7 +170,7 @@ function sendPhoneOtp(PDO $pdo): never
 
     // ── Semaphore SMS ────────────────────────────────────────
     $apiKey     = getenv('SEMAPHORE_API_KEY') ?: '';
-    $senderName = getenv('SEMAPHORE_SENDER_NAME') ?: 'BVETTER';
+    $senderName = getenv('SEMAPHORE_SENDER_NAME') ?: 'BVetter';
 
     $payload = http_build_query([
         'apikey'      => $apiKey,

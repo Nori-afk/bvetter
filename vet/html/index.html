@@ -84,9 +84,9 @@
                         <button class="icon-btn" id="notification-icon-btn" type="button" aria-label="Open notifications">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                         </button>
-                        <button class="icon-btn" type="button" aria-label="Settings">
+                        <a class="icon-btn" href="/vet/html/profile.html#security" aria-label="Settings">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                        </button>
+                        </a>
                         <button class="icon-btn" id="about-help-btn" type="button" aria-label="About us and help">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         </button>
@@ -110,22 +110,22 @@
                 <div class="Greetings">
                     <div class="greet-left">
                         <div class="vet-badge">Veterinarian</div>
-                        <h1 id="greeting-name">Good Day, Dr. Igaya!</h1>
+                        <h1 id="greeting-name">Good Day!</h1>
                         <p class="greet-sub">Clinic overview — appointments, patient records, and vaccination status.</p>
                     </div>
                     <div class="greet-right">
                         <div class="greet-stat">
-                            <span class="greet-stat-val">1,284</span>
+                            <span class="greet-stat-val">--</span>
                             <span class="greet-stat-lbl">Total Appointments</span>
                         </div>
                         <div class="greet-divider"></div>
                         <div class="greet-stat">
-                            <span class="greet-stat-val">42</span>
+                            <span class="greet-stat-val">--</span>
                             <span class="greet-stat-lbl">Pending</span>
                         </div>
                         <div class="greet-divider"></div>
                         <div class="greet-stat">
-                            <span class="greet-stat-val">94%</span>
+                            <span class="greet-stat-val">--</span>
                             <span class="greet-stat-lbl">Vacc. Rate</span>
                         </div>
                     </div>
@@ -216,16 +216,9 @@
                             </div>
 
                             <div class="vaccine-demand-card">
-                                <p class="card-label">Estimated Anti-Rabies Vaccine Demand (Next 30 Days)</p>
-                                <div class="vaccine-items">
-                                    <div class="vaccine-item">
-                                        <p class="vaccine-item-label">Anti-Rabies</p>
-                                        <h4 class="vaccine-item-value">450</h4>
-                                        <p class="vaccine-item-required">Units Required</p>
-                                    </div>
-                                </div>
-                                <div class="alert-box">
-                                    <p><strong>Inventory Alert:</strong> Anti-Rabies stock is 12% below projected demand. Reorder suggested.</p>
+                                <p class="card-label">Monthly Vaccination Trend (Last 6 Months)</p>
+                                <div class="chart-container vaccine-chart-container">
+                                    <canvas id="vaccinationTrendChart"></canvas>
                                 </div>
                             </div>
                         </div>

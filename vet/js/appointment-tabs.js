@@ -1,5 +1,5 @@
 /* =============================================
-   BVETTER — Appointment page panel tabs
+   BVetter — Appointment page panel tabs
    File: vet/js/appointment-tabs.js
    Switches between the Appointments panel and the
    Castration & Spay panel inside appointment.html.
