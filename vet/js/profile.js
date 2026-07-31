@@ -47,6 +47,7 @@
 			profileForm.elements.phone.value = profile.phone || "";
 			profileForm.elements.education.value = profile.education || "";
 			profileForm.elements.specialization.value = profile.specialization || "";
+			profileForm.elements.bio.value = profile.bio || "";
 			profileForm.elements.role.value = profile.roleLabel || profile.role || "";
 		}
 
@@ -84,7 +85,8 @@
 			email: profileForm.elements.email.value.trim(),
 			phone: profileForm.elements.phone.value.trim(),
 			education: profileForm.elements.education.value.trim(),
-			specialization: profileForm.elements.specialization.value.trim()
+			specialization: profileForm.elements.specialization.value.trim(),
+			bio: profileForm.elements.bio.value.trim()
 		};
 		try {
 			const profile = await profileRequest("update", payload);

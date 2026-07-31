@@ -191,6 +191,25 @@ body {
   flex-shrink: 0;
 }
 
+.avatar-initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.vet-thumb.avatar-initials {
+  background: #002A58;
+  font-size: 13px;
+}
+
+.vet-profile-img.avatar-initials {
+  background: #002A58;
+  font-size: 28px;
+}
+
 .vet-profile-name {
   font-size: 20px;
   font-weight: 900;
@@ -243,7 +262,7 @@ body {
 
 .vet-stats-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   border-bottom: 1px solid var(--border-light);
 }
 

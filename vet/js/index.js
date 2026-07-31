@@ -963,6 +963,96 @@ function openAnnouncementEditorModal({ mode, item }) {
     });
 
     console.log('Dashboard initialized successfully');
+
+    // First-login nudge: vets who haven't written a bio yet get a skippable
+    // prompt. No "seen it already" tracking — it simply re-appears on every
+    // login until a bio is saved, then never shows again.
+    checkBioPrompt();
+
+    async function checkBioPrompt() {
+        let bioSession = null;
+        try {
+            bioSession = (window.VBetterAuth && window.VBetterAuth.getSession)
+                ? window.VBetterAuth.getSession()
+                : JSON.parse(sessionStorage.getItem('vbetter_session') || 'null');
+        } catch { bioSession = null; }
+
+        const userId = bioSession?.userId || bioSession?.id || 0;
+        if (!userId) return;
+
+        try {
+            const response = await fetch('/api/users/profile.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get', user_id: userId })
+            });
+            const result = await response.json();
+            if (!result.success || !result.data) return;
+            if (result.data.bio && result.data.bio.trim()) return;
+
+            openBioPromptModal(userId, result.data);
+        } catch {
+            // Silent — this is a nice-to-have nudge, not the critical path.
+        }
+    }
+
+    function openBioPromptModal(userId, profile) {
+        showModal(`
+            <header class="dash-modal-header">
+                <div class="dash-modal-header-text">
+                    <h2>Add a short bio</h2>
+                    <p>Pet owners see this on your profile when booking an appointment. You can skip and add it later from your Profile page.</p>
+                </div>
+                <button type="button" class="dash-close-btn" data-modal-close>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </header>
+            <div class="dash-modal-divider"></div>
+            <div class="dash-modal-content">
+                <div class="dash-field-wrap">
+                    <label class="dash-field-label" for="bio-prompt-input">Bio</label>
+                    <textarea id="bio-prompt-input" class="dash-textarea" placeholder="Tell pet owners a bit about your background and approach to care."></textarea>
+                </div>
+            </div>
+            <div class="dash-modal-footer">
+                <button type="button" class="dash-secondary-btn" id="bio-prompt-skip">Skip for now</button>
+                <button type="button" class="dash-primary-btn" id="bio-prompt-save">Save Bio</button>
+            </div>
+        `);
+
+        const skipBtn = document.getElementById('bio-prompt-skip');
+        const saveBtn = document.getElementById('bio-prompt-save');
+        if (skipBtn) skipBtn.addEventListener('click', closeModal);
+        if (saveBtn) {
+            saveBtn.addEventListener('click', async function () {
+                const input = document.getElementById('bio-prompt-input');
+                const bio = input ? input.value.trim() : '';
+                if (!bio) { closeModal(); return; }
+
+                saveBtn.disabled = true;
+                try {
+                    await fetch('/api/users/profile.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'update',
+                            user_id: userId,
+                            fullName: profile.fullName || '',
+                            email: profile.email || '',
+                            phone: profile.phone || '',
+                            education: profile.education || '',
+                            specialization: profile.specialization || '',
+                            bio
+                        })
+                    });
+                } catch {
+                    // Worst case it re-prompts next login — nothing else to do here.
+                } finally {
+                    closeModal();
+                }
+            });
+        }
+    }
 });
 
 // ===========================

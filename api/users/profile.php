@@ -102,7 +102,7 @@ function getProfile($pdo, $userId)
 
     $stmt = $pdo->prepare("
         SELECT users.id, users.full_name, users.email, users.phone_number, users.profile_photo,
-               veterinarian_profiles.education, veterinarian_profiles.specialization,
+               veterinarian_profiles.education, veterinarian_profiles.specialization, veterinarian_profiles.bio,
                roles.name AS role_name, users.created_at
         FROM users
         LEFT JOIN roles ON roles.id = users.role_id
@@ -138,6 +138,7 @@ function getProfile($pdo, $userId)
             'phone' => $user['phone_number'],
             'education' => $user['education'],
             'specialization' => $user['specialization'],
+            'bio' => $user['bio'],
             'role' => $user['role_name'],
             'roleLabel' => roleLabel($user['role_name']),
             'avatarUrl' => $user['profile_photo'] ?: '',
@@ -165,6 +166,7 @@ function updateProfile($pdo, $data)
     $phone = clean($data['phone'] ?? $data['phone_number'] ?? '');
     $education = clean($data['education'] ?? '');
     $specialization = clean($data['specialization'] ?? '');
+    $bio = clean($data['bio'] ?? '');
     if ($fullName === '' || $email === '') {
         respond(422, ['success' => false, 'message' => 'Full name and email are required.']);
     }
@@ -179,8 +181,8 @@ function updateProfile($pdo, $data)
     $stmt = $pdo->prepare('SELECT id FROM veterinarian_profiles WHERE user_id = :id LIMIT 1');
     $stmt->execute([':id' => $userId]);
     if ($stmt->fetch()) {
-        $stmt = $pdo->prepare('UPDATE veterinarian_profiles SET education = :education, specialization = :specialization WHERE user_id = :id');
-        $stmt->execute([':education' => $education, ':specialization' => $specialization, ':id' => $userId]);
+        $stmt = $pdo->prepare('UPDATE veterinarian_profiles SET education = :education, specialization = :specialization, bio = :bio WHERE user_id = :id');
+        $stmt->execute([':education' => $education, ':specialization' => $specialization, ':bio' => $bio, ':id' => $userId]);
     }
 
     getProfile($pdo, $userId);

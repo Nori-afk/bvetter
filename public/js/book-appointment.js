@@ -277,13 +277,10 @@ buildTimeSlots();
 function updateVetProfile(vet) {
   replaceContent()
   console.log(vet)
-  const avatarSrc = getAvatarUrl(vet.avatar);
 
-  // FIX: profile image src was never set
-  const profileImg = document.getElementById('profile-heads');
-  if (profileImg) {
-    profileImg.onerror = function () { this.onerror = null; this.src = '../images/img/vet-profile.png'; };
-    profileImg.src = avatarSrc;
+  const profileImgWrap = document.getElementById('profile-heads');
+  if (profileImgWrap) {
+    profileImgWrap.innerHTML = avatarMarkup(vet.full_name, vet.avatar, 'vet-profile-img');
   }
 
   const set = (id, val, fallback = '—') =>
@@ -294,11 +291,10 @@ function updateVetProfile(vet) {
   set('profile-clinic',       vet.clinic_location,      'Baliwag Vet Clinic');
   set('profile-rating',       vet.rating,               '4.9');
   set('profile-review-count', `(${vet.review_count || 124} reviews)`);
-  set('stat-experience-val',  vet.experience_years  ? `${vet.experience_years}+ Years`   : '12+ Years');
   // stat-patients-val is populated by replaceContent() (completed appointment count for this vet)
   set('stat-rating-val',      vet.rating_percentage ? `${vet.rating_percentage}%`        : '98%');
   set('edu-tag',              vet.education,            'DVM, Cornell University');
-  set('section-desc',         vet.bio,                  '');
+  set('section-desc',         vet.bio,                  "This veterinarian hasn't added a bio yet.");
 }
 
 
@@ -323,13 +319,11 @@ async function fetchVets() {
   VetAccounts.data.forEach((vet, index) => {
     // Merge avatar onto vet object by matching email
     vet.avatar = avatarMap[vet.email] || '';
-    const avatarSrc = getAvatarUrl(vet.avatar);
 
     const item = document.createElement('div');
     item.className = 'vet-item' + (index === 0 ? ' active' : '');
     item.innerHTML = `
-      <img src="${escapeAttr(avatarSrc)}" alt="${escapeAttr(vet.full_name)}" class="vet-thumb"
-           onerror="this.onerror=null;this.src='../images/img/vet-profile.png';"/>
+      ${avatarMarkup(vet.full_name, vet.avatar, 'vet-thumb')}
       <div>
         <div class="vet-item-name">${escapeHtml(vet.full_name)}</div>
         <div class="vet-item-role">${escapeHtml(vet.position_title)}</div>
@@ -1496,10 +1490,27 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
  * resolved against the current origin so it works on any host.
  */
 function getAvatarUrl(avatarPath) {
-  const FALLBACK = '../images/img/vet-profile.png';
-  if (!avatarPath) return FALLBACK;
   if (avatarPath.startsWith('http')) return avatarPath;  // already a full URL
   return avatarPath.startsWith('/') ? avatarPath : `/${avatarPath}`;
+}
+
+/* Vets with no uploaded photo get a 2-letter initials avatar instead of a
+   stock placeholder image, so every unphotographed vet doesn't look like
+   the same fake person. */
+function getInitials(name) {
+  const initials = String(name || '').trim().split(/\s+/)
+    .map(part => part[0]).join('').slice(0, 2).toUpperCase();
+  return initials || '?';
+}
+
+function avatarMarkup(name, avatarPath, sizeClass) {
+  if (!avatarPath) {
+    return `<div class="${sizeClass} avatar-initials">${getInitials(name)}</div>`;
+  }
+  const src = escapeAttr(getAvatarUrl(avatarPath));
+  const initials = getInitials(name);
+  return `<img src="${src}" alt="${escapeAttr(name)}" class="${sizeClass}" ` +
+    `onerror="this.onerror=null;this.outerHTML='<div class=\\'${sizeClass} avatar-initials\\'>${initials}</div>';">`;
 }
 
 function escapeHtml(value) {

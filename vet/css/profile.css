@@ -363,7 +363,8 @@ body {
     letter-spacing: 0.07em;
 }
 
-.field-group input {
+.field-group input,
+.field-group textarea {
     border: 1.5px solid var(--border);
     border-radius: 10px;
     padding: 10px 14px;
@@ -376,11 +377,21 @@ body {
     width: 100%;
 }
 
-.field-group input:focus {
+.field-group textarea {
+    resize: vertical;
+    min-height: 88px;
+}
+
+.field-group input:focus,
+.field-group textarea:focus {
     outline: none;
     border-color: var(--navy);
     background: #fff;
     box-shadow: 0 0 0 3px rgba(0,42,88,0.09);
+}
+
+.field-group--full {
+    grid-column: 1 / -1;
 }
 
 /* Readonly field */

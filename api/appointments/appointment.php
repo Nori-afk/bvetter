@@ -700,7 +700,8 @@ function listVeterinarians($pdo)
                veterinarian_profiles.position_title,
                veterinarian_profiles.education,
                veterinarian_profiles.specialization,
-               veterinarian_profiles.clinic_location
+               veterinarian_profiles.clinic_location,
+               veterinarian_profiles.bio
         FROM users
         INNER JOIN roles ON roles.id = users.role_id
         LEFT JOIN veterinarian_profiles ON veterinarian_profiles.user_id = users.id
