@@ -1339,8 +1339,8 @@ def predict_disease_specific(
         )
         recommendation = (
             f"{barangay} — {disease_name}: {current_cases:.0f} cases this period "
-            f"({fc_result['model_type']}: {future_cases:.0f} next month, trend: {fc_result['trend']}). "
-            f"Rule-based risk: {future_risk}."
+            f"({_friendly_model_label(fc_result['model_type'])}: {future_cases:.0f} next month, trend: {fc_result['trend']}). "
+            f"Risk: {future_risk}."
         )
 
         results.append({
@@ -1378,17 +1378,26 @@ def predict_disease_specific(
     return results
 
 
+def _friendly_model_label(model_type):
+    s = str(model_type or "").lower()
+    if "fallback" in s or "movingaverage" in s or "wma" in s:
+        return "Basic Estimate"
+    if "arima" in s and ("rf" in s or "alldisease" in s):
+        return "Advanced Forecast"
+    if "sarima" in s or "arima" in s:
+        return "Smart Forecast"
+    return "Forecast"
+
+
 def _build_disease_protocol_steps(barangay, disease, current, future, fc, current_risk, future_risk, avg):
-    trend     = fc["trend"]
-    order_str = f"({','.join(map(str, fc['order']))})" if any(fc["order"]) else "(MA)"
-    s_str     = (f"\xd7S{fc.get('seasonal_order', [])[:3]}"
-                 if fc.get("seasonal_order") and any(fc["seasonal_order"][:3]) else "")
+    trend = fc["trend"]
+    model = _friendly_model_label(fc["model_type"])
     if future_risk == "High":
         return [
             {"level":"red",   "title":"Immediate: Field Deployment",
-             "detail":f"{fc['model_type']}{order_str}{s_str} predicts {future:.0f} {disease} cases next month in {barangay}. Deploy veterinary field team."},
+             "detail":f"{model} predicts {future:.0f} {disease} cases next month in {barangay}. Deploy veterinary field team."},
             {"level":"blue",  "title":"Within 24 hrs: Report to MHO",
-             "detail":f"Escalate {disease} cluster. CI: [{fc['lower_ci'][0]:.0f}\u2013{fc['upper_ci'][0]:.0f}]. Trend: {trend}."},
+             "detail":f"Escalate {disease} cluster. Likely range: {fc['lower_ci'][0]:.0f}\u2013{fc['upper_ci'][0]:.0f} cases. Trend: {trend}."},
             {"level":"green", "title":"Preventive: Targeted Treatment Drive",
              "detail":f"Schedule mass treatment for {disease} in {barangay}. Current: {current:.0f} vs avg {avg:.1f}."},
             {"level":"gray",  "title":"Monitoring: Weekly Review",
@@ -1397,9 +1406,9 @@ def _build_disease_protocol_steps(barangay, disease, current, future, fc, curren
     elif future_risk == "Medium":
         return [
             {"level":"red",   "title":"Priority: Cluster Validation",
-             "detail":f"{fc['model_type']}{order_str}{s_str} predicts {future:.0f} {disease} in {barangay}. Confirm active clusters."},
+             "detail":f"{model} predicts {future:.0f} {disease} in {barangay}. Confirm active clusters."},
             {"level":"blue",  "title":"Within 72 hrs: Vet Coordination",
-             "detail":f"Schedule district vet visit. Trend: {trend}. CI: [{fc['lower_ci'][0]:.0f}\u2013{fc['upper_ci'][0]:.0f}]."},
+             "detail":f"Schedule district vet visit. Trend: {trend}. Likely range: {fc['lower_ci'][0]:.0f}\u2013{fc['upper_ci'][0]:.0f} cases."},
             {"level":"green", "title":"Preventive: Community Briefing",
              "detail":f"Run barangay broadcast for {disease} in {barangay}."},
             {"level":"gray",  "title":"Monitoring: Bi-Weekly Review",
@@ -1407,7 +1416,7 @@ def _build_disease_protocol_steps(barangay, disease, current, future, fc, curren
         ]
     return [
         {"level":"red",   "title":"No Immediate Action Required",
-         "detail":f"{fc['model_type']} predicts {future:.0f} {disease} — LOW risk. Trend: {trend}."},
+         "detail":f"{model} predicts {future:.0f} {disease} — LOW risk. Trend: {trend}."},
         {"level":"blue",  "title":"Routine: Monthly Reporting",
          "detail":f"Maintain standard cadence. Current: {current:.0f} in {barangay}."},
         {"level":"green", "title":"Preventive: Quarterly Campaign",
@@ -1455,35 +1464,35 @@ def _build_all_disease_protocol(barangay, pred, avg_cases, models):
     fused  = pred["fused_predicted"]
     current= pred["current_cases"]
     proba_str = ", ".join([f"{k}: {round(v*100)}%" for k, v in pred["rf_future_proba"].items()])
-    an = ("ARIMA trend and RF risk agree." if pred["model_agreement"]
-          else f"Note: ARIMA shows '{trend}' but RF classifies as {pred['rf_future_risk']}.")
+    an = ("The forecast trend and risk level agree." if pred["model_agreement"]
+          else f"Note: the case trend is '{trend}' while risk is classified as {pred['rf_future_risk']}.")
     fc = pred["arima_forecast"]
     if risk == "high":
         tier = "critical"
         steps = [
             {"level":"red",  "title":"Immediate: Field Deployment",
-             "detail":f"Hybrid predicts {fused:.0f} next month (RF {conf}%, ARIMA {trend}). Deploy to {barangay}. {an}"},
+             "detail":f"The forecast predicts {fused:.0f} next month ({conf}% confidence, trend: {trend}). Deploy to {barangay}. {an}"},
             {"level":"blue", "title":"Within 24 hrs: Regulatory Reporting",
-             "detail":f"Escalate to MHO. Risk — {proba_str}. CI: [{pred['arima_lower_ci'][0]:.0f}\u2013{pred['arima_upper_ci'][0]:.0f}]."},
+             "detail":f"Escalate to MHO. Risk — {proba_str}. Likely range: {pred['arima_lower_ci'][0]:.0f}\u2013{pred['arima_upper_ci'][0]:.0f} cases."},
             {"level":"green","title":"Preventive: Targeted Sanitation",
              "detail":f"Focus on {barangay}. Current: {current:.0f} vs avg {avg_cases:.1f}."},
-            {"level":"gray", "title":"Monitoring: Weekly Review", "detail":f"Track until RF reclassifies. Forecast: {fc}."},
+            {"level":"gray", "title":"Monitoring: Weekly Review", "detail":f"Track until risk reclassifies. Forecast: {fc}."},
         ]
     elif risk in ["medium","moderate"]:
         tier = "monitor"
         steps = [
             {"level":"red",  "title":"Priority: Cluster Validation",
-             "detail":f"Hybrid predicts {fused:.0f} next month. Confirm clusters in {barangay}. {an}"},
+             "detail":f"The forecast predicts {fused:.0f} next month. Confirm clusters in {barangay}. {an}"},
             {"level":"blue", "title":"Within 72 hrs: Vet Coordination",
-             "detail":f"Risk: {proba_str}. CI: [{pred['arima_lower_ci'][0]:.0f}\u2013{pred['arima_upper_ci'][0]:.0f}]."},
-            {"level":"green","title":"Preventive: Community Briefing", "detail":f"Broadcast for {barangay}. RF {conf}%."},
-            {"level":"gray", "title":"Monitoring: Bi-Weekly Review", "detail":f"Escalate if RF reclassifies. Predicted: {fused:.0f}."},
+             "detail":f"Risk: {proba_str}. Likely range: {pred['arima_lower_ci'][0]:.0f}\u2013{pred['arima_upper_ci'][0]:.0f} cases."},
+            {"level":"green","title":"Preventive: Community Briefing", "detail":f"Broadcast for {barangay}. {conf}% confidence."},
+            {"level":"gray", "title":"Monitoring: Bi-Weekly Review", "detail":f"Escalate if risk reclassifies. Predicted: {fused:.0f}."},
         ]
     else:
         tier = "stable"
         steps = [
             {"level":"red",  "title":"No Immediate Action Required",
-             "detail":f"LOW risk. RF {conf}%, ARIMA {trend}. {an}"},
+             "detail":f"LOW risk ({conf}% confidence, trend: {trend}). {an}"},
             {"level":"blue", "title":"Routine: Monthly Reporting", "detail":f"Maintain cadence. Predicted: {fused:.0f}."},
             {"level":"green","title":"Preventive: Quarterly Campaign", "detail":f"Include {barangay} in next campaign."},
             {"level":"gray", "title":"Monitoring: Standard Surveillance",
@@ -1553,7 +1562,7 @@ def disease_predict():
                 "model_agreement": pred["model_agreement"], "tier": tier,
                 "recommendation": (
                     f"{barangay} — Risk: {pred['rf_future_risk']} "
-                    f"({pred['rf_confidence']}% conf), ARIMA: {pred['arima_trend']}, "
+                    f"({pred['rf_confidence']}% confidence), trend: {pred['arima_trend']}, "
                     f"predicts {pred['predicted_cases']:.0f} "
                     f"({'annual' if period == 'year' else 'next-month'}) cases."
                 ),
