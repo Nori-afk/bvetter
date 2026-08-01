@@ -782,6 +782,17 @@ function closeChat() {
       .then(showInquiryMenu);
   }
 
+  // Maps Chatbot Management's icon field (clock/syringe/clipboard/link/
+  // chat/pin) to this widget's existing PNG assets.
+  var INQUIRY_ICON_FILES = {
+    clock: 'chatbot-schedule.png',
+    syringe: 'chatbot-vaccination.png',
+    clipboard: 'chatbot-appointment.png',
+    link: 'chatbot-lf.png',
+    chat: 'chatbot-inquiry.png',
+    pin: 'chatbot-lf.png'
+  };
+
   function showInquiryMenu() {
     clearOptions(iOpts);
     showOptionLabel(iOpts, 'Choose a topic');
@@ -795,12 +806,11 @@ function closeChat() {
 
         rules.forEach(function (rule) {
           var name = rule.name || rule.title || 'Inquiry';
-          var lowerName = name.toLowerCase();
-          var iconFile = lowerName.indexOf('schedule') >= 0 ? 'chatbot-schedule.png'
-            : lowerName.indexOf('vacc') >= 0 ? 'chatbot-vaccination.png'
-            : lowerName.indexOf('appointment') >= 0 ? 'chatbot-appointment.png'
-            : lowerName.indexOf('lost') >= 0 ? 'chatbot-lf.png'
-            : 'chatbot-inquiry.png';
+          // Use the icon the vet actually picked in Chatbot Management
+          // (rule.icon: clock/syringe/clipboard/link/chat/pin) instead of
+          // guessing from the name -- keeps this widget in sync with what
+          // admins configure instead of running its own separate logic.
+          var iconFile = INQUIRY_ICON_FILES[rule.icon] || 'chatbot-inquiry.png';
 
           addOptionBtn(iOpts, iconFile, name, rule.actionLabel || '', function () {
             addUserBubble(iMsgs, name);
