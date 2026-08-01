@@ -883,7 +883,7 @@ body {
     flex-shrink: 0;
 }
 
-.consultation-icon i { font-size: 13px; line-height: 1; }
+.consultation-icon svg { width: 15px; height: 15px; }
 
 .consultation-icon.dog {
     background: #ECFDF5;
@@ -1703,7 +1703,9 @@ body {
                 box-shadow 0.22s, transform 0.22s;
 }
 
-/* Icon square via pseudo-element — uses existing chatbot-* PNG files    */
+/* Icon square via pseudo-element — stroke-only outline icons.
+   Active state inverts to white via filter so the icon still reads
+   once the tile fills with a solid species color (see .active rule). */
 .choice-card[data-animal]::before {
     content: '';
     display: block;
@@ -1714,22 +1716,26 @@ body {
     background-position: center;
     background-repeat: no-repeat;
     flex-shrink: 0;
-    transition: background-color 0.22s;
+    transition: background-color 0.22s, filter 0.22s;
 }
 
 .choice-card[data-animal="Dog"]::before {
     background-color: #e8f9ee;
-    background-image: url('/public/images/icons/chatbot-dogs.png');
+    background-image: url('/public/images/icons/chatbot-dogs-outline.svg');
 }
 
 .choice-card[data-animal="Cat"]::before {
     background-color: #eef3ff;
-    background-image: url('/public/images/icons/chatbot-cats.png');
+    background-image: url('/public/images/icons/chatbot-cats-outline.svg');
 }
 
 .choice-card[data-animal="Other"]::before {
     background-color: #f4f4f8;
-    background-image: url('/public/images/icons/chatbot-others.png');
+    background-image: url('/public/images/icons/chatbot-others-outline.svg');
+}
+
+.choice-card[data-animal].active::before {
+    filter: brightness(0) invert(1);
 }
 
 .choice-card:hover {
