@@ -1719,17 +1719,17 @@ body {
 
 .choice-card[data-animal="Dog"]::before {
     background-color: #e8f9ee;
-    background-image: url('/bvetter/public/images/icons/chatbot-dogs.png');
+    background-image: url('/public/images/icons/chatbot-dogs.png');
 }
 
 .choice-card[data-animal="Cat"]::before {
     background-color: #eef3ff;
-    background-image: url('/bvetter/public/images/icons/chatbot-cats.png');
+    background-image: url('/public/images/icons/chatbot-cats.png');
 }
 
 .choice-card[data-animal="Other"]::before {
     background-color: #f4f4f8;
-    background-image: url('/bvetter/public/images/icons/chatbot-others.png');
+    background-image: url('/public/images/icons/chatbot-others.png');
 }
 
 .choice-card:hover {
