@@ -453,10 +453,6 @@ function renderPatientInfoTab(record) {
 					<div class="pi-fields">
 						<div class="pi-row">
 							<div class="pi-field">
-								<span class="pi-label">DATE OF BIRTH</span>
-								<span class="pi-value">${escapeHtml(record.dateOfBirth || record.visitDate || '—')}</span>
-							</div>
-							<div class="pi-field">
 								<span class="pi-label">AGE</span>
 								<span class="pi-value">${escapeHtml(record.age) || '—'}</span>
 							</div>
@@ -491,7 +487,6 @@ function renderPatientInfoTab(record) {
 						<div class="owner-avatar">${escapeHtml(record.ownerName.slice(0, 1).toUpperCase())}</div>
 						<div>
 							<strong>${escapeHtml(record.ownerName)}</strong>
-							<p>Primary Owner &middot; Member since 2019</p>
 						</div>
 					</div>
 					<div class="pi-fields pi-fields-stack">

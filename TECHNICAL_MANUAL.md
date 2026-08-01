@@ -184,6 +184,22 @@ between environments.
 | Veterinarian | `vet/html/index.html`         | `http://localhost/bvetter/vet/html/index.html`           |
 | Admin        | `admin/pages/index.html`      | `http://localhost/bvetter/admin/pages/index.html`        |
 
+### 3.5 Linux/production server notes
+
+`tmp/` (mPDF's cache directory, used by PDF report export in `api/reports/reports.php`) is
+git-ignored, so it is never created by `git pull` and must be set up manually on each server:
+
+```bash
+mkdir -p /var/www/bvetter/tmp
+chown -R www-data:www-data /var/www/bvetter/tmp   # match your Apache/PHP-FPM run-as user
+```
+
+If this directory (or its `mpdf` subfolder, created by mPDF itself on first run) is owned by a
+different user than the web server process, PDF export fails with an uncaught
+`Mpdf\MpdfException: Temporary files directory "... is not writable"`, which surfaces to users
+as a bare HTTP 500 with nothing informative in the default `/var/log/apache2/error.log` — check
+the site's own `ErrorLog` path (set in the Apache vhost config) instead.
+
 ---
 
 ## 4. Backend Architecture Conventions
