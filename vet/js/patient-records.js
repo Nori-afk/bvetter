@@ -487,6 +487,7 @@ function renderPatientInfoTab(record) {
 						<div class="owner-avatar">${escapeHtml(record.ownerName.slice(0, 1).toUpperCase())}</div>
 						<div>
 							<strong>${escapeHtml(record.ownerName)}</strong>
+							<span class ='label'> Owner Name </span>
 						</div>
 					</div>
 					<div class="pi-fields pi-fields-stack">
