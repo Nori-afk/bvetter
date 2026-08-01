@@ -508,7 +508,7 @@ body {
     flex-shrink: 0;
 }
 
-.rule-icon svg { width: 16px; height: 16px; }
+.rule-icon i { font-size: 16px; line-height: 1; }
 
 .rule-title {
     font-weight: 800;
@@ -883,7 +883,7 @@ body {
     flex-shrink: 0;
 }
 
-.consultation-icon svg { width: 14px; height: 14px; }
+.consultation-icon i { font-size: 13px; line-height: 1; }
 
 .consultation-icon.dog {
     background: #ECFDF5;
