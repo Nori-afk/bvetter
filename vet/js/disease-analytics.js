@@ -882,7 +882,7 @@ function showHotspotAction(hotspot) {
             const t = insight.risk_thresholds || {};
             modelBadge = `
                 <div class="rule-based-note">
-                    ⚠ Rule-Based Risk (${insight.model_type || 'DiseaseSpecific'}) —
+                    ⚠ Rule-Based Risk —
                     ${insight.rf_risk_class || 'N/A'} risk
                     ${insight.pred_source?.includes('fallback')
                         ? '<span class="source-badge fallback">Estimate</span>'

@@ -502,13 +502,13 @@ body {
     border-radius: 14px;
     display: inline-grid;
     place-items: center;
-    background: #002A58;
-    color: #fff;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.05em;
+    background: #EFF6FF;
+    color: #002A58;
+    border: 1px solid #BFDBFE;
     flex-shrink: 0;
 }
+
+.rule-icon svg { width: 16px; height: 16px; }
 
 .rule-title {
     font-weight: 800;
@@ -877,20 +877,30 @@ body {
     border-radius: 999px;
     display: inline-grid;
     place-items: center;
-    font-size: 12px;
-    font-weight: 800;
-    color: #fff;
-    background: #002A58;
+    color: #002A58;
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    flex-shrink: 0;
 }
 
-.consultation-icon.dog,
-.consultation-icon.cats {
-    background: #0d7a3d;
+.consultation-icon svg { width: 14px; height: 14px; }
+
+.consultation-icon.dog {
+    background: #ECFDF5;
+    color: #0d7a3d;
+    border-color: #A7F3D0;
 }
 
-.consultation-icon.cat,
-.consultation-icon.others {
-    background: #64748B;
+.consultation-icon.cat {
+    background: #FFF7ED;
+    color: #C2410C;
+    border-color: #FED7AA;
+}
+
+.consultation-icon.other {
+    background: #F1F5F9;
+    color: #64748B;
+    border-color: #E2E8F0;
 }
 
 .duration-pill,

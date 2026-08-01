@@ -163,13 +163,32 @@
 		}
 	};
 
+	const PET_TYPE_SVG = {
+		dog: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l2-4h10l2 4v5a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/><path d="M7 15v2M13 15v2M7 11h.01M13 11h.01"/></svg>',
+		cat: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9l1-5 3 3h4l3-3 1 5v4a3 3 0 01-6 0v-1H9v1a3 3 0 01-6 0V9z"/><path d="M8 12h.01M12 12h.01"/></svg>',
+		other: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="5" r="1.5"/><circle cx="13" cy="5" r="1.5"/><circle cx="4" cy="9" r="1.5"/><circle cx="16" cy="9" r="1.5"/><path d="M10 8c-3 0-5 2-5 4.5 0 2 1.5 3 5 3s5-1 5-3C15 10 13 8 10 8z"/></svg>'
+	};
+
+	function petTypeIconSvg(petType) {
+		return PET_TYPE_SVG[String(petType || '').toLowerCase()] || PET_TYPE_SVG.other;
+	}
+
+	const ICON_SVG = {
+		clock: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+		syringe: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2l4 4M17 7l3-3M19 9L8.7 19.3a2 2 0 0 1-2.8 0l-.6-.6a2 2 0 0 1 0-2.8L15 5M9 11l4 4M5 19l-3 3M14 4l6 6"/></svg>',
+		clipboard: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>',
+		link: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+		chat: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
+		pin: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
+	};
+
 	const iconLibrary = {
-		clock: { badge: 'CLK', label: 'Clock' },
-		syringe: { badge: 'SYR', label: 'Syringe' },
-		clipboard: { badge: 'CLP', label: 'Clipboard' },
-		link: { badge: 'LNK', label: 'Link' },
-		chat: { badge: 'CHT', label: 'Chat' },
-		pin: { badge: 'PIN', label: 'Pin' }
+		clock: { svg: ICON_SVG.clock, label: 'Clock' },
+		syringe: { svg: ICON_SVG.syringe, label: 'Syringe' },
+		clipboard: { svg: ICON_SVG.clipboard, label: 'Clipboard' },
+		link: { svg: ICON_SVG.link, label: 'Link' },
+		chat: { svg: ICON_SVG.chat, label: 'Chat' },
+		pin: { svg: ICON_SVG.pin, label: 'Map Pin' }
 	};
 
 	const state = {
@@ -386,7 +405,7 @@
 	}
 
 	function getIconMeta(iconKey) {
-		return iconLibrary[iconKey] || { badge: 'INQ', label: 'Inquiry' };
+		return iconLibrary[iconKey] || { svg: ICON_SVG.chat, label: 'Inquiry' };
 	}
 
 	function getInquiryTotalCount() {
@@ -526,7 +545,7 @@
 				<tr>
 					<td>
 						<div class="consultation-pet-cell">
-							<span class="consultation-icon ${row.petType.toLowerCase()}">${row.petType.charAt(0)}</span>
+							<span class="consultation-icon ${row.petType.toLowerCase()}">${petTypeIconSvg(row.petType)}</span>
 							<span>${escapeHtml(row.petType)}</span>
 						</div>
 					</td>
@@ -850,7 +869,7 @@
 					<tr>
 						<td>
 							<div class="rule-cell">
-								<span class="rule-icon">${escapeHtml(iconMeta.badge)}</span>
+								<span class="rule-icon">${iconMeta.svg}</span>
 								<div>
 									<span class="rule-title">${escapeHtml(rule.name)}</span>
 									<span class="rule-subtitle">${escapeHtml(rule.actionLabel || 'No action')}</span>
@@ -1170,7 +1189,7 @@
 				<p class="modal-subtitle">This action is permanent and cannot be undone. Type DELETE to confirm.</p>
 				<div class="danger-card">
 					<div class="rule-cell">
-						<span class="rule-icon">${escapeHtml(iconMeta.badge)}</span>
+						<span class="rule-icon">${iconMeta.svg}</span>
 						<div>
 							<span class="rule-title">${escapeHtml(rule.name)}</span>
 							<span class="rule-subtitle">${escapeHtml(rule.actionLabel || 'No action')}</span>

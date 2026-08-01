@@ -289,12 +289,18 @@ function updateVetProfile(vet) {
   set('profile-name',         vet.full_name,           'Dr. Jane Igaya');
   set('profile-title',        vet.position_title,       'Senior Veterinarian');
   set('profile-clinic',       vet.clinic_location,      'Baliwag Vet Clinic');
-  set('profile-rating',       vet.rating,               '4.9');
-  set('profile-review-count', `(${vet.review_count || 124} reviews)`);
+  set('profile-rating',       vet.rating,               'New');
+  set('profile-review-count', vet.review_count ? `(${vet.review_count} reviews)` : '(No reviews yet)');
   // stat-patients-val is populated by replaceContent() (completed appointment count for this vet)
-  set('stat-rating-val',      vet.rating_percentage ? `${vet.rating_percentage}%`        : '98%');
+  set('stat-rating-val',      vet.rating_percentage ? `${vet.rating_percentage}%`        : 'New');
   set('edu-tag',              vet.education,            'DVM, Cornell University');
   set('section-desc',         vet.bio,                  "This veterinarian hasn't added a bio yet.");
+
+  // Keep the booking-steps header (page 2) in sync with whichever vet
+  // was actually selected on page 1 — it used to be a static placeholder.
+  set('vet-booked-name',      vet.full_name,           'Dr. Jane Igaya');
+  set('vet-booked-role',      vet.position_title,      'Senior Veterinarian');
+  set('vet-booked-initials',  getInitials(vet.full_name), '?');
 }
 
 
@@ -590,7 +596,10 @@ function setRatingValue(value) {
   ratingModalState.value = value;
   const stars = document.querySelectorAll('#ratingStars .rating-star');
   stars.forEach((star) => {
-    star.classList.toggle('active', parseInt(star.dataset.value) <= value);
+    const isActive = parseInt(star.dataset.value) <= value;
+    star.classList.toggle('active', isActive);
+    const img = star.querySelector('img');
+    if (img) img.src = isActive ? '../images/icons/rating.svg' : '../images/icons/rating-outline.svg';
   });
   const hint = document.getElementById('ratingHint');
   const labels = ['Tap a star to rate', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
@@ -610,7 +619,10 @@ function initRatingStars() {
 function previewRatingValue(value) {
   const stars = document.querySelectorAll('#ratingStars .rating-star');
   stars.forEach((star) => {
-    star.classList.toggle('active', parseInt(star.dataset.value) <= value);
+    const isActive = parseInt(star.dataset.value) <= value;
+    star.classList.toggle('active', isActive);
+    const img = star.querySelector('img');
+    if (img) img.src = isActive ? '../images/icons/rating.svg' : '../images/icons/rating-outline.svg';
   });
 }
 
@@ -762,6 +774,9 @@ async function loadVetFeedback(vetId) {
       document.getElementById('feedback-pet').textContent = '';
       document.getElementById('comment').textContent = 'This veterinarian has not received feedback yet.';
       document.getElementById('rate').innerHTML = '';
+      document.getElementById('profile-rating').textContent = 'New';
+      document.getElementById('stat-rating-val').textContent = 'New';
+      document.getElementById('profile-review-count').textContent = '(No reviews yet)';
       return;
     }
 

@@ -1132,7 +1132,7 @@ function closeChat() {
   }
 
   function askSymptomsChecklist() {
-    var symptoms = ['Fever', 'Vomiting', 'Diarrhea', 'Coughing', 'Loss of Appetite', 'Wounds', 'Seizures'];
+    var symptoms = ['Fever', 'Vomiting', 'Diarrhea', 'Coughing', 'Limping', 'Loss of Appetite', 'Itching', 'Seizures', 'Wounds'];
     addBotBubble(cMsgs, 'Which symptoms does your pet have? Select all that apply.', 450)
       .then(function () {
         showSymptomChecklist(cOpts, symptoms, function (selected) {

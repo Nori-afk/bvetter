@@ -456,6 +456,10 @@ function renderPatientInfoTab(record) {
 								<span class="pi-label">AGE</span>
 								<span class="pi-value">${escapeHtml(record.age) || '—'}</span>
 							</div>
+							<div class="pi-field">
+								<span class="pi-label">WEIGHT</span>
+								<span class="pi-value">${escapeHtml(record.weight) || '—'}</span>
+							</div>
 						</div>
 						<div class="pi-row">
 							<div class="pi-field">
@@ -465,12 +469,6 @@ function renderPatientInfoTab(record) {
 							<div class="pi-field">
 								<span class="pi-label">SEX</span>
 								<span class="pi-value">${escapeHtml(record.sex || '—')}</span>
-							</div>
-						</div>
-						<div class="pi-row">
-							<div class="pi-field">
-								<span class="pi-label">WEIGHT</span>
-								<span class="pi-value">${escapeHtml(record.weight) || '—'}</span>
 							</div>
 						</div>
 					</div>
@@ -487,7 +485,7 @@ function renderPatientInfoTab(record) {
 						<div class="owner-avatar">${escapeHtml(record.ownerName.slice(0, 1).toUpperCase())}</div>
 						<div>
 							<strong>${escapeHtml(record.ownerName)}</strong>
-							<span class ='label'> Owner Name </span>
+							<span class ="pi-label"> Owner Name </span>
 						</div>
 					</div>
 					<div class="pi-fields pi-fields-stack">

@@ -2101,14 +2101,6 @@ body {
   width: 34px;
   height: 34px;
   object-fit: contain;
-  opacity: 0.25;
-  filter: grayscale(1);
-  transition: opacity 0.15s ease, filter 0.15s ease;
-}
-
-.rating-star.active img {
-  opacity: 1;
-  filter: none;
 }
 
 .rating-hint {
