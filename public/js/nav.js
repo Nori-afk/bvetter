@@ -76,6 +76,31 @@ function escapeHtmlNav(value) {
   }[char]));
 }
 
+/* Category glyph (light, thin-stroke, currentColor) + status color mapping —
+   one icon set shared by all three notification bells in the app. Color
+   signals status (positive/negative/neutral); the glyph signals category. */
+const NOTIF_ICONS = {
+  appointment: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8.5 15.5l2 2 4-4"/></svg>',
+  lostfound: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="20" y1="20" x2="14.5" y2="14.5"/></svg>',
+  match: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg>',
+  vaccination: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+  general: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
+};
+
+function notifCategoryFromId(id) {
+  if (id.indexOf('appt-') === 0) return 'appointment';
+  if (id.indexOf('claim-') === 0 || id.indexOf('report-') === 0) return 'lostfound';
+  if (id.indexOf('match-') === 0) return 'match';
+  return 'general';
+}
+
+function notifStatusFromTitle(title) {
+  const t = (title || '').toLowerCase();
+  if (t.includes('reject') || t.includes('cancel')) return 'negative';
+  if (t.includes('confirmed') || t.includes('approve') || t.includes('resolve') || t.includes('upcoming') || t.includes('claimed')) return 'positive';
+  return 'neutral';
+}
+
 function formatNotifDate(value) {
   if (!value) return '';
   const date = new Date(value);
@@ -284,13 +309,47 @@ async function buildOwnerNotifications() {
   return visible;
 }
 
+const NOTIF_PAGE_SIZE = 5;
+let notifListExpanded = false;
+/* Tracked so the global dismiss-click listener (outside this closure) can
+   mutate the same array the open modal is rendering from, and trigger a
+   redraw that respects the current cap/expanded state. */
+let currentNotifItems = [];
+let redrawNotifList = null;
+
 function renderNotificationItems(root, items) {
   const list = root.querySelector('.dash-notification-list');
   if (!list) return;
-  list.innerHTML = items
-    .map(
-      (item) => `
+
+  currentNotifItems = items;
+
+  function draw() {
+    if (!items.length) {
+      items.push({
+        id: 'empty',
+        title: 'No New Notifications',
+        detail: 'You are all caught up. Check back later for updates.',
+        time: 'Just checked',
+        read: true
+      });
+    }
+
+    const header = root.querySelector('.dash-modal-header h2');
+    if (header) {
+      const unreadCount = items.filter((item) => !item.read && item.id !== 'empty').length;
+      header.textContent = `Notification${unreadCount ? ` (${unreadCount})` : ''}`;
+    }
+
+    const visible = notifListExpanded ? items : items.slice(0, NOTIF_PAGE_SIZE);
+    const remaining = items.length - visible.length;
+
+    list.innerHTML = visible
+      .map((item) => {
+        const category = item.id === 'empty' ? 'general' : notifCategoryFromId(item.id);
+        const status = item.id === 'empty' ? 'neutral' : notifStatusFromTitle(item.title);
+        return `
         <article class="dash-notification-item ${item.read ? 'read' : 'unread'}" data-notif-id="${escapeHtmlNav(item.id)}">
+          <div class="notif-badge notif-badge--${status}">${NOTIF_ICONS[category]}</div>
           <div class="dash-notification-item-body">
             <h4>${escapeHtmlNav(item.title)}</h4>
             <p>${escapeHtmlNav(item.detail)}</p>
@@ -298,31 +357,81 @@ function renderNotificationItems(root, items) {
           </div>
           ${item.id === 'empty' ? '' : `<button type="button" class="notif-item-delete" data-action="dismiss-notif" aria-label="Dismiss notification">&times;</button>`}
         </article>
-      `
-    )
-    .join('');
+      `;
+      })
+      .join('') + (remaining > 0 ? `<button type="button" class="notif-show-more-btn" id="notif-show-more-btn">Show ${remaining} more</button>` : '');
 
-  const header = root.querySelector('.dash-modal-header h2');
-  if (header) {
-    const unreadCount = items.filter((item) => !item.read && item.id !== 'empty').length;
-    header.textContent = `Notification${unreadCount ? ` (${unreadCount})` : ''}`;
+    const showMoreBtn = list.querySelector('#notif-show-more-btn');
+    if (showMoreBtn) {
+      showMoreBtn.addEventListener('click', () => {
+        notifListExpanded = true;
+        draw();
+      });
+    }
+
+    list.querySelectorAll('.dash-notification-item').forEach((element) => {
+      element.addEventListener('click', () => {
+        const id = element.dataset.notifId;
+        if (!id || id === 'empty') return;
+        const entry = items.find((notif) => notif.id === id);
+        if (!entry || entry.read) return;
+        entry.read = true;
+        addReadNotifId(getCurrentOwnerId(), id);
+        syncNotifDotFromItems(items);
+        draw();
+      });
+    });
   }
 
-  list.querySelectorAll('.dash-notification-item').forEach((element) => {
-    element.addEventListener('click', () => {
-      const id = element.dataset.notifId;
-      if (!id || id === 'empty') return;
-      addReadNotifId(getCurrentOwnerId(), id);
-      element.classList.remove('unread');
-      element.classList.add('read');
-      const header2 = root.querySelector('.dash-modal-header h2');
-      if (header2) {
-        const unreadCount = list.querySelectorAll('.dash-notification-item.unread').length;
-        header2.textContent = `Notification${unreadCount ? ` (${unreadCount})` : ''}`;
-      }
-    });
-  });
+  redrawNotifList = draw;
+  draw();
 }
+
+/* ── Notification bell dot — reflects real unread state, not a static
+   always-on marker. Public owner notifications have no backing table, so
+   the count is cached briefly to avoid re-running the full aggregation
+   (6 endpoints) on every page load/navigation. ── */
+const NOTIF_DOT_CACHE_TTL_MS = 60000;
+
+function getNotifDotElements() {
+  return Array.from(document.querySelectorAll('.nav-notif-dot'));
+}
+
+function setNotifDotVisible(hasUnread) {
+  getNotifDotElements().forEach((dot) => { dot.hidden = !hasUnread; });
+}
+
+function syncNotifDotFromItems(items) {
+  const unreadCount = items.filter((item) => !item.read && item.id !== 'empty').length;
+  try {
+    sessionStorage.setItem(`vbetter_notif_unread_${getCurrentOwnerId()}`, JSON.stringify({ count: unreadCount, ts: Date.now() }));
+  } catch { /* storage unavailable — dot still reflects current in-memory state */ }
+  setNotifDotVisible(unreadCount > 0);
+}
+
+async function refreshNotifDot() {
+  if (!getNotifDotElements().length) return;
+
+  const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  if (!user) {
+    setNotifDotVisible(false);
+    return;
+  }
+
+  const cacheKey = `vbetter_notif_unread_${getCurrentOwnerId()}`;
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
+    if (cached && (Date.now() - cached.ts) < NOTIF_DOT_CACHE_TTL_MS) {
+      setNotifDotVisible(cached.count > 0);
+      return;
+    }
+  } catch { /* malformed cache — fall through to a fresh fetch */ }
+
+  const items = await buildOwnerNotifications();
+  syncNotifDotFromItems(items);
+}
+
+document.addEventListener('DOMContentLoaded', refreshNotifDot);
 
 /* Dismiss a single notification: hide it going forward via localStorage,
    since notifications are rebuilt live from appointments/claims/reports
@@ -337,27 +446,14 @@ document.addEventListener('click', function (e) {
   if (!item) return;
 
   const id = item.dataset.notifId;
-  if (id) addDismissedNotifId(getCurrentOwnerId(), id);
-  item.remove();
+  if (!id) return;
+  addDismissedNotifId(getCurrentOwnerId(), id);
 
-  const list = document.querySelector('.dash-notification-list');
-  if (list && !list.querySelector('.dash-notification-item')) {
-    list.innerHTML = `
-      <article class="dash-notification-item read">
-        <div class="dash-notification-item-body">
-          <h4>No New Notifications</h4>
-          <p>You are all caught up. Check back later for updates.</p>
-          <small>Just checked</small>
-        </div>
-      </article>
-    `;
-  }
+  const idx = currentNotifItems.findIndex((entry) => entry.id === id);
+  if (idx !== -1) currentNotifItems.splice(idx, 1);
 
-  const header = document.querySelector('.dash-modal-header h2');
-  if (header && list) {
-    const unreadCount = list.querySelectorAll('.dash-notification-item.unread').length;
-    header.textContent = `Notification${unreadCount ? ` (${unreadCount})` : ''}`;
-  }
+  if (redrawNotifList) redrawNotifList();
+  syncNotifDotFromItems(currentNotifItems);
 });
 
 async function openNotificationModal() {
@@ -390,20 +486,19 @@ async function openNotificationModal() {
     button.addEventListener('click', closeNotifModal);
   });
 
+  notifListExpanded = false;
   const items = await buildOwnerNotifications();
   if (!root.hidden) renderNotificationItems(root, items);
+  syncNotifDotFromItems(items);
 
   const markAllBtn = document.getElementById('mark-all-read-btn');
   if (markAllBtn) {
     markAllBtn.addEventListener('click', () => {
       const ids = items.filter((item) => item.id !== 'empty').map((item) => item.id);
       markAllNotifRead(getCurrentOwnerId(), ids);
-      root.querySelectorAll('.dash-notification-item').forEach((element) => {
-        element.classList.remove('unread');
-        element.classList.add('read');
-      });
-      const header = root.querySelector('.dash-modal-header h2');
-      if (header) header.textContent = 'Notification';
+      items.forEach((item) => { item.read = true; });
+      if (redrawNotifList) redrawNotifList();
+      syncNotifDotFromItems(items);
     });
   }
 }

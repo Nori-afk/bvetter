@@ -1,0 +1,170 @@
+- generic [active] [ref=f3e1]:
+  - navigation [ref=f3e2]:
+    - generic [ref=f3e3]:
+      - img "Baliwag City Vet" [ref=f3e4]
+      - button "Toggle navigation" [ref=f3e5] [cursor=pointer]: ☰
+      - list:
+        - listitem [ref=f3e6]:
+          - link "Home" [ref=f3e7] [cursor=pointer]:
+            - /url: landing.html
+        - listitem [ref=f3e8]:
+          - link "Book An Appointment" [ref=f3e9] [cursor=pointer]:
+            - /url: book-appointment.html
+        - listitem [ref=f3e10]:
+          - link "Lost And Found" [ref=f3e11] [cursor=pointer]:
+            - /url: lost-found.html
+        - listitem [ref=f3e12]:
+          - link "My Pets" [ref=f3e13] [cursor=pointer]:
+            - /url: my-pets.html
+    - generic [ref=f3e14]:
+      - button [ref=f3e15] [cursor=pointer]:
+        - img "Notifications" [ref=f3e16]
+      - generic [ref=f3e17] [cursor=pointer]:
+        - generic [ref=f3e18]:
+          - generic [ref=f3e19]: Backend Test Owner
+          - generic [ref=f3e20]: Pet Owner
+        - img "User" [ref=f3e21]
+  - generic [ref=f3e22]:
+    - generic [ref=f3e23]:
+      - generic [ref=f3e24]: Baliwag Veterinary Clinic
+      - heading [level=1] [ref=f3e25]:
+        - text: Compassion Meets
+        - generic [ref=f3e26]: Clinical Precision
+      - paragraph [ref=f3e27]: Redefining veterinary excellence with world-class diagnostics and a deep-rooted empathy for your companion's vitality.
+      - link [ref=f3e29] [cursor=pointer]:
+        - /url: ./book-appointment.html
+    - generic [ref=f3e33]:
+      - img "Dog" [ref=f3e34]
+      - generic [ref=f3e37]:
+        - generic [ref=f3e38]: VITALITY SCORE
+        - generic [ref=f3e39]: Optimized Recovery Plans
+  - generic [ref=f3e40]:
+    - generic [ref=f3e41]:
+      - generic [ref=f3e42]: Number of Visit
+      - generic [ref=f3e43]: "0"
+    - generic [ref=f3e44]:
+      - generic [ref=f3e45]: Average Rating per Vet
+      - generic [ref=f3e46]: N/A
+    - generic [ref=f3e47]:
+      - generic [ref=f3e48]: SPECIALISTS
+      - generic [ref=f3e49]: "12"
+  - generic [ref=f3e53]:
+    - generic [ref=f3e54]: About Us
+    - heading "Our Story" [level=2] [ref=f3e55]
+    - paragraph [ref=f3e56]: Baliwag Veterinary Services has been dedicated to the health and happiness of pets in our community, combining modern diagnostics with genuine, compassionate care for every companion that walks through our doors.
+  - generic [ref=f3e57]:
+    - generic [ref=f3e58]:
+      - generic [ref=f3e59]:
+        - heading "Upcoming Health Events" [level=2] [ref=f3e60]
+        - paragraph [ref=f3e61]: Stay proactive with our community wellness initiatives.
+      - generic [ref=f3e62]:
+        - button "←" [ref=f3e63] [cursor=pointer]
+        - button "→" [ref=f3e64] [cursor=pointer]
+    - generic [ref=f3e68]:
+      - generic [ref=f3e69]: NO EVENTS
+      - heading "No upcoming health events yet" [level=3] [ref=f3e70]
+      - paragraph [ref=f3e71]: Check back for announcements from the veterinary team.
+  - generic [ref=f3e72]:
+    - generic [ref=f3e73]:
+      - generic [ref=f3e74]:
+        - heading "Lost & Found Community" [level=2] [ref=f3e75]: Lost & FoundCommunity
+        - paragraph [ref=f3e76]: Our integrated network helps reunite elite companions with their families through real-time pet tracking and alerts.
+      - link "Visit Lost & Found →" [ref=f3e77] [cursor=pointer]:
+        - /url: lost-found.html
+    - generic [ref=f3e78]:
+      - generic [ref=f3e151]:
+        - generic [ref=f3e152]: No active reports
+        - generic [ref=f3e153]: Lost and found is clear right now.
+      - generic [ref=f3e154] [cursor=pointer]:
+        - img "report" [ref=f3e156]
+        - generic [ref=f3e157]: Report a Pet
+  - generic [ref=f3e104]:
+    - heading "Meet Our Specialists" [level=2] [ref=f3e105]
+    - paragraph [ref=f3e106]: The experts behind our clinical precision.
+    - generic [ref=f3e159]:
+      - generic [ref=f3e160]: No active specialists listed
+      - paragraph [ref=f3e161]: Veterinarian profiles will appear here once active accounts are available.
+  - contentinfo [ref=f3e120]:
+    - generic [ref=f3e121]:
+      - generic [ref=f3e122]:
+        - heading "Baliwag Veterinary Services" [level=3] [ref=f3e123]
+        - paragraph [ref=f3e124]: Leading the future of veterinary medicine through precision technology and heartfelt dedication.
+      - generic [ref=f3e125]:
+        - heading "QUICK LINKS" [level=4] [ref=f3e126]
+        - list [ref=f3e127]:
+          - listitem [ref=f3e128]:
+            - link "Privacy Policy" [ref=f3e129] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f3e130]:
+            - link "Terms of Service" [ref=f3e131] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f3e132]:
+            - link "Emergency Care" [ref=f3e133] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f3e134]:
+            - link "Careers" [ref=f3e135] [cursor=pointer]:
+              - /url: "#"
+      - generic [ref=f3e136]:
+        - heading "CONTACT" [level=4] [ref=f3e137]
+        - paragraph [ref=f3e138]: AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026
+        - paragraph [ref=f3e139]: BaliwagtVC@gmail.com
+        - paragraph [ref=f3e140]: "09959210640"
+    - generic [ref=f3e141]:
+      - generic [ref=f3e142]: © 2026 Baliwag Veterinary Services. Precision in Medicine, Vitality in Life
+      - generic [ref=f3e143]:
+        - link "f" [ref=f3e144] [cursor=pointer]:
+          - /url: "#"
+        - link "in" [ref=f3e145] [cursor=pointer]:
+          - /url: "#"
+  - button "Open Vet Assistant" [ref=f3e146] [cursor=pointer]:
+    - img "Vet Assistant" [ref=f3e148]
+  - dialog [ref=f3e162]:
+    - generic [ref=f3e163]:
+      - generic [ref=f3e164]:
+        - heading "Notification (6)" [level=2] [ref=f3e165]
+        - generic [ref=f3e166]:
+          - button "Mark all as read" [ref=f3e167] [cursor=pointer]
+          - button "×" [ref=f3e168] [cursor=pointer]
+      - generic [ref=f3e170]:
+        - article [ref=f3e217] [cursor=pointer]:
+          - generic [ref=f3e222]:
+            - heading "Appointment Awaiting Confirmation" [level=4] [ref=f3e223]
+            - paragraph [ref=f3e224]: Fluffy — Aug 5, 2026 at 10:00 AM
+            - text: Just now
+          - button "Dismiss notification" [ref=f3e225]: ×
+        - article [ref=f3e226] [cursor=pointer]:
+          - generic [ref=f3e231]:
+            - heading "Upcoming Appointment" [level=4] [ref=f3e232]
+            - paragraph [ref=f3e233]: Rex — Aug 6, 2026 at 2:00 PM
+            - text: Just now
+          - button "Dismiss notification" [ref=f3e234]: ×
+        - article [ref=f3e235] [cursor=pointer]:
+          - generic [ref=f3e240]:
+            - heading "Claim Approved" [level=4] [ref=f3e241]
+            - paragraph [ref=f3e242]: Your claim for Milo was approved.
+            - text: Just now
+          - button "Dismiss notification" [ref=f3e243]: ×
+        - article [ref=f3e244] [cursor=pointer]:
+          - generic [ref=f3e249]:
+            - heading "Claim Rejected" [level=4] [ref=f3e250]
+            - paragraph [ref=f3e251]: Your claim for Bella was rejected.
+            - text: Just now
+          - button "Dismiss notification" [ref=f3e252]: ×
+        - article [ref=f3e253] [cursor=pointer]:
+          - generic [ref=f3e258]:
+            - heading "Report Approved" [level=4] [ref=f3e259]
+            - paragraph [ref=f3e260]: Your lost report for Max is now active.
+            - text: Just now
+          - button "Dismiss notification" [ref=f3e261]: ×
+        - article [ref=f3e262] [cursor=pointer]:
+          - generic [ref=f3e267]:
+            - heading "New Potential Match Found" [level=4] [ref=f3e268]
+            - paragraph [ref=f3e269]: A possible match (82% confidence) was found for Max.
+            - text: Just now
+          - button "Dismiss notification" [ref=f3e270]: ×
+        - article [ref=f3e271] [cursor=pointer]:
+          - generic [ref=f3e276]:
+            - heading "New Claim on Your Found Report" [level=4] [ref=f3e277]
+            - paragraph [ref=f3e278]: Someone submitted a claim for Coco.
+            - text: Just now
+          - button "Dismiss notification" [ref=f3e279]: ×

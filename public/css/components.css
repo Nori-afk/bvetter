@@ -126,6 +126,10 @@
   border: 2px solid var(--color-navy);
 }
 
+.nav-notif-dot[hidden] {
+  display: none;
+}
+
 .nav-user-pill {
   display: flex;
   align-items: center;
@@ -670,6 +674,51 @@
 
 .dash-notification-item small {
   color: var(--text-muted);
+}
+
+.notif-badge {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notif-badge svg {
+  width: 14px;
+  height: 14px;
+}
+
+.notif-badge--positive {
+  background: var(--color-green-pale);
+  color: var(--color-green-dark);
+}
+
+.notif-badge--negative {
+  background: var(--color-red-pale);
+  color: var(--color-red);
+}
+
+.notif-badge--neutral {
+  background: var(--color-navy-pale);
+  color: var(--color-navy);
+}
+
+.notif-show-more-btn {
+  border: 1px dashed var(--border-default);
+  background: var(--bg-card);
+  color: var(--color-navy-mid);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.notif-show-more-btn:hover {
+  background: var(--bg-input);
 }
 
 /* =============================================

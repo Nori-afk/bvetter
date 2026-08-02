@@ -356,6 +356,30 @@ function renderActivityFeed(events) {
 }
 
 /* ── ADD ACCOUNT MODAL ──────────────────────────────────────── */
+/* Category glyph (light, thin-stroke, currentColor) + status color mapping —
+   same icon set/logic as the public and vet notification bells, so all
+   three read as one system. Color signals status; the glyph signals category. */
+const NOTIF_ICONS = {
+    appointment: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8.5 15.5l2 2 4-4"/></svg>',
+    lostfound: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="20" y1="20" x2="14.5" y2="14.5"/></svg>',
+    vaccination: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+    general: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
+};
+
+function notifCategoryFromType(type) {
+    if (type === 'appointment_new' || type === 'appointment_status') return 'appointment';
+    if (type === 'lost_found_new') return 'lostfound';
+    if (type === 'csp_registration') return 'vaccination';
+    return 'general';
+}
+
+function notifStatusFromTitle(title) {
+    const t = (title || '').toLowerCase();
+    if (t.includes('reject') || t.includes('cancel')) return 'negative';
+    if (t.includes('confirmed') || t.includes('approve') || t.includes('resolve') || t.includes('upcoming')) return 'positive';
+    return 'neutral';
+}
+
 /* ── Notifications (shared admin/vet feed) ─────────────────── */
 function wireNotificationsModal() {
     const bellBtn  = document.getElementById('notification-icon-btn');
@@ -364,7 +388,16 @@ function wireNotificationsModal() {
     const markAllBtn = document.getElementById('notifications-mark-all-read');
     const listEl   = document.getElementById('notifications-list');
 
+    const NOTIF_PAGE_SIZE = 5;
+    let expanded = false;
+    let currentItems = [];
+
+    function setDotVisible(hasUnread) {
+        document.querySelectorAll('.notif-dot').forEach((dot) => { dot.hidden = !hasUnread; });
+    }
+
     function openModal() {
+        expanded = false;
         if (overlay) overlay.hidden = false;
         loadNotifications();
     }
@@ -374,35 +407,54 @@ function wireNotificationsModal() {
     }
 
     async function loadNotifications() {
-        if (!listEl) return;
-        listEl.innerHTML = '<p class="am-loading-cell">Loading notifications…</p>';
+        if (listEl) listEl.innerHTML = '<p class="am-loading-cell">Loading notifications…</p>';
         const result = await api.getStaffNotifications('admin').catch(() => ({ success: false }));
         if (!result.success) {
-            listEl.innerHTML = '<p class="am-loading-cell">Could not load notifications.</p>';
+            if (listEl) listEl.innerHTML = '<p class="am-loading-cell">Could not load notifications.</p>';
             return;
         }
-        renderNotifications(result.data || []);
+        currentItems = result.data || [];
+        setDotVisible((result.unread_count || 0) > 0);
+        renderNotifications();
     }
 
-    function renderNotifications(items) {
+    function renderNotifications() {
         if (!listEl) return;
-        if (!items.length) {
+        if (!currentItems.length) {
             listEl.innerHTML = '<p class="am-loading-cell">No notifications yet.</p>';
             return;
         }
-        listEl.innerHTML = items.map((item) => `
+
+        const visible = expanded ? currentItems : currentItems.slice(0, NOTIF_PAGE_SIZE);
+        const remaining = currentItems.length - visible.length;
+
+        listEl.innerHTML = visible.map((item) => `
             <article class="dash-notification-item ${item.is_read ? 'read' : 'unread'}" data-notification-id="${item.id}">
-                <h4>${escapeHtml(item.title)}</h4>
-                <p>${escapeHtml(item.message)}</p>
-                <small>${escapeHtml(new Date(item.created_at).toLocaleString())}</small>
+                <div class="notif-badge notif-badge--${notifStatusFromTitle(item.title)}">${NOTIF_ICONS[notifCategoryFromType(item.type)]}</div>
+                <div class="dash-notification-item-body">
+                    <h4>${escapeHtml(item.title)}</h4>
+                    <p>${escapeHtml(item.message)}</p>
+                    <small>${escapeHtml(new Date(item.created_at).toLocaleString())}</small>
+                </div>
             </article>
-        `).join('');
+        `).join('') + (remaining > 0 ? `<button type="button" class="notif-show-more-btn" id="notif-show-more-btn">Show ${remaining} more</button>` : '');
+
+        const showMoreBtn = document.getElementById('notif-show-more-btn');
+        if (showMoreBtn) {
+            showMoreBtn.addEventListener('click', () => {
+                expanded = true;
+                renderNotifications();
+            });
+        }
 
         listEl.querySelectorAll('[data-notification-id]').forEach((el) => {
             el.addEventListener('click', async () => {
                 const id = Number(el.dataset.notificationId);
+                const entry = currentItems.find((item) => item.id === id);
+                if (entry) entry.is_read = true;
                 el.classList.remove('unread');
                 el.classList.add('read');
+                setDotVisible(currentItems.some((item) => !item.is_read));
                 await api.markNotificationRead(id).catch(() => null);
             });
         });
@@ -418,12 +470,18 @@ function wireNotificationsModal() {
     if (markAllBtn) {
         markAllBtn.addEventListener('click', async () => {
             await api.markAllNotificationsRead('admin').catch(() => null);
-            loadNotifications();
+            currentItems.forEach((item) => { item.is_read = true; });
+            setDotVisible(false);
+            renderNotifications();
         });
     }
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && overlay && !overlay.hidden) closeModal();
     });
+
+    // Eager load so the dot reflects real unread state at page load,
+    // not just after the bell is clicked. Also warms the modal content.
+    loadNotifications();
 }
 
 function wireAddAccountModal() {

@@ -1,4 +1,39 @@
-﻿document.addEventListener('DOMContentLoaded', async function () {
+﻿/* Category glyph (light, thin-stroke, currentColor) + status color mapping —
+   same icon set/logic as the public and admin notification bells, so all
+   three read as one system. Color signals status; the glyph signals category. */
+const NOTIF_ICONS = {
+    appointment: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8.5 15.5l2 2 4-4"/></svg>',
+    lostfound: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="20" y1="20" x2="14.5" y2="14.5"/></svg>',
+    vaccination: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+    general: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
+};
+
+function notifCategoryFromItem(item) {
+    if (item.type === 'appointment_new' || item.type === 'appointment_status') return 'appointment';
+    if (item.type === 'lost_found_new') return 'lostfound';
+    if (item.type === 'csp_registration') return 'vaccination';
+    if (typeof item.id === 'string' && item.id.indexOf('N-event-') === 0) return 'vaccination';
+    if (typeof item.id === 'string' && item.id.indexOf('N-pending-appointments') === 0) return 'appointment';
+    return 'general';
+}
+
+function notifStatusFromTitle(title) {
+    const t = (title || '').toLowerCase();
+    if (t.includes('reject') || t.includes('cancel')) return 'negative';
+    if (t.includes('confirmed') || t.includes('approve') || t.includes('resolve') || t.includes('upcoming')) return 'positive';
+    return 'neutral';
+}
+
+function getNotifDotElements() {
+    return Array.from(document.querySelectorAll('.notif-dot'));
+}
+
+function syncNotifDot(notificationState) {
+    const unreadCount = notificationState.items.filter((item) => !item.read && item.id !== 'N-empty').length;
+    getNotifDotElements().forEach((dot) => { dot.hidden = unreadCount <= 0; });
+}
+
+document.addEventListener('DOMContentLoaded', async function () {
     const [
         dashboardResponse,
         appointmentsResponse,
@@ -37,11 +72,16 @@
                 detail: item.message,
                 time: new Date(item.created_at).toLocaleString(),
                 read: item.is_read,
+                type: item.type,
                 serverBacked: true
             })),
             ...buildOperationalNotifications(dashboardData, appointments, vaccinationEvents)
         ]
     };
+
+    syncNotifDot(notificationState);
+    const NOTIF_PAGE_SIZE = 5;
+    let notifExpanded = false;
 
     const modalRoot = ensureDashboardModalRoot();
 
@@ -472,6 +512,7 @@
     const notificationBtn = document.getElementById('notification-icon-btn');
     if (notificationBtn) {
         notificationBtn.addEventListener('click', function () {
+            notifExpanded = false;
             openNotificationModal();
         });
     }
@@ -550,6 +591,8 @@
 
     function openNotificationModal() {
         const unreadCount = notificationState.items.filter((item) => !item.read).length;
+        const visibleItems = notifExpanded ? notificationState.items : notificationState.items.slice(0, NOTIF_PAGE_SIZE);
+        const remaining = notificationState.items.length - visibleItems.length;
 
         showModal(`
             <header class="dash-modal-header">
@@ -561,17 +604,21 @@
             </header>
             <div class="dash-modal-content">
                 <div class="dash-notification-list">
-                    ${notificationState.items
+                    ${visibleItems
                         .map(
                             (item) => `
                             <article class="dash-notification-item ${item.read ? 'read' : 'unread'}" data-notification-id="${escapeHtml(item.id)}">
-                                <h4>${escapeHtml(item.title)}</h4>
-                                <p>${escapeHtml(item.detail)}</p>
-                                <small>${escapeHtml(item.time)}</small>
+                                <div class="notif-badge notif-badge--${notifStatusFromTitle(item.title)}">${NOTIF_ICONS[notifCategoryFromItem(item)]}</div>
+                                <div class="dash-notification-item-body">
+                                    <h4>${escapeHtml(item.title)}</h4>
+                                    <p>${escapeHtml(item.detail)}</p>
+                                    <small>${escapeHtml(item.time)}</small>
+                                </div>
                             </article>
                         `
                         )
                         .join('')}
+                    ${remaining > 0 ? `<button type="button" class="notif-show-more-btn" id="notif-show-more-btn">Show ${remaining} more</button>` : ''}
                 </div>
             </div>
         `);
@@ -582,10 +629,19 @@
                 notificationState.items.forEach((item) => {
                     item.read = true;
                 });
+                syncNotifDot(notificationState);
                 openNotificationModal();
                 if (window.VetAPI?.markAllNotificationsRead) {
                     window.VetAPI.markAllNotificationsRead();
                 }
+            });
+        }
+
+        const showMoreBtn = document.getElementById('notif-show-more-btn');
+        if (showMoreBtn) {
+            showMoreBtn.addEventListener('click', () => {
+                notifExpanded = true;
+                openNotificationModal();
             });
         }
 
@@ -596,6 +652,7 @@
                     entry.read = true;
                     element.classList.remove('unread');
                     element.classList.add('read');
+                    syncNotifDot(notificationState);
                     if (entry.serverBacked && window.VetAPI?.markNotificationRead) {
                         window.VetAPI.markNotificationRead(entry.id);
                     }

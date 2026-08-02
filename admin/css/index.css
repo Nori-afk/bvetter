@@ -9,8 +9,10 @@
     --primary-light: #0E4686;
     --secondary-green: #1B6D24;
     --secondary-light-green: #00B928;
+    --secondary-pale-green: #EAFBEA;
     --accent-red: #93000A;
     --accent-light-red: #FFDAD6;
+    --primary-pale: #EAF0F8;
     --background-light: #F3F3F9;
     --background-gray: rgba(66, 71, 80, 0.05);
     --text-primary: #1A1C20;
@@ -128,6 +130,7 @@ html, body {
 .iconheader { display: flex; gap: 12px; }
 
 .icon-btn {
+    position: relative;
     width: 40px;
     height: 40px;
     border: none;
@@ -139,6 +142,21 @@ html, body {
     color: var(--text-secondary);
     transition: var(--transition);
     border-radius: 8px;
+}
+
+.notif-dot {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    background: var(--secondary-light-green);
+    border-radius: 50%;
+    border: 2px solid var(--white);
+}
+
+.notif-dot[hidden] {
+    display: none;
 }
 
 .icon-btn:hover { color: var(--primary-dark); background: var(--background-light); }
@@ -1047,6 +1065,9 @@ html, body {
 }
 
 .dash-notification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
     border-radius: 10px;
     background: var(--background-light);
     padding: 12px 14px;
@@ -1061,6 +1082,11 @@ html, body {
 
 .dash-notification-item.read { opacity: 0.82; }
 
+.dash-notification-item-body {
+    flex: 1;
+    min-width: 0;
+}
+
 .dash-notification-item h4 {
     color: var(--text-primary);
     font-size: 13px;
@@ -1070,4 +1096,50 @@ html, body {
 .dash-notification-item p,
 .dash-notification-item small {
     color: var(--text-secondary);
+}
+
+.notif-badge {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notif-badge svg {
+    width: 14px;
+    height: 14px;
+}
+
+.notif-badge--positive {
+    background: var(--secondary-pale-green);
+    color: var(--secondary-green);
+}
+
+.notif-badge--negative {
+    background: var(--accent-light-red);
+    color: var(--accent-red);
+}
+
+.notif-badge--neutral {
+    background: var(--primary-pale);
+    color: var(--primary-dark);
+}
+
+.notif-show-more-btn {
+    border: 1px dashed var(--border-light);
+    background: var(--white);
+    color: var(--primary-light);
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.notif-show-more-btn:hover {
+    background: var(--background-light);
 }

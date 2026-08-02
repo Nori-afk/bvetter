@@ -1,0 +1,116 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - img "Baliwag City Vet" [ref=e4]
+      - list [ref=e5]:
+        - listitem [ref=e6]:
+          - link "Home" [ref=e7] [cursor=pointer]:
+            - /url: landing.html
+        - listitem [ref=e8]:
+          - link "Book An Appointment" [ref=e9] [cursor=pointer]:
+            - /url: book-appointment.html
+        - listitem [ref=e10]:
+          - link "Lost And Found" [ref=e11] [cursor=pointer]:
+            - /url: lost-found.html
+        - listitem [ref=e12]:
+          - link "My Pets" [ref=e13] [cursor=pointer]:
+            - /url: my-pets.html
+    - generic [ref=e14]:
+      - link "Register" [ref=e15] [cursor=pointer]:
+        - /url: login.html
+      - link "Login" [ref=e16] [cursor=pointer]:
+        - /url: login.html
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e19]: Baliwag Veterinary Clinic
+      - heading [level=1] [ref=e20]:
+        - text: Compassion Meets
+        - generic [ref=e21]: Clinical Precision
+      - paragraph [ref=e22]: Redefining veterinary excellence with world-class diagnostics and a deep-rooted empathy for your companion's vitality.
+      - link [ref=e24] [cursor=pointer]:
+        - /url: ./book-appointment.html
+    - generic [ref=e28]:
+      - img "Dog" [ref=e29]
+      - generic [ref=e32]:
+        - generic [ref=e33]: VITALITY SCORE
+        - generic [ref=e34]: Optimized Recovery Plans
+  - generic [ref=e35]:
+    - generic [ref=e36]:
+      - generic [ref=e37]: Number of Visit
+      - generic [ref=e38]: "0"
+    - generic [ref=e39]:
+      - generic [ref=e40]: Average Rating per Vet
+      - generic [ref=e41]: N/A
+    - generic [ref=e42]:
+      - generic [ref=e43]: SPECIALISTS
+      - generic [ref=e44]: "12"
+  - generic [ref=e48]:
+    - generic [ref=e49]: About Us
+    - heading "Our Story" [level=2] [ref=e50]
+    - paragraph [ref=e51]: Baliwag Veterinary Services has been dedicated to the health and happiness of pets in our community, combining modern diagnostics with genuine, compassionate care for every companion that walks through our doors.
+  - generic [ref=e52]:
+    - generic [ref=e53]:
+      - generic [ref=e54]:
+        - heading "Upcoming Health Events" [level=2] [ref=e55]
+        - paragraph [ref=e56]: Stay proactive with our community wellness initiatives.
+      - generic [ref=e57]:
+        - button "←" [ref=e58] [cursor=pointer]
+        - button "→" [ref=e59] [cursor=pointer]
+    - generic [ref=e63]:
+      - generic [ref=e64]: NO EVENTS
+      - heading "No upcoming health events yet" [level=3] [ref=e65]
+      - paragraph [ref=e66]: Check back for announcements from the veterinary team.
+  - generic [ref=e67]:
+    - generic [ref=e68]:
+      - generic [ref=e69]:
+        - heading "Lost & Found Community" [level=2] [ref=e70]: Lost & FoundCommunity
+        - paragraph [ref=e71]: Our integrated network helps reunite elite companions with their families through real-time pet tracking and alerts.
+      - link "Visit Lost & Found →" [ref=e72] [cursor=pointer]:
+        - /url: lost-found.html
+    - generic [ref=e73]:
+      - generic [ref=e75]:
+        - generic [ref=e76]: No active reports
+        - generic [ref=e77]: Lost and found is clear right now.
+      - generic [ref=e78] [cursor=pointer]:
+        - img "report" [ref=e80]
+        - generic [ref=e81]: Report a Pet
+  - generic [ref=e82]:
+    - heading "Meet Our Specialists" [level=2] [ref=e83]
+    - paragraph [ref=e84]: The experts behind our clinical precision.
+    - generic [ref=e87]:
+      - generic [ref=e88]: No active specialists listed
+      - paragraph [ref=e89]: Veterinarian profiles will appear here once active accounts are available.
+  - contentinfo [ref=e90]:
+    - generic [ref=e91]:
+      - generic [ref=e92]:
+        - heading "Baliwag Veterinary Services" [level=3] [ref=e93]
+        - paragraph [ref=e94]: Leading the future of veterinary medicine through precision technology and heartfelt dedication.
+      - generic [ref=e95]:
+        - heading "QUICK LINKS" [level=4] [ref=e96]
+        - list [ref=e97]:
+          - listitem [ref=e98]:
+            - link "Privacy Policy" [ref=e99] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=e100]:
+            - link "Terms of Service" [ref=e101] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=e102]:
+            - link "Emergency Care" [ref=e103] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=e104]:
+            - link "Careers" [ref=e105] [cursor=pointer]:
+              - /url: "#"
+      - generic [ref=e106]:
+        - heading "CONTACT" [level=4] [ref=e107]
+        - paragraph [ref=e108]: AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026
+        - paragraph [ref=e109]: BaliwagtVC@gmail.com
+        - paragraph [ref=e110]: "09959210640"
+    - generic [ref=e111]:
+      - generic [ref=e112]: © 2026 Baliwag Veterinary Services. Precision in Medicine, Vitality in Life
+      - generic [ref=e113]:
+        - link "f" [ref=e114] [cursor=pointer]:
+          - /url: "#"
+        - link "in" [ref=e115] [cursor=pointer]:
+          - /url: "#"
+  - button "Open Vet Assistant" [ref=e116] [cursor=pointer]:
+    - img "Vet Assistant" [ref=e118]

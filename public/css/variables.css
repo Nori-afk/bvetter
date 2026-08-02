@@ -50,6 +50,7 @@
   /* Navy — primary brand, navbar, buttons, text headings */
   --color-navy:          #002A58;
   --color-navy-mid:      #0E4686;   /* hover state for navy */
+  --color-navy-pale:     #EAF0F8;   /* pale — neutral/informational badge backgrounds */
 
   /* Green — primary action color, badges, accents */
   --color-green:         #11C125;   /* bright — CTA buttons, checkmarks */
