@@ -66,7 +66,8 @@ html, body {
     width: calc(100% - (var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap)));
     height: 100vh;
     overflow-y: auto;
-    background: var(--background-gray);
+    padding-top: var(--shell-gap);
+    /* background: var(--background-gray); */
     transition: margin-left 0.28s ease, width 0.28s ease;
 }
 
@@ -112,11 +113,14 @@ html, body {
     justify-content: space-between;
     align-items: center;
     padding: 20px 32px;
-    background: var(--white);
+    background: rgba(255, 255, 255, 0.6);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--border-light);
     position: sticky;
     top: 0;
     z-index: 100;
+    border-radius: 18px;
 }
 
 .header-identity {
@@ -1790,6 +1794,7 @@ html, body {
         margin-left: 0;
         width: 100%;
         height: auto;
+        padding-top: 0;
     }
 
     #module-content {

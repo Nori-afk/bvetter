@@ -77,13 +77,6 @@
     overflow:         hidden;
     border-right:     1px solid rgba(255, 255, 255, 0.1);
     transition:       width 0.28s ease;
-    /* Several pages give their own sticky/fixed header the same
-       z-index (100). Since .sidebar and that header sit in separate
-       DOM branches (siblings, not ancestor/descendant), a tie is
-       broken by DOM order — whichever page markup happens to put the
-       header after the sidebar would then paint its header on top of
-       the mobile nav dropdown regardless of the panel's own z-index.
-       Comfortably outrank any page-level z-index so this can't recur. */
     z-index:          1000;
 }
 
