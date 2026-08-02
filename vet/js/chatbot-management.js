@@ -163,16 +163,13 @@
 		}
 	};
 
-	// Font Awesome glyphs (loaded via CDN <link> in chatbot-management.html)
-	// used here as a pilot for standardizing all app icons on one consistent
-	// icon set instead of hand-made SVGs of varying quality/style.
-	// Stroke-only (outline) icons -- Font Awesome Free has no non-solid
-	// dog/cat/paw glyphs, so these stay hand-drawn inline SVG to match
-	// the "stroke only" look requested for pet-type icons specifically.
+	// Font Awesome glyphs (loaded via CDN <link> in chatbot-management.html).
+	// White icon on a solid species-colored tile -- see .consultation-icon
+	// in chatbot-management.css for the background colors.
 	const PET_TYPE_SVG = {
-		dog: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10l2-5h12l2 5v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6z"/><path d="M8 18v2M16 18v2M8 13h.01M16 13h.01"/></svg>',
-		cat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11l1-6 4 4h4l4-4 1 6v5a4 4 0 0 1-8 0v-1h-2v1a4 4 0 0 1-8 0v-5z"/><path d="M9.5 15h.01M14.5 15h.01"/></svg>',
-		other: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="6" r="1.6"/><circle cx="16" cy="6" r="1.6"/><circle cx="4.5" cy="11" r="1.6"/><circle cx="19.5" cy="11" r="1.6"/><path d="M12 10c-3.5 0-6 2.3-6 5.3 0 2.3 1.8 3.5 6 3.5s6-1.2 6-3.5c0-3-2.5-5.3-6-5.3z"/></svg>'
+		dog: '<i class="fa-solid fa-dog"></i>',
+		cat: '<i class="fa-solid fa-cat"></i>',
+		other: '<i class="fa-solid fa-paw"></i>'
 	};
 
 	function petTypeIconSvg(petType) {

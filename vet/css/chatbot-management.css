@@ -877,30 +877,23 @@ body {
     border-radius: 999px;
     display: inline-grid;
     place-items: center;
-    color: #002A58;
-    background: #EFF6FF;
-    border: 1px solid #BFDBFE;
+    color: #ffffff;
+    background: #64748B;
     flex-shrink: 0;
 }
 
-.consultation-icon svg { width: 15px; height: 15px; }
+.consultation-icon i { font-size: 13px; line-height: 1; }
 
 .consultation-icon.dog {
-    background: #ECFDF5;
-    color: #0d7a3d;
-    border-color: #A7F3D0;
+    background: #0d7a3d;
 }
 
 .consultation-icon.cat {
-    background: #FFF7ED;
-    color: #C2410C;
-    border-color: #FED7AA;
+    background: #0d3f7a;
 }
 
 .consultation-icon.other {
-    background: #F1F5F9;
-    color: #64748B;
-    border-color: #E2E8F0;
+    background: #44506b;
 }
 
 .duration-pill,
@@ -1703,39 +1696,38 @@ body {
                 box-shadow 0.22s, transform 0.22s;
 }
 
-/* Icon square via pseudo-element — stroke-only outline icons.
-   Active state inverts to white via filter so the icon still reads
-   once the tile fills with a solid species color (see .active rule). */
+/* Icon square via pseudo-element — Font Awesome glyph rendered directly
+   in CSS content (codepoints verified against the loaded FA stylesheet),
+   white on a solid species-colored tile so it reads the same whether
+   the card is active or not. */
 .choice-card[data-animal]::before {
     content: '';
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 44px;
     height: 44px;
     border-radius: 12px;
-    background-size: 26px;
-    background-position: center;
-    background-repeat: no-repeat;
     flex-shrink: 0;
-    transition: background-color 0.22s, filter 0.22s;
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 20px;
+    color: #ffffff;
 }
 
 .choice-card[data-animal="Dog"]::before {
-    background-color: #e8f9ee;
-    background-image: url('/public/images/icons/chatbot-dogs-outline.svg');
+    content: "\f6d3";
+    background-color: #0d7a3d;
 }
 
 .choice-card[data-animal="Cat"]::before {
-    background-color: #eef3ff;
-    background-image: url('/public/images/icons/chatbot-cats-outline.svg');
+    content: "\f6be";
+    background-color: #0d3f7a;
 }
 
 .choice-card[data-animal="Other"]::before {
-    background-color: #f4f4f8;
-    background-image: url('/public/images/icons/chatbot-others-outline.svg');
-}
-
-.choice-card[data-animal].active::before {
-    filter: brightness(0) invert(1);
+    content: "\f1b0";
+    background-color: #44506b;
 }
 
 .choice-card:hover {
