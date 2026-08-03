@@ -552,18 +552,20 @@
         if (titleEl) { titleEl.textContent = titleText; titleEl.style.color = titleColor; }
 
         const maxVal = Math.max(1, ...primaryArr);
-        const rows = labels.map((name, i) => {
-            const value = primaryArr[i] || 0;
-            const pct   = Math.max(2, Math.round((value / maxVal) * 100));
-            const done  = secondaryArr?.[i] || 0;
-            const sub   = showSecondary && done > 0 ? `<small>${done.toLocaleString()} done</small>` : '';
-            return `
-                <div class="rank-row">
-                    <span class="rank-name" title="${sanitize(name)}">${sanitize(name)}</span>
-                    <div class="line"><div class="fill fill-blue" style="width:${pct}%"></div></div>
-                    <strong class="rank-value">${value.toLocaleString()}${sub}</strong>
-                </div>`;
-        }).join('');
+        const rows = labels
+            .map((name, i) => ({ name, value: primaryArr[i] || 0, done: secondaryArr?.[i] || 0 }))
+            .filter((row) => row.value > 0 || row.done > 0) // skip barangays with nothing to show
+            .sort((a, b) => b.value - a.value)
+            .map((row) => {
+                const pct = Math.max(2, Math.round((row.value / maxVal) * 100));
+                const sub = showSecondary && row.done > 0 ? `<small>${row.done.toLocaleString()} done</small>` : '';
+                return `
+                    <div class="rank-row">
+                        <span class="rank-name" title="${sanitize(row.name)}">${sanitize(row.name)}</span>
+                        <div class="line"><div class="fill fill-blue" style="width:${pct}%"></div></div>
+                        <strong class="rank-value">${row.value.toLocaleString()}${sub}</strong>
+                    </div>`;
+            }).join('');
 
         const listEl = document.getElementById(listId);
         if (listEl) listEl.innerHTML = rows;
@@ -669,12 +671,16 @@
             var hasLiveData    = dbDogsD.some(v => v > 0) || dbCatsD.some(v => v > 0)
                               || dbOtherD.some(v => v > 0) || hasUnspecified;
 
-            // Sort every parallel array together by each barangay's grand total,
-            // high → low, so the horizontal chart below reads as a ranking.
-            var order = labels.map((_, i) => i).sort((a, b) =>
-                (mergedDogs[b] + mergedCats[b] + mergedOther[b] + dbTotalsArr[b])
-              - (mergedDogs[a] + mergedCats[a] + mergedOther[a] + dbTotalsArr[a])
-            );
+            // Drop barangays with nothing to show (zero in every category —
+            // e.g. a placeholder row in the Excel fallback dataset), then sort
+            // the rest by grand total, high → low, so the horizontal chart
+            // below reads as a ranking instead of showing empty labeled rows.
+            var order = labels.map((_, i) => i)
+                .filter(i => (mergedDogs[i] + mergedCats[i] + mergedOther[i] + dbTotalsArr[i]) > 0)
+                .sort((a, b) =>
+                    (mergedDogs[b] + mergedCats[b] + mergedOther[b] + dbTotalsArr[b])
+                  - (mergedDogs[a] + mergedCats[a] + mergedOther[a] + dbTotalsArr[a])
+                );
             labels      = order.map(i => labels[i]);
             mergedDogs  = order.map(i => mergedDogs[i]);
             mergedCats  = order.map(i => mergedCats[i]);
@@ -940,12 +946,6 @@
                 );
                 var doneByBarangay = allBarangays.map(b => (dbBarangayTotals[b] || {}).total || 0);
 
-                // Sort barangays by need, high → low, for the horizontal ranking below.
-                var orderN = allBarangays.map((_, i) => i).sort((a, b) => neededByBarangay[b] - neededByBarangay[a]);
-                allBarangays      = orderN.map(i => allBarangays[i]);
-                neededByBarangay  = orderN.map(i => neededByBarangay[i]);
-                doneByBarangay    = orderN.map(i => doneByBarangay[i]);
-
                 var c4Title = dbGrandTotal > 0
                     ? `Predicted Vaccine Demand (${range}): ~${Math.round(adjustedTotal).toLocaleString()} needed — highest to lowest`
                     : `Predicted Vaccine Demand (${range}): ~${Math.round(arimaBase).toLocaleString()} vaccines — highest to lowest`;
@@ -957,11 +957,6 @@
                 // Fallback — RF-predicted values from PHP dashboard (all barangays, no slice)
                 var predictedByBarangay = allBarangays.map(b => Math.round((barangayBaseMap[b].predicted || 0) * multi));
                 var doneByBarangayFb    = allBarangays.map(b => (dbBarangayTotals[b] || {}).total || 0);
-
-                var orderFb = allBarangays.map((_, i) => i).sort((a, b) => predictedByBarangay[b] - predictedByBarangay[a]);
-                allBarangays        = orderFb.map(i => allBarangays[i]);
-                predictedByBarangay = orderFb.map(i => predictedByBarangay[i]);
-                doneByBarangayFb    = orderFb.map(i => doneByBarangayFb[i]);
 
                 renderRankList('vaccinesNeededList', 'vaccinesNeededTitle',
                     `Vaccine Demand — ${range} (Estimated — Forecast Unavailable) — highest to lowest`, VIZ.warn,

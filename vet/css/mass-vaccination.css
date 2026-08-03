@@ -230,6 +230,11 @@ body {
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: 16px;
 	margin-bottom: 16px;
+	/* Cards no longer share a similar natural height — the barangay chart's
+	   height is now data-driven (rows × row-height) while the line chart is
+	   fixed — so stop them stretching to match the tallest sibling; each
+	   card should size to its own content instead of leaving empty space. */
+	align-items: start;
 }
 
 .card {
