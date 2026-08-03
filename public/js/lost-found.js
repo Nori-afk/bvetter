@@ -84,6 +84,68 @@ function reportLocation(report) {
   return report.location || report.barangay || 'Baliwag';
 }
 
+/* ── Click-to-expand photos (lightbox) ──────────
+   Wraps any pet/report photo with a small expand-icon badge; clicking either
+   the photo or the badge opens it full-size. `small` shrinks the badge for
+   compact thumbnails (match-card pets, sighting photo). */
+const EXPAND_ICON_SVG = '<svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5.5 1.5H2.5a1 1 0 00-1 1v3M8.5 1.5h3a1 1 0 011 1v3M5.5 12.5H2.5a1 1 0 01-1-1v-3M8.5 12.5h3a1 1 0 001-1v-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function expandableImg(src, alt, imgClass, small = false) {
+  const safeSrc = escapeHtml(src || FALLBACK_IMAGE);
+  const safeAlt = escapeHtml(alt || '');
+  return `
+    <div class="lf-img-expand-wrap${small ? ' small' : ''}" data-lightbox-src="${safeSrc}" data-lightbox-alt="${safeAlt}">
+      <img src="${safeSrc}" alt="${safeAlt}" class="${imgClass}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';this.closest('.lf-img-expand-wrap').dataset.lightboxSrc='${FALLBACK_IMAGE}';"/>
+      <button type="button" class="lf-expand-badge" aria-label="Expand photo" tabindex="-1">${EXPAND_ICON_SVG}</button>
+    </div>
+  `;
+}
+
+function openLightbox(src, alt) {
+  const overlay = document.getElementById('lfLightbox');
+  const img = document.getElementById('lfLightboxImg');
+  if (!overlay || !img || !src) return;
+  img.src = src;
+  img.alt = alt || '';
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightboxDirect() {
+  const overlay = document.getElementById('lfLightbox');
+  if (!overlay) return;
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function closeLightbox(event) {
+  if (event.target === document.getElementById('lfLightbox')) closeLightboxDirect();
+}
+
+document.addEventListener('click', (event) => {
+  const lightboxTarget = event.target.closest('[data-lightbox-target]');
+  if (lightboxTarget) {
+    const img = document.getElementById(lightboxTarget.dataset.lightboxTarget);
+    if (img && img.src) {
+      event.stopPropagation();
+      openLightbox(img.src, img.alt);
+    }
+    return;
+  }
+
+  const lightboxWrap = event.target.closest('.lf-img-expand-wrap');
+  if (lightboxWrap) {
+    event.stopPropagation();
+    openLightbox(lightboxWrap.dataset.lightboxSrc, lightboxWrap.dataset.lightboxAlt);
+    return;
+  }
+
+  const matchCard = event.target.closest('.lf-match-card');
+  if (matchCard && !event.target.closest('.lf-match-actions') && !event.target.closest('.lf-match-resolved-badge')) {
+    openMatchDetail(matchCard.dataset.matchId);
+  }
+});
+
 function setLoading(target, message = 'Loading reports...') {
   const el = document.getElementById(target);
   if (el) el.innerHTML = `<div class="empty-state">${escapeHtml(message)}</div>`;
@@ -201,7 +263,7 @@ function renderPublicGrid() {
       <div class="pet-card" data-status="${type}">
         <div class="pet-card-img-wrap">
           <span class="pet-badge ${type}">${escapeHtml(report.type)}</span>
-          <img src="${escapeHtml(reportImage(report))}" alt="" class="pet-card-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/>
+          ${expandableImg(reportImage(report), report.petName || report.title || 'Pet', 'pet-card-img')}
         </div>
         <div class="pet-card-body">
           <div class="pet-card-title-row">
@@ -257,7 +319,7 @@ function renderMyReports() {
       <div class="active-report-card" id="reportCard-${report.id}">
         <div class="active-report-img-wrap">
           <span class="pet-badge ${type}">${escapeHtml(report.type)}</span>
-          <img src="${escapeHtml(reportImage(report))}" alt="" class="active-report-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/>
+          ${expandableImg(reportImage(report), report.petName || report.title || 'Pet', 'active-report-img')}
         </div>
         <div class="active-report-body">
           <h3 class="active-report-name">${escapeHtml(report.petName || report.title || 'Unknown')}</h3>
@@ -270,10 +332,17 @@ function renderMyReports() {
               <img src="../images/icons/${pending ? 'admin-review.svg' : 'matching-progress.svg'}" alt="" class="status-icon"/> ${escapeHtml(pending ? 'Vet Review' : report.status)}
             </span>
           </div>
-          <button type="button" class="btn-active-details ${pending ? 'outline' : ''}" onclick="openMyReportMatches('${report.id}')">
-            ${pending ? 'View Details' : report.status === 'resolved' ? 'View Case' : 'View Potential Matches'}
-            <img src="../images/icons/icon-right-arrow.svg" alt="" class="btn-arrow"/>
-          </button>
+          <div class="active-report-actions">
+            <button type="button" class="btn-active-details ${pending ? 'outline' : ''}" onclick="openMyReportMatches('${report.id}')">
+              ${pending ? 'View Details' : report.status === 'resolved' ? 'View Case' : 'View Potential Matches'}
+              <img src="../images/icons/icon-right-arrow.svg" alt="" class="btn-arrow"/>
+            </button>
+            ${!pending && type === 'lost' ? `
+              <button type="button" class="btn-mark-resolved" onclick="handleResolveOwnReport('${report.id}')">
+                Mark Resolved
+              </button>
+            ` : ''}
+          </div>
         </div>
       </div>
     `;
@@ -339,8 +408,23 @@ function closeModal(id) {
   document.body.style.overflow = '';
   destroyDetailMap();
   if (id === 'reportModal') {
-    const petNameInput = document.getElementById('petNameInput');
-    if (petNameInput) petNameInput.value = '';
+    ['petNameInput', 'breedInput', 'markingsInput', 'incidentDateInput', 'notesInput', 'contactName', 'contactPhone', 'contactEmail'].forEach((fieldId) => {
+      const field = document.getElementById(fieldId);
+      if (field) field.value = '';
+    });
+    const speciesInput = document.getElementById('speciesInput');
+    if (speciesInput) speciesInput.selectedIndex = 0;
+    const sizeInput = document.getElementById('sizeInput');
+    if (sizeInput) sizeInput.selectedIndex = 0;
+    const barangayInput = document.getElementById('barangayInput');
+    if (barangayInput) barangayInput.value = '';
+    document.querySelectorAll('#reportModal .sex-btn').forEach((btn, index) => btn.classList.toggle('active', index === 0));
+    document.getElementById('accountToggle')?.classList.remove('on');
+    updateCharCounter('notesInput', 'notesCounter');
+    const reportLatInput = document.getElementById('reportLatInput');
+    const reportLngInput = document.getElementById('reportLngInput');
+    if (reportLatInput) reportLatInput.value = DEFAULT_COORDS[0];
+    if (reportLngInput) reportLngInput.value = DEFAULT_COORDS[1];
   }
   if (id === 'sightingModal') {
     destroySightingMap();
@@ -353,6 +437,12 @@ function closeModal(id) {
   }
   if (id === 'claimModal') {
     document.getElementById('claimAccountToggle')?.classList.remove('on');
+    ['claimNameInput', 'claimPhoneInput', 'claimEmailInput'].forEach((fieldId) => {
+      const field = document.getElementById(fieldId);
+      if (field) field.value = '';
+    });
+    document.querySelectorAll('#claimModal .proof-option').forEach((btn, index) => btn.classList.toggle('active', index === 0));
+    resetClaimDocPreview();
   }
 
   // reset upload preview
@@ -410,6 +500,7 @@ function openModal(type) {
 
   openModalById('reportModal');
   setTimeout(() => initReportMap(), 100);
+  restoreDraft(type);
 
   // image preview code
  const fileInput = document.getElementById("petPhoto");
@@ -477,6 +568,84 @@ function updateCharCounter(inputId, counterId) {
   if (!input || !counter) return;
   const max = Number(input.getAttribute('maxlength')) || 500;
   counter.textContent = `${input.value.length}/${max}`;
+}
+
+/* ── Save Draft (browser-local only) ────────────
+   No backend draft concept exists (and adding one means a live schema
+   migration + relaxing every required-field check in createReport()) — this
+   just stashes the form's text fields in localStorage so closing the tab
+   doesn't lose what you typed. The photo file itself isn't persisted. */
+const DRAFT_STORAGE_PREFIX = 'bvetter_lf_draft_';
+
+function draftFieldIds(kind) {
+  if (kind === 'lost' || kind === 'found') {
+    return ['petNameInput', 'speciesInput', 'breedInput', 'sizeInput', 'markingsInput', 'incidentDateInput', 'barangayInput', 'notesInput', 'contactName', 'contactPhone', 'contactEmail'];
+  }
+  if (kind === 'claim') {
+    return ['claimNameInput', 'claimPhoneInput', 'claimEmailInput'];
+  }
+  return [];
+}
+
+function saveDraft(kind) {
+  const data = {};
+  draftFieldIds(kind).forEach((fieldId) => {
+    const field = document.getElementById(fieldId);
+    if (field) data[fieldId] = field.value;
+  });
+  if (kind === 'lost' || kind === 'found') {
+    const sexBtn = document.querySelector('#reportModal .sex-btn.active');
+    if (sexBtn) data.__sex = sexBtn.textContent.trim();
+  }
+  if (kind === 'claim') {
+    const proofBtn = document.querySelector('#claimModal .proof-option.active');
+    if (proofBtn) data.__proof = proofBtn.textContent.trim();
+  }
+  try {
+    localStorage.setItem(DRAFT_STORAGE_PREFIX + kind, JSON.stringify(data));
+  } catch {
+    // localStorage unavailable (private browsing quota, etc.) — draft just won't persist.
+  }
+}
+
+function restoreDraft(kind) {
+  let data = null;
+  try {
+    data = JSON.parse(localStorage.getItem(DRAFT_STORAGE_PREFIX + kind) || 'null');
+  } catch {
+    data = null;
+  }
+  if (!data) return;
+
+  draftFieldIds(kind).forEach((fieldId) => {
+    const field = document.getElementById(fieldId);
+    if (field && data[fieldId]) field.value = data[fieldId];
+  });
+
+  if ((kind === 'lost' || kind === 'found') && data.__sex) {
+    document.querySelectorAll('#reportModal .sex-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.textContent.trim() === data.__sex);
+    });
+    updateCharCounter('notesInput', 'notesCounter');
+  }
+  if (kind === 'claim' && data.__proof) {
+    document.querySelectorAll('#claimModal .proof-option').forEach((btn) => {
+      btn.classList.toggle('active', btn.textContent.trim() === data.__proof);
+    });
+  }
+}
+
+function clearDraft(kind) {
+  try {
+    localStorage.removeItem(DRAFT_STORAGE_PREFIX + kind);
+  } catch {
+    // ignore
+  }
+}
+
+function handleSaveDraftClick(kind) {
+  saveDraft(kind);
+  alert('Draft saved on this device. It will be restored the next time you open this form here.');
 }
 
 function assertDateNotFuture(value, label) {
@@ -556,6 +725,7 @@ async function submitReport() {
     if (submitBtn) submitBtn.disabled = false;
 
     if (!result.success) throw new Error(result.message || 'Could not submit report.');
+    clearDraft(currentReportType);
     closeModal('reportModal');
     await loadReports();
     await loadMyReports();
@@ -668,9 +838,7 @@ function buildMatchCard(match, index, report) {
 
 				<!-- Owner's report (the report the user clicked) -->
 				<div class="lf-match-pet-card owner">
-					<img src="${escapeHtml(ownerPet.image || FALLBACK_IMAGE)}"
-						alt="${escapeHtml(ownerPet.name || ownerFallbackName)}"
-						class="lf-match-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/>
+					${expandableImg(ownerPet.image, ownerPet.name || ownerFallbackName, 'lf-match-pet-img', true)}
 					<div class="lf-match-pet-info">
 						<h4 class="lf-match-pet-name">
 							${escapeHtml(ownerPet.name || report?.petName || report?.title || ownerFallbackName)}
@@ -697,9 +865,7 @@ function buildMatchCard(match, index, report) {
 
 				<!-- Counterpart candidate report -->
 				<div class="lf-match-pet-card admin">
-					<img src="${escapeHtml(otherPet.image || FALLBACK_IMAGE)}"
-						alt="${escapeHtml(otherPet.name || 'Pet')}"
-						class="lf-match-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/>
+					${expandableImg(otherPet.image, otherPet.name || 'Pet', 'lf-match-pet-img', true)}
 					<div class="lf-match-pet-info">
 						<h4 class="lf-match-pet-name">
 							${escapeHtml(otherPet.name || 'Pet')}
@@ -747,9 +913,7 @@ function buildSightingCard(match, index) {
 			</div>
 
 			<div class="lf-sighting-card-body">
-				<img src="${escapeHtml(sighting.image || FALLBACK_IMAGE)}"
-					alt="Sighting photo"
-					class="lf-sighting-photo" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/>
+				${expandableImg(sighting.image, 'Sighting photo', 'lf-sighting-photo', true)}
 
 				<div class="lf-sighting-info">
 					<p class="pet-meta-item"><img src="../images/icons/icon-location.svg" alt="" class="meta-icon-sm"/> ${escapeHtml(sighting.location || 'Location not provided')}</p>
@@ -762,14 +926,6 @@ function buildSightingCard(match, index) {
 				</div>
 			</div>
 
-			<div class="lf-match-actions resolved">
-				<button type="button" class="lfd-btn-claim"
-					data-match-id="${escapeHtml(String(match.id))}"
-					onclick="handleResolveSighting(this)">
-					MARK AS RESOLVED — GOT MY PET BACK
-				</button>
-			</div>
-
 		</div>
 	`;
 }
@@ -778,6 +934,114 @@ let currentFoundMatches = [];
 let currentSightingMatches = [];
 let currentMatchesReport = null;
 let sightingViewOpen = false;
+
+// Bigger detail view of a single Potential Match card (formal lost-vs-found
+// pairs only — sighting cards already show everything inline, there's nothing
+// further to reveal). Reuses the same NOT MY PET / CLAIM THIS PET actions.
+function openMatchDetail(matchId) {
+	const match = currentFoundMatches.find((item) => String(item.id) === String(matchId));
+	if (!match) return;
+	renderMatchDetailBody(match);
+	openModalById('matchDetailModal');
+}
+
+function renderMatchDetailBody(match) {
+	const report = currentMatchesReport;
+	const isResolved = match.status === 'approved';
+	const foundId = match.found?.reportId || '';
+
+	const ownerIsFound = normalizeType(report?.type) === 'found';
+	const ownerPet = ownerIsFound ? match.found : match.lost;
+	const otherPet = ownerIsFound ? match.lost : match.found;
+	const ownerFallbackName = ownerIsFound ? 'Found Pet' : 'Lost Pet';
+	const ownerTagClass = ownerIsFound ? 'found-tag' : 'lost-tag';
+	const ownerTagText = ownerIsFound ? 'Found (Your Report)' : 'Lost (Your Report)';
+	const otherTagClass = ownerIsFound ? 'lost-tag' : 'found-tag';
+	const otherTagText = ownerIsFound ? 'Lost Pet Report' : 'Found Pet Report';
+
+	const simTagsHtml = (match.reasons || [])
+		.map((reason) => `<span class="lf-sim-tag">${escapeHtml(reason)}</span>`)
+		.join('');
+
+	// Only the counterpart's contact info is shown — you already know your own.
+	const contactRows = [
+		otherPet.contactPhone ? `<a href="tel:${escapeHtml(otherPet.contactPhone)}" class="pet-meta-item"><img src="../images/icons/report-phone.svg" alt="" class="meta-icon-sm"/> ${escapeHtml(otherPet.contactPhone)}</a>` : '',
+		otherPet.contactEmail ? `<a href="mailto:${escapeHtml(otherPet.contactEmail)}" class="pet-meta-item"><img src="../images/icons/report-mail.svg" alt="" class="meta-icon-sm"/> ${escapeHtml(otherPet.contactEmail)}</a>` : '',
+	].filter(Boolean).join('');
+
+	const actionsHtml = isResolved
+		? `<div class="lf-match-resolved-badge">✓ Resolved Match</div>`
+		: `
+			<button type="button" class="lfd-btn-notmine" onclick="handleNotMineModal('${match.id}')">NOT MY PET</button>
+			<button type="button" class="lfd-btn-claim" onclick="handleClaimModal('${match.id}', '${foundId}')">CLAIM THIS PET</button>
+		`;
+
+	const subtitleEl = document.getElementById('matchDetailSubtitle');
+	if (subtitleEl) subtitleEl.textContent = `${match.confidence}% match for ${report?.petName || report?.title || 'your report'}`;
+
+	const body = document.getElementById('matchDetailBody');
+	if (!body) return;
+	body.innerHTML = `
+		<div class="lf-match-pets lf-match-detail-pets">
+			<div class="lf-match-pet-card owner">
+				${expandableImg(ownerPet.image, ownerPet.name || ownerFallbackName, 'lf-match-pet-img')}
+				<div class="lf-match-pet-info">
+					<h4 class="lf-match-pet-name">${escapeHtml(ownerPet.name || report?.petName || report?.title || ownerFallbackName)}</h4>
+					<p class="lf-match-pet-meta">${escapeHtml(ownerPet.breed || '')}</p>
+					<p class="lf-match-pet-meta">${escapeHtml(ownerPet.location || '')}</p>
+					<p class="lf-match-pet-meta">Reported: ${escapeHtml(formatDate(ownerPet.createdAt))}</p>
+					<span class="lf-match-tag ${ownerTagClass}">${ownerTagText}</span>
+				</div>
+			</div>
+			<div class="lf-match-vs">
+				<div class="lf-match-vs-line"></div>
+				<div class="lf-match-vs-icon">
+					<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+						<path d="M3.5 7h7M7.5 4.5L10 7l-2.5 2.5" stroke="#737781" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+					</svg>
+				</div>
+				<div class="lf-match-vs-line"></div>
+			</div>
+			<div class="lf-match-pet-card admin">
+				${expandableImg(otherPet.image, otherPet.name || 'Pet', 'lf-match-pet-img')}
+				<div class="lf-match-pet-info">
+					<h4 class="lf-match-pet-name">${escapeHtml(otherPet.name || 'Pet')}</h4>
+					<p class="lf-match-pet-meta">${escapeHtml(otherPet.breed || '')}</p>
+					<p class="lf-match-pet-meta">${escapeHtml(otherPet.location || '')}</p>
+					<p class="lf-match-pet-meta">Reported: ${escapeHtml(formatDate(otherPet.createdAt))}</p>
+					<span class="lf-match-tag ${otherTagClass}">${otherTagText}</span>
+				</div>
+			</div>
+		</div>
+
+		${simTagsHtml ? `<div class="lf-match-similarity-tags">${simTagsHtml}</div>` : ''}
+
+		<div class="lf-match-detail-contact">
+			<h4 class="details-section-title green">Contact Information</h4>
+			<span class="lf-match-detail-contact-name">${escapeHtml(otherPet.contactName || 'Not provided')}</span>
+			${contactRows ? `<div class="lf-match-detail-contact-rows">${contactRows}</div>` : '<p class="lf-match-detail-empty-contact">No contact details were provided.</p>'}
+		</div>
+
+		<div class="lf-match-actions${isResolved ? ' resolved' : ''}">${actionsHtml}</div>
+	`;
+}
+
+function handleNotMineModal(matchId) {
+	currentFoundMatches = currentFoundMatches.filter((match) => String(match.id) !== String(matchId));
+	currentSightingMatches = currentSightingMatches.filter((match) => String(match.id) !== String(matchId));
+	closeModal('matchDetailModal');
+	// closeModal() unconditionally clears body scroll-lock — restore it since the
+	// matches panel underneath is still open.
+	if (document.getElementById('matchesPanelOverlay')?.classList.contains('open')) {
+		document.body.style.overflow = 'hidden';
+	}
+	renderMatchesBody();
+}
+
+function handleClaimModal(matchId, foundId) {
+	closeModal('matchDetailModal');
+	handleClaim({ dataset: { foundId } });
+}
 
 function animateMatchBars(container) {
 	requestAnimationFrame(() => {
@@ -931,21 +1195,18 @@ function handleClaim(btn) {
   openClaimModal();
 }
 
-async function handleResolveSighting(btn) {
-  const matchId = btn?.dataset?.matchId;
-  if (!matchId) return;
+// General "mark resolved" action for a Lost report, reachable straight from
+// the report card — covers a pet coming home on its own, with no sighting or
+// found-report match involved at all.
+async function handleResolveOwnReport(reportId) {
   if (!confirm('Mark this case as resolved? This will remove it from the active lost pets list.')) return;
 
-  btn.disabled = true;
-  const result = await api.resolveSightingMatch(matchId);
+  const result = await api.resolveOwnReport(reportId);
   if (!result.success) {
     alert(result.message || 'Could not resolve this report.');
-    btn.disabled = false;
     return;
   }
 
-  currentSightingMatches = currentSightingMatches.filter((match) => String(match.id) !== String(matchId));
-  closeMatchesPanelDirect();
   await loadReports();
   await loadMyReports();
   alert('Marked as resolved. Glad you got your pet back!');
@@ -1188,6 +1449,7 @@ function openClaimModal(reportId = null) {
   setTimeout(() => {
     openModalById('claimModal');
     initClaimDocPreview();
+    restoreDraft('claim');
   }, 150);
 }
 
@@ -1290,6 +1552,7 @@ async function submitClaim() {
     alert(result.message || 'Could not submit claim.');
     return;
   }
+  clearDraft('claim');
   closeModal('claimModal');
   setTimeout(() => openModalById('claimSuccessModal'), 150);
 }

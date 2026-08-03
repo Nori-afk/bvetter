@@ -310,6 +310,101 @@ body {
   background: #e0e0e0;
 }
 
+/* =============================================
+   CLICK-TO-EXPAND PHOTOS (lightbox)
+   ============================================= */
+.lf-img-expand-wrap {
+  position: relative;
+  display: block;
+  cursor: zoom-in;
+}
+
+.lf-expand-badge {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  padding: 0;
+  z-index: 2;
+  transition: background 0.15s;
+}
+
+.lf-img-expand-wrap:hover .lf-expand-badge,
+.lf-expand-badge:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.lf-img-expand-wrap.small .lf-expand-badge {
+  width: 16px;
+  height: 16px;
+  bottom: 2px;
+  right: 2px;
+}
+
+.lf-img-expand-wrap.small .lf-expand-badge svg {
+  width: 9px;
+  height: 9px;
+}
+
+.lf-expand-badge-lg {
+  bottom: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  cursor: zoom-in;
+}
+
+.lf-lightbox-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.lf-lightbox-overlay.open {
+  display: flex !important;
+}
+
+.lf-lightbox-img {
+  max-width: 100%;
+  max-height: 90vh;
+  border-radius: 8px;
+  object-fit: contain;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+}
+
+.lf-lightbox-close {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.lf-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 .pet-badge {
   position: absolute;
   top: 10px;
@@ -582,6 +677,41 @@ body {
 
 .btn-active-details.outline:hover {
   background: var(--color-navy);
+  color: #ffffff;
+}
+
+.active-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.active-report-actions .btn-active-details {
+  margin-top: 0;
+  flex: 1 1 140px;
+}
+
+.btn-mark-resolved {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 14px;
+  background: #ffffff;
+  border: 1.5px solid var(--color-green-dark);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Manrope', sans-serif;
+  color: var(--color-green-dark);
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1 1 140px;
+}
+
+.btn-mark-resolved:hover {
+  background: var(--color-green-dark);
   color: #ffffff;
 }
 
@@ -2993,6 +3123,70 @@ body {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   font-size: 0.82rem;
+}
+
+/* =============================================
+   MATCH DETAIL MODAL (click a Potential Match card)
+   ============================================= */
+.match-detail-modal-box {
+  max-width: 620px;
+}
+
+.match-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 14px 20px 20px;
+}
+
+.lf-match-detail-pets .lf-match-pet-img {
+  width: 84px;
+  height: 84px;
+  border-radius: 12px;
+}
+
+.lf-match-detail-pets .lf-match-pet-card {
+  padding: 14px 16px;
+}
+
+.lf-match-detail-contact {
+  padding: 14px 16px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.lf-match-detail-contact .details-section-title {
+  margin-bottom: 8px;
+}
+
+.lf-match-detail-contact-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.lf-match-detail-contact-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lf-match-detail-contact-rows a.pet-meta-item {
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.lf-match-detail-contact-rows a.pet-meta-item:hover {
+  color: var(--color-navy);
+}
+
+.lf-match-detail-empty-contact {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .lf-match-claimant-label {

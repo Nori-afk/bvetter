@@ -449,12 +449,12 @@ forgotPassword: (email) => {
     lostFoundRequest('matches', { report_id: reportId, include_resolved: 1 }),
 
   /**
-   * Self-resolve a lost report from a sighting lead (owner reunited with their
-   * pet without going through the formal Claim/proof-of-ownership flow).
-   * @param {string} matchId
+   * Self-resolve one of your own Lost reports directly (pet came home on its
+   * own — no sighting or found-report match required).
+   * @param {string} reportId
    */
-  resolveSightingMatch: (matchId) =>
-    lostFoundRequest('resolve_sighting_match', { match_id: matchId }),
+  resolveOwnReport: (reportId) =>
+    lostFoundRequest('resolve_own_report', { report_id: reportId }),
 
   /**
    * Submit lost or found report (includes photo upload)

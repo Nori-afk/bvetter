@@ -333,7 +333,9 @@ function renderTabs() {
 	const tabRoot = document.getElementById('tabBar');
 	tabRoot.innerHTML = lfData.tabs.map((tab) => {
 		const activeClass = lfState.activeTab === tab.id ? 'active' : '';
-		const badge = tab.badge && lfData.potentialMatches.length ? `<span class="tab-pill">${tab.badge}</span>` : '';
+		// Scoped to real lost-vs-found report pairs only — the tab's own default
+		// view — not sighting-based candidates, which live behind the in-tab toggle.
+		const badge = tab.badge && splitMatches(lfData.potentialMatches).found.length ? `<span class="tab-pill">${tab.badge}</span>` : '';
 		return `<button type="button" class="tab-btn ${activeClass}" data-tab-id="${tab.id}">${escapeHtml(tab.label)}${badge}</button>`;
 	}).join('');
 	tabRoot.querySelectorAll('.tab-btn').forEach((button) => {

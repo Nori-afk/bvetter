@@ -651,7 +651,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn-save-draft">Save Draft</button>
+        <button type="button" class="btn-save-draft" onclick="handleSaveDraftClick(currentReportType)">Save Draft</button>
         <div class="modal-footer-right">
           <button type="button" class="btn-cancel" onclick="closeModal('reportModal')">Cancel</button>
           <button type="button" class="btn-submit" onclick="submitReport()">
@@ -669,6 +669,9 @@
       <div class="details-img-side">
         <img src="" alt="" class="details-pet-img" id="detailsPetImg"/>
         <div class="details-status-badge lost">Lost</div>
+        <button type="button" class="lf-expand-badge lf-expand-badge-lg" aria-label="Expand photo" data-lightbox-target="detailsPetImg">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5.5 1.5H2.5a1 1 0 00-1 1v3M8.5 1.5h3a1 1 0 011 1v3M5.5 12.5H2.5a1 1 0 01-1-1v-3M8.5 12.5h3a1 1 0 001-1v-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </div>
       <div class="details-info-side">
         <div class="details-info-header">
@@ -717,6 +720,9 @@
       <div class="details-img-side">
         <img src="" alt="" class="details-pet-img" id="detailsFoundImg"/>
         <div class="details-status-badge found">Found</div>
+        <button type="button" class="lf-expand-badge lf-expand-badge-lg" aria-label="Expand photo" data-lightbox-target="detailsFoundImg">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5.5 1.5H2.5a1 1 0 00-1 1v3M8.5 1.5h3a1 1 0 011 1v3M5.5 12.5H2.5a1 1 0 01-1-1v-3M8.5 12.5h3a1 1 0 001-1v-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
       </div>
       <div class="details-info-side">
         <div class="details-info-header">
@@ -917,13 +923,44 @@
         </div>
       </div>
       <div class="claim-footer">
-        <button type="button" class="btn-save-draft">Save Draft</button>
+        <button type="button" class="btn-save-draft" onclick="handleSaveDraftClick('claim')">Save Draft</button>
         <div class="modal-footer-right">
           <button type="button" class="btn-cancel" onclick="closeModal('claimModal')">Cancel</button>
           <button type="button" class="btn-submit" onclick="submitClaim()">Submit Verification</button>
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- ══════════ MATCH DETAIL MODAL (opened by clicking a Potential Match card) ══════════ -->
+  <div class="modal-overlay" id="matchDetailModal" onclick="closeModalOutside(event,'matchDetailModal')">
+    <div class="modal-box match-detail-modal-box">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-header-icon">
+            <img src="../images/icons/icon-pawprint.svg" alt="" class="modal-header-icon-img"/>
+          </div>
+          <div>
+            <h2 class="modal-title">Match Details</h2>
+            <p class="modal-subtitle" id="matchDetailSubtitle">System-detected match</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" onclick="closeModal('matchDetailModal')">
+          <img src="../images/icons/icon-close.svg" alt="close" class="close-icon-img"/>
+        </button>
+      </div>
+      <div class="modal-body match-detail-body" id="matchDetailBody">
+        <!-- populated by renderMatchDetailBody() in lost-found.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ IMAGE LIGHTBOX (click any photo in the module to expand) ══════════ -->
+  <div class="lf-lightbox-overlay" id="lfLightbox" onclick="closeLightbox(event)">
+    <button type="button" class="lf-lightbox-close" onclick="closeLightboxDirect()" aria-label="Close">
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+    <img src="" alt="" class="lf-lightbox-img" id="lfLightboxImg"/>
   </div>
 
   <!-- ══════════ SUCCESS MODALS ══════════ -->
