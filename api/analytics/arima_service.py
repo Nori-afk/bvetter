@@ -384,8 +384,8 @@ def run_vaccination_arima(series: pd.Series, steps: int = 3) -> dict:
             )
         else:
             ar["data_quality_note"] = (
-                "Raw ARIMA forecast collapsed below the seasonal vaccination baseline. "
-                "Forecast is floored for operational stock planning."
+                "The forecast dropped below the usual seasonal demand for vaccinations. "
+                "It's been floored for operational stock planning."
             )
     else:
         ar["regime_shift"] = False
@@ -521,8 +521,8 @@ def vaccination_forecast():
         trend   = ar["trend"]
         if ar.get("regime_shift") or ar.get("forecast_collapse"):
             action, urgency = (
-                "Vaccination records or raw ARIMA output need baseline adjustment. "
-                "Use the adjusted seasonal forecast for stock planning and verify the source data.",
+                "Vaccination records look off from the usual pattern, so the forecast was "
+                "adjusted to a safer baseline. Use it for stock planning and double-check the source data.",
                 "normal",
             )
         elif trend == "rising" and diff_pct > 10:
@@ -796,6 +796,8 @@ def get_all_disease_models():
         "train_idx": train_idx, "test_idx": test_idx,
         "arima_series": _build_arima_series_for_df(arima_df),
         "arima_cache": {}, "rf_model_type": "RuleBasedThreshold",
+        # Developer-facing explanation for the /hybrid-model-info diagnostic
+        # endpoint. Not shown in the vet UI -- see "risk_note_short" for that.
         "risk_note": (
             "Risk classification uses simple, verifiable thresholds on case count "
             "(< p50 = Low, p50-p75 = Medium, >= p75 = High, computed fresh from the "
@@ -812,6 +814,12 @@ def get_all_disease_models():
             "snapshot's last month, since a single sparse or gap-broken month at the "
             "tail of the series would otherwise crater the forecast (a real example: "
             "one under-logged month misread as 'cases collapsed to near zero')."
+        ),
+        # Plain-language version shown in the vet-facing insight panel --
+        # no model names or stats jargon (p50/p75, regressor, classifier).
+        "risk_note_short": (
+            "Risk level compares each barangay's current case count to the typical "
+            "range seen across all barangays this period."
         ),
     }
     print(f"All-Disease model ready — MAE {mae_val}, RMSE {rmse_val} "
@@ -1211,14 +1219,14 @@ def _compute_disease_metrics(series: pd.Series, steps: int = 3, order: tuple = N
     series = series.dropna()
     if len(series) < steps + 3:
         return {"mae": None, "rmse": None, "mape": None, "holdout_size": 0,
-                "note": "insufficient data for holdout evaluation"}
+                "note": "Not enough historical data yet to check forecast accuracy."}
     train       = series.iloc[:-steps]
     test_actual = series.iloc[-steps:].values.astype(float)
     try:
         n_train = len(train)
         if n_train < 6:
             return {"mae": None, "rmse": None, "mape": None, "holdout_size": steps,
-                    "note": "train set too small for model evaluation"}
+                    "note": "Not enough historical data yet to check forecast accuracy."}
         # SPEED-5: reuse the order already selected for the full series (passed in
         # by predict_disease_specific) instead of running a second 16-combo grid
         # search on the train-only slice -- halves the ARIMA/SARIMAX fits per
@@ -1234,10 +1242,11 @@ def _compute_disease_metrics(series: pd.Series, steps: int = 3, order: tuple = N
         fc    = res.get_forecast(steps=steps).predicted_mean.values.clip(min=0)
         mae_v = round(float(mean_absolute_error(test_actual, fc)), 2)
         return {"mae": mae_v, "rmse": rmse(test_actual, fc), "mape": mape(test_actual, fc),
-                "holdout_size": steps, "note": f"time-based holdout: last {steps} months"}
-    except Exception as e:
+                "holdout_size": steps,
+                "note": f"Accuracy checked against the last {steps} months of real cases."}
+    except Exception:
         return {"mae": None, "rmse": None, "mape": None, "holdout_size": steps,
-                "note": f"evaluation failed: {str(e)[:80]}"}
+                "note": "Accuracy check unavailable for this barangay right now."}
 
 
 def predict_disease_specific(
@@ -1552,7 +1561,7 @@ def disease_predict():
                 "risk_class": pred["rf_future_risk"], "risk_proba": pred["rf_future_proba"],
                 "confidence": pred["rf_confidence"], "rf_model_type": "RuleBasedThreshold",
                 "risk_thresholds": thresholds,
-                "risk_note": models.get("risk_note", ""),
+                "risk_note": models.get("risk_note_short", ""),
                 # SCALE-1: period-correct predicted_cases for bar chart
                 "predicted_cases":  pred.get("predicted_cases", pred["fused_predicted"]),
                 "predicted_lower":  pred.get("predicted_lower",  pred["fused_predicted"]),
@@ -1569,7 +1578,7 @@ def disease_predict():
                 "steps": sl, "model_type": "AllDiseaseARIMA+RuleBasedThreshold",
                 "model_mae": models["mae"], "model_rmse": models.get("rmse"),
                 "model_mape": models.get("mape"),
-                "eval_note": models.get("risk_note", ""),
+                "eval_note": models.get("risk_note_short", ""),
             })
         results.sort(key=lambda x: (
             0 if x["tier"] == "critical" else (1 if x["tier"] == "monitor" else 2),
