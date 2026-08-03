@@ -91,7 +91,7 @@
             if (noteEl)  noteEl.innerHTML  = skeletonBar('75%', '10px');
         });
 
-        ['vaccinatedPerBarangayChart', 'predictedAnimalsChart', 'vaccinesNeededChart'].forEach((id) => {
+        ['vaccinatedPerBarangayChart', 'predictedAnimalsChart', 'vaccinesNeededList'].forEach((id) => {
             const canvas = document.getElementById(id);
             if (!canvas || canvas.dataset.skeletonApplied) return;
             canvas.dataset.skeletonApplied = 'true';
@@ -517,11 +517,92 @@
     };
 
     // ── Charts ────────────────────────────────────────────────────────────
+    // Chart colors — pulled from this page's own --mv-* design tokens rather
+    // than a new palette, so charts stay visually aligned with the rest of
+    // the site. Only "others" has no existing system-hue counterpart (navy
+    // reads too dark/desaturated as a data mark, and warning/danger already
+    // carry status meaning elsewhere on this page) — it's a violet close to
+    // this chart's original color, checked alongside blue+green for
+    // CVD-safe adjacent distinction (see /dataviz skill).
+    const VIZ = {
+        dogs:   '#2f9df0', // --mv-blue
+        cats:   '#108f2a', // --mv-green
+        others: '#4a3aa7', // violet accent (only intentionally new hue)
+        muted:  '#6f8098', // --mv-muted
+        warn:   '#d4bc53'  // --mv-warning
+    };
+
+    // Horizontal bar charts (many barangay rows) size their own scroll
+    // container to fit every row at a readable height, instead of squashing
+    // labels into a fixed box — .chart-scroll (CSS) caps it and scrolls
+    // vertically once it's taller than the card, so the page itself doesn't
+    // grow no matter how many barangays there are.
+    const sizeHorizontalChart = (canvasId, rowCount, rowHeight) => {
+        const canvas = document.getElementById(canvasId);
+        const inner  = canvas?.closest('.chart-scroll-inner');
+        if (inner) inner.style.height = Math.max(220, rowCount * (rowHeight || 30)) + 'px';
+    };
+
+    // Renders a sorted meter-bar ranking (reuses the .line/.fill component from
+    // the event-detail comparison card) instead of a canvas chart — a visually
+    // distinct way to show "many categories, highest to lowest" so it doesn't
+    // just look like a second copy of the barangay bar chart above it.
+    const renderRankList = (listId, titleId, titleText, titleColor, labels, primaryArr, secondaryArr, showSecondary) => {
+        const titleEl = document.getElementById(titleId);
+        if (titleEl) { titleEl.textContent = titleText; titleEl.style.color = titleColor; }
+
+        const maxVal = Math.max(1, ...primaryArr);
+        const rows = labels.map((name, i) => {
+            const value = primaryArr[i] || 0;
+            const pct   = Math.max(2, Math.round((value / maxVal) * 100));
+            const done  = secondaryArr?.[i] || 0;
+            const sub   = showSecondary && done > 0 ? `<small>${done.toLocaleString()} done</small>` : '';
+            return `
+                <div class="rank-row">
+                    <span class="rank-name" title="${sanitize(name)}">${sanitize(name)}</span>
+                    <div class="line"><div class="fill fill-blue" style="width:${pct}%"></div></div>
+                    <strong class="rank-value">${value.toLocaleString()}${sub}</strong>
+                </div>`;
+        }).join('');
+
+        const listEl = document.getElementById(listId);
+        if (listEl) listEl.innerHTML = rows;
+    };
+
+    // Draws a dashed "Now" divider where history ends and the forecast begins,
+    // so the trend line's two halves read as distinct at a glance instead of
+    // relying on solid-vs-dashed alone.
+    const nowDividerPlugin = {
+        id: 'nowDivider',
+        afterDraw(chart) {
+            var index = chart.options.plugins?.nowDivider?.index;
+            if (index == null) return;
+            var xScale = chart.scales.x;
+            var area   = chart.chartArea;
+            var x = xScale.getPixelForValue(index);
+            if (!isFinite(x)) return;
+            var ctx = chart.ctx;
+            ctx.save();
+            ctx.strokeStyle = '#CBD5E1';
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(x, area.top);
+            ctx.lineTo(x, area.bottom);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#94A3B8';
+            ctx.font = '10px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Now', x, area.top - 4);
+            ctx.restore();
+        }
+    };
+
     const buildCharts = (range) => {
         range = range || document.getElementById('range-filter')?.value || 'This Year';
 
         document.querySelectorAll('.chart-skeleton').forEach((el) => el.remove());
-        ['vaccinatedPerBarangayChart', 'predictedAnimalsChart', 'vaccinesNeededChart'].forEach((id) => {
+        ['vaccinatedPerBarangayChart', 'predictedAnimalsChart', 'vaccinesNeededList'].forEach((id) => {
             const canvas = document.getElementById(id);
             if (canvas) canvas.style.display = '';
         });
@@ -588,33 +669,47 @@
             var hasLiveData    = dbDogsD.some(v => v > 0) || dbCatsD.some(v => v > 0)
                               || dbOtherD.some(v => v > 0) || hasUnspecified;
 
+            // Sort every parallel array together by each barangay's grand total,
+            // high → low, so the horizontal chart below reads as a ranking.
+            var order = labels.map((_, i) => i).sort((a, b) =>
+                (mergedDogs[b] + mergedCats[b] + mergedOther[b] + dbTotalsArr[b])
+              - (mergedDogs[a] + mergedCats[a] + mergedOther[a] + dbTotalsArr[a])
+            );
+            labels      = order.map(i => labels[i]);
+            mergedDogs  = order.map(i => mergedDogs[i]);
+            mergedCats  = order.map(i => mergedCats[i]);
+            mergedOther = order.map(i => mergedOther[i]);
+            dbTotalsArr = order.map(i => dbTotalsArr[i]);
+
             var datasets = [
-                { label: 'Dogs',   data: mergedDogs,  backgroundColor: '#002A58', borderRadius: 5 },
-                { label: 'Cats',   data: mergedCats,  backgroundColor: '#3B82F6', borderRadius: 5 },
-                { label: 'Others', data: mergedOther, backgroundColor: '#7C3AED', borderRadius: 5 },
+                { label: 'Dogs',   data: mergedDogs,  backgroundColor: VIZ.dogs,   borderRadius: 4 },
+                { label: 'Cats',   data: mergedCats,  backgroundColor: VIZ.cats,   borderRadius: 4 },
+                { label: 'Others', data: mergedOther, backgroundColor: VIZ.others, borderRadius: 4 },
             ];
             // Only add Unspecified dataset when there are events without species breakdown
             if (hasUnspecified) {
                 datasets.push({
                     label: 'Unspecified (no breakdown entered)',
                     data: dbTotalsArr,
-                    backgroundColor: '#94A3B8', borderRadius: 5
+                    backgroundColor: VIZ.muted, borderRadius: 4
                 });
             }
 
             var chart1Title = hasLiveData
-                ? `Vaccinated per Barangay — ${range} (includes ${dbGrandTotal.toLocaleString()} live records)`
-                : `Vaccinated per Barangay — ${range}`;
+                ? `Vaccinated per Barangay — ${range} (includes ${dbGrandTotal.toLocaleString()} live records) — highest to lowest`
+                : `Vaccinated per Barangay — ${range} — highest to lowest`;
 
+            sizeHorizontalChart('vaccinatedPerBarangayChart', labels.length, 30);
             charts['vaccinatedPerBarangay'] = new Chart(
                 document.getElementById('vaccinatedPerBarangayChart'), {
                 type: 'bar',
                 data: { labels, datasets },
                 options: {
+                    indexAxis: 'y',
                     responsive: true, maintainAspectRatio: false,
                     scales: {
-                        y: { beginAtZero: true, ticks: { color: '#456084' }, grid: { color: '#edf2f9' } },
-                        x: { ticks: { color: '#456084', maxRotation: 45, minRotation: 45, font: { size: 10 } }, grid: { display: false } }
+                        x: { beginAtZero: true, stacked: true, ticks: { color: '#456084' }, grid: { color: '#edf2f9' } },
+                        y: { stacked: true, ticks: { color: '#456084', font: { size: 11 } }, grid: { display: false } }
                     },
                     plugins: {
                         legend: { position: 'bottom' },
@@ -624,158 +719,147 @@
             });
         }
 
-        // ── Chart 2: Predicted Animals
-        // SOURCE: Python ARIMA service
-        // ANNOTATION: Show actual DB total for selected range alongside forecast
-        // FALLBACK: Excel diseaseCasesByBarangay predicted values
+        // ── Chart 2: Predicted Number of Animals to be Vaccinated
+        // This is a trend-over-time story, so it's one continuous line —
+        // solid history, dashed forecast continuation, shaded confidence
+        // band — instead of disconnected bar slots per data source/month.
+        // SOURCE: Excel monthly history (Combined_Rabies_3Years) + Python ARIMA
+        // FALLBACK (ARIMA unreachable): a simple +12%-on-last-month projection
         destroyChart('predictedAnimals');
         {
-            var tv   = state.arimaData?.total_vaccinated || {};
-            var dogs = state.arimaData?.dogs_vaccinated  || {};
-            var cats = state.arimaData?.cats_vaccinated  || {};
+            var tv = state.arimaData?.total_vaccinated || {};
 
+            var rawMonthly = (state.vaccinationDataset?.by_month || []).slice(-6);
+            var monthlyRows = rawMonthly.filter(r =>
+                (Number(r.total_vaccinated) || 0) > 0 ||
+                (Number(r.dogs_vaccinated)  || 0) > 0 ||
+                (Number(r.cats_vaccinated)  || 0) > 0
+            );
+
+            var historyLabels = monthlyRows.map(r => (r.month || '').slice(0, 3) + ' ' + String(r.year).slice(-2));
+            var historyValues = monthlyRows.map(r => {
+                var total = Number(r.total_vaccinated) || 0;
+                return total || (Number(r.dogs_vaccinated) || 0) + (Number(r.cats_vaccinated) || 0);
+            });
+
+            var forecastLabels, forecastValues, lowerCi, upperCi, usingArima;
             if (tv.forecast?.length) {
-                // Chart 2: ARIMA forecast — Total predicted animals per month.
-                // Dogs/Cats detail is already shown in the ARIMA summary card above,
-                // so this chart stays clean with just Total + DB Actual reference.
-                var arimaMonths = tv.months || ['Next Month', 'Month 2', 'Month 3'];
-
-                var c2datasets = [
-                    {
-                        label: 'Predicted Total (Forecast)',
-                        data: tv.forecast || [],
-                        backgroundColor: '#002A58',
-                        borderRadius: 5
-                    }
-                ];
-
-                // DB Actual: shown only for "Next Month" slot as a comparison point
-                if (dbGrandTotal > 0) {
-                    c2datasets.push({
-                        label: `Actual Vaccinated (${range})`,
-                        data: arimaMonths.map((_, i) => i === 0 ? dbGrandTotal : null),
-                        backgroundColor: '#059669',
-                        borderRadius: 5
-                    });
-                }
-
-                var rangeStr = `Likely Range: ${tv.lower_ci?.[0] || 0}–${tv.upper_ci?.[0] || 0}`;
-                var c2Title = dbGrandTotal > 0
-                    ? `Predicted Vaccinations — ${rangeStr} | Actual this period: ${dbGrandTotal.toLocaleString()}`
-                    : `Predicted Vaccinations — ${rangeStr}`;
-
-                charts['predictedAnimals'] = new Chart(
-                    document.getElementById('predictedAnimalsChart'), {
-                    type: 'bar',
-                    data: { labels: arimaMonths, datasets: c2datasets },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        scales: {
-                            y: { beginAtZero: true, ticks: { color: '#456084' }, grid: { color: '#edf2f9' } },
-                            x: { ticks: { color: '#456084' }, grid: { display: false } }
-                        },
-                        plugins: {
-                            legend: { position: 'bottom' },
-                            title: { display: true, text: c2Title, font: { size: 11 }, color: '#456084' }
-                        }
-                    }
-                });
+                forecastLabels = tv.months || ['Next Month', 'Month 2', 'Month 3'];
+                forecastValues = tv.forecast;
+                lowerCi = tv.lower_ci || [];
+                upperCi = tv.upper_ci || [];
+                usingArima = true;
+            } else if (historyValues.length) {
+                var lastActual = historyValues[historyValues.length - 1] || 0;
+                forecastLabels = ['Next Month (est.)'];
+                forecastValues = [Math.round(lastActual * 1.12)];
+                lowerCi = [lastActual];
+                upperCi = [Math.round(lastActual * 1.24)];
+                usingArima = false;
             } else {
-                // ARIMA unavailable — show Excel monthly history + projection + DB actual
-                // Each gets its own dedicated label slot so bars never overlap incorrectly
+                forecastLabels = []; forecastValues = []; lowerCi = []; upperCi = [];
+                usingArima = false;
+            }
 
-                // Pull last 6 months from Excel; try total_vaccinated first, then dogs+cats sum
-                var rawMonthly = (state.vaccinationDataset?.by_month || []).slice(-6);
-                var monthlyRows = rawMonthly.filter(r =>
-                    (Number(r.total_vaccinated) || 0) > 0 ||
-                    (Number(r.dogs_vaccinated)  || 0) > 0 ||
-                    (Number(r.cats_vaccinated)  || 0) > 0
-                );
+            if (!historyLabels.length && !forecastLabels.length) {
+                historyLabels = ['No data available'];
+                historyValues = [0];
+            }
 
-                var c2Labels   = [];
-                var excelData  = [];  // navy — historical totals
-                var projData   = [];  // light blue — +12% next-month estimate
-                var dbData     = [];  // green — live DB actual for selected range
+            var c2Labels = historyLabels.concat(forecastLabels);
+            var n = c2Labels.length;
+            var actualSeries   = new Array(n).fill(null);
+            var forecastSeries = new Array(n).fill(null);
+            var bandLowerArr   = new Array(n).fill(null);
+            var bandUpperArr   = new Array(n).fill(null);
 
-                if (monthlyRows.length > 0) {
-                    monthlyRows.forEach(r => {
-                        var lbl   = (r.month || '').slice(0, 3) + ' ' + String(r.year).slice(-2);
-                        var total = Number(r.total_vaccinated) || 0;
-                        // Fallback: derive total from dogs + cats if total_vaccinated is 0
-                        if (total === 0) total = (Number(r.dogs_vaccinated) || 0) + (Number(r.cats_vaccinated) || 0);
-                        c2Labels.push(lbl);
-                        excelData.push(total);
-                        projData.push(null);
-                        dbData.push(null);
-                    });
+            historyValues.forEach((v, i) => { actualSeries[i] = v; });
 
-                    // Add a dedicated "Next Month (est.)" slot for the projection
-                    var lastExcel = excelData[excelData.length - 1] || 0;
-                    c2Labels.push('Next Month (est.)');
-                    excelData.push(null);
-                    projData.push(Math.round(lastExcel * 1.12));
-                    dbData.push(null);
-
-                    // Add a dedicated "Live DB" slot so it never overwrites Excel bars
-                    if (dbGrandTotal > 0) {
-                        c2Labels.push(`Live DB (${range})`);
-                        excelData.push(null);
-                        projData.push(null);
-                        dbData.push(dbGrandTotal);
-                    }
-                } else {
-                    // Excel monthly data genuinely empty — just show DB if available
-                    if (dbGrandTotal > 0) {
-                        c2Labels = [`Live DB (${range})`];
-                        excelData = [null];
-                        projData  = [null];
-                        dbData    = [dbGrandTotal];
-                    } else {
-                        c2Labels  = ['No data available'];
-                        excelData = [0];
-                        projData  = [null];
-                        dbData    = [null];
-                    }
+            if (forecastLabels.length) {
+                // Bridge the dashed forecast line to start exactly where the solid
+                // history line ends, so it reads as one continuous trend rather
+                // than a disconnected floating segment.
+                var bridgeIdx = historyValues.length - 1;
+                if (bridgeIdx >= 0) {
+                    forecastSeries[bridgeIdx] = historyValues[bridgeIdx];
+                    bandLowerArr[bridgeIdx]   = historyValues[bridgeIdx];
+                    bandUpperArr[bridgeIdx]   = historyValues[bridgeIdx];
                 }
+                forecastValues.forEach((v, i) => { forecastSeries[historyValues.length + i] = v; });
+                lowerCi.forEach((v, i) => { bandLowerArr[historyValues.length + i] = v; });
+                upperCi.forEach((v, i) => { bandUpperArr[historyValues.length + i] = v; });
+            }
 
-                var c2FallbackDatasets = [
-                    { label: 'Monthly Total (Excel)', data: excelData, backgroundColor: '#002A58', borderRadius: 5 },
-                    { label: 'Projected Next Month (+12%)', data: projData, backgroundColor: '#60A5FA', borderRadius: 5 },
-                ];
-                if (dbGrandTotal > 0) {
-                    c2FallbackDatasets.push({
-                        label: `Actual Vaccinated (Live DB)`,
-                        data: dbData,
-                        backgroundColor: '#059669'
-                    });
+            var c2Datasets = [
+                {
+                    label: 'Vaccinated (actual)',
+                    data: actualSeries,
+                    borderColor: VIZ.dogs,
+                    backgroundColor: (ctx) => {
+                        var area = ctx.chart.chartArea;
+                        if (!area) return 'rgba(47,157,240,0.18)';
+                        var gradient = ctx.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+                        gradient.addColorStop(0, 'rgba(47,157,240,0.28)');
+                        gradient.addColorStop(1, 'rgba(47,157,240,0)');
+                        return gradient;
+                    },
+                    fill: 'origin',
+                    borderWidth: 2, pointRadius: 3, pointBackgroundColor: VIZ.dogs,
+                    tension: 0, spanGaps: false
                 }
+            ];
 
-                charts['predictedAnimals'] = new Chart(
-                    document.getElementById('predictedAnimalsChart'), {
-                    type: 'bar',
-                    data: { labels: c2Labels, datasets: c2FallbackDatasets },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        scales: {
-                            y: { beginAtZero: true, ticks: { color: '#456084' }, grid: { color: '#edf2f9' } },
-                            x: { ticks: { color: '#456084' }, grid: { display: false } }
-                        },
-                        plugins: {
-                            legend: { position: 'bottom' },
-                            title: {
-                                display: true,
-                                text: monthlyRows.length > 0
-                                    ? 'Monthly Trend — Forecast Service Unavailable'
-                                    : 'Live Data — Forecast & History Unavailable',
-                                font: { size: 11 }, color: '#e07b39'
-                            }
-                        }
-                    }
+            if (forecastLabels.length) {
+                c2Datasets.push({
+                    label: 'Forecast',
+                    data: forecastSeries,
+                    borderColor: VIZ.dogs, backgroundColor: VIZ.dogs,
+                    borderWidth: 2, borderDash: [6, 4], pointRadius: 3, pointBackgroundColor: VIZ.dogs,
+                    tension: 0, spanGaps: false
+                }, {
+                    label: 'Likely range',
+                    data: bandUpperArr,
+                    borderColor: 'transparent', backgroundColor: 'rgba(47,157,240,0.14)',
+                    pointRadius: 0, fill: '+1', tension: 0, spanGaps: false
+                }, {
+                    label: '_lower',
+                    data: bandLowerArr,
+                    borderColor: 'transparent', backgroundColor: 'transparent',
+                    pointRadius: 0, fill: false, tension: 0, spanGaps: false
                 });
             }
+
+            var c2Title = usingArima
+                ? `Vaccine Demand Trend — next ${forecastLabels.length} month${forecastLabels.length === 1 ? '' : 's'} forecast`
+                : (forecastLabels.length
+                    ? 'Monthly Trend — Forecast Service Unavailable (simple projection shown)'
+                    : 'No historical or forecast data available');
+
+            var dividerIndex = (historyValues.length > 0 && forecastLabels.length > 0)
+                ? historyValues.length - 0.5 : null;
+
+            charts['predictedAnimals'] = new Chart(
+                document.getElementById('predictedAnimalsChart'), {
+                type: 'line',
+                data: { labels: c2Labels, datasets: c2Datasets },
+                plugins: [nowDividerPlugin],
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { color: '#456084' }, grid: { color: '#edf2f9' } },
+                        x: { ticks: { color: '#456084' }, grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { filter: (item) => item.text !== '_lower' } },
+                        nowDivider: { index: dividerIndex },
+                        title: { display: true, text: c2Title, font: { size: 11 }, color: usingArima ? '#456084' : VIZ.warn }
+                    }
+                }
+            });
         }
 
-        // ── Chart 4: Vaccines Needed per Barangay
+        // ── Vaccines Needed per Barangay (ranked list, not a canvas chart —
+        //    see renderRankList above)
         // SOURCE: single municipal ARIMA forecast (real per-barangay history is too
         //         sparse to fit independent models), distributed across barangays
         //         by their real historical vaccination share.
@@ -783,7 +867,6 @@
         //             the ratio of (DB actuals / previous ARIMA forecast) so the
         //             predicted need scales with real-world uptake.
         // FALLBACK: disease-case-derived predicted values, scaled by DB activity ratio
-        destroyChart('vaccinesNeeded');
         {
             var tvN   = state.arimaData?.total_vaccinated || {};
             var multi = range === 'Last 3 Months' ? 3 : range === 'This Year' ? 12 : 1;
@@ -852,86 +935,37 @@
                         Math.round(arimaBase * 0.6 + arimaBase * actRatio * 0.4) * multi);
                 }
 
-                var c4Title = dbGrandTotal > 0
-                    ? `Predicted Vaccine Demand (${range}): ~${Math.round(adjustedTotal).toLocaleString()} needed`
-                    : `Predicted Vaccine Demand (${range}): ~${Math.round(arimaBase).toLocaleString()} vaccines`;
+                var neededByBarangay = allBarangays.map(b =>
+                    Math.round(((barangayBaseMap[b].actual || 0) / totalActual) * adjustedTotal)
+                );
+                var doneByBarangay = allBarangays.map(b => (dbBarangayTotals[b] || {}).total || 0);
 
-                charts['vaccinesNeeded'] = new Chart(
-                    document.getElementById('vaccinesNeededChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: allBarangays,
-                        datasets: [
-                            {
-                                label: 'Vaccines Needed (Forecast)',
-                                // Distribute total proportionally by each barangay's historical share
-                                data: allBarangays.map(b =>
-                                    Math.round(((barangayBaseMap[b].actual || 0) / totalActual) * adjustedTotal)
-                                ),
-                                backgroundColor: '#002A58',
-                                stack: 'need'
-                            },
-                            ...(hasDbData ? [{
-                                label: 'Already Vaccinated (Live DB)',
-                                data: allBarangays.map(b => (dbBarangayTotals[b] || {}).total || 0),
-                                backgroundColor: '#059669',
-                                stack: 'done'
-                            }] : [])
-                        ]
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        scales: {
-                            y: { beginAtZero: true, ticks: { color: '#456084' }, grid: { color: '#edf2f9' } },
-                            x: { ticks: { color: '#456084', maxRotation: 45, minRotation: 45, font: { size: 10 } }, grid: { display: false } }
-                        },
-                        plugins: {
-                            legend: { position: 'bottom' },
-                            title: { display: true, text: c4Title, font: { size: 11 }, color: '#456084' }
-                        }
-                    }
-                });
+                // Sort barangays by need, high → low, for the horizontal ranking below.
+                var orderN = allBarangays.map((_, i) => i).sort((a, b) => neededByBarangay[b] - neededByBarangay[a]);
+                allBarangays      = orderN.map(i => allBarangays[i]);
+                neededByBarangay  = orderN.map(i => neededByBarangay[i]);
+                doneByBarangay    = orderN.map(i => doneByBarangay[i]);
+
+                var c4Title = dbGrandTotal > 0
+                    ? `Predicted Vaccine Demand (${range}): ~${Math.round(adjustedTotal).toLocaleString()} needed — highest to lowest`
+                    : `Predicted Vaccine Demand (${range}): ~${Math.round(arimaBase).toLocaleString()} vaccines — highest to lowest`;
+
+                renderRankList('vaccinesNeededList', 'vaccinesNeededTitle', c4Title, '#456084',
+                    allBarangays, neededByBarangay, doneByBarangay, hasDbData);
 
             } else {
                 // Fallback — RF-predicted values from PHP dashboard (all barangays, no slice)
-                var c4FallbackDatasets = [
-                    {
-                        label: 'Vaccines Needed (RF Predicted)',
-                        data: allBarangays.map(b => Math.round((barangayBaseMap[b].predicted || 0) * multi)),
-                        backgroundColor: '#002A58'
-                    }
-                ];
-                if (hasDbData) {
-                    c4FallbackDatasets.push({
-                        label: 'Already Vaccinated (Live DB)',
-                        data: allBarangays.map(b => (dbBarangayTotals[b] || {}).total || 0),
-                        backgroundColor: '#059669'
-                    });
-                }
+                var predictedByBarangay = allBarangays.map(b => Math.round((barangayBaseMap[b].predicted || 0) * multi));
+                var doneByBarangayFb    = allBarangays.map(b => (dbBarangayTotals[b] || {}).total || 0);
 
-                charts['vaccinesNeeded'] = new Chart(
-                    document.getElementById('vaccinesNeededChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: allBarangays,
-                        datasets: c4FallbackDatasets
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        scales: {
-                            y: { beginAtZero: true, ticks: { color: '#456084' }, grid: { color: '#edf2f9' } },
-                            x: { ticks: { color: '#456084', maxRotation: 45, minRotation: 45, font: { size: 10 } }, grid: { display: false } }
-                        },
-                        plugins: {
-                            legend: { position: 'bottom' },
-                            title: {
-                                display: true,
-                                text: `Vaccine Demand — ${range} (Estimated — Forecast Unavailable)`,
-                                font: { size: 11 }, color: '#e07b39'
-                            }
-                        }
-                    }
-                });
+                var orderFb = allBarangays.map((_, i) => i).sort((a, b) => predictedByBarangay[b] - predictedByBarangay[a]);
+                allBarangays        = orderFb.map(i => allBarangays[i]);
+                predictedByBarangay = orderFb.map(i => predictedByBarangay[i]);
+                doneByBarangayFb    = orderFb.map(i => doneByBarangayFb[i]);
+
+                renderRankList('vaccinesNeededList', 'vaccinesNeededTitle',
+                    `Vaccine Demand — ${range} (Estimated — Forecast Unavailable) — highest to lowest`, VIZ.warn,
+                    allBarangays, predictedByBarangay, doneByBarangayFb, hasDbData);
             }
         }
     };

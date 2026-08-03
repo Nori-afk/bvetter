@@ -249,17 +249,26 @@ body {
 	min-width: 0;
 }
 
-/* Wraps the wide, many-category bar charts (barangay breakdowns) so they
-   can scroll horizontally on narrow screens instead of squashing every
-   bar/label unreadably. No-op at tablet/desktop — .chart-scroll-inner
-   only gets a forced min-width in the mobile media query below. */
+/* Wraps the many-category horizontal bar charts (barangay breakdowns).
+   .chart-scroll-inner's height is set in JS to fit every row at a readable
+   height (rows × row-height); when that exceeds this box's max-height, it
+   scrolls vertically inside its own bounded card instead of growing the
+   whole page or squashing labels. */
 .chart-scroll {
 	width: 100%;
+	max-height: 460px;
+	overflow-y: auto;
+	overflow-x: hidden;
+	scrollbar-width: thin;
+	scrollbar-color: var(--mv-line) transparent;
 }
+
+.chart-scroll::-webkit-scrollbar { width: 6px; }
+.chart-scroll::-webkit-scrollbar-thumb { background: var(--mv-line); border-radius: 4px; }
+.chart-scroll::-webkit-scrollbar-track { background: transparent; }
 
 .chart-scroll-inner {
 	width: 100%;
-	height: 100%;
 }
 
 .chart-skeleton {
@@ -289,17 +298,13 @@ body {
 	border-radius: 7px;
 }
 
-#vaccinatedPerBarangayChart {
-	height: 255px !important;
-}
-
 #predictedAnimalsChart {
 	height: 355px !important;
 }
 
-#vaccinesNeededChart {
-	height: 245px !important;
-}
+/* vaccinatedPerBarangayChart / vaccinesNeededChart: height is now set per-render
+   in JS (rows × row-height) on .chart-scroll-inner, so the chart grows with
+   however many barangays it has instead of squashing labels into a fixed box. */
 
 .span-2 {
 	grid-column: span 2;
@@ -673,6 +678,47 @@ tr[data-event-id]:hover {
 
 .fill-green {
 	background: var(--mv-green);
+}
+
+/* Ranked list — "Vaccines Needed per Barangay". Reuses the same .line/.fill
+   meter look as the event-detail comparison card above, so a many-category
+   ranking reads as a distinct component from the canvas bar charts instead
+   of just another bar chart. */
+.rank-list {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 2px;
+}
+
+.rank-row {
+	display: grid;
+	grid-template-columns: minmax(90px, 160px) 1fr auto;
+	align-items: center;
+	gap: 12px;
+}
+
+.rank-name {
+	font-size: 12.5px;
+	font-weight: 600;
+	color: #456084;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.rank-value {
+	font-size: 13px;
+	font-weight: 700;
+	color: #0F172A;
+	white-space: nowrap;
+}
+
+.rank-value small {
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--mv-muted);
+	margin-left: 4px;
 }
 
 .modal {
@@ -1329,9 +1375,7 @@ tr[data-event-id]:hover {
 		padding-top: 12px;
 	}
 
-	#vaccinatedPerBarangayChart,
-	#predictedAnimalsChart,
-	#vaccinesNeededChart { height: 230px !important; }
+	#predictedAnimalsChart { height: 230px !important; }
 
 	.hero { flex-direction: column; align-items: flex-start; }
 
@@ -1420,26 +1464,14 @@ tr[data-event-id]:hover {
 
 	.dropdown { max-width: 100%; }
 
-	#vaccinatedPerBarangayChart,
-	#predictedAnimalsChart,
-	#vaccinesNeededChart { height: 200px !important; }
+	#predictedAnimalsChart { height: 200px !important; }
 
-	/* Barangay bar charts: scroll horizontally instead of squashing
-	   every bar/label unreadable — see .chart-scroll in the base rules. */
-	.chart-scroll {
-		overflow-x: auto;
-		-webkit-overflow-scrolling: touch;
-		margin: 0 -4px;
-		padding: 0 4px 6px;
-		scrollbar-width: thin;
-		scrollbar-color: var(--mv-line) transparent;
-	}
+	/* Barangay bar charts are horizontal now (see .chart-scroll in the base
+	   rules) — they already scroll vertically inside their own bounded box
+	   at every breakpoint, so no mobile-specific override is needed here. */
+	.chart-scroll { max-height: 360px; }
 
-	.chart-scroll::-webkit-scrollbar { height: 4px; }
-	.chart-scroll::-webkit-scrollbar-thumb { background: var(--mv-line); border-radius: 4px; }
-	.chart-scroll::-webkit-scrollbar-track { background: transparent; }
-
-	.chart-scroll-inner { min-width: 640px; }
+	.rank-row { grid-template-columns: minmax(70px, 110px) 1fr auto; gap: 8px; }
 
 	.back-link { width: 100%; justify-content: center; }
 
