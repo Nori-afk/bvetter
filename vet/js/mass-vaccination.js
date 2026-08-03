@@ -329,9 +329,21 @@
         const barangayEl  = document.querySelector('[data-metric="activeBarangay"]');
 
         // DB: pending + total events
-        const pending = state.events.filter(e => e.status === 'Pending Report').length;
+        const pending   = state.events.filter(e => e.status === 'Pending Report').length;
+        const completed = state.events.length - pending;
         if (pendingEl) pendingEl.textContent = pending;
         if (totalEl)   totalEl.textContent   = state.events.length || '-';
+
+        // These captions were left as permanent loading-skeleton placeholders
+        // before — renderSkeletons() blanks them out, but nothing ever put
+        // real text back in for these three cards.
+        const totalNoteEl = totalEl?.nextElementSibling;
+        if (totalNoteEl) totalNoteEl.textContent = state.events.length
+            ? `${completed} completed, ${pending} pending`
+            : 'No events recorded yet';
+
+        const pendingNoteEl = pendingEl?.nextElementSibling;
+        if (pendingNoteEl) pendingNoteEl.textContent = pending > 0 ? 'Events awaiting data' : 'All caught up';
 
         // DB first (all-time), then Excel fallback for total vaccinated
         const dbTotal = state.events.reduce((s, e) => {
@@ -352,6 +364,9 @@
                     || state.dashboardData?.vaccinated?.total || 0;
                 petsEl.textContent = excelTotal > 0 ? excelTotal.toLocaleString() : '-';
             }
+            // Default caption — overridden below by the ARIMA forecast note when that's available.
+            const petsNoteEl = petsEl.nextElementSibling;
+            if (petsNoteEl) petsNoteEl.textContent = 'Across all barangays';
         }
 
         // DB: most active barangay by vaccinated count
@@ -369,6 +384,11 @@
         const topBarangay = Object.keys(barangayTotals)
             .sort((a, b) => barangayTotals[b] - barangayTotals[a])[0];
         if (barangayEl) barangayEl.textContent = topBarangay || '-';
+
+        const barangayNoteEl = barangayEl?.nextElementSibling;
+        if (barangayNoteEl) barangayNoteEl.textContent = topBarangay
+            ? `${barangayTotals[topBarangay].toLocaleString()} pets vaccinated`
+            : 'No completed reports yet';
 
         // ARIMA: update pets vaccinated note
         if (state.arimaData?.total_vaccinated?.forecast && petsEl) {
@@ -921,6 +941,32 @@
         el.style.width = `${Math.max(0, Math.min(100, (val / (max||100)) * 100))}%`;
     };
 
+    // ── Post-event report: Total ↔ species breakdown sync ──────────────────
+    // While "Include Breakdown" is on, the species fields are the single
+    // source of truth and Total is derived (read-only) from their sum —
+    // this makes it impossible for the two numbers to disagree, and
+    // impossible to save species counts without them counting toward Total.
+    const totalInput  = document.getElementById('total-vaccinated');
+    const totalError  = document.getElementById('total-vaccinated-error');
+    const dogsInput   = document.getElementById('dogs-count');
+    const catsInput   = document.getElementById('cats-count');
+    const othersInput = document.getElementById('others-count');
+
+    function distributeEvenly(total) {
+        const base = Math.floor(total / 3);
+        const remainder = total - base * 3;
+        return [base + (remainder > 0 ? 1 : 0), base + (remainder > 1 ? 1 : 0), base];
+    }
+
+    function recomputeTotalFromBreakdown() {
+        totalInput.value = (Number(dogsInput.value) || 0) + (Number(catsInput.value) || 0) + (Number(othersInput.value) || 0);
+    }
+
+    function setBreakdownMode(active) {
+        totalInput.readOnly = active;
+        if (active) recomputeTotalFromBreakdown();
+    }
+
     const hydrateDetail = (eventId) => {
         const e = state.events.find(item => item.id === eventId);
         if (!e) return;
@@ -943,6 +989,8 @@
         document.getElementById('include-breakdown').checked = wb;
         document.getElementById('species-breakdown').classList.toggle('hidden', !wb);
         document.getElementById('species-breakdown').setAttribute('aria-hidden', String(!wb));
+        setBreakdownMode(wb);
+        setFieldError(totalInput, totalError, '');
 
         document.getElementById('event-progress-value').textContent   = e.comparison.event;
         document.getElementById('average-progress-value').textContent = e.comparison.average;
@@ -973,6 +1021,26 @@
         const show = document.getElementById('include-breakdown').checked;
         document.getElementById('species-breakdown').classList.toggle('hidden', !show);
         document.getElementById('species-breakdown').setAttribute('aria-hidden', String(!show));
+
+        if (show) {
+            // Seed the species fields from whatever's already in Total — but only
+            // if they're still empty, so re-checking never clobbers values the
+            // vet already entered (e.g. after unchecking and checking again).
+            const speciesSum   = (Number(dogsInput.value) || 0) + (Number(catsInput.value) || 0) + (Number(othersInput.value) || 0);
+            const existingTotal = Number(totalInput.value) || 0;
+            if (speciesSum === 0 && existingTotal > 0) {
+                const [d, c, o] = distributeEvenly(existingTotal);
+                dogsInput.value = d; catsInput.value = c; othersInput.value = o;
+            }
+        }
+        setBreakdownMode(show);
+    });
+
+    // Live-recompute Total whenever a species field changes, while breakdown mode is active.
+    [dogsInput, catsInput, othersInput].forEach((input) => {
+        input.addEventListener('input', () => {
+            if (document.getElementById('include-breakdown').checked) recomputeTotalFromBreakdown();
+        });
     });
 
     document.getElementById('post-event-form').addEventListener('submit', async (ev) => {
@@ -981,8 +1049,20 @@
         const e = state.events.find(item => item.id === activeId);
         if (!e) return;
 
-        e.totalVaccinated = Number(document.getElementById('total-vaccinated').value || 0);
-        e.breakdown = document.getElementById('include-breakdown').checked
+        const includeBreakdown = document.getElementById('include-breakdown').checked;
+        if (includeBreakdown) recomputeTotalFromBreakdown();
+
+        const total = Number(totalInput.value || 0);
+        if (total <= 0) {
+            setFieldError(totalInput, totalError, includeBreakdown
+                ? 'Dogs + Cats + Others must add up to more than 0.'
+                : 'Total Pets Vaccinated must be greater than 0.');
+            return;
+        }
+        setFieldError(totalInput, totalError, '');
+
+        e.totalVaccinated = total;
+        e.breakdown = includeBreakdown
             ? {
                 dogs:   Number(document.getElementById('dogs-count').value||0),
                 cats:   Number(document.getElementById('cats-count').value||0),

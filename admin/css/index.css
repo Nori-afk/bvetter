@@ -63,7 +63,7 @@ html, body {
     height: 100vh;
     overflow-y: auto;
     padding-top: var(--shell-gap);
-    background: var(--background-gray);
+    /* background: var(--background-gray); */
     transition: margin-left 0.28s ease, width 0.28s ease;
 }
 

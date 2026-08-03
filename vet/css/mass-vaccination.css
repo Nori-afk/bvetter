@@ -595,6 +595,20 @@ tr[data-event-id]:hover {
 	box-shadow: 0 0 0 3px rgba(147,197,253,0.18);
 }
 
+#post-event-form input.invalid {
+	border-color: #EF4444;
+}
+
+#post-event-form input.invalid:focus {
+	box-shadow: 0 0 0 3px rgba(239,68,68,0.15);
+}
+
+#post-event-form input[readonly] {
+	background: #F1F5F9;
+	color: #475569;
+	cursor: not-allowed;
+}
+
 .switch-row {
 	display: inline-flex;
 	align-items: center;
