@@ -114,9 +114,17 @@
     <div id="lfModalOverlay" class="lf-modal-overlay" hidden>
         <section class="lf-modal" role="dialog" aria-modal="true" aria-labelledby="lfModalTitle">
             <button type="button" class="modal-close" id="closeModalBtn" aria-label="Close modal">&times;</button>
-            
+
             <div id="lfModalBody"></div>
         </section>
+    </div>
+
+    <!-- Image lightbox (click any photo on this page to expand) -->
+    <div class="lf-lightbox-overlay" id="lfLightbox" hidden>
+        <button type="button" class="lf-lightbox-close" data-lightbox-close aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
+        </button>
+        <img src="" alt="" class="lf-lightbox-img" id="lfLightboxImg">
     </div>
  <script src="/shared/js/auth.js"></script>
     <script>VBetterAuth.requireAuth(['vet']);</script>

@@ -1190,6 +1190,167 @@ body {
 	width: min(760px, 100%);
 }
 
+/* =============================================
+   CLICK-TO-EXPAND PHOTOS (lightbox) — same pattern as the public site
+   ============================================= */
+.lf-img-expand-wrap {
+	position: relative;
+	display: block;
+	cursor: zoom-in;
+}
+
+.lf-expand-badge {
+	position: absolute;
+	bottom: 6px;
+	right: 6px;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.55);
+	color: #ffffff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: none;
+	padding: 0;
+	z-index: 2;
+	transition: background 0.15s;
+}
+
+.lf-img-expand-wrap:hover .lf-expand-badge,
+.lf-expand-badge:hover {
+	background: rgba(0, 0, 0, 0.75);
+}
+
+.lf-img-expand-wrap.small .lf-expand-badge {
+	width: 16px;
+	height: 16px;
+	bottom: 2px;
+	right: 2px;
+}
+
+.lf-img-expand-wrap.small .lf-expand-badge svg {
+	width: 9px;
+	height: 9px;
+}
+
+.lf-expand-badge-lg {
+	position: absolute;
+	bottom: 14px;
+	right: 14px;
+	width: 34px;
+	height: 34px;
+	cursor: zoom-in;
+}
+
+.lf-lightbox-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.85);
+	/* Above .lf-modal-overlay (2000) so it can open from inside any modal on this page. */
+	z-index: 2100;
+	display: grid;
+	place-items: center;
+	padding: 24px;
+}
+
+.lf-lightbox-overlay[hidden] {
+	display: none !important;
+}
+
+.lf-lightbox-img {
+	max-width: 100%;
+	max-height: 90vh;
+	border-radius: 8px;
+	object-fit: contain;
+	box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+}
+
+.lf-lightbox-close {
+	position: absolute;
+	top: 18px;
+	right: 20px;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.15);
+	border: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: background 0.15s;
+}
+
+.lf-lightbox-close:hover {
+	background: rgba(255, 255, 255, 0.3);
+}
+
+/* =============================================
+   EMBEDDED MATCH CARDS (inside a report's own detail modal)
+   ============================================= */
+.lf-matches-hint {
+	font-size: 11.5px;
+	color: var(--lf-muted);
+	margin: -4px 0 4px;
+	line-height: 1.5;
+}
+
+/* =============================================
+   MATCH DETAIL MODAL (click an embedded match card, or a card in the
+   dedicated Potential Matches tab, from within a report's own modal)
+   ============================================= */
+.match-detail-modal {
+	padding: 20px 22px 22px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.match-detail-title {
+	font-size: 16px;
+	font-weight: 800;
+	color: var(--lf-ink);
+	margin-bottom: 2px;
+}
+
+.match-detail-subtitle {
+	font-size: 12px;
+	color: var(--lf-muted);
+}
+
+.match-detail-viewing-tag {
+	display: inline-block;
+	margin-top: 6px;
+	padding: 2px 9px;
+	border-radius: 20px;
+	font-size: 9px;
+	font-weight: 800;
+	letter-spacing: 0.3px;
+	text-transform: uppercase;
+	background: #E3ECFB;
+	color: var(--lf-brand, #1463aa);
+}
+
+.match-detail-contact-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+}
+
+.match-detail-contact-card h5 {
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.6px;
+	text-transform: uppercase;
+	color: var(--lf-muted);
+	margin-bottom: 6px;
+}
+
+@media (max-width: 640px) {
+	.match-detail-contact-grid { grid-template-columns: 1fr; }
+}
+
 .modal-close {
 	position: absolute;
 	top: 12px;

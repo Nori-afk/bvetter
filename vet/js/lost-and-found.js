@@ -126,6 +126,51 @@ function escapeHtml(value) {
 	}[char]));
 }
 
+/* ── Click-to-expand photos (lightbox) ──────────
+   Same pattern as the public-facing Lost & Found page: wraps a thumbnail with a
+   small expand-icon badge; clicking either opens it full-size. `small` shrinks
+   the badge for compact thumbnails (match-card pet photos). */
+const EXPAND_ICON_SVG = '<svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5.5 1.5H2.5a1 1 0 00-1 1v3M8.5 1.5h3a1 1 0 011 1v3M5.5 12.5H2.5a1 1 0 01-1-1v-3M8.5 12.5h3a1 1 0 001-1v-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function expandableImg(src, alt, imgClass, small = false) {
+	const safeSrc = escapeHtml(src || FALLBACK_IMAGE);
+	const safeAlt = escapeHtml(alt || '');
+	return `
+		<div class="lf-img-expand-wrap${small ? ' small' : ''}" data-lightbox-src="${safeSrc}" data-lightbox-alt="${safeAlt}">
+			<img src="${safeSrc}" alt="${safeAlt}" class="${imgClass}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';this.closest('.lf-img-expand-wrap').dataset.lightboxSrc='${FALLBACK_IMAGE}';">
+			<button type="button" class="lf-expand-badge" aria-label="Expand photo" tabindex="-1">${EXPAND_ICON_SVG}</button>
+		</div>
+	`;
+}
+
+function openLightbox(src, alt) {
+	const overlay = document.getElementById('lfLightbox');
+	const img = document.getElementById('lfLightboxImg');
+	if (!overlay || !img || !src) return;
+	img.src = src;
+	img.alt = alt || '';
+	overlay.hidden = false;
+}
+
+function closeLightboxDirect() {
+	const overlay = document.getElementById('lfLightbox');
+	if (overlay) overlay.hidden = true;
+}
+
+document.addEventListener('click', (event) => {
+	if (event.target.closest('[data-lightbox-close]')) {
+		closeLightboxDirect();
+		return;
+	}
+	const trigger = event.target.closest('[data-lightbox-src]');
+	if (trigger) {
+		event.stopPropagation();
+		openLightbox(trigger.dataset.lightboxSrc, trigger.dataset.lightboxAlt);
+		return;
+	}
+	if (event.target.id === 'lfLightbox') closeLightboxDirect();
+});
+
 function getSession() {
 	try {
 		return JSON.parse(sessionStorage.getItem('vbetter_session') || 'null');
@@ -487,9 +532,9 @@ function renderPotential(root) {
 				${list.length ? list.map((match) => `
 					<article class="match-card ${selectedMatch && String(match.id) === String(selectedMatch.id) ? 'is-selected' : ''}" data-action="select-match" data-id="${match.id}">
 						<div class="match-pair">
-							<div class="match-side"><img src="${escapeHtml(match.lost.image || FALLBACK_IMAGE)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"><h4>${escapeHtml(match.lost.name)}</h4><small>${escapeHtml(match.lost.breed || '')}</small></div>
+							<div class="match-side">${expandableImg(match.lost.image, match.lost.name, '', true)}<h4>${escapeHtml(match.lost.name)}</h4><small>${escapeHtml(match.lost.breed || '')}</small></div>
 							${confidenceGauge(match.confidence)}
-							<div class="match-side"><img src="${escapeHtml(match.found.image || FALLBACK_IMAGE)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"><h4>${escapeHtml(showingSightings ? 'Community Sighting' : match.found.name)}</h4><small>${escapeHtml(match.found.breed || '')}</small></div>
+							<div class="match-side">${expandableImg(match.found.image, showingSightings ? 'Community Sighting' : match.found.name, '', true)}<h4>${escapeHtml(showingSightings ? 'Community Sighting' : match.found.name)}</h4><small>${escapeHtml(match.found.breed || '')}</small></div>
 						</div>
 						<div class="reason-row">${(match.reasons || []).map((reason) => `<span class="reason-chip">${escapeHtml(reason)}</span>`).join('')}</div>
 						<div class="match-actions">
@@ -667,6 +712,11 @@ function runConfirmableAction(action, id) {
 function bindRootActions(root) {
 	root.querySelectorAll('[data-action]').forEach((button) => {
 		button.addEventListener('click', async (event) => {
+			// Let a click on an expand-photo badge open the lightbox instead of
+			// triggering this card's own action (e.g. select-match) — otherwise
+			// stopPropagation() below would swallow the click before the
+			// document-level lightbox listener ever sees it.
+			if (event.target.closest('[data-lightbox-src]')) return;
 			event.preventDefault();
 			event.stopPropagation();
 			const action = button.dataset.action;
@@ -739,14 +789,21 @@ function openModal(content) {
 	document.getElementById('lfModalOverlay').hidden = false;
 	setupModalMaps();
 	wireUploadFormIfPresent();
-	// Wire close buttons
+	// Wire close / back buttons
 	document.querySelectorAll('[data-modal-action]').forEach((button) => {
 		button.addEventListener('click', () => {
 			if (button.dataset.modalAction === 'close') closeModal();
+			if (button.dataset.modalAction === 'back-to-report') {
+				const report = findReportById(button.dataset.reportId);
+				if (report) openModal(buildDetailModal(report, 'active'));
+			}
 		});
 	});
 	// ─── BUG FIX: Wire approve/reject/resolve action buttons inside the modal
 	wireModalActionButtons();
+	// Wire embedded Potential Match cards (inside a report's own detail modal) to
+	// open the bigger Match Details view instead of sitting there inert.
+	wireEmbeddedMatchCards();
 }
 
 // ─── BUG FIX: Handle data-action buttons that live inside the modal body
@@ -757,6 +814,24 @@ function wireModalActionButtons() {
 			event.preventDefault();
 			event.stopPropagation();
 			runConfirmableAction(button.dataset.action, button.dataset.id);
+		});
+	});
+}
+
+// Embedded Potential Match cards live inside a report's own detail modal
+// (buildDetailModal's matchesSection) — clicking one opens buildMatchDetailModal()
+// for that specific match, without needing to close this modal and hunt for the
+// same match on the separate Potential Matches tab.
+function wireEmbeddedMatchCards() {
+	document.querySelectorAll('#lfModalBody .match-card[data-match-id]').forEach((card) => {
+		card.addEventListener('click', (event) => {
+			// A click on the expand-photo badge should only open the lightbox.
+			if (event.target.closest('[data-lightbox-src]')) return;
+			const reportId = card.closest('[data-report-id]')?.dataset.reportId;
+			const match = lfData.potentialMatches.find((m) => String(m.id) === String(card.dataset.matchId));
+			const report = findReportById(reportId);
+			if (!match || !report) return;
+			openModal(buildMatchDetailModal(match, report));
 		});
 	});
 }
@@ -783,23 +858,28 @@ function buildDetailModal(report, mode = 'view') {
 
 	// Reuses the same match-card / confidence-gauge component as the Potential
 	// Matches tab (renderPotential) instead of one-off markup, so styling stays consistent.
+	// Unlike the read-only cards this used to render, these are now clickable —
+	// wireEmbeddedMatchCards() (called from openModal()) opens buildMatchDetailModal()
+	// for whichever card was clicked, so staff can Approve/Dismiss without leaving
+	// the report they're already reviewing.
 	const matchesSection = matches.length
 		? `
 			<div class="details-section">
 				<h4 class="details-section-title green">Potential Matches</h4>
-				<div class="potential-main">
+				<p class="lf-matches-hint">Suggested from pet details, photo, and location similarity. Click a match for full details and to Approve or Dismiss it.</p>
+				<div class="potential-main" data-report-id="${escapeHtml(report.id)}">
 					${matches.map((m) => `
-						<article class="match-card static">
+						<article class="match-card" data-match-id="${escapeHtml(String(m.id))}">
 							<div class="match-pair">
 								<div class="match-side">
-									<img src="${escapeHtml(m.lost.image || FALLBACK_IMAGE)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
+									${expandableImg(m.lost.image, m.lost.name || 'Lost Pet', '', true)}
 									<h4>${escapeHtml(m.lost.name || 'Lost Pet')}</h4>
 									<small>${escapeHtml(m.lost.breed || '')}</small>
 								</div>
 								${confidenceGauge(m.confidence)}
 								<div class="match-side">
-									<img src="${escapeHtml(m.found.image || FALLBACK_IMAGE)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
-									<h4>${escapeHtml(m.found.name || 'Found Pet')}</h4>
+									${expandableImg(m.found.image, m.found.reportId ? (m.found.name || 'Found Pet') : 'Community Sighting', '', true)}
+									<h4>${escapeHtml(m.found.reportId ? (m.found.name || 'Found Pet') : 'Community Sighting')}</h4>
 									<small>${escapeHtml(m.found.breed || '')}</small>
 								</div>
 							</div>
@@ -838,6 +918,7 @@ function buildDetailModal(report, mode = 'view') {
         <div class="details-img-side">
             <img src="${escapeHtml(report.image)}" alt="${escapeHtml(report.petName || report.title)}" class="details-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
             <div class="details-status-badge ${isLost ? 'lost' : 'found'}">${escapeHtml(report.type || 'Lost')}</div>
+            <button type="button" class="lf-expand-badge lf-expand-badge-lg" aria-label="Expand photo" data-lightbox-src="${escapeHtml(report.image || FALLBACK_IMAGE)}" data-lightbox-alt="${escapeHtml(report.petName || report.title || '')}">${EXPAND_ICON_SVG}</button>
         </div>
 
         <div class="details-info-side">
@@ -897,6 +978,77 @@ function buildDetailModal(report, mode = 'view') {
 `;
 }
 
+// Bigger detail view of a single embedded Potential Match card — opened from
+// inside a report's own detail modal (see wireEmbeddedMatchCards). Unlike the
+// owner-facing version of this feature (public/js/lost-found.js), staff aren't
+// either party to the match, so both sides' contact info are shown here rather
+// than just the counterpart's. Approve/Dismiss reuse the exact same
+// CONFIRM_ACTIONS-backed actions the dedicated Potential Matches tab already uses.
+function buildMatchDetailModal(match, report) {
+	const isResolved = match.status === 'approved';
+	const foundIsSighting = !match.found?.reportId;
+	const lostIsCurrent = String(match.lost.reportId) === String(report.id);
+
+	const contactBlock = (label, contact) => `
+		<div class="match-detail-contact-card uploader">
+			<div class="profile-initial">${getInitials(contact.name)}</div>
+			<div>
+				<h5>${escapeHtml(label)}</h5>
+				<strong>${escapeHtml(contact.name || 'Not on file')}</strong><br>
+				<small>${escapeHtml(contact.phone || contact.email || 'No contact provided')}</small>
+			</div>
+		</div>
+	`;
+
+	const footerButtons = `
+		<button type="button" class="btn-details-close" data-modal-action="back-to-report" data-report-id="${escapeHtml(String(report.id))}">&larr; Back to Report</button>
+		${isResolved ? '' : `
+			<button type="button" class="btn-details-danger" data-action="dismiss-match" data-id="${escapeHtml(String(match.id))}">Dismiss</button>
+			<button type="button" class="btn-details-success" data-action="approve-match" data-id="${escapeHtml(String(match.id))}">Approve Match</button>
+		`}
+	`;
+
+	return `
+		<div class="match-detail-modal">
+			<div>
+				<h2 id="lfModalTitle" class="match-detail-title">Match Details</h2>
+				<p class="match-detail-subtitle">${escapeHtml(String(match.confidence))}% match</p>
+			</div>
+
+			<div class="match-pair">
+				<div class="match-side">
+					${expandableImg(match.lost.image, match.lost.name || 'Lost Pet', '')}
+					<h4>${escapeHtml(match.lost.name || 'Lost Pet')}</h4>
+					<small>${escapeHtml(match.lost.breed || '')}</small>
+					${lostIsCurrent ? '<span class="match-detail-viewing-tag">Currently Viewing</span>' : ''}
+				</div>
+				${confidenceGauge(match.confidence)}
+				<div class="match-side">
+					${expandableImg(match.found.image, foundIsSighting ? 'Community Sighting' : (match.found.name || 'Found Pet'), '')}
+					<h4>${escapeHtml(foundIsSighting ? 'Community Sighting' : (match.found.name || 'Found Pet'))}</h4>
+					<small>${escapeHtml(match.found.breed || '')}</small>
+					${!lostIsCurrent ? '<span class="match-detail-viewing-tag">Currently Viewing</span>' : ''}
+				</div>
+			</div>
+
+			<div class="reason-row">
+				${(match.reasons || []).map((r) => `<span class="reason-chip">${escapeHtml(r)}</span>`).join('')}
+			</div>
+
+			<div class="match-detail-contact-grid">
+				${contactBlock('Lost Report Submitter', { name: match.lost.contactName, phone: match.lost.contactPhone, email: match.lost.contactEmail })}
+				${contactBlock(foundIsSighting ? 'Sighting Submitter' : 'Found Report Submitter', { name: match.found.contactName, phone: match.found.contactPhone, email: match.found.contactEmail })}
+			</div>
+
+			${isResolved ? '<div class="lf-match-resolved-badge" style="text-align:center;padding:10px;background:var(--lf-green-soft);border-radius:8px;color:var(--lf-green-dark);font-weight:700;">Already approved and resolved</div>' : ''}
+
+			<div class="details-footer">
+				${footerButtons}
+			</div>
+		</div>
+	`;
+}
+
 // Side-by-side comparison of the found report vs. what the claimant submitted.
 // Unlike sightings, a claim has no structured pet data of its own (just contact
 // info + a proof document) and there's no image-similarity scoring between a
@@ -914,15 +1066,15 @@ function claimComparisonSection(claim) {
 		</div>
 		<div class="match-pair" style="margin-top:12px;">
 			<div class="match-side">
-				<img src="${escapeHtml(claim.image)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
+				${expandableImg(claim.image, 'Found Pet Photo', '', true)}
 				<h4>Found Pet Photo</h4>
 			</div>
 			<div class="match-side">
 				${claim.proofFile
 					? (proofIsPdf
 						? `<a href="${escapeHtml(claim.proofFile)}" target="_blank" rel="noopener" class="btn btn-secondary">View Proof (PDF)</a>`
-						: `<img src="${escapeHtml(claim.proofFile)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">`)
-					: `<img src="${FALLBACK_IMAGE}" alt="">`}
+						: expandableImg(claim.proofFile, "Claimant's Proof", '', true))
+					: expandableImg(FALLBACK_IMAGE, '', '', true)}
 				<h4>Claimant's Proof</h4>
 				<small>${escapeHtml(claim.proofType)}</small>
 			</div>
@@ -943,6 +1095,7 @@ function buildClaimModal(claim) {
 			<div class="details-img-side">
 				<img src="${escapeHtml(claim.image)}" alt="${escapeHtml(claim.petName)}" class="details-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
 				<div class="details-status-badge found">Claim</div>
+				<button type="button" class="lf-expand-badge lf-expand-badge-lg" aria-label="Expand photo" data-lightbox-src="${escapeHtml(claim.image || FALLBACK_IMAGE)}" data-lightbox-alt="${escapeHtml(claim.petName || '')}">${EXPAND_ICON_SVG}</button>
 			</div>
 
 			<div class="details-info-side">
@@ -1020,7 +1173,7 @@ function linkedReportCard(report, sighting) {
 		<article class="match-card static">
 			<div class="match-pair">
 				<div class="match-side">
-					<img src="${escapeHtml(report.image || FALLBACK_IMAGE)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
+					${expandableImg(report.image, report.petName || 'Lost Pet', '', true)}
 					<h4>${escapeHtml(report.petName || 'Lost Pet')}</h4>
 					<small>${escapeHtml(report.breed || '')}</small>
 				</div>
@@ -1031,7 +1184,7 @@ function linkedReportCard(report, sighting) {
 					</svg>
 				</div>
 				<div class="match-side">
-					<img src="${escapeHtml(sighting.image)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
+					${expandableImg(sighting.image, 'This Sighting', '', true)}
 					<h4>This Sighting</h4>
 					<small>${escapeHtml(sighting.barangay || '')}</small>
 				</div>
@@ -1055,13 +1208,13 @@ function renderAutoMatchCards(matches, sighting) {
 				<article class="match-card static">
 					<div class="match-pair">
 						<div class="match-side">
-							<img src="${escapeHtml(m.lost.image || FALLBACK_IMAGE)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
+							${expandableImg(m.lost.image, m.lost.name || 'Lost Pet', '', true)}
 							<h4>${escapeHtml(m.lost.name || 'Lost Pet')}</h4>
 							<small>${escapeHtml(m.lost.breed || '')}</small>
 						</div>
 						${confidenceGauge(m.confidence)}
 						<div class="match-side">
-							<img src="${escapeHtml(sighting.image)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
+							${expandableImg(sighting.image, 'This Sighting', '', true)}
 							<h4>This Sighting</h4>
 							<small>${escapeHtml(sighting.barangay || '')}</small>
 						</div>
@@ -1115,6 +1268,7 @@ function buildSightingModal(sighting) {
 			<div class="details-img-side">
 				<img src="${escapeHtml(sighting.image)}" alt="${escapeHtml(sighting.title)}" class="details-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';">
 				<div class="details-status-badge found">Sighting</div>
+				<button type="button" class="lf-expand-badge lf-expand-badge-lg" aria-label="Expand photo" data-lightbox-src="${escapeHtml(sighting.image || FALLBACK_IMAGE)}" data-lightbox-alt="${escapeHtml(sighting.title || '')}">${EXPAND_ICON_SVG}</button>
 			</div>
 
 			<div class="details-info-side">
