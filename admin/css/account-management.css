@@ -453,7 +453,7 @@ body {
 /* Actions */
 .am-actions-cell { display: flex; align-items: center; gap: 6px; }
 
-.am-btn-unblock, .am-btn-approve, .am-btn-reject {
+.am-btn-unblock, .am-btn-approve, .am-btn-reject, .am-btn-block {
     font-size: 12px;
     font-weight: 700;
     font-family: 'Manrope', sans-serif;
@@ -467,8 +467,9 @@ body {
 .am-btn-unblock  { color: var(--secondary-light-green); }
 .am-btn-approve  { color: var(--secondary-light-green); }
 .am-btn-reject   { color: var(--accent-red); }
+.am-btn-block    { color: var(--accent-red); }
 
-.am-btn-unblock:hover, .am-btn-approve:hover, .am-btn-reject:hover { opacity: 0.7; }
+.am-btn-unblock:hover, .am-btn-approve:hover, .am-btn-reject:hover, .am-btn-block:hover { opacity: 0.7; }
 
 .am-btn-edit {
     width: 28px; height: 28px;
@@ -745,6 +746,24 @@ body {
 }
 
 .am-btn-unblock-lg:hover { background: #FED7D7; border-color: #FC8181; }
+
+.am-btn-block-lg {
+    margin: 14px 28px 0;
+    width: calc(100% - 56px);
+    padding: 13px;
+    background: #FFF2F2;
+    border: 1.5px solid #FECACA;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 700;
+    font-family: 'Manrope', sans-serif;
+    color: #E53E3E;
+    cursor: pointer;
+    transition: var(--transition);
+    letter-spacing: 0.1px;
+}
+
+.am-btn-block-lg:hover { background: #FED7D7; border-color: #FC8181; }
 
 .am-modal-footer {
     display: flex;

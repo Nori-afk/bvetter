@@ -19,6 +19,7 @@ let currentPage   = 1;
 let pendingDeleteId  = null;
 let pendingVerifyId  = null;
 let pendingUnblockId = null;
+let pendingBlockId   = null;
 
 /* ── Init ───────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
@@ -26,6 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     wireSearch();
     wireAddModal();
     wireUnblockModal();
+    wireBlockModal();
     wireDeleteModal();
     wireVerifyModal();
     wirePagination();
@@ -137,6 +139,8 @@ function renderTable() {
 
         if (u.status === 'blocked') {
             actionsEl = `<button class="am-btn-unblock" onclick="openUnblockModal('${u.id}')">Unblock</button>${actionsEl}`;
+        } else if (u.status === 'active' || u.status === 'inactive') {
+            actionsEl = `<button class="am-btn-block" onclick="openBlockModal('${u.id}')">Block</button>${actionsEl}`;
         }
 
         if (u.status === 'pending') {
@@ -370,6 +374,35 @@ function openUnblockModal(id) {
     setEl('unblock-email', user.email);
 
     document.getElementById('modal-unblock').hidden = false;
+}
+
+/* ── BLOCK MODAL ────────────────────────────────────────────── */
+function wireBlockModal() {
+    document.getElementById('block-confirm-btn')?.addEventListener('click', async () => {
+        if (!pendingBlockId) return;
+        const result = await api.updateUserStatus(pendingBlockId, 'blocked').catch(() => ({ success: false }));
+        if (!result.success) {
+            alert(result.message || 'Could not block this account.');
+            return;
+        }
+        pendingBlockId = null;
+        document.getElementById('modal-block').hidden = true;
+        await loadUsers();
+    });
+}
+
+function openBlockModal(id) {
+    const user = allUsers.find(u => u.id === id);
+    if (!user) return;
+    pendingBlockId = id;
+
+    document.getElementById('block-user-id').value = id;
+    setEl('block-name',  user.name);
+    setEl('block-role',  user.roleLabel || capitalize(user.role));
+    setEl('block-phone', user.phone || '—');
+    setEl('block-email', user.email);
+
+    document.getElementById('modal-block').hidden = false;
 }
 
 /* ── DELETE MODAL ───────────────────────────────────────────── */
