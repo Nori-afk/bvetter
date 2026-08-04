@@ -345,6 +345,37 @@ function cancelRegistration($pdo, $data)
     respond(200, ['success' => true, 'message' => 'Registration cancelled.']);
 }
 
+function deleteRegistration($pdo, $data)
+{
+    $id = (int) ($data['registration_id'] ?? $data['id'] ?? 0);
+    if ($id <= 0) respond(422, ['success' => false, 'message' => 'Invalid registration id.']);
+
+    $stmt = $pdo->prepare(REGISTRATION_SELECT . ' WHERE csp_registrations.id = :id LIMIT 1');
+    $stmt->execute([':id' => $id]);
+    $reg = $stmt->fetch();
+    if (!$reg) respond(404, ['success' => false, 'message' => 'Registration not found.']);
+
+    if (!in_array($reg['status'], ['completed', 'cancelled'], true)) {
+        respond(422, ['success' => false, 'message' => 'Only completed or cancelled registrations can be deleted.']);
+    }
+
+    $pdo->prepare('DELETE FROM csp_registrations WHERE id = :id')->execute([':id' => $id]);
+
+    if ($reg['owner_email'] && userWantsNotification($pdo, (int) $reg['owner_id'], 'appointment_reminders')) {
+        $subject = 'BVetter – Castration & Spay Registration Removed';
+        $body = notificationEmailWrapper(
+            'Castration & Spay Registration Removed',
+            "<p>Hi {$reg['owner_name']}, {$reg['pet_name']}'s registration for the Castration & Spay Program has been removed by our staff.</p>
+             <p>If you believe this was a mistake, please contact us or register again.</p>",
+            null,
+            ['label' => 'View', 'url' => APP_URL . '/public/pages/book-appointment.html']
+        );
+        sendAppMail($reg['owner_email'], clean($reg['owner_name'] ?? ''), $subject, $body);
+    }
+
+    respond(200, ['success' => true, 'message' => 'Registration deleted.']);
+}
+
 function listRegistrations($pdo, $data)
 {
     $where = [];
@@ -393,6 +424,43 @@ function listPrograms($pdo)
     respond(200, ['success' => true, 'data' => $data]);
 }
 
+function notifyWaitingListOfNewProgram($pdo, $programId)
+{
+    $stmt = $pdo->prepare('SELECT * FROM csp_programs WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => $programId]);
+    $program = $stmt->fetch();
+    if (!$program) return;
+
+    $waiting = $pdo->query("
+        SELECT owners.id AS owner_id, owners.full_name AS owner_name, owners.email AS owner_email, pets.pet_name
+        FROM csp_registrations
+        INNER JOIN users owners ON owners.id = csp_registrations.owner_id
+        INNER JOIN pets ON pets.id = csp_registrations.pet_id
+        WHERE csp_registrations.status = 'pending_schedule' AND csp_registrations.program_id IS NULL
+    ")->fetchAll();
+
+    $dateLabel = $program['program_date'] ? date('F j, Y', strtotime($program['program_date'])) : 'To be announced';
+    $subject = 'BVetter – New Castration & Spay Program Available';
+
+    foreach ($waiting as $reg) {
+        if (!$reg['owner_email']) continue;
+        if (!userWantsNotification($pdo, (int) $reg['owner_id'], 'appointment_reminders')) continue;
+
+        $body = notificationEmailWrapper(
+            'New Castration & Spay Program Available',
+            "<p>Hi {$reg['owner_name']}, a new Castration & Spay program has opened and {$reg['pet_name']} may be assigned a slot soon.</p>
+             <p><strong>Program:</strong> {$program['title']}<br>
+                <strong>Date:</strong> {$dateLabel}<br>
+                <strong>Time:</strong> " . ($program['time_slot'] ?: 'TBA') . "<br>
+                <strong>Venue:</strong> " . ($program['venue'] ?: 'TBA') . "</p>",
+            null,
+            ['label' => 'View', 'url' => APP_URL . '/public/pages/book-appointment.html']
+        );
+
+        sendAppMail($reg['owner_email'], clean($reg['owner_name'] ?? ''), $subject, $body);
+    }
+}
+
 function createProgram($pdo, $data)
 {
     $title = clean($data['title'] ?? '') ?: 'Municipal Castration & Spay Program';
@@ -432,7 +500,12 @@ function createProgram($pdo, $data)
         ':status' => $status,
     ]);
 
-    respond(201, ['success' => true, 'message' => 'Program created.', 'program_id' => (int) $pdo->lastInsertId()]);
+    $programId = (int) $pdo->lastInsertId();
+    if ($status === 'open') {
+        notifyWaitingListOfNewProgram($pdo, $programId);
+    }
+
+    respond(201, ['success' => true, 'message' => 'Program created.', 'program_id' => $programId]);
 }
 
 function updateProgram($pdo, $data)
@@ -487,6 +560,31 @@ function updateProgram($pdo, $data)
     }
 
     respond(200, ['success' => true, 'message' => 'Program updated.']);
+}
+
+function deleteProgram($pdo, $data)
+{
+    $id = (int) ($data['program_id'] ?? $data['id'] ?? 0);
+    if ($id <= 0) respond(422, ['success' => false, 'message' => 'Invalid program id.']);
+
+    $stmt = $pdo->prepare('SELECT status FROM csp_programs WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => $id]);
+    $program = $stmt->fetch();
+    if (!$program) respond(404, ['success' => false, 'message' => 'Program not found.']);
+
+    if (in_array($program['status'], ['scheduled', 'completed'], true)) {
+        respond(422, ['success' => false, 'message' => 'Only planning, open, or cancelled programs can be deleted.']);
+    }
+
+    $countStmt = $pdo->prepare('SELECT COUNT(*) FROM csp_registrations WHERE program_id = :id');
+    $countStmt->execute([':id' => $id]);
+    $attached = (int) $countStmt->fetchColumn();
+    if ($attached > 0) {
+        respond(422, ['success' => false, 'message' => "Cannot delete — {$attached} registration(s) are still attached to this program. Unassign or reassign them first."]);
+    }
+
+    $pdo->prepare('DELETE FROM csp_programs WHERE id = :id')->execute([':id' => $id]);
+    respond(200, ['success' => true, 'message' => 'Program deleted.']);
 }
 
 function assignRegistrations($pdo, $data)
@@ -655,10 +753,12 @@ try {
     if ($action === 'register') registerInterest($pdo, $input);
     if ($action === 'my_status') getMyStatus($pdo, $input);
     if ($action === 'cancel') cancelRegistration($pdo, $input);
+    if ($action === 'delete_registration') deleteRegistration($pdo, $input);
     if ($action === 'list_registrations') listRegistrations($pdo, $input);
     if ($action === 'list_programs') listPrograms($pdo);
     if ($action === 'create_program') createProgram($pdo, $input);
     if ($action === 'update_program') updateProgram($pdo, $input);
+    if ($action === 'delete_program') deleteProgram($pdo, $input);
     if ($action === 'assign_registrations') assignRegistrations($pdo, $input);
     if ($action === 'unassign') unassignRegistration($pdo, $input);
     if ($action === 'notify_program') notifyProgram($pdo, $input);

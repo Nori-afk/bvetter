@@ -83,12 +83,23 @@ async function loadPrograms() {
       <td>${escapeHtml(program.venue || 'TBA')}</td>
       <td>${program.assigned_count}${program.capacity !== null ? ' / ' + program.capacity : ''}</td>
       <td>${statusPill(program.status)}</td>
-      <td><button class="btn btn-outline btn-sm" data-manage-program="${program.id}" type="button">Manage</button></td>
+      <td>
+        <button class="btn btn-outline btn-sm" data-manage-program="${program.id}" type="button">Manage</button>
+        <button class="btn btn-danger btn-sm" data-delete-program="${program.id}" type="button">Delete</button>
+      </td>
     </tr>
   `).join('');
 
   tbody.querySelectorAll('[data-manage-program]').forEach((btn) => {
     btn.addEventListener('click', () => openProgramModal(Number(btn.dataset.manageProgram)));
+  });
+  tbody.querySelectorAll('[data-delete-program]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this program? This cannot be undone.')) return;
+      const res = await window.VetAPI.deleteCspProgram(Number(btn.dataset.deleteProgram));
+      if (!res.ok) { alert(res.error || 'Failed to delete program.'); return; }
+      refreshAll();
+    });
   });
 }
 
@@ -157,7 +168,7 @@ async function loadRoster() {
     return;
   }
 
-  state.roster = result.data.filter((r) => r.status !== 'cancelled');
+  state.roster = result.data;
   if (!state.roster.length) {
     tbody.innerHTML = '<tr><td colspan="5" class="csp-loading-cell">No pets assigned to this program yet.</td></tr>';
     return;
@@ -173,6 +184,9 @@ async function loadRoster() {
         ${reg.status === 'scheduled' ? `
           <button class="btn btn-outline btn-sm" data-complete-reg="${reg.id}" type="button">Mark Completed</button>
           <button class="btn btn-danger btn-sm" data-cancel-reg="${reg.id}" type="button">Cancel</button>
+        ` : ''}
+        ${reg.status === 'completed' || reg.status === 'cancelled' ? `
+          <button class="btn btn-danger btn-sm" data-delete-reg="${reg.id}" type="button">Delete</button>
         ` : ''}
       </td>
     </tr>
@@ -190,6 +204,14 @@ async function loadRoster() {
     btn.addEventListener('click', async () => {
       const res = await window.VetAPI.updateCspProgram({ program_id: state.rosterProgramId, status: 'completed' });
       if (!res.ok) { alert(res.error || 'Failed to update.'); return; }
+      refreshAll();
+    });
+  });
+  tbody.querySelectorAll('[data-delete-reg]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this registration? This cannot be undone.')) return;
+      const res = await window.VetAPI.deleteCspRegistration(Number(btn.dataset.deleteReg));
+      if (!res.ok) { alert(res.error || 'Failed to delete registration.'); return; }
       refreshAll();
     });
   });

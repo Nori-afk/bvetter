@@ -312,6 +312,16 @@ async function cancelCspRegistration(registrationId) {
     return { ok: result.success, error: result.success ? null : result.message };
 }
 
+async function deleteCspRegistration(registrationId) {
+    const result = await cspRequest('delete_registration', { registration_id: registrationId });
+    return { ok: result.success, error: result.success ? null : result.message };
+}
+
+async function deleteCspProgram(programId) {
+    const result = await cspRequest('delete_program', { program_id: programId });
+    return { ok: result.success, error: result.success ? null : result.message };
+}
+
 /** DELETE /api/vet/appointments/:id */
 async function deleteAppointment(id) {
     const formData = new FormData();
@@ -737,6 +747,8 @@ window.VetAPI = {
     unassignCspRegistration,
     notifyCspProgram,
     cancelCspRegistration,
+    deleteCspRegistration,
+    deleteCspProgram,
     getPatients,
     getPatientById,
     createPatient,
