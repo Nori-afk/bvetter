@@ -1414,7 +1414,9 @@ function renderDeleteModal(record) {
 			</div>
 			<div class="field delete-confirm-field">
 				<label for="delete-confirm" class="delete-confirm-label">Type <strong>DELETE</strong> to confirm</label>
-				<input class="form-input delete-confirm-input" id="delete-confirm" type="text" placeholder="DELETE" autocomplete="off">
+				<input class="form-input delete-confirm-input" id="delete-confirm" type="text" placeholder="DELETE" autocomplete="off"
+					oninput="this.classList.remove('invalid'); document.getElementById('delete-confirm-error')?.classList.remove('visible');">
+				<span class="field-error" id="delete-confirm-error">Please type DELETE exactly (all capital letters) to confirm.</span>
 			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-soft" data-modal-action="close-modal">Cancel</button>
@@ -1785,7 +1787,12 @@ function handleModalAction(action, target) {
 
 	if (action === 'confirm-delete') {
 		const input = document.getElementById('delete-confirm');
-		if (!input || input.value.trim().toUpperCase() !== 'DELETE') return;
+		if (!input) return;
+		if (input.value.trim() !== 'DELETE') {
+			input.classList.add('invalid');
+			document.getElementById('delete-confirm-error')?.classList.add('visible');
+			return;
+		}
 		deleteRecord(id)
 			.then(() => {
 				closeModal();

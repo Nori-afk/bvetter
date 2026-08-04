@@ -478,7 +478,7 @@ function renderActive(root) {
 				<small>${escapeHtml(item.barangay)} &middot; ${escapeHtml(item.date || '')}</small>
 				<div class="mini-row">
 					<span class="mini-chip">${escapeHtml(item.breed || '')}</span>
-					<span class="mini-chip">${escapeHtml(item.sex || '')}</span>
+					${item.sex ? `<span class="mini-chip">${escapeHtml(item.sex)}</span>` : ''}
 					<span class="mini-chip">${escapeHtml(item.size || '')}</span>
 				</div>
 				<div class="foot">
@@ -1414,12 +1414,13 @@ function buildUploadModal() {
 
 					<div class="form-row">
 						<div class="form-group">
-							<label>Sex</label>
+							<label>Sex <span id="sexOptionalHint" style="font-weight:400;color:#9ba3ae;text-transform:none;" hidden>(if known)</span></label>
 							<div class="sex-toggle">
-								<button type="button" class="sex-btn active" data-value="Male">Male</button>
+								<button type="button" class="sex-btn" data-value="Male">Male</button>
 								<button type="button" class="sex-btn" data-value="Female">Female</button>
+								<button type="button" class="sex-btn" data-value="Unknown" id="sexBtnUnknown">Unknown</button>
 							</div>
-							<input type="hidden" name="sex" id="sexInput" value="Male">
+							<input type="hidden" name="sex" id="sexInput" value="">
 						</div>
 						<div class="form-group">
 							<label>Size</label>
@@ -1437,7 +1438,8 @@ function buildUploadModal() {
 					<div class="form-row">
 						<div class="form-group full">
 							<label>Color / Markings</label>
-							<input name="color_markings" class="form-input" placeholder="e.g. White with brown patches, black collar" required>
+							<textarea name="color_markings" id="markingsTextarea" class="form-textarea" maxlength="200" rows="2" placeholder="e.g. White with brown patches, black collar" required></textarea>
+							<span class="char-counter" id="markingsCounter">0/200</span>
 						</div>
 					</div>
 				</div>
@@ -1530,6 +1532,19 @@ function wireUploadFormIfPresent() {
 		if (petNameInput) petNameInput.required = isLost;
 		if (petNameOptional) petNameOptional.hidden = isLost;
 
+		// Sex rules differ per type: found reports allow "Unknown" (finder may
+		// not be able to check the animal) and default to it; lost reports hide
+		// Unknown and force an explicit Male/Female pick (no silent default).
+		const unknownBtn = document.getElementById('sexBtnUnknown');
+		const sexOptionalHint = document.getElementById('sexOptionalHint');
+		const sexInput = document.getElementById('sexInput');
+		if (unknownBtn) unknownBtn.style.display = isLost ? 'none' : '';
+		if (sexOptionalHint) sexOptionalHint.hidden = isLost;
+		form.querySelectorAll('.sex-btn').forEach((btn) => {
+			btn.classList.toggle('active', !isLost && btn.dataset.value === 'Unknown');
+		});
+		if (sexInput) sexInput.value = '';
+
 		form.querySelectorAll('.type-toggle-btn').forEach((btn) => {
 			btn.classList.toggle('active', btn.dataset.type === type);
 		});
@@ -1546,7 +1561,9 @@ function wireUploadFormIfPresent() {
 			form.querySelectorAll('.sex-btn').forEach((b) => b.classList.remove('active'));
 			btn.classList.add('active');
 			const sexInput = document.getElementById('sexInput');
-			if (sexInput) sexInput.value = btn.dataset.value;
+			// "Unknown" is stored as blank → NULL, so the match scorer keeps
+			// treating it as no-signal instead of matching Unknown-to-Unknown.
+			if (sexInput) sexInput.value = btn.dataset.value === 'Unknown' ? '' : btn.dataset.value;
 		});
 	});
 
@@ -1561,6 +1578,16 @@ function wireUploadFormIfPresent() {
 		};
 		notesTextarea.addEventListener('input', updateNotesCounter);
 		updateNotesCounter();
+	}
+
+	const markingsTextarea = document.getElementById('markingsTextarea');
+	const markingsCounter  = document.getElementById('markingsCounter');
+	if (markingsTextarea && markingsCounter) {
+		const updateMarkingsCounter = () => {
+			markingsCounter.textContent = `${markingsTextarea.value.length}/${markingsTextarea.maxLength}`;
+		};
+		markingsTextarea.addEventListener('input', updateMarkingsCounter);
+		updateMarkingsCounter();
 	}
 
 	photoInput.addEventListener('change', () => {
@@ -1585,6 +1612,10 @@ function wireUploadFormIfPresent() {
 		const formData = new FormData(form);
 		if (formData.get('type') === 'lost' && !String(formData.get('pet_name') || '').trim()) {
 			alert('Pet name is required for lost pet reports.');
+			return;
+		}
+		if (formData.get('type') === 'lost' && !String(formData.get('sex') || '').trim()) {
+			alert("Please select the pet's sex.");
 			return;
 		}
 		const incidentDate = String(formData.get('incident_date') || '');

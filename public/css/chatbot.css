@@ -895,3 +895,51 @@
 
   .chatbot-fab { bottom: 20px; right: 20px; }
 }
+/* ── "Need help?" teaser bubble beside the FAB ── */
+.chatbot-teaser {
+  position: fixed;
+  bottom: 44px;
+  right: 104px;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  color: var(--color-navy, #002A58);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 11px 12px 11px 16px;
+  border-radius: 14px 14px 4px 14px;
+  box-shadow: 0 6px 24px rgba(0, 42, 88, 0.22), 0 1px 4px rgba(0, 0, 0, 0.10);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.chatbot-teaser.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.chatbot-teaser-close {
+  border: none;
+  background: transparent;
+  color: #9aa6b5;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.chatbot-teaser-close:hover {
+  color: var(--color-navy, #002A58);
+}
+
+@media (max-width: 480px) {
+  .chatbot-teaser {
+    right: 92px;
+    bottom: 34px;
+  }
+}

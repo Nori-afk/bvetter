@@ -320,7 +320,9 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
             protocolDesc = (
                 `Our Advanced Forecast predicts ${arimaForecast[0] ?? '?'} cases next month. ` +
                 `Risk level: ${rf.risk_class || 'N/A'} (${rf.confidence || 0}% confidence). ` +
-                `Typically accurate within ±${rf.model_mae ?? 'N/A'} cases.`
+                (rf.model_mae != null
+                    ? `Predictions here are usually within ${rf.model_mae} cases of the actual count.`
+                    : '')
             );
         }
 
@@ -418,10 +420,10 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
     const avgMae    = maeValues.length ? (maeValues.reduce((a, b) => a + b, 0) / maeValues.length) : null;
 
     diseaseAnalyticsData.kpis[3] = {
-        label: 'Forecast Accuracy',
-        value: avgMae != null ? `Within ±${avgMae.toFixed(1)} cases` : 'N/A',
+        label: 'Prediction Quality',
+        value: avgMae != null ? `Usually within ${Math.round(avgMae * 10) / 10} cases` : 'N/A',
         trend: avgMae != null
-            ? [friendlyModelLabel(firstRf.model_type), `avg across ${maeValues.length} barangays`].filter(Boolean).join(' · ')
+            ? `of the actual count · checked across ${maeValues.length} barangay${maeValues.length === 1 ? '' : 's'}`
             : 'Automatic risk check',
     };
 }
@@ -650,7 +652,7 @@ function renderInsightPanel() {
     if (insight.forecast?.length) {
         const months    = ['Next Month', 'Month 2', 'Month 3'];
         const modelLabel = friendlyModelLabel(insight.model_type);
-        const metaParts = insight.model_mae != null ? `Usually accurate within ±${insight.model_mae} cases` : '';
+        const metaParts = insight.model_mae != null ? `Usually within ${insight.model_mae} cases of the actual count` : '';
 
         const trend     = (insight.trend || 'stable').toLowerCase();
         const trendIcon = trend === 'rising' ? '↑' : trend === 'falling' ? '↓' : '→';

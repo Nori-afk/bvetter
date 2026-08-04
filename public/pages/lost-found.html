@@ -575,10 +575,11 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Sex</label>
+              <label>Sex <span id="sexOptionalHint" style="font-weight:400;color:#9ba3ae;text-transform:none;" hidden>(if known)</span></label>
               <div class="sex-toggle">
-                <button type="button" class="sex-btn active" onclick="setSex(this)">Male</button>
+                <button type="button" class="sex-btn" onclick="setSex(this)">Male</button>
                 <button type="button" class="sex-btn" onclick="setSex(this)">Female</button>
+                <button type="button" class="sex-btn" id="sexBtnUnknown" onclick="setSex(this)">Unknown</button>
               </div>
             </div>
             <div class="form-group">
@@ -596,7 +597,8 @@
           <div class="form-row">
             <div class="form-group full">
               <label>Color / Markings</label>
-              <input type="text" id="markingsInput" placeholder="e.g. White with brown patches, black collar" class="form-input"/>
+              <textarea class="form-textarea" id="markingsInput" maxlength="200" rows="2" oninput="updateCharCounter('markingsInput','markingsCounter')" placeholder="e.g. White with brown patches, black collar"></textarea>
+              <span class="char-counter" id="markingsCounter">0/200</span>
             </div>
           </div>
         </div>

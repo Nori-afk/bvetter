@@ -328,6 +328,7 @@ async function fetchVets() {
 
     const item = document.createElement('div');
     item.className = 'vet-item' + (index === 0 ? ' active' : '');
+    item.dataset.vetId = vet.id;
     item.innerHTML = `
       ${avatarMarkup(vet.full_name, vet.avatar, 'vet-thumb')}
       <div>
@@ -358,6 +359,10 @@ async function fetchVets() {
     loadVetFeedback(VetAccounts.data[0].id);// now both selectedVetId + selectedCalDate are set
     loadCommonCases(VetAccounts.data[0].id);
   }
+
+  // Let the booking-draft restore logic re-select a saved vet now that
+  // the list items actually exist.
+  document.dispatchEvent(new CustomEvent('bv-vets-loaded'));
 }
 async function loadRecentHistory() {
   try {
@@ -970,6 +975,92 @@ function getAverageRate(average) {
     }
   }
 
+  /* ── Booking draft persistence (Google-Forms-like) ──
+     Everything typed in steps 1-3 (plus the chosen vet, date and time
+     slot) is autosaved to sessionStorage, so a reload or browser-Back
+     drops the owner exactly where they left off instead of wiping the
+     form. Cleared once the booking submits successfully (goStep(5)). ── */
+  const BOOKING_DRAFT_KEY = 'bvetter_booking_draft';
+  const BOOKING_FIELD_IDS = [
+    'ownerName', 'ownerContact', 'ownerEmail', 'ownerBarangay', 'ownerAddress',
+    'petName', 'petType', 'petBreed', 'petAgeValue', 'petAgeUnit', 'petSex', 'petVaccDate',
+    'visitType', 'apptDate', 'apptNotes'
+  ];
+  let currentStep = 1;
+  let pendingRestoreVetId = null;
+
+  function saveBookingDraft() {
+    const fields = {};
+    BOOKING_FIELD_IDS.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) fields[id] = el.value;
+    });
+    const slotBtn = document.querySelector('#step3 .slot-btn.selected');
+    try {
+      sessionStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify({
+        vetId: selectedVetId || '',
+        step: Math.min(currentStep, 4),
+        slot: slotBtn ? slotBtn.dataset.slot : '',
+        fields
+      }));
+    } catch {
+      /* storage unavailable — draft just won't persist */
+    }
+  }
+
+  function clearBookingDraft() {
+    try { sessionStorage.removeItem(BOOKING_DRAFT_KEY); } catch { /* ignore */ }
+  }
+
+  function restoreBookingDraft() {
+    let draft = null;
+    try { draft = JSON.parse(sessionStorage.getItem(BOOKING_DRAFT_KEY) || 'null'); } catch { draft = null; }
+    if (!draft || !draft.fields) return;
+
+    BOOKING_FIELD_IDS.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el && draft.fields[id] != null) el.value = draft.fields[id];
+    });
+    if (draft.slot) {
+      const slotBtn = document.querySelector(`#step3 .slot-btn[data-slot="${draft.slot}"]`);
+      if (slotBtn) {
+        document.querySelectorAll('.slot-btn').forEach((b) => b.classList.remove('selected'));
+        slotBtn.classList.add('selected');
+      }
+    }
+    toggleDewormingNotice();
+    toggleCspMode();
+
+    // Only jump back into the wizard when the draft actually holds input.
+    const hasContent = draft.slot || Object.values(draft.fields).some((v) => String(v || '').trim() !== '');
+    if (!hasContent) return;
+
+    pendingRestoreVetId = draft.vetId || null;
+    showPage(pageBooking);
+    goStep(Math.min(Math.max(Number(draft.step) || 1, 1), 4));
+  }
+
+  // Re-select the saved vet once the list has rendered (fetchVets is async);
+  // then re-check slot availability for the restored vet if we're on step 3.
+  document.addEventListener('bv-vets-loaded', () => {
+    if (!pendingRestoreVetId) return;
+    const item = document.querySelector(`.vet-item[data-vet-id="${pendingRestoreVetId}"]`);
+    pendingRestoreVetId = null;
+    if (item && !item.classList.contains('active')) item.click();
+    if (currentStep === 3 && !isCspMode()) refreshStep3Slots();
+  });
+
+  // Autosave as the owner types or picks anything in steps 1-3.
+  BOOKING_FIELD_IDS.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', saveBookingDraft);
+    el.addEventListener('change', saveBookingDraft);
+  });
+  document.addEventListener('click', (event) => {
+    if (event.target.closest('.slot-btn') || event.target.closest('.vet-item')) saveBookingDraft();
+  });
+
   /* ── Page navigation wiring ─────────────── */
   document.getElementById('btnBook')           .addEventListener('click', () => {
     // Carry the date already picked in the preview calendar into step 3
@@ -1115,6 +1206,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
 
   /* ── Core step switcher ──────────────────── */
   function goStep(n) {
+    currentStep = n;
     for (let i = 1; i <= 5; i++) {
       const el = document.getElementById('step' + i);
       if (el) el.style.display = (i === n) ? 'block' : 'none';
@@ -1122,6 +1214,9 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     updateStepper(n);
     if (n === 3) { toggleCspMode(); if (!isCspMode()) refreshStep3Slots(); }
     if (n === 4) populateReview();
+    // Booking done → the draft has served its purpose; otherwise remember
+    // where the owner is so a reload/back returns them to this step.
+    if (n === 5) clearBookingDraft(); else saveBookingDraft();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -1492,6 +1587,9 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     const selSlot = document.querySelector('.slot-btn.selected');
     document.getElementById('rv-time').textContent = selSlot ? selSlot.dataset.slot : '—';
   }
+
+  // Bring back any in-progress booking (must run after all wiring above).
+  restoreBookingDraft();
 
 })();
 

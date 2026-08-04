@@ -418,9 +418,10 @@ function closeModal(id) {
     if (sizeInput) sizeInput.selectedIndex = 0;
     const barangayInput = document.getElementById('barangayInput');
     if (barangayInput) barangayInput.value = '';
-    document.querySelectorAll('#reportModal .sex-btn').forEach((btn, index) => btn.classList.toggle('active', index === 0));
+    document.querySelectorAll('#reportModal .sex-btn').forEach((btn) => btn.classList.remove('active'));
     document.getElementById('accountToggle')?.classList.remove('on');
     updateCharCounter('notesInput', 'notesCounter');
+    updateCharCounter('markingsInput', 'markingsCounter');
     const reportLatInput = document.getElementById('reportLatInput');
     const reportLngInput = document.getElementById('reportLngInput');
     if (reportLatInput) reportLatInput.value = DEFAULT_COORDS[0];
@@ -498,9 +499,12 @@ function openModal(type) {
   if (dateLostLabel) dateLostLabel.textContent = isLost ? 'Date Lost' : 'Date Found';
   if (notesLabel) notesLabel.textContent = (isLost ? 'Additional Details' : 'Current Status / Notes') + ' (Optional)';
 
+  applySexDefaults(isLost);
+
   openModalById('reportModal');
   setTimeout(() => initReportMap(), 100);
   restoreDraft(type);
+  updateCharCounter('markingsInput', 'markingsCounter');
 
   // image preview code
  const fileInput = document.getElementById("petPhoto");
@@ -529,6 +533,19 @@ fileInput.addEventListener("change", function () {
 });
 
   setTimeout(initReportMap, 150);
+}
+
+/* Sex rules differ per report type: found reports offer "Unknown" (a finder
+   often can't check the animal) preselected by default; lost reports hide
+   Unknown and force an explicit Male/Female pick — no silent default. */
+function applySexDefaults(isLost) {
+  const unknownBtn = document.getElementById('sexBtnUnknown');
+  const sexOptionalHint = document.getElementById('sexOptionalHint');
+  if (unknownBtn) unknownBtn.style.display = isLost ? 'none' : '';
+  if (sexOptionalHint) sexOptionalHint.hidden = isLost;
+  document.querySelectorAll('#reportModal .sex-btn').forEach((btn) => {
+    btn.classList.toggle('active', !isLost && btn.textContent.trim() === 'Unknown');
+  });
 }
 
 function requiredValue(id, label, minLength = 2) {
@@ -622,7 +639,9 @@ function restoreDraft(kind) {
     if (field && data[fieldId]) field.value = data[fieldId];
   });
 
-  if ((kind === 'lost' || kind === 'found') && data.__sex) {
+  // Never restore "Unknown" onto a lost report — that button is hidden there
+  // and the owner must pick Male/Female explicitly.
+  if ((kind === 'lost' || kind === 'found') && data.__sex && !(kind === 'lost' && data.__sex === 'Unknown')) {
     document.querySelectorAll('#reportModal .sex-btn').forEach((btn) => {
       btn.classList.toggle('active', btn.textContent.trim() === data.__sex);
     });
@@ -703,7 +722,13 @@ async function submitReport() {
     if (currentReportType === 'lost') formData.append('pet_name', petName);
     formData.append('species', requiredValue('speciesInput', 'Type'));
     formData.append('breed', requiredValue('breedInput', 'Breed'));
-    formData.append('sex', document.querySelector('#reportModal .sex-btn.active')?.textContent.trim() || 'Male');
+    // Lost reports need an explicit Male/Female pick; found reports may leave
+    // sex as Unknown, which is submitted blank and stored as NULL.
+    const sexChoice = document.querySelector('#reportModal .sex-btn.active')?.textContent.trim() || '';
+    if (currentReportType === 'lost' && (!sexChoice || sexChoice === 'Unknown')) {
+      throw new Error("Please select your pet's sex.");
+    }
+    if (sexChoice && sexChoice !== 'Unknown') formData.append('sex', sexChoice);
     formData.append('size', requiredValue('sizeInput', 'Size'));
     formData.append('color_markings', requiredValue('markingsInput', 'Color / markings', 5));
     formData.append('incident_date', incidentDate);

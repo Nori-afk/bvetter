@@ -760,7 +760,9 @@
 				</div>
 				<label class="field" for="consultation-delete-confirm">
 					<span>Type DELETE to confirm</span>
-					<input class="confirm-input" id="consultation-delete-confirm" type="text" placeholder="DELETE" autocomplete="off">
+					<input class="confirm-input" id="consultation-delete-confirm" type="text" placeholder="DELETE" autocomplete="off"
+						oninput="this.classList.remove('invalid'); document.getElementById('consultation-delete-error')?.classList.remove('visible');">
+					<span class="confirm-error" id="consultation-delete-error">Please type DELETE exactly (all capital letters) to confirm.</span>
 				</label>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-soft" data-modal-action="close-modal">No, Keep</button>
@@ -897,7 +899,12 @@
 
 		if (action === 'confirm-delete-rule') {
 			const input = document.getElementById('consultation-delete-confirm');
-			if (!input || input.value.trim().toUpperCase() !== 'DELETE') return;
+			if (!input) return;
+			if (input.value.trim() !== 'DELETE') {
+				input.classList.add('invalid');
+				document.getElementById('consultation-delete-error')?.classList.add('visible');
+				return;
+			}
 			void deleteConsultationRule(Number(id || state.consultationDeletingId || 0));
 		}
 	}
@@ -1310,7 +1317,9 @@
 				</div>
 				<label class="field" for="delete-confirm-input">
 					<span>Type DELETE to confirm</span>
-					<input class="confirm-input" id="delete-confirm-input" type="text" placeholder="DELETE" autocomplete="off">
+					<input class="confirm-input" id="delete-confirm-input" type="text" placeholder="DELETE" autocomplete="off"
+						oninput="this.classList.remove('invalid'); document.getElementById('inquiry-delete-error')?.classList.remove('visible');">
+					<span class="confirm-error" id="inquiry-delete-error">Please type DELETE exactly (all capital letters) to confirm.</span>
 				</label>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-soft" data-modal-action="close-modal">No, Keep</button>
@@ -1462,7 +1471,12 @@
 		const targetId = state.inquiryDeletingId;
 		if (!targetId) return;
 		const input = document.getElementById('delete-confirm-input');
-		if (!input || input.value.trim().toUpperCase() !== 'DELETE') return;
+		if (!input) return;
+		if (input.value.trim() !== 'DELETE') {
+			input.classList.add('invalid');
+			document.getElementById('inquiry-delete-error')?.classList.add('visible');
+			return;
+		}
 
 		try {
 			await chatbotRequest('delete_inquiry', { id: targetId });

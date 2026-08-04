@@ -632,26 +632,15 @@ function patient_volume_weekly_rows($pdo): array
     return $rows;
 }
 
+/* Descriptive only: the chart shows real historical visit counts. The old
+   per-period prediction overlay (RandomForest call + trend fallback) was
+   removed — it hindcast months that had already happened and could stall
+   dashboard loading on the analytics service timeout. */
 function patient_volume_series($pdo, string $range = 'monthly'): array
 {
-    $rows = strtolower($range) === 'weekly'
+    return strtolower($range) === 'weekly'
         ? patient_volume_weekly_rows($pdo)
         : patient_volume_monthly_rows($pdo);
-
-    $rf          = analytics_post('/patient-volume-predict', ['series' => $rows, 'range' => $range], 30);
-    $predictions = $rf['success'] && is_array($rf['data']) ? $rf['data'] : [];
-    $predByPeriod = [];
-    foreach ($predictions as $p) { $predByPeriod[(string) ($p['period'] ?? '')] = (float) ($p['predicted'] ?? 0); }
-
-    foreach ($rows as &$row) {
-        $row['predicted'] = isset($predByPeriod[$row['period']])
-            ? $predByPeriod[$row['period']]
-            : (int) ceil($row['value'] * 1.08);
-        $row['model'] = isset($predByPeriod[$row['period']]) ? 'RandomForest' : 'trend_fallback';
-    }
-    unset($row);
-
-    return $rows;
 }
 
 function vet_dashboard($pdo, string $patientRange = 'monthly', string $disease = '')

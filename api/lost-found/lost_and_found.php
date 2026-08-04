@@ -736,11 +736,25 @@ function createReport($pdo, $data)
     if (!$species || !$breed) {
         respond(422, ['success' => false, 'message' => 'Species and breed are required.']);
     }
-    if (!nullableClean($data['sex'] ?? '') || !nullableClean($data['size'] ?? '')) {
-        respond(422, ['success' => false, 'message' => 'Sex and size are required.']);
+    // Sex is optional for found reports (a finder often can't check the
+    // animal); "Unknown" is normalized to NULL so match scoring keeps
+    // treating it as no-signal. Lost reports still require Male/Female.
+    $sex = nullableClean($data['sex'] ?? '');
+    if ($sex !== null && strcasecmp($sex, 'unknown') === 0) {
+        $sex = null;
     }
-    if (!nullableClean($data['color_markings'] ?? $data['markings'] ?? '')) {
+    if ($type === 'lost' && !$sex) {
+        respond(422, ['success' => false, 'message' => 'Sex is required for lost pet reports.']);
+    }
+    if (!nullableClean($data['size'] ?? '')) {
+        respond(422, ['success' => false, 'message' => 'Size is required.']);
+    }
+    $colorMarkings = nullableClean($data['color_markings'] ?? $data['markings'] ?? '');
+    if (!$colorMarkings) {
         respond(422, ['success' => false, 'message' => 'Color or markings are required.']);
+    }
+    if (mb_strlen($colorMarkings) > 200) {
+        respond(422, ['success' => false, 'message' => 'Color / markings must be 200 characters or fewer.']);
     }
     $notes = nullableClean($data['notes'] ?? '');
     if ($notes && mb_strlen($notes) > 500) {
@@ -785,9 +799,9 @@ function createReport($pdo, $data)
         ':pet_name' => $petName,
         ':species' => $species,
         ':breed' => $breed,
-        ':sex' => nullableClean($data['sex'] ?? ''),
+        ':sex' => $sex,
         ':size' => nullableClean($data['size'] ?? ''),
-        ':color_markings' => nullableClean($data['color_markings'] ?? $data['markings'] ?? ''),
+        ':color_markings' => $colorMarkings,
         ':notes' => $notes,
         ':barangay_id' => $barangayId,
         ':barangay_name' => $barangayName,

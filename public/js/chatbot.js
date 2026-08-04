@@ -377,6 +377,57 @@ function closeChat() {
   });
 
   /* ─────────────────────────────────────────
+     6b. "NEED HELP?" TEASER BUBBLE
+     Small speech bubble beside the FAB so
+     visitors realise the heart is a chatbot.
+     Appears ~3s after load, once per browser
+     session; dismissible with ×; clicking it
+     opens the chat.
+  ───────────────────────────────────────── */
+  var TEASER_KEY = 'bv_chat_teaser_shown';
+
+  function maybeShowTeaser() {
+    try {
+      if (sessionStorage.getItem(TEASER_KEY)) return;
+    } catch (e) {
+      /* storage unavailable — just show it */
+    }
+
+    setTimeout(function () {
+      if (isOpen) return; /* chat already open — no need to nudge */
+
+      var teaser = document.createElement('div');
+      teaser.className = 'chatbot-teaser';
+      teaser.id = 'chatbotTeaser';
+      teaser.setAttribute('role', 'button');
+      teaser.innerHTML =
+        '<span class="chatbot-teaser-text">Need help? Chat with me!</span>' +
+        '<button class="chatbot-teaser-close" aria-label="Dismiss">&times;</button>';
+      document.body.appendChild(teaser);
+
+      try { sessionStorage.setItem(TEASER_KEY, '1'); } catch (e) { /* ignore */ }
+      requestAnimationFrame(function () { teaser.classList.add('show'); });
+
+      function hideTeaser() {
+        teaser.classList.remove('show');
+        setTimeout(function () { teaser.remove(); }, 250);
+      }
+
+      teaser.querySelector('.chatbot-teaser-close').addEventListener('click', function (e) {
+        e.stopPropagation();
+        hideTeaser();
+      });
+      teaser.addEventListener('click', function () {
+        hideTeaser();
+        openChat(false);
+      });
+      fab.addEventListener('click', hideTeaser);
+    }, 3000);
+  }
+
+  maybeShowTeaser();
+
+  /* ─────────────────────────────────────────
      7. TABS
   ───────────────────────────────────────── */
   function switchTab(which) {

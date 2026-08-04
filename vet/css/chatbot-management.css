@@ -2120,3 +2120,20 @@ body {
     }
 }
 
+
+/* Inline mismatch message under the type-DELETE confirm inputs */
+.confirm-error {
+    display:     none;
+    font-size:   11.5px;
+    font-weight: 600;
+    color:       #EF4444;
+    margin-top:  5px;
+}
+
+.confirm-error.visible {
+    display: block;
+}
+
+.confirm-input.invalid {
+    border-color: #EF4444 !important;
+}

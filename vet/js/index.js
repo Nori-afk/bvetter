@@ -151,29 +151,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                         pointHoverRadius: 5,
                         pointHoverBackgroundColor: '#002A58',
                         pointHoverBorderWidth: 2
-                    },
-                    {
-                        label: 'Predicted Patient Volume',
-                        data: (dashboardData?.patientVolume?.length ? dashboardData.patientVolume : [
-                            { predicted: 130 },
-                            { predicted: 205 },
-                            { predicted: 162 },
-                            { predicted: 239 },
-                            { predicted: 216 },
-                            { predicted: 313 },
-                            { predicted: 270 }
-                        ]).map((item) => item.predicted || item.value),
-                        borderColor: '#677BAE',
-                        backgroundColor: 'rgba(103, 123, 174, 0.06)',
-                        borderWidth: 1.5,
-                        borderDash: [5, 3],
-                        fill: true,
-                        tension: 0.45,
-                        pointRadius: 3,
-                        pointBackgroundColor: '#677BAE',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointHoverRadius: 5
                     }
                 ]
             },
@@ -981,7 +958,6 @@ function openAnnouncementEditorModal({ mode, item }) {
         if (!window.dashboardCharts.patientVolume || !rows.length) return;
         window.dashboardCharts.patientVolume.data.labels = rows.map((item) => item.label);
         window.dashboardCharts.patientVolume.data.datasets[0].data = rows.map((item) => item.value);
-        window.dashboardCharts.patientVolume.data.datasets[1].data = rows.map((item) => item.predicted || item.value);
         window.dashboardCharts.patientVolume.update();
     }
 
