@@ -747,6 +747,19 @@ function dashboardStats($pdo)
 $input = inputData();
 $action = clean($input['action'] ?? 'list_registrations');
 
+// Program management and registration administration are staff-only.
+// Owners keep register / my_status / cancel / list_programs (owner-side
+// identity enforcement is handled separately).
+$staffActions = [
+    'delete_registration', 'list_registrations',
+    'create_program', 'update_program', 'delete_program',
+    'assign_registrations', 'unassign', 'notify_program', 'dashboard_stats',
+];
+if (in_array($action, $staffActions, true)) {
+    require_once __DIR__ . '/../config/auth_guard.php';
+    requireRole($pdo, ['veterinarian', 'admin']);
+}
+
 try {
     setupCspTables($pdo);
 

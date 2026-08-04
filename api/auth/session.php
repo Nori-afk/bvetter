@@ -53,7 +53,8 @@ try {
                 ->execute([':id' => $session['id']]);
 
             $stmt = $pdo->prepare('
-                SELECT id, ip_address, city, country, device_label, last_seen_at, created_at, token_hash
+                SELECT id, ip_address, city, country, device_label, last_seen_at, created_at, token_hash,
+                       UNIX_TIMESTAMP(last_seen_at) AS last_seen_epoch
                 FROM user_sessions
                 WHERE user_id = :user_id AND revoked_at IS NULL
                 ORDER BY last_seen_at DESC
@@ -68,6 +69,9 @@ try {
                     'location'     => $location !== '' ? $location : 'Unknown location',
                     'ip'           => $row['ip_address'],
                     'lastActivity' => $row['last_seen_at'],
+                    // Epoch seconds — timezone-proof, unlike the raw DATETIME
+                    // string which the browser would misread as local time.
+                    'lastActivityEpoch' => (int) $row['last_seen_epoch'],
                     'isCurrent'    => hash_equals($row['token_hash'], $currentHash),
                 ];
             }, $stmt->fetchAll());
@@ -120,6 +124,7 @@ try {
                 SELECT
                     user_sessions.id, user_sessions.ip_address, user_sessions.city, user_sessions.country,
                     user_sessions.device_label, user_sessions.last_seen_at, user_sessions.token_hash,
+                    UNIX_TIMESTAMP(user_sessions.last_seen_at) AS last_seen_epoch,
                     users.full_name, users.email, roles.name AS role_name
                 FROM user_sessions
                 INNER JOIN users ON users.id = user_sessions.user_id
@@ -139,6 +144,7 @@ try {
                     'location'     => $location !== '' ? $location : 'Unknown location',
                     'ip'           => $row['ip_address'],
                     'lastActivity' => $row['last_seen_at'],
+                    'lastActivityEpoch' => (int) $row['last_seen_epoch'],
                     'isCurrent'    => hash_equals($row['token_hash'], $currentHash),
                 ];
             }, $stmt->fetchAll());

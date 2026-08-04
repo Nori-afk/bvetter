@@ -267,12 +267,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function handleExport() {
+    async function handleExport() {
     var session = JSON.parse(sessionStorage.getItem('vbetter_session') || 'null');
     var userName = (session && session.name) ? session.name : 'Baliuag City Veterinary Office';
     var params = requestParams({ page: 1, page_size: 10000, generated_by: userName });
     var url = window.VetAPI.getReportExportUrl(params, state.exportFormat);
-    window.location.href = url;
+
+    // Fetched (not navigated) so the Authorization header reaches the
+    // guarded endpoint; the blob is then saved via a temporary link.
+    try {
+        var res = await fetch(url);
+        if (!res.ok) throw new Error('Export request failed: ' + res.status);
+        var blob = await res.blob();
+        var disposition = res.headers.get('Content-Disposition') || '';
+        var match = disposition.match(/filename="?([^";]+)"?/);
+        var fallbackExt = state.exportFormat === 'excel' ? 'xlsx' : state.exportFormat;
+        var filename = match ? match[1] : ('bvetter-report.' + fallbackExt);
+        var link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
+    } catch (err) {
+        alert('Could not export the report. Please try again.');
+    }
     closeExportModal();
 }
 

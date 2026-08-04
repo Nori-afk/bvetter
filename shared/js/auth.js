@@ -27,6 +27,33 @@ const LOGIN_PAGE = '/public/pages/login.html';
 const SESSION_API = '/api/auth/session.php';
 const SESSION_CHECK_INTERVAL_MS = 30000;
 
+/* ── Bearer token injection ─────────────────────────────────────
+   Server-side role guards (api/config/auth_guard.php) identify the
+   caller by Authorization header. Not every fetch() call site sets
+   it, so fill it in for any same-origin /api/ request that doesn't
+   already have one. Call sites that do set it are left untouched. */
+(function () {
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = function (input, init) {
+        try {
+            const url = typeof input === 'string' ? input : (input && input.url) || '';
+            const sameOriginApi = url.indexOf('/api/') !== -1 && !/^https?:\/\//i.test(url);
+            const token = sessionStorage.getItem('bvetter_token');
+            if (token && sameOriginApi) {
+                init = init ? { ...init } : {};
+                const headers = new Headers(init.headers || {});
+                if (!headers.has('Authorization')) {
+                    headers.set('Authorization', 'Bearer ' + token);
+                }
+                init.headers = headers;
+            }
+        } catch {
+            // Never break a request over header injection.
+        }
+        return nativeFetch(input, init);
+    };
+})();
+
 /* ── Session helpers ────────────────────────────────────────── */
 function getSession() {
     try {

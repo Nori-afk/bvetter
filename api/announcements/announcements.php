@@ -344,6 +344,12 @@ $input = inputData();
 
 $action = clean($input['action'] ?? 'list');
 
+// Only reading announcements is public; all writes are staff-only.
+if ($action !== 'list') {
+    require_once __DIR__ . '/../config/auth_guard.php';
+    requireRole($pdo, ['veterinarian', 'admin']);
+}
+
 try {
 
     setupAnnouncements($pdo);

@@ -211,6 +211,12 @@ try {
     $data = inputData();
     $action = clean($data['action'] ?? 'list');
 
+    // Changing ticket status is a staff action; users create and list their own.
+    if ($action === 'update_status') {
+        require_once __DIR__ . '/../config/auth_guard.php';
+        requireRole($pdo, ['veterinarian', 'admin']);
+    }
+
     switch ($action) {
         case 'create':
             createTicket($pdo, $data);

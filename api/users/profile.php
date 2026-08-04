@@ -3,6 +3,7 @@
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../config/security_settings.php';
 
 function respond($statusCode, $payload)
 {
@@ -256,8 +257,13 @@ function changePassword($pdo, $data)
     $userId = (int) ($data['user_id'] ?? $data['userId'] ?? 0);
     $current = (string) ($data['currentPassword'] ?? $data['current_password'] ?? '');
     $next = (string) ($data['newPassword'] ?? $data['new_password'] ?? '');
-    if ($userId <= 0 || $current === '' || strlen($next) < 8) {
-        respond(422, ['success' => false, 'message' => 'Current password and a new password of at least 8 characters are required.']);
+    if ($userId <= 0 || $current === '' || $next === '') {
+        respond(422, ['success' => false, 'message' => 'Current password and a new password are required.']);
+    }
+
+    $policyError = passwordPolicyError($pdo, $next);
+    if ($policyError !== null) {
+        respond(422, ['success' => false, 'message' => $policyError]);
     }
 
     $stmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = :id LIMIT 1');

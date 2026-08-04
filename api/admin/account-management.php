@@ -13,6 +13,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/email_verification.php';
+require_once __DIR__ . '/../config/login_security.php';
+require_once __DIR__ . '/../config/auth_guard.php';
+require_once __DIR__ . '/../config/security_settings.php';
+
+requireRole($pdo, ['admin']);
+ensureLoginSecuritySchema($pdo);
 
 function respond($statusCode, $payload)
 {
@@ -237,10 +243,11 @@ function createUser($pdo)
         ]);
     }
 
-    if (strlen($password) < 8) {
+    $policyError = passwordPolicyError($pdo, $password);
+    if ($policyError !== null) {
         respond(422, [
             'success' => false,
-            'message' => 'Password must be at least 8 characters.'
+            'message' => $policyError
         ]);
     }
 
@@ -393,7 +400,11 @@ function updateAccountStatus($pdo)
         ]);
     }
 
-    $updateUser = $pdo->prepare('UPDATE users SET account_status = :status WHERE id = :id');
+    // Unblocking also clears the failed-login counter so the user gets a
+    // fresh 3 attempts (see api/config/login_security.php).
+    $updateUser = $status === 'active'
+        ? $pdo->prepare('UPDATE users SET account_status = :status, failed_login_attempts = 0 WHERE id = :id')
+        : $pdo->prepare('UPDATE users SET account_status = :status WHERE id = :id');
     $updateUser->execute([':status' => $status, ':id' => $userId]);
 
     respond(200, [

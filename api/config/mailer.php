@@ -53,7 +53,7 @@ function sendViaBrevo(string $apiKey, string $toEmail, string $toName, string $s
 {
     $payload = [
         'sender' => [
-            'name' => getenv('BREVO_FROM_NAME') ?: 'BVetter',
+            'name' => getenv('MAIL_FROM_NAME') ?: getenv('BREVO_FROM_NAME') ?: 'BVetter',
             'email' => getenv('BREVO_FROM_EMAIL') ?: getenv('SMTP_FROM') ?: '',
         ],
         'to' => [['email' => $toEmail, 'name' => $toName ?: $toEmail]],
@@ -98,7 +98,7 @@ function sendViaSmtp(string $toEmail, string $toName, string $subject, string $h
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = (int) (getenv('SMTP_PORT') ?: 587);
 
-        $mail->setFrom(getenv('SMTP_FROM') ?: $mail->Username, 'BVetter');
+        $mail->setFrom(getenv('SMTP_FROM') ?: $mail->Username, getenv('MAIL_FROM_NAME') ?: 'BVetter');
         $mail->addAddress($toEmail, $toName);
         $mail->isHTML(true);
         $mail->Subject = $subject;
@@ -165,8 +165,54 @@ function isWithinQuietHours(bool $enabled, string $start, string $end): bool
 }
 
 /**
+ * Bulleted label/value rows for security-alert style emails
+ * (Account / When / Device ...). Values must already be HTML-escaped.
+ */
+function emailDetailList(array $rows): string
+{
+    $items = '';
+    foreach ($rows as $label => $value) {
+        $items .= "
+            <tr>
+                <td style='color:#00B928;font-size:16px;line-height:1.6;padding:3px 10px 3px 0;vertical-align:top;'>&bull;</td>
+                <td style='color:#444;font-size:14px;line-height:1.6;padding:3px 0;'>
+                    {$label}: <strong style='color:#1a1a1a;'>{$value}</strong>
+                </td>
+            </tr>
+        ";
+    }
+    return "<table role='presentation' cellpadding='0' cellspacing='0' style='margin:18px 0;'>{$items}</table>";
+}
+
+/**
+ * Large one-time-code box for verification/OTP emails.
+ */
+function emailCodeBox(string $code): string
+{
+    return "
+        <div style='font-size:32px;font-weight:800;letter-spacing:8px;text-align:center;color:#1a1a1a;
+                    background:#f4f4f4;padding:20px;border-radius:8px;margin:24px 0;'>
+            {$code}
+        </div>
+    ";
+}
+
+/**
+ * Bold sub-heading that starts a new section in the email body
+ * (e.g. "That wasn't me!"), security-alert style.
+ */
+function emailSectionHeading(string $text): string
+{
+    return "<h3 style='color:#1a1a1a;font-size:15px;font-weight:700;margin:26px 0 8px;'>{$text}</h3>";
+}
+
+/**
  * $photoUrl: absolute URL of an image (see emailAssetUrl()), shown below the body text.
  * $button: ['label' => 'View', 'url' => '...'] rendered as a centered green pill button.
+ *
+ * Light theme on purpose: inbox dark modes (Gmail, Outlook, Apple Mail)
+ * recolor light emails automatically, while hardcoded dark colors render
+ * unpredictably. Don't add dark backgrounds here.
  */
 function notificationEmailWrapper(string $heading, string $bodyHtml, ?string $photoUrl = null, ?array $button = null): string
 {
@@ -189,15 +235,15 @@ function notificationEmailWrapper(string $heading, string $bodyHtml, ?string $ph
     $year = date('Y');
 
     return "
-        <div style='font-family:sans-serif;max-width:480px;margin:auto;padding:32px;
-                    border:1px solid #eee;border-radius:12px;text-align:center;'>
-            <img src='" . EMAIL_LOGO_URL . "' alt='Baliwag City Vet' style='height:56px;margin-bottom:20px;'>
-            <h2 style='color:#00B928;margin-bottom:8px;'>{$heading}</h2>
-            <div style='color:#555;text-align:center;'>{$bodyHtml}</div>
+        <div style='font-family:sans-serif;max-width:520px;margin:auto;padding:36px 40px;
+                    background:#ffffff;text-align:left;'>
+            <img src='" . EMAIL_LOGO_URL . "' alt='Baliwag City Vet' style='height:48px;margin-bottom:28px;'>
+            <h1 style='color:#1a1a1a;font-size:25px;font-weight:800;margin:0 0 18px;'>{$heading}</h1>
+            <div style='color:#444;font-size:14px;line-height:1.7;'>{$bodyHtml}</div>
             {$photoHtml}
             {$buttonHtml}
-            <hr style='border:none;border-top:1px solid #eee;margin:28px 0 16px;'>
-            <p style='color:#999;font-size:11.5px;line-height:1.6;margin:0;'>
+            <hr style='border:none;border-top:1px solid #eee;margin:30px 0 16px;'>
+            <p style='color:#999;font-size:11.5px;line-height:1.7;margin:0;'>
                 This is an automated message from BVetter. If you didn't expect this email, you can safely ignore it.<br>
                 &copy; {$year} BVetter &mdash; Baliwag City Veterinary Office
             </p>

@@ -407,6 +407,130 @@
 
         .sec-btn-end-session:hover { opacity: 0.7; }
 
+        /* ── MODALS ── */
+        .sec-modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15,23,42,0.55);
+            padding: 20px;
+        }
+
+        .sec-modal-overlay.open { display: flex; }
+
+        .sec-modal {
+            background: var(--bg-white);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            width: 100%;
+            max-width: 440px;
+            padding: 26px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .sec-modal-title { font-size: 17px; font-weight: 800; color: var(--text-primary); }
+
+        .sec-modal-sub { font-size: 12.5px; color: var(--text-tertiary); font-weight: 500; margin-top: 2px; }
+
+        .sec-method-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            border: 1.5px solid var(--secondary-light-green);
+            background: rgba(0,185,40,0.05);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+        }
+
+        .sec-method-row .sec-method-name { font-size: 13.5px; font-weight: 800; color: var(--text-primary); display: block; }
+        .sec-method-row .sec-method-desc { font-size: 12px; color: var(--text-secondary); font-weight: 500; margin-top: 3px; line-height: 1.5; }
+
+        .sec-modal-status {
+            font-size: 12.5px;
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            display: none;
+        }
+
+        .sec-modal-status.ok    { display: block; background: rgba(0,185,40,0.10); color: #1B6D24; }
+        .sec-modal-status.error { display: block; background: rgba(147,0,10,0.08); color: var(--accent-red); }
+
+        .sec-modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+        .sec-btn-secondary {
+            background: var(--bg-page);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 11px 18px;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: 'Manrope', sans-serif;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .sec-btn-secondary:hover { background: var(--border); }
+
+        .sec-btn-primary {
+            background: var(--primary-dark);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 11px 18px;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: 'Manrope', sans-serif;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .sec-btn-primary:hover { background: #003A72; }
+        .sec-btn-primary:disabled { opacity: 0.6; cursor: default; }
+
+        .sec-field { display: flex; flex-direction: column; gap: 6px; }
+
+        .sec-field-label {
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--text-tertiary);
+        }
+
+        .sec-field input[type="number"] {
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: 'Manrope', sans-serif;
+            color: var(--text-primary);
+            width: 110px;
+        }
+
+        .sec-field input[type="number"]:focus { outline: none; border-color: var(--primary-blue); }
+
+        .sec-checkbox-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sec-checkbox-row:last-child { border-bottom: none; }
+
+        .sec-checkbox-row label { font-size: 13px; font-weight: 600; color: var(--text-secondary); cursor: pointer; }
+
+        .sec-checkbox-row input { width: 17px; height: 17px; accent-color: var(--secondary-light-green); cursor: pointer; }
+
         @media (max-width: 960px) {
             .sec-main { margin-left: 0; width: 100%; padding: 20px; }
             .sec-top-row { grid-template-columns: 1fr; }
@@ -511,18 +635,18 @@
 
                     <!-- Toggle -->
                     <label class="sec-toggle" title="Toggle 2FA">
-                        <input type="checkbox" id="toggle-2fa" checked>
+                        <input type="checkbox" id="toggle-2fa">
                         <span class="sec-toggle-track"></span>
                         <span class="sec-toggle-thumb"></span>
                     </label>
                 </div>
 
-                <div class="sec-2fa-meta">
-                    <strong>Authenticated via Microsoft Authenticator</strong>
-                    <span>Last used: Today at 08:42 AM from IP 192.168.1.45</span>
+                <div class="sec-2fa-meta" id="twofa-meta">
+                    <strong>Loading&hellip;</strong>
+                    <span></span>
                 </div>
 
-                <button class="sec-btn-configure" type="button">Configure 2FA Methods</button>
+                <button class="sec-btn-configure" type="button" id="configure-2fa-btn">Configure 2FA Methods</button>
             </div>
 
             <!-- Password Policy Card -->
@@ -540,29 +664,16 @@
                             <span class="sec-card-sub">Requirements for all clinic staff accounts.</span>
                         </div>
                     </div>
-                    <button class="sec-card-edit-btn" type="button" title="Edit policy">
+                    <button class="sec-card-edit-btn" type="button" title="Edit policy" id="edit-policy-btn">
                         <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                         </svg>
                     </button>
                 </div>
 
-                <div>
+                <div id="policy-rows">
                     <div class="sec-policy-row">
-                        <span class="sec-policy-label">Minimum Length</span>
-                        <span class="sec-policy-value">12 Characters</span>
-                    </div>
-                    <div class="sec-policy-row">
-                        <span class="sec-policy-label">Require Special Characters</span>
-                        <span class="sec-policy-value">
-                            <span class="sec-check-green">
-                                <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="#00B928" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                            </span>
-                        </span>
-                    </div>
-                    <div class="sec-policy-row">
-                        <span class="sec-policy-label">Password Expiry</span>
-                        <span class="sec-policy-value">90 Days</span>
+                        <span class="sec-policy-label">Loading&hellip;</span>
                     </div>
                 </div>
             </div>
@@ -598,10 +709,78 @@
 
     </main>
 
-    <script src="../../shared/js/auth.js"></script>
+    <!-- ══ 2FA CONFIG MODAL ══ -->
+    <div class="sec-modal-overlay" id="twofa-modal">
+        <div class="sec-modal" role="dialog" aria-modal="true" aria-labelledby="twofa-modal-title">
+            <div>
+                <div class="sec-modal-title" id="twofa-modal-title">Configure 2FA Methods</div>
+                <div class="sec-modal-sub" id="twofa-modal-state">Loading&hellip;</div>
+            </div>
+
+            <div class="sec-method-row">
+                <span class="sec-check-green" style="margin-top:2px;">
+                    <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="#00B928" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+                <div>
+                    <span class="sec-method-name">Email OTP (Active Method)</span>
+                    <span class="sec-method-desc">
+                        When a veterinarian or admin signs in with the correct password, a 6-digit
+                        code is emailed to their registered address. The code expires after
+                        10 minutes and allows 5 attempts. Pet owner accounts are not affected.
+                    </span>
+                </div>
+            </div>
+
+            <div class="sec-modal-status" id="twofa-test-status"></div>
+
+            <div class="sec-modal-actions">
+                <button class="sec-btn-secondary" type="button" id="twofa-modal-close">Close</button>
+                <button class="sec-btn-primary" type="button" id="twofa-test-btn">Send Me a Test Code</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ PASSWORD POLICY MODAL ══ -->
+    <div class="sec-modal-overlay" id="policy-modal">
+        <div class="sec-modal" role="dialog" aria-modal="true" aria-labelledby="policy-modal-title">
+            <div>
+                <div class="sec-modal-title" id="policy-modal-title">Edit Password Policy</div>
+                <div class="sec-modal-sub">Applies whenever a password is next set (registration, reset, account creation, password change). Existing passwords are unaffected.</div>
+            </div>
+
+            <div class="sec-field">
+                <span class="sec-field-label">Minimum Length</span>
+                <input type="number" id="policy-min-length" min="6" max="64" step="1">
+            </div>
+
+            <div>
+                <div class="sec-checkbox-row">
+                    <label for="policy-special">Require Special Character</label>
+                    <input type="checkbox" id="policy-special">
+                </div>
+                <div class="sec-checkbox-row">
+                    <label for="policy-number">Require Number</label>
+                    <input type="checkbox" id="policy-number">
+                </div>
+                <div class="sec-checkbox-row">
+                    <label for="policy-uppercase">Require Uppercase Letter</label>
+                    <input type="checkbox" id="policy-uppercase">
+                </div>
+            </div>
+
+            <div class="sec-modal-status" id="policy-status"></div>
+
+            <div class="sec-modal-actions">
+                <button class="sec-btn-secondary" type="button" id="policy-modal-close">Cancel</button>
+                <button class="sec-btn-primary" type="button" id="policy-save-btn">Save Policy</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../shared/js/auth.js?v=20260805-auth"></script>
     <script>VBetterAuth.requireAuth(['admin']);</script>
     <script src="../../shared/js/sidebar.js"></script>
-    <script src="../../public/js/api.js"></script>
+    <script src="../../public/js/api.js?v=20260805-2fa"></script>
     <script>
     'use strict';
 
@@ -614,9 +793,11 @@
         return `<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
     }
 
-    function timeAgo(dateStr) {
-        if (!dateStr) return 'Unknown';
-        const diffMs = Date.now() - new Date(dateStr.replace(' ', 'T')).getTime();
+    // Takes epoch seconds (server-computed) — immune to the server-vs-browser
+    // timezone mismatch that made fresh sessions show as "8 hours ago".
+    function timeAgo(epochSeconds) {
+        if (!epochSeconds) return 'Unknown';
+        const diffMs = Date.now() - epochSeconds * 1000;
         const mins = Math.floor(diffMs / 60000);
         if (mins < 1) return 'Just now';
         if (mins < 60) return `${mins} min${mins === 1 ? '' : 's'} ago`;
@@ -667,7 +848,7 @@
                     </div>
                 </td>
                 <td style="font-size:13px;font-weight:600;color:var(--text-secondary);">${s.location}</td>
-                <td style="font-size:13px;color:var(--text-tertiary);font-weight:500;">${timeAgo(s.lastActivity)}</td>
+                <td style="font-size:13px;color:var(--text-tertiary);font-weight:500;">${timeAgo(s.lastActivityEpoch)}</td>
                 <td>
                     <span class="sec-session-status ${s.isCurrent ? 'current' : 'standby'}">
                         <span class="sec-session-dot"></span>
@@ -704,21 +885,183 @@
         await loadSessions();
     });
 
-    document.getElementById('toggle-2fa')?.addEventListener('change', function () {
-        const meta = document.querySelector('.sec-2fa-meta');
-        const btn  = document.querySelector('.sec-btn-configure');
-        if (this.checked) {
-            meta.style.opacity = '1';
-            btn.style.opacity  = '1';
-            btn.disabled = false;
-        } else {
-            meta.style.opacity = '0.4';
-            btn.style.opacity  = '0.4';
-            btn.disabled = true;
+    /* ── SECURITY SETTINGS (2FA + password policy) ─────────────── */
+
+    let securitySettings = null;
+
+    function renderTwoFactorCard() {
+        const meta   = document.getElementById('twofa-meta');
+        const toggle = document.getElementById('toggle-2fa');
+        const btn    = document.getElementById('configure-2fa-btn');
+        if (!securitySettings || !meta) return;
+
+        const on = securitySettings.twoFactorEnabled;
+        toggle.checked = on;
+        meta.style.opacity = on ? '1' : '0.4';
+        btn.style.opacity  = on ? '1' : '0.4';
+
+        const lastUsed = securitySettings.twoFactorLastUsedEpoch
+            ? 'Last code verified: ' + timeAgo(securitySettings.twoFactorLastUsedEpoch)
+            : 'No login codes verified yet';
+
+        meta.innerHTML = on
+            ? `<strong>Email OTP &mdash; required for all veterinarian &amp; admin logins</strong>
+               <span>${lastUsed}</span>`
+            : `<strong>Two-factor authentication is turned off</strong>
+               <span>Staff sign in with email and password only</span>`;
+
+        const modalState = document.getElementById('twofa-modal-state');
+        if (modalState) {
+            modalState.textContent = on
+                ? 'Enabled — codes are emailed to staff at every login.'
+                : 'Currently disabled — enable the toggle on the security page to enforce it.';
         }
+    }
+
+    function renderPolicyCard() {
+        const container = document.getElementById('policy-rows');
+        if (!securitySettings || !container) return;
+
+        const p = securitySettings.policy;
+        const check = `<span class="sec-check-green">
+            <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="#00B928" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </span>`;
+        const dash = '<span style="color:var(--text-tertiary);font-weight:700;">&mdash;</span>';
+
+        container.innerHTML = `
+            <div class="sec-policy-row">
+                <span class="sec-policy-label">Minimum Length</span>
+                <span class="sec-policy-value">${p.minLength} Characters</span>
+            </div>
+            <div class="sec-policy-row">
+                <span class="sec-policy-label">Require Special Characters</span>
+                <span class="sec-policy-value">${p.requireSpecial ? check : dash}</span>
+            </div>
+            <div class="sec-policy-row">
+                <span class="sec-policy-label">Require Numbers</span>
+                <span class="sec-policy-value">${p.requireNumber ? check : dash}</span>
+            </div>
+            <div class="sec-policy-row">
+                <span class="sec-policy-label">Require Uppercase Letters</span>
+                <span class="sec-policy-value">${p.requireUppercase ? check : dash}</span>
+            </div>
+        `;
+    }
+
+    async function loadSecuritySettings() {
+        const result = await api.getSecuritySettings().catch(() => ({ success: false }));
+        if (!result.success) {
+            const meta = document.getElementById('twofa-meta');
+            if (meta) meta.innerHTML = '<strong>Could not load security settings.</strong><span></span>';
+            return;
+        }
+        securitySettings = result.data;
+        renderTwoFactorCard();
+        renderPolicyCard();
+    }
+
+    document.getElementById('toggle-2fa')?.addEventListener('change', async function () {
+        const wanted = this.checked;
+        if (!wanted && !confirm('Turn off two-factor authentication for ALL veterinarian and admin logins?')) {
+            this.checked = true;
+            return;
+        }
+
+        const result = await api.updateTwoFactor(wanted).catch(() => ({ success: false }));
+        if (!result.success) {
+            alert(result.message || 'Could not update the 2FA setting.');
+            this.checked = !wanted;
+            return;
+        }
+        securitySettings = result.data;
+        renderTwoFactorCard();
+    });
+
+    /* ── 2FA config modal ── */
+    const twofaModal = document.getElementById('twofa-modal');
+
+    document.getElementById('configure-2fa-btn')?.addEventListener('click', () => {
+        const status = document.getElementById('twofa-test-status');
+        status.className = 'sec-modal-status';
+        status.textContent = '';
+        twofaModal.classList.add('open');
+    });
+
+    document.getElementById('twofa-modal-close')?.addEventListener('click', () => twofaModal.classList.remove('open'));
+
+    document.getElementById('twofa-test-btn')?.addEventListener('click', async function () {
+        const status = this.parentElement.parentElement.querySelector('#twofa-test-status');
+        this.disabled = true;
+        this.textContent = 'Sending…';
+
+        const result = await api.sendTestTwoFactorCode().catch(() => ({ success: false }));
+
+        status.className = 'sec-modal-status ' + (result.success ? 'ok' : 'error');
+        status.textContent = result.success
+            ? (result.message || 'Test code sent — check your inbox.')
+            : (result.message || 'Could not send the test email.');
+
+        this.disabled = false;
+        this.textContent = 'Send Me a Test Code';
+    });
+
+    /* ── Password policy modal ── */
+    const policyModal = document.getElementById('policy-modal');
+
+    document.getElementById('edit-policy-btn')?.addEventListener('click', () => {
+        if (!securitySettings) return;
+        const p = securitySettings.policy;
+        document.getElementById('policy-min-length').value = p.minLength;
+        document.getElementById('policy-special').checked = p.requireSpecial;
+        document.getElementById('policy-number').checked = p.requireNumber;
+        document.getElementById('policy-uppercase').checked = p.requireUppercase;
+        const status = document.getElementById('policy-status');
+        status.className = 'sec-modal-status';
+        status.textContent = '';
+        policyModal.classList.add('open');
+    });
+
+    document.getElementById('policy-modal-close')?.addEventListener('click', () => policyModal.classList.remove('open'));
+
+    document.getElementById('policy-save-btn')?.addEventListener('click', async function () {
+        const status = document.getElementById('policy-status');
+        const minLength = parseInt(document.getElementById('policy-min-length').value, 10);
+
+        if (!Number.isInteger(minLength) || minLength < 6 || minLength > 64) {
+            status.className = 'sec-modal-status error';
+            status.textContent = 'Minimum length must be between 6 and 64.';
+            return;
+        }
+
+        this.disabled = true;
+        const result = await api.updatePasswordPolicy({
+            minLength,
+            requireSpecial: document.getElementById('policy-special').checked,
+            requireNumber: document.getElementById('policy-number').checked,
+            requireUppercase: document.getElementById('policy-uppercase').checked,
+        }).catch(() => ({ success: false }));
+        this.disabled = false;
+
+        if (!result.success) {
+            status.className = 'sec-modal-status error';
+            status.textContent = result.message || 'Could not save the policy.';
+            return;
+        }
+
+        securitySettings = result.data;
+        renderPolicyCard();
+        policyModal.classList.remove('open');
+    });
+
+    // Click outside a modal closes it
+    [twofaModal, policyModal].forEach(overlay => {
+        overlay?.addEventListener('click', (event) => {
+            if (event.target === overlay) overlay.classList.remove('open');
+        });
     });
 
     loadSessions();
+    loadSecuritySettings();
     </script>
 </body>
 </html>

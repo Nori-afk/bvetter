@@ -300,8 +300,12 @@ function wireAddModal() {
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
                     err('add-acc-email',    'Enter a valid email address.');
         if (!pw)    err('add-acc-password', 'Password is required.');
-        else if (pw.length < 8)
-                    err('add-acc-password', 'Minimum 8 characters.');
+        else {
+            const pwError = window.PasswordPolicy
+                ? PasswordPolicy.validate(pw)
+                : (pw.length < 8 ? 'Minimum 8 characters.' : null);
+            if (pwError) err('add-acc-password', pwError);
+        }
 
         const isVet = roleSelect?.selectedOptions[0]?.dataset.frontendRole === 'vet';
         if (isVet) {

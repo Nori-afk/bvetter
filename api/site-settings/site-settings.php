@@ -319,6 +319,12 @@ $input = inputData();
 
 $action = clean($input['action'] ?? 'get');
 
+// Reading site settings is public (landing page needs it); writing is admin-only.
+if ($action !== 'get') {
+    require_once __DIR__ . '/../config/auth_guard.php';
+    requireRole($pdo, ['admin']);
+}
+
 try {
 
     setupSiteSettings($pdo);

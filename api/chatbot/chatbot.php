@@ -820,6 +820,18 @@ function dashboardStats($pdo)
 $input = inputData();
 $action = clean($input['action'] ?? 'list_inquiries');
 
+// Rule management and stats are staff-only; the public chatbot uses the
+// public_* actions plus record_inquiry_use / assess_consultation.
+$staffActions = [
+    'list_inquiries', 'save_inquiry', 'delete_inquiry', 'dashboard_stats',
+    'list_consultations', 'save_consultation', 'delete_consultation',
+    'list_symptoms', 'save_symptom', 'update_symptom', 'delete_symptom',
+];
+if (in_array($action, $staffActions, true)) {
+    require_once __DIR__ . '/../config/auth_guard.php';
+    requireRole($pdo, ['veterinarian', 'admin']);
+}
+
 try {
     setupChatbotTables($pdo);
     seedDefaults($pdo);

@@ -31,6 +31,7 @@ $brevoKey = getenv('BREVO_API_KEY') ?: '';
 echo "BREVO_API_KEY:    " . maskSecret($brevoKey) . "\n";
 echo "BREVO_FROM_EMAIL: '" . getenv('BREVO_FROM_EMAIL') . "'\n";
 echo "BREVO_FROM_NAME:  '" . getenv('BREVO_FROM_NAME') . "'\n";
+echo "MAIL_FROM_NAME:   '" . getenv('MAIL_FROM_NAME') . "'\n";
 echo "SMTP_FROM:        '" . getenv('SMTP_FROM') . "'\n";
 echo "SMTP_HOST:        '" . getenv('SMTP_HOST') . "'\n";
 echo "\n";
@@ -56,7 +57,7 @@ if ($brevoKey === '') {
 echo "=== Making one real Brevo API call to {$toEmail} ===\n";
 
 $fromEmail = getenv('BREVO_FROM_EMAIL') ?: getenv('SMTP_FROM') ?: '';
-$fromName = getenv('BREVO_FROM_NAME') ?: 'BVetter';
+$fromName = getenv('MAIL_FROM_NAME') ?: getenv('BREVO_FROM_NAME') ?: 'BVetter';
 
 $payload = [
     'sender' => ['name' => $fromName, 'email' => $fromEmail],

@@ -102,7 +102,10 @@
       const next = document.getElementById('inputNewPw')?.value     || '';
       const conf = document.getElementById('inputConfirmPw')?.value || '';
       if (!cur || !next || !conf) { showToast('Fill in all password fields.', 'error'); return; }
-      if (next.length < 8)        { showToast('New password must be at least 8 characters.', 'error'); return; }
+      const pwError = window.PasswordPolicy
+        ? PasswordPolicy.validate(next)
+        : (next.length < 8 ? 'New password must be at least 8 characters.' : null);
+      if (pwError)                { showToast(pwError, 'error'); return; }
       if (next !== conf)          { showToast('Passwords do not match.', 'error'); return; }
 
       const result = await api.changePassword({

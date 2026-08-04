@@ -216,18 +216,21 @@ const api = {
      ══════════════════════════════════════════ */
 
   /**
-   * Login user
-   * TODO: On success → save response.token to sessionStorage
+   * Login user. For vet/admin accounts with 2FA on, the first call returns
+   * { requires_2fa: true } after emailing a code; call again with otpCode
+   * to complete the login.
    * @param {string} email
    * @param {string} password
+   * @param {string} [otpCode] 6-digit emailed code (second step)
    */
-  login: (email, password) =>
+  login: (email, password, otpCode) =>
     fetch(`${API_BASE_REG}/auth/login.php`, {
       method: 'POST',
       body: (() => {
         const formData = new FormData();
         formData.append('email', email);
         formData.append('password', password);
+        if (otpCode) formData.append('otp_code', otpCode);
         return formData;
       })()
     }).then(r => r.json()),
@@ -388,6 +391,63 @@ const api = {
       body
     }).then(r => r.json());
   },
+
+  /* ══════════════════════════════════════════
+     SECURITY SETTINGS — Manage Security page
+     ══════════════════════════════════════════ */
+
+  /** (Admin only) get 2FA + password policy settings */
+  getSecuritySettings: () => {
+    const body = new FormData();
+    body.append('action', 'get');
+    return fetch(`${API_BASE_REG}/admin/security-settings.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
+  /** (Admin only) turn clinic-wide email-OTP 2FA on/off */
+  updateTwoFactor: (enabled) => {
+    const body = new FormData();
+    body.append('action', 'update_2fa');
+    body.append('enabled', enabled ? '1' : '0');
+    return fetch(`${API_BASE_REG}/admin/security-settings.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
+  /** (Admin only) update the password policy */
+  updatePasswordPolicy: (policy) => {
+    const body = new FormData();
+    body.append('action', 'update_policy');
+    body.append('min_length', policy.minLength);
+    body.append('require_special', policy.requireSpecial ? '1' : '0');
+    body.append('require_number', policy.requireNumber ? '1' : '0');
+    body.append('require_uppercase', policy.requireUppercase ? '1' : '0');
+    return fetch(`${API_BASE_REG}/admin/security-settings.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
+  /** (Admin only) email the caller a sample login code (delivery test) */
+  sendTestTwoFactorCode: () => {
+    const body = new FormData();
+    body.append('action', 'send_test_code');
+    return fetch(`${API_BASE_REG}/admin/security-settings.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
+  /** Active password policy (public — used for form hints) */
+  getPasswordPolicy: () =>
+    fetch(`${API_BASE_REG}/auth/password-policy.php`).then(r => r.json()),
 
   /**
    * Register new account

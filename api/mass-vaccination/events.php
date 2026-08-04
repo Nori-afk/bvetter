@@ -143,6 +143,12 @@ function submitReport($pdo, $data)
 $input = inputData();
 $action = clean($input['action'] ?? 'list');
 
+// Event listing is public; creating events and submitting reports is staff-only.
+if ($action !== 'list') {
+    require_once __DIR__ . '/../config/auth_guard.php';
+    requireRole($pdo, ['veterinarian', 'admin']);
+}
+
 try {
     setupTables($pdo);
     if ($action === 'list') listEvents($pdo);

@@ -194,6 +194,7 @@
         <div class="pw-wrap"><input type="password" class="form-input" placeholder="••••••••" id="inputNewPw"/>
           <button class="pw-eye" data-target="inputNewPw"><img src="../images/icons/icon-eye.svg" alt="" class="eye-icon"/></button>
         </div>
+        <small style="font-size:11.5px;color:#8A94A6;" data-pw-policy-hint>At least 8 characters.</small>
       </div>
       <div class="form-group">
         <label class="form-label">Confirm New Password</label>
@@ -226,14 +227,15 @@
 
 <div class="toast" id="toast"></div>
   <!-- ══ SCRIPTS — auth.js MUST be first ══ -->
-  <script src="../../shared/js/auth.js"></script>
+  <script src="../../shared/js/auth.js?v=20260805-auth"></script>
   <script>
     /* Route guard — redirects wrong role to their home */
     requireAuth(['owner']);
   </script>
   <script src="../js/nav.js"></script>
-  <script src="../js/api.js"></script>
-  <script src="../js/account-settings.js"></script>
+  <script src="../js/api.js?v=20260805-2fa"></script>
+  <script src="../js/password-policy.js?v=20260805-2fa"></script>
+  <script src="../js/account-settings.js?v=20260805-2fa"></script>
   <script src="../js/site-settings.js"></script>
 </body>
 </html>

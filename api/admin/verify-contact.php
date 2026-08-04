@@ -24,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/mailer.php';
+require_once __DIR__ . '/../config/security_settings.php';
 
 /* ── helpers ────────────────────────────────────────────── */
 
@@ -101,22 +102,13 @@ function sendEmailOtp(PDO $pdo): never
         ':expires_at' => $expiresAt,
     ]);
 
-    $body = "
-        <div style='font-family:sans-serif;max-width:480px;margin:auto;padding:32px;
-                    border:1px solid #eee;border-radius:12px;text-align:center;'>
-            <img src='" . APP_URL . "/public/images/logos/logo-color.png' alt='Baliwag City Vet' style='height:56px;margin-bottom:20px;'>
-            <h2 style='color:#00B928;margin-bottom:8px;'>Email Verification</h2>
-            <p style='color:#555;'>Use the code below to verify your email address.
-               It expires in <strong>10 minutes</strong>.</p>
-            <div style='font-size:36px;font-weight:800;letter-spacing:10px;text-align:center;
-                        background:#f4f4f4;padding:20px;border-radius:8px;margin:24px 0;'>
-                {$otp}
-            </div>
-            <p style='color:#999;font-size:12px;'>
-                If you did not request this, please ignore this email.
-            </p>
-        </div>
-    ";
+    $body = notificationEmailWrapper(
+        'Email Verification',
+        "<p>Use the code below to verify your email address.
+            It expires in <strong>10 minutes</strong>.</p>"
+        . emailCodeBox($otp)
+        . "<p style='color:#999;font-size:12px;'>If you did not request this, please ignore this email.</p>"
+    );
 
     if (!sendAppMail($email, $email, 'BVetter – Your Email Verification Code', $body)) {
         respond(500, ['success' => false, 'message' => 'Failed to send verification email. Please try again.']);
@@ -285,11 +277,12 @@ function forgotPassword(PDO $pdo): never
     $stmt->execute([':email' => $email]);
     $user = $stmt->fetch();
 
-    // Always respond success so we don't leak registered emails
+    // Explicitly reject unknown emails. Email-enumeration secrecy is moot here:
+    // the public registration form already reveals which emails are registered.
     if (!$user) {
-        respond(200, [
-            'success' => true,
-            'message' => 'If that email is registered, a reset link has been sent.',
+        respond(404, [
+            'success' => false,
+            'message' => 'No account found with that email address.',
         ]);
     }
 
@@ -315,26 +308,16 @@ $resetUrl = APP_URL . '/public/pages/reset-password.html?token='
           . urlencode($token);
     $subject = 'BVetter – Password Reset Request';
     $name    = htmlspecialchars($user['full_name'], ENT_QUOTES);
-    $logoUrl = APP_URL . '/public/images/logos/logo-color.png';
-    $body    = "
-        <div style='font-family:sans-serif;max-width:480px;margin:auto;padding:32px;border:1px solid #eee;border-radius:12px;text-align:center;'>
-            <img src='{$logoUrl}' alt='Baliwag City Vet' style='height:56px;margin-bottom:20px;'>
-            <h2 style='color:#00B928;margin-bottom:8px;'>Password Reset</h2>
-            <p>Hi <strong>{$name}</strong>,</p>
-            <p style='color:#555;'>We received a request to reset your BVetter password.
-               Click the button below — the link expires in <strong>1 hour</strong>.</p>
-            <div style='text-align:center;margin:32px 0;'>
-                <a href='{$resetUrl}'
-                   style='background:#00B928;color:#fff;padding:14px 32px;border-radius:8px;
-                          text-decoration:none;font-weight:700;font-size:15px;'>
-                    Reset My Password
-                </a>
-            </div>
-            <p style='color:#999;font-size:12px;'>
-                If you did not request a password reset, you can safely ignore this email.
-            </p>
-        </div>
-    ";
+    $body    = notificationEmailWrapper(
+        'Password Reset',
+        "<p>Hi <strong>{$name}</strong>,</p>
+         <p>We received a request to reset your BVetter password.
+            Click the button below &mdash; the link expires in <strong>1 hour</strong>.</p>
+         <p style='color:#999;font-size:12px;'>If you did not request a password reset,
+            you can safely ignore this email.</p>",
+        null,
+        ['label' => 'Reset My Password', 'url' => $resetUrl]
+    );
 
     $mailSent = sendAppMail($email, $user['full_name'], $subject, $body);
 
@@ -346,7 +329,7 @@ $resetUrl = APP_URL . '/public/pages/reset-password.html?token='
 
     $response = [
         'success' => true,
-        'message' => 'If that email is registered, a reset link has been sent.',
+        'message' => 'A password reset link has been sent to your email.',
     ];
 
     // No SMTP credentials configured locally (no .env / empty SMTP_USER) — hand
@@ -373,8 +356,9 @@ function resetPassword(PDO $pdo): never
         respond(422, ['success' => false, 'message' => 'Token and new password are required.']);
     }
 
-    if (strlen($password) < 8) {
-        respond(422, ['success' => false, 'message' => 'Password must be at least 8 characters.']);
+    $policyError = passwordPolicyError($pdo, $password);
+    if ($policyError !== null) {
+        respond(422, ['success' => false, 'message' => $policyError]);
     }
 
     if ($password !== $confirm) {

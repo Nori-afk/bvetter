@@ -15,6 +15,7 @@ if ($requestMethod !== 'POST') {
 }
 // IMPORTANT TO KASI ITO UNG CONNECTIO NA GINAWA NATEN
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../config/security_settings.php';
 
 function respond($statusCode, $payload)
 {
@@ -49,10 +50,11 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     ]);
 }
 
-if (strlen($password) < 8) {
+$policyError = passwordPolicyError($pdo, $password);
+if ($policyError !== null) {
     respond(422, [
         'success' => false,
-        'message' => 'Password must be at least 8 characters.'
+        'message' => $policyError
     ]);
 }
 

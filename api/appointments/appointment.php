@@ -806,6 +806,16 @@ function submitReview($pdo, $data)
 $input = inputData();
 $action = clean($input['action'] ?? 'list');
 
+// Status changes, deletion, and visit-type management are staff-side actions.
+// Owner booking/listing/reviews — and the booking page's get_total /
+// common_cases stats — keep working as before (owner-side identity
+// enforcement is handled separately).
+$staffActions = ['update_status', 'delete', 'add_visit_type', 'remove_visit_type'];
+if (in_array($action, $staffActions, true)) {
+    require_once __DIR__ . '/../config/auth_guard.php';
+    requireRole($pdo, ['veterinarian', 'admin']);
+}
+
 try {
     if ($action === 'list') listAppointments($pdo, $input);
     if ($action === 'create') createAppointment($pdo, $input);

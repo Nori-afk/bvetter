@@ -14,6 +14,9 @@
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../includes/dataset.php';
+require_once __DIR__ . '/../config/auth_guard.php';
+
+requireRole($pdo, ['veterinarian', 'admin']);
 
 function dashboard_input()
 {

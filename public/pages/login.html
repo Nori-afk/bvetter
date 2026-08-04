@@ -41,36 +41,62 @@
     <div class="right-panel">
       <div class="form-container">
         <img src="../images/logos/logo-color.png" alt="Baliwag City Veterinary Services" class="right-logo"/>
-        <h2>Welcome Back!</h2>
-        <p class="subtitle">Enter your credentials to access your account.</p>
+        <!-- STEP 1: credentials -->
+        <div id="credsStep">
+          <h2>Welcome Back!</h2>
+          <p class="subtitle">Enter your credentials to access your account.</p>
 
-        <div class="form-group">
-          <label>EMAIL ADDRESS</label>
-          <div class="input-wrapper">
-            <img src="../images/icons/icon-email.svg" alt="" class="input-icon"/>
-            <input type="email" id="loginEmail" name="email" placeholder="your@email.com" autocomplete="email"/>
+          <div class="form-group">
+            <label>EMAIL ADDRESS</label>
+            <div class="input-wrapper">
+              <img src="../images/icons/icon-email.svg" alt="" class="input-icon"/>
+              <input type="email" id="loginEmail" name="email" placeholder="your@email.com" autocomplete="email"/>
+            </div>
           </div>
+
+          <div class="form-group">
+            <label>PASSWORD</label>
+            <div class="input-wrapper">
+              <img src="../images/icons/icon-password.svg" alt="" class="input-icon"/>
+              <input type="password" id="loginPassword" name="password" placeholder="••••••••••••" autocomplete="current-password"/>
+              <img src="../images/icons/icon-eye.svg" alt="Show password" class="toggle-pw" onclick="togglePassword()"/>
+            </div>
+            <div class="forgot-row">
+              <a href="forgot-password.html" class="forgot-link">Forgot Password?</a>
+            </div>
+          </div>
+
+          <button class="btn-login" onclick="handleLogin()">
+            Login
+            <img src="../images/icons/icon-arrow-right.png" alt="" class="btn-icon"/>
+          </button>
+
+          <p class="signup-text">Don't Have An Account?  <a href="create-account.html" class="signup-link">Sign up</a></p>
         </div>
 
-        <div class="form-group">
-          <label>PASSWORD</label>
-          <div class="input-wrapper">
-            <img src="../images/icons/icon-password.svg" alt="" class="input-icon"/>
-            <input type="password" id="loginPassword" name="password" placeholder="••••••••••••" autocomplete="current-password"/>
-            <img src="../images/icons/icon-eye.svg" alt="Show password" class="toggle-pw" onclick="togglePassword()"/>
+        <!-- STEP 2: email verification code (staff accounts with 2FA) -->
+        <div id="otpStep" style="display:none;">
+          <h2>Check Your Email</h2>
+          <p class="subtitle" id="otpSubtitle">We sent a 6-digit verification code to your email. Enter it below to finish signing in.</p>
+
+          <div class="form-group">
+            <label>VERIFICATION CODE</label>
+            <div class="input-wrapper">
+              <img src="../images/icons/icon-password.svg" alt="" class="input-icon"/>
+              <input type="text" id="loginOtp" name="otp" placeholder="123456" inputmode="numeric" maxlength="6" autocomplete="one-time-code" style="letter-spacing:6px;font-weight:700;"/>
+            </div>
           </div>
-          <div class="forgot-row">
-            <a href="forgot-password.html" class="forgot-link">Forgot Password?</a>
-          </div>
+
+          <button class="btn-login" onclick="handleVerifyOtp()">
+            Verify &amp; Login
+            <img src="../images/icons/icon-arrow-right.png" alt="" class="btn-icon"/>
+          </button>
+
+          <p class="signup-text">
+            Didn't get it? <a href="#" class="signup-link" id="resendOtpLink" onclick="handleResendOtp(event)">Resend code</a>
+            &nbsp;·&nbsp; <a href="#" class="signup-link" onclick="backToLogin(event)">Back to login</a>
+          </p>
         </div>
-
-        <!-- TODO backend: replace onclick with api.login() call -->
-        <button class="btn-login" onclick="handleLogin()">
-          Login
-          <img src="../images/icons/icon-arrow-right.png" alt="" class="btn-icon"/>
-        </button>
-
-        <p class="signup-text">Don't Have An Account?  <a href="create-account.html" class="signup-link">Sign up</a></p>
       </div>
     </div>
   </div>
@@ -91,8 +117,8 @@
   </div>
 
   <!-- ══ SCRIPTS — unauthenticated page ══ -->
-<script src="../../shared/js/auth.js"></script>  <!-- ← ADD THIS -->
-<script src="../js/api.js"></script>
-<script src="../js/login.js"></script>
+<script src="../../shared/js/auth.js?v=20260805-auth"></script>  <!-- ← ADD THIS -->
+<script src="../js/api.js?v=20260805-2fa"></script>
+<script src="../js/login.js?v=20260805-2fa"></script>
 </body>
 </html>

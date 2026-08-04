@@ -1607,6 +1607,21 @@ function getActiveReportCount($pdo)
 $input = inputData();
 $action = clean($input['action'] ?? 'list');
 
+// Management/moderation actions are staff-only; public browsing, owner
+// reports/claims/sightings, and match viewing stay open (owner-side identity
+// enforcement is handled separately).
+$staffActions = [
+    'management_list', 'management_claims', 'rebuild_image_features',
+    'approve', 'approve_report', 'reject', 'reject_report', 'resolve', 'resolve_report',
+    'approve_match', 'dismiss_match',
+    'approve_sighting', 'reject_sighting', 'resolve_sighting',
+    'approve_claim', 'reject_claim', 'resolve_claim',
+];
+if (in_array($action, $staffActions, true)) {
+    require_once __DIR__ . '/../config/auth_guard.php';
+    requireRole($pdo, ['veterinarian', 'admin']);
+}
+
 try {
     ensureLostFoundSchema($pdo);
 
