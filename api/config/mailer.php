@@ -11,7 +11,7 @@ if (!defined('APP_URL')) {
     define('APP_URL', getenv('APP_BASE_URL') ?: 'http://68.183.182.176');
 }
 
-define('EMAIL_LOGO_URL', rtrim(APP_URL, '/') . '/public/images/logos/logo-color.png');
+define('EMAIL_LOGO_URL', rtrim(APP_URL, '/') . '/public/images/logos/logo-color-email.png');
 
 /**
  * Turns a site-relative path (e.g. a pet photo's "/storage/..."
@@ -23,6 +23,69 @@ function emailAssetUrl(string $sitePath): string
     $origin = ($parts['scheme'] ?? 'http') . '://' . ($parts['host'] ?? 'localhost')
         . (isset($parts['port']) ? ':' . $parts['port'] : '');
     return $origin . $sitePath;
+}
+
+/**
+ * Same as emailAssetUrl(), but for user-uploaded photos (pet photos etc.)
+ * that can be up to 8MB straight off a phone camera — way more than the
+ * ~280px the email template displays them at. Generates a small cached
+ * JPEG copy next to the original (once per file, reused after) and points
+ * the email at that instead, so recipients aren't downloading the full
+ * upload just to see a thumbnail. Falls back to the untouched original
+ * (via emailAssetUrl()) if resizing isn't possible for any reason — the
+ * original upload itself is never modified, since other features (image
+ * matching, admin review) may rely on full resolution.
+ */
+function emailPhotoUrl(string $sitePath): string
+{
+    $original = emailAssetUrl($sitePath);
+
+    if (!extension_loaded('gd')) {
+        return $original;
+    }
+
+    $projectRoot = dirname(__DIR__, 2);
+    $absolutePath = $projectRoot . str_replace('/', DIRECTORY_SEPARATOR, $sitePath);
+    if (!is_file($absolutePath)) {
+        return $original;
+    }
+
+    $pathInfo = pathinfo($absolutePath);
+    $thumbPath = $pathInfo['dirname'] . DIRECTORY_SEPARATOR . $pathInfo['filename'] . '_email.jpg';
+    $thumbSitePath = rtrim(dirname($sitePath), '/') . '/' . $pathInfo['filename'] . '_email.jpg';
+
+    if (is_file($thumbPath) && filemtime($thumbPath) >= filemtime($absolutePath)) {
+        return emailAssetUrl($thumbSitePath);
+    }
+
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($absolutePath);
+    $source = match ($mime) {
+        'image/jpeg' => @imagecreatefromjpeg($absolutePath),
+        'image/png'  => @imagecreatefrompng($absolutePath),
+        'image/webp' => @imagecreatefromwebp($absolutePath),
+        default      => null,
+    };
+    if (!$source) {
+        return $original;
+    }
+
+    $srcW = imagesx($source);
+    $srcH = imagesy($source);
+    $maxDimension = 320;
+    $scale = min(1, $maxDimension / max($srcW, $srcH));
+    $dstW = max(1, (int) round($srcW * $scale));
+    $dstH = max(1, (int) round($srcH * $scale));
+
+    $thumb = imagecreatetruecolor($dstW, $dstH);
+    $white = imagecolorallocate($thumb, 255, 255, 255);
+    imagefill($thumb, 0, 0, $white); // flatten any transparency (source may be PNG/WEBP) onto white for JPEG output
+    imagecopyresampled($thumb, $source, 0, 0, 0, 0, $dstW, $dstH, $srcW, $srcH);
+    imagedestroy($source);
+
+    $saved = imagejpeg($thumb, $thumbPath, 78);
+    imagedestroy($thumb);
+
+    return $saved ? emailAssetUrl($thumbSitePath) : $original;
 }
 
 /**

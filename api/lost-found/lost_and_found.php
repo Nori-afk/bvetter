@@ -911,7 +911,7 @@ function notifyReportOwnerStatus($pdo, $ownerId, $reportId, $status)
 
     if ($status === 'active') {
         $subject = 'BVetter – Your ' . $label . ' report is now live';
-        $photoUrl = !empty($report['photo_path']) ? emailAssetUrl($report['photo_path']) : null;
+        $photoUrl = !empty($report['photo_path']) ? emailPhotoUrl($report['photo_path']) : null;
         $body = notificationEmailWrapper(
             'Report Published',
             "<p>Your {$label} report{$petLabel} (case #{$report['case_number']}) is now live and visible to the community.</p>",
