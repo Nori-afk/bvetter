@@ -99,15 +99,15 @@
 	];
 
 	let consultationSymptoms = [
-		{ name: 'Fever', category: 'General', isUrgent: false },
-		{ name: 'Vomiting', category: 'General', isUrgent: false },
-		{ name: 'Diarrhea', category: 'General', isUrgent: false },
-		{ name: 'Coughing', category: 'General', isUrgent: false },
-		{ name: 'Limping', category: 'General', isUrgent: false },
-		{ name: 'Loss of Appetite', category: 'General', isUrgent: false },
-		{ name: 'Itching', category: 'General', isUrgent: false },
-		{ name: 'Seizures', category: 'General', isUrgent: true },
-		{ name: 'Wounds', category: 'General', isUrgent: true }
+		{ name: 'Fever', isUrgent: false },
+		{ name: 'Vomiting', isUrgent: false },
+		{ name: 'Diarrhea', isUrgent: false },
+		{ name: 'Coughing', isUrgent: false },
+		{ name: 'Limping', isUrgent: false },
+		{ name: 'Loss of Appetite', isUrgent: false },
+		{ name: 'Itching', isUrgent: false },
+		{ name: 'Seizures', isUrgent: true },
+		{ name: 'Wounds', isUrgent: true }
 	];
 
 	let labels = [
@@ -308,7 +308,19 @@
 	function renderSymptomGrid() {
 		if (!ui.consultationSymptomGrid) return;
 		ui.consultationSymptomGrid.innerHTML = consultationSymptoms.map((symptom) => `
-			<button type="button" class="choice-chip" data-symptom="${escapeHtml(symptom.name)}">${escapeHtml(symptom.name)}</button>
+			<div class="symptom-chip-wrap">
+				<button type="button" class="choice-chip" data-symptom="${escapeHtml(symptom.name)}">
+					${escapeHtml(symptom.name)}${symptom.isUrgent ? '<span class="symptom-urgent-badge">Urgent</span>' : ''}
+				</button>
+				<span class="symptom-chip-tools">
+					<button type="button" class="symptom-tool-btn" data-symptom-action="edit" data-symptom-id="${symptom.id}" aria-label="Edit ${escapeHtml(symptom.name)}">
+						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+					</button>
+					<button type="button" class="symptom-tool-btn danger" data-symptom-action="delete" data-symptom-id="${symptom.id}" aria-label="Delete ${escapeHtml(symptom.name)}">
+						<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+					</button>
+				</span>
+			</div>
 		`).join('');
 		syncConsultationSelection();
 	}
@@ -789,13 +801,47 @@
 			`;
 		}
 
+		if (mode === 'delete-symptom') {
+			const symptom = symptomById(id);
+			if (!symptom) return '';
+			return `
+				<h2 class="modal-title" id="modal-title">Delete Symptom?</h2>
+				<p class="modal-subtitle">This removes "${escapeHtml(symptom.name)}" from the symptom list. Existing consultation rules keep the name, but it will no longer be selectable for new rules.</p>
+				<div class="danger-card consultation-danger-card">
+					<div class="detail-row"><strong>Symptom</strong><span>${escapeHtml(symptom.name)}</span></div>
+					<div class="detail-row"><strong>Urgent</strong><span>${symptom.isUrgent ? 'Yes' : 'No'}</span></div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-soft" data-modal-action="close-modal">No, Keep</button>
+					<button type="button" class="btn btn-danger" data-modal-action="confirm-delete-symptom" data-id="${symptom.id}">Confirm Delete</button>
+				</div>
+			`;
+		}
+
+		if (mode === 'edit-symptom') {
+			const symptom = symptomById(id) || { id: '', name: '', isUrgent: false };
+			return `
+				<h2 class="modal-title" id="modal-title">Edit Symptom</h2>
+				<p class="modal-subtitle">Update this symptom chip used across consultation rules.</p>
+				<form id="symptom-create-form" data-symptom-id="${symptom.id}">
+					<div class="form-grid">
+						<label class="field span-2"><span>Symptoms Name*</span><input id="new-symptom-name" type="text" value="${escapeHtml(symptom.name)}" placeholder="e.g. Excessive Drooling"></label>
+						<label class="field"><span>Urgent Symptom</span><select id="new-symptom-urgent"><option value="no" ${!symptom.isUrgent ? 'selected' : ''}>No</option><option value="yes" ${symptom.isUrgent ? 'selected' : ''}>Yes</option></select></label>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-soft" data-modal-action="close-modal">Cancel</button>
+						<button type="submit" class="btn btn-primary">Save Changes</button>
+					</div>
+				</form>
+			`;
+		}
+
 		return `
 			<h2 class="modal-title" id="modal-title">Create New Symptoms</h2>
 			<p class="modal-subtitle">Add a custom symptom chip that can be used in future consultation rules.</p>
 			<form id="symptom-create-form">
 				<div class="form-grid">
 					<label class="field span-2"><span>Symptoms Name*</span><input id="new-symptom-name" type="text" placeholder="e.g. Excessive Drooling"></label>
-					<label class="field"><span>Category*</span><input id="new-symptom-category" type="text" placeholder="General"></label>
 					<label class="field"><span>Urgent Symptom</span><select id="new-symptom-urgent"><option value="no">No</option><option value="yes">Yes</option></select></label>
 				</div>
 				<div class="modal-footer">
@@ -809,7 +855,7 @@
 	function openConsultationModal(mode, id = null) {
 		if (!ui.modalOverlay || !ui.modalContent || !ui.modalShell) return;
 		ui.modalShell.classList.remove('modal-sm', 'modal-md');
-		if (mode === 'delete-rule') {
+		if (mode === 'delete-rule' || mode === 'delete-symptom') {
 			ui.modalShell.classList.add('modal-sm');
 		} else {
 			ui.modalShell.classList.add('modal-md');
@@ -856,14 +902,39 @@
 		}
 	}
 
-	async function createSymptom(name, category, isUrgent) {
+	function symptomById(id) {
+		return consultationSymptoms.find((item) => item.id === id);
+	}
+
+	async function createSymptom(name, isUrgent) {
 		const existing = consultationSymptoms.find((item) => item.name.toLowerCase() === name.toLowerCase());
 		if (existing) return existing;
 
-		const saved = await chatbotRequest('save_symptom', { name, category, isUrgent: isUrgent ? 'yes' : 'no' });
+		const saved = await chatbotRequest('save_symptom', { name, isUrgent: isUrgent ? 'yes' : 'no' });
 		consultationSymptoms = [...consultationSymptoms, saved];
 		renderSymptomGrid();
 		return saved;
+	}
+
+	async function updateSymptomEntry(id, name, isUrgent) {
+		const previous = symptomById(id);
+		const saved = await chatbotRequest('update_symptom', { id, name, isUrgent: isUrgent ? 'yes' : 'no' });
+		consultationSymptoms = consultationSymptoms.map((item) => (item.id === id ? saved : item));
+		if (previous && previous.name !== saved.name) {
+			state.selectedSymptoms = state.selectedSymptoms.map((item) => (item === previous.name ? saved.name : item));
+		}
+		renderSymptomGrid();
+		return saved;
+	}
+
+	async function deleteSymptomEntry(id) {
+		const target = symptomById(id);
+		await chatbotRequest('delete_symptom', { id });
+		consultationSymptoms = consultationSymptoms.filter((item) => item.id !== id);
+		if (target) {
+			state.selectedSymptoms = state.selectedSymptoms.filter((item) => item !== target.name);
+		}
+		renderSymptomGrid();
 	}
 
 	function handleConsultationSelection(type, value) {
@@ -1426,6 +1497,18 @@
 
 		if (action === 'confirm-delete-inquiry') {
 			void confirmDeleteInquiry();
+			return;
+		}
+
+		if (action === 'confirm-delete-symptom') {
+			void (async () => {
+				try {
+					await deleteSymptomEntry(Number(id));
+					closeModal();
+				} catch (error) {
+					alert(error.message || 'Failed to delete symptom.');
+				}
+			})();
 		}
 	}
 
@@ -1513,6 +1596,16 @@
 			handleConsultationSelection('ageGroup', button.dataset.agegroup);
 		});
 		ui.consultationSymptomGrid?.addEventListener('click', (event) => {
+			const toolButton = event.target.closest('[data-symptom-action]');
+			if (toolButton) {
+				const symptomId = Number(toolButton.dataset.symptomId);
+				if (toolButton.dataset.symptomAction === 'edit') {
+					openConsultationModal('edit-symptom', symptomId);
+				} else if (toolButton.dataset.symptomAction === 'delete') {
+					openConsultationModal('delete-symptom', symptomId);
+				}
+				return;
+			}
 			const button = event.target.closest('[data-symptom]');
 			if (!button) return;
 			handleConsultationSelection('symptom', button.dataset.symptom);
@@ -1607,20 +1700,22 @@
 				event.preventDefault();
 				const name = String(document.getElementById('new-symptom-name')?.value || '').trim();
 				if (!name) return;
-				const category = String(document.getElementById('new-symptom-category')?.value || '').trim() || 'General';
 				const isUrgent = document.getElementById('new-symptom-urgent')?.value === 'yes';
+				const editingId = Number(symptomForm.dataset.symptomId || 0);
 
 				const submitButton = symptomForm.querySelector('button[type="submit"]');
 				if (submitButton) submitButton.disabled = true;
 				try {
-					const saved = await createSymptom(name, category, isUrgent);
+					const saved = editingId
+						? await updateSymptomEntry(editingId, name, isUrgent)
+						: await createSymptom(name, isUrgent);
 					if (!state.selectedSymptoms.includes(saved.name)) {
 						state.selectedSymptoms = [...state.selectedSymptoms, saved.name];
 					}
 					syncConsultationSelection();
 					closeModal();
 				} catch (error) {
-					alert(error.message || 'Failed to add symptom.');
+					alert(error.message || 'Failed to save symptom.');
 				} finally {
 					if (submitButton) submitButton.disabled = false;
 				}

@@ -148,7 +148,6 @@ function setupChatbotTables($pdo)
         CREATE TABLE IF NOT EXISTS chatbot_symptoms (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(100) NOT NULL,
-            category VARCHAR(60) NOT NULL DEFAULT 'General',
             is_urgent TINYINT(1) NOT NULL DEFAULT 0,
             status ENUM('active','inactive') NOT NULL DEFAULT 'active',
             created_by_user_id INT NULL,
@@ -244,27 +243,26 @@ function seedDefaults($pdo)
     $count = (int) $pdo->query('SELECT COUNT(*) FROM chatbot_symptoms')->fetchColumn();
     if ($count === 0) {
         $stmt = $pdo->prepare("
-            INSERT INTO chatbot_symptoms (name, category, is_urgent)
-            VALUES (:name, :category, :is_urgent)
+            INSERT INTO chatbot_symptoms (name, is_urgent)
+            VALUES (:name, :is_urgent)
         ");
 
         $defaults = [
-            ['Fever', 'General', 0],
-            ['Vomiting', 'General', 0],
-            ['Diarrhea', 'General', 0],
-            ['Coughing', 'General', 0],
-            ['Limping', 'General', 0],
-            ['Loss of Appetite', 'General', 0],
-            ['Itching', 'General', 0],
-            ['Seizures', 'General', 1],
-            ['Wounds', 'General', 1],
+            ['Fever', 0],
+            ['Vomiting', 0],
+            ['Diarrhea', 0],
+            ['Coughing', 0],
+            ['Limping', 0],
+            ['Loss of Appetite', 0],
+            ['Itching', 0],
+            ['Seizures', 1],
+            ['Wounds', 1],
         ];
 
         foreach ($defaults as $row) {
             $stmt->execute([
                 ':name' => $row[0],
-                ':category' => $row[1],
-                ':is_urgent' => $row[2],
+                ':is_urgent' => $row[1],
             ]);
         }
     }
@@ -320,11 +318,15 @@ function mapSymptom($row)
     return [
         'id' => (int) $row['id'],
         'name' => $row['name'],
-        'category' => $row['category'],
         'isUrgent' => (bool) $row['is_urgent'],
         'is_urgent' => (bool) $row['is_urgent'],
         'status' => $row['status'],
     ];
+}
+
+function parseBool($value)
+{
+    return in_array(strtolower(clean($value)), ['yes', '1', 'true'], true) ? 1 : 0;
 }
 
 function listSymptoms($pdo, $activeOnly = false)
@@ -342,8 +344,7 @@ function saveSymptom($pdo, $data)
     if ($name === '') {
         respond(422, ['success' => false, 'message' => 'Symptom name is required.']);
     }
-    $category = clean($data['category'] ?? '') ?: 'General';
-    $isUrgent = in_array(strtolower(clean($data['isUrgent'] ?? $data['is_urgent'] ?? 'no')), ['yes', '1', 'true'], true) ? 1 : 0;
+    $isUrgent = parseBool($data['isUrgent'] ?? $data['is_urgent'] ?? 'no');
 
     $stmt = $pdo->prepare('SELECT * FROM chatbot_symptoms WHERE name = :name');
     $stmt->execute([':name' => $name]);
@@ -353,12 +354,11 @@ function saveSymptom($pdo, $data)
     }
 
     $stmt = $pdo->prepare("
-        INSERT INTO chatbot_symptoms (name, category, is_urgent, created_by_user_id)
-        VALUES (:name, :category, :is_urgent, :created_by_user_id)
+        INSERT INTO chatbot_symptoms (name, is_urgent, created_by_user_id)
+        VALUES (:name, :is_urgent, :created_by_user_id)
     ");
     $stmt->execute([
         ':name' => $name,
-        ':category' => $category,
         ':is_urgent' => $isUrgent,
         ':created_by_user_id' => (int) ($data['created_by_user_id'] ?? $data['user_id'] ?? 0) ?: null,
     ]);
@@ -367,6 +367,34 @@ function saveSymptom($pdo, $data)
     $stmt = $pdo->prepare('SELECT * FROM chatbot_symptoms WHERE id = :id');
     $stmt->execute([':id' => $id]);
     respond(201, ['success' => true, 'data' => mapSymptom($stmt->fetch())]);
+}
+
+function updateSymptom($pdo, $data)
+{
+    $id = (int) ($data['id'] ?? 0);
+    $name = clean($data['name'] ?? '');
+    if ($id <= 0 || $name === '') {
+        respond(422, ['success' => false, 'message' => 'Symptom id and name are required.']);
+    }
+    $isUrgent = parseBool($data['isUrgent'] ?? $data['is_urgent'] ?? 'no');
+
+    $stmt = $pdo->prepare('UPDATE chatbot_symptoms SET name = :name, is_urgent = :is_urgent WHERE id = :id');
+    $stmt->execute([':name' => $name, ':is_urgent' => $isUrgent, ':id' => $id]);
+
+    $stmt = $pdo->prepare('SELECT * FROM chatbot_symptoms WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+    $row = $stmt->fetch();
+    if (!$row) respond(404, ['success' => false, 'message' => 'Symptom not found.']);
+    respond(200, ['success' => true, 'data' => mapSymptom($row)]);
+}
+
+function deleteSymptom($pdo, $data)
+{
+    $id = (int) ($data['id'] ?? 0);
+    if ($id <= 0) respond(422, ['success' => false, 'message' => 'Invalid symptom id.']);
+    $stmt = $pdo->prepare('DELETE FROM chatbot_symptoms WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+    respond(200, ['success' => true, 'deleted' => $id]);
 }
 
 function listInquiryRules($pdo, $activeOnly = false)
@@ -528,10 +556,14 @@ function scoreRule($rule, $petType, $symptoms, $duration, $severity)
     return $score;
 }
 
-function fallbackAssessment($symptoms, $duration, $severity)
+function urgentSymptomNames($pdo)
 {
-    $criticalSymptoms = ['Seizures', 'Wounds'];
-    $hasCriticalSymptom = count(array_intersect($criticalSymptoms, $symptoms)) > 0;
+    return $pdo->query("SELECT name FROM chatbot_symptoms WHERE is_urgent = 1 AND status = 'active'")->fetchAll(PDO::FETCH_COLUMN);
+}
+
+function fallbackAssessment($pdo, $symptoms, $duration, $severity)
+{
+    $hasCriticalSymptom = count(array_intersect(urgentSymptomNames($pdo), $symptoms)) > 0;
 
     if ($severity === 'Critical' || $hasCriticalSymptom) {
         return [
@@ -602,7 +634,7 @@ function assessConsultation($pdo, $data)
         $stmt = $pdo->prepare('UPDATE chatbot_consultation_rules SET usage_count = usage_count + 1 WHERE id = :id');
         $stmt->execute([':id' => $best['id']]);
     } else {
-        $result = fallbackAssessment($symptoms, $duration, $severity);
+        $result = fallbackAssessment($pdo, $symptoms, $duration, $severity);
         $result['matched_rule_id'] = null;
         $result['score'] = $bestScore;
     }
@@ -808,6 +840,8 @@ try {
     if ($action === 'list_symptoms') listSymptoms($pdo, false);
     if ($action === 'public_symptoms') listSymptoms($pdo, true);
     if ($action === 'save_symptom') saveSymptom($pdo, $input);
+    if ($action === 'update_symptom') updateSymptom($pdo, $input);
+    if ($action === 'delete_symptom') deleteSymptom($pdo, $input);
 
     respond(400, ['success' => false, 'message' => 'Unknown chatbot action.']);
 } catch (PDOException $e) {

@@ -1825,6 +1825,70 @@ body {
     border-color: #0d7a3d;
 }
 
+/* ── Symptom chip edit/delete tools (shown on hover/focus) ── */
+.symptom-chip-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.symptom-chip-wrap .choice-chip {
+    flex: 1;
+    min-width: 0;
+}
+
+.symptom-urgent-badge {
+    margin-left: 6px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #B91C1C;
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    border-radius: 999px;
+    padding: 1px 6px;
+}
+
+.choice-chip.active .symptom-urgent-badge {
+    color: #0d7a3d;
+    background: rgba(255, 255, 255, 0.85);
+    border-color: transparent;
+}
+
+.symptom-chip-tools {
+    display: flex;
+    gap: 3px;
+    flex: 0 0 auto;
+}
+
+.symptom-tool-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid rgba(174, 188, 208, 0.7);
+    background: #fff;
+    color: #0f2440;
+    cursor: pointer;
+    padding: 0;
+}
+
+.symptom-tool-btn:hover {
+    background: #0E4686;
+    border-color: #0E4686;
+    color: #fff;
+}
+
+.symptom-tool-btn.danger:hover {
+    background: #B91C1C;
+    border-color: #B91C1C;
+    color: #fff;
+}
+
 /* ── Duration option cards ───────────────── */
 .duration-option {
     border: 1.5px solid rgba(174, 188, 208, 0.5);
