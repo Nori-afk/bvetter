@@ -98,6 +98,18 @@
 		}
 	];
 
+	let consultationSymptoms = [
+		{ name: 'Fever', category: 'General', isUrgent: false },
+		{ name: 'Vomiting', category: 'General', isUrgent: false },
+		{ name: 'Diarrhea', category: 'General', isUrgent: false },
+		{ name: 'Coughing', category: 'General', isUrgent: false },
+		{ name: 'Limping', category: 'General', isUrgent: false },
+		{ name: 'Loss of Appetite', category: 'General', isUrgent: false },
+		{ name: 'Itching', category: 'General', isUrgent: false },
+		{ name: 'Seizures', category: 'General', isUrgent: true },
+		{ name: 'Wounds', category: 'General', isUrgent: true }
+	];
+
 	let labels = [
 		'Poblacion',
 		'San Jose',
@@ -277,17 +289,28 @@
 
 	async function loadChatbotRules() {
 		try {
-			const [inquiries, consultations, stats] = await Promise.all([
+			const [inquiries, consultations, symptoms, stats] = await Promise.all([
 				chatbotRequest('list_inquiries'),
 				chatbotRequest('list_consultations'),
+				chatbotRequest('list_symptoms'),
 				chatbotRequest('dashboard_stats')
 			]);
 			if (Array.isArray(inquiries)) inquiryRules = inquiries;
 			if (Array.isArray(consultations)) consultationRules = consultations;
+			if (Array.isArray(symptoms) && symptoms.length) consultationSymptoms = symptoms;
 			if (stats) applyDashboardStats(stats);
 		} catch (error) {
 			console.warn('Using local chatbot rules because backend failed:', error);
 		}
+		renderSymptomGrid();
+	}
+
+	function renderSymptomGrid() {
+		if (!ui.consultationSymptomGrid) return;
+		ui.consultationSymptomGrid.innerHTML = consultationSymptoms.map((symptom) => `
+			<button type="button" class="choice-chip" data-symptom="${escapeHtml(symptom.name)}">${escapeHtml(symptom.name)}</button>
+		`).join('');
+		syncConsultationSelection();
 	}
 
 	function applyDashboardStats(stats) {
@@ -831,6 +854,16 @@
 			if (!input || input.value.trim().toUpperCase() !== 'DELETE') return;
 			void deleteConsultationRule(Number(id || state.consultationDeletingId || 0));
 		}
+	}
+
+	async function createSymptom(name, category, isUrgent) {
+		const existing = consultationSymptoms.find((item) => item.name.toLowerCase() === name.toLowerCase());
+		if (existing) return existing;
+
+		const saved = await chatbotRequest('save_symptom', { name, category, isUrgent: isUrgent ? 'yes' : 'no' });
+		consultationSymptoms = [...consultationSymptoms, saved];
+		renderSymptomGrid();
+		return saved;
 	}
 
 	function handleConsultationSelection(type, value) {
@@ -1572,13 +1605,25 @@
 			const symptomForm = event.target.closest('#symptom-create-form');
 			if (symptomForm) {
 				event.preventDefault();
-				const symptom = String(document.getElementById('new-symptom-name')?.value || '').trim();
-				if (!symptom) return;
-				if (!state.selectedSymptoms.includes(symptom)) {
-					state.selectedSymptoms = [...state.selectedSymptoms, symptom];
+				const name = String(document.getElementById('new-symptom-name')?.value || '').trim();
+				if (!name) return;
+				const category = String(document.getElementById('new-symptom-category')?.value || '').trim() || 'General';
+				const isUrgent = document.getElementById('new-symptom-urgent')?.value === 'yes';
+
+				const submitButton = symptomForm.querySelector('button[type="submit"]');
+				if (submitButton) submitButton.disabled = true;
+				try {
+					const saved = await createSymptom(name, category, isUrgent);
+					if (!state.selectedSymptoms.includes(saved.name)) {
+						state.selectedSymptoms = [...state.selectedSymptoms, saved.name];
+					}
 					syncConsultationSelection();
+					closeModal();
+				} catch (error) {
+					alert(error.message || 'Failed to add symptom.');
+				} finally {
+					if (submitButton) submitButton.disabled = false;
 				}
-				closeModal();
 			}
 		});
 

@@ -1141,10 +1141,19 @@ function closeChat() {
       });
   }
 
+  var FALLBACK_SYMPTOMS = ['Fever', 'Vomiting', 'Diarrhea', 'Coughing', 'Limping', 'Loss of Appetite', 'Itching', 'Seizures', 'Wounds'];
+
   function askSymptomsChecklist() {
-    var symptoms = ['Fever', 'Vomiting', 'Diarrhea', 'Coughing', 'Limping', 'Loss of Appetite', 'Itching', 'Seizures', 'Wounds'];
     addBotBubble(cMsgs, 'Which symptoms does your pet have? Select all that apply.', 450)
       .then(function () {
+        return chatbotRequest('public_symptoms')
+          .catch(function () { return null; });
+      })
+      .then(function (result) {
+        var symptoms = Array.isArray(result) && result.length
+          ? result.map(function (item) { return item.name; })
+          : FALLBACK_SYMPTOMS;
+
         showSymptomChecklist(cOpts, symptoms, function (selected) {
           cState.symptoms = selected.length ? selected : ['No listed symptoms'];
           addUserBubble(cMsgs, selected.length ? selected.join(', ') : 'None of these');
