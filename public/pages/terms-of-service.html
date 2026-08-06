@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<!--
+  Page:    terms-of-service.html
+  Feature: Static legal page — Terms of Service
+  CSS:     variables.css → components.css → legal.css
+  JS:      nav.js (navbar guest/auth toggle only)
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Terms of Service - BVetter</title>
+  <link rel="icon" type="image/png" href="/vet/images/logo.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../css/variables.css"/>
+  <link rel="stylesheet" href="../css/components.css"/>
+  <link rel="stylesheet" href="../css/legal.css"/>
+</head>
+<body>
+
+  <!-- ══════════ NAVBAR ══════════ -->
+  <nav class="navbar">
+    <div class="nav-left">
+      <img src="../images/logos/logo-color.png" alt="Baliwag City Vet" class="nav-logo"/>
+      <button class="nav-hamburger" aria-label="Toggle navigation" onclick="toggleMobileNav()">&#9776;</button>
+      <ul class="nav-links">
+        <li><a href="landing.html">Home</a></li>
+        <li><a href="book-appointment.html">Book An Appointment</a></li>
+        <li><a href="lost-found.html">Lost And Found</a></li>
+        <li><a href="my-pets.html">My Pets</a></li>
+      </ul>
+    </div>
+
+    <!-- Guest nav (not logged in) -->
+    <div class="nav-right" id="navGuest">
+      <a href="login.html" class="btn-register">Register</a>
+      <a href="login.html" class="btn-login-nav">Login</a>
+    </div>
+
+    <!-- Auth nav (logged in) -->
+    <div class="nav-right nav-right-auth" id="navAuth" style="display:none;">
+      <button class="nav-notif-btn" id="notification-icon-btn">
+        <img src="../images/icons/icon-bell.svg" alt="Notifications" class="nav-notif-icon"/>
+        <span class="nav-notif-dot" hidden></span>
+      </button>
+      <div class="nav-user-pill" onclick="toggleUserMenu()">
+        <div class="nav-user-info">
+          <span class="nav-user-name"></span>
+          <span class="nav-user-role">Pet Owner</span>
+        </div>
+        <img src="../images/img/account-avatar.png" alt="User" class="nav-user-avatar"/>
+      </div>
+      <div class="nav-user-dropdown" id="userDropdown">
+        <a href="account-profile.html" class="dropdown-item">
+          <img src="../images/icons/account-profile.svg" alt="" class="dropdown-icon"/> Account Profile
+        </a>
+        <a href="account-settings.html" class="dropdown-item">
+          <img src="../images/icons/account-settings.svg" alt="" class="dropdown-icon"/> Account Settings
+        </a>
+        <a href="notification-settings.html" class="dropdown-item">
+          <img src="../images/icons/account-notifications.svg" alt="" class="dropdown-icon"/> Notifications
+        </a>
+        <a href="my-tickets.html" class="dropdown-item">
+          <img src="../images/icons/account-notifications.svg" alt="" class="dropdown-icon"/> Report a Problem
+        </a>
+        <div class="dropdown-divider"></div>
+        <a href="#" class="dropdown-item dropdown-logout" onclick="logout()">
+          <img src="../images/icons/account-logout.svg" alt="" class="dropdown-icon"/> Log Out
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══════════ HERO ══════════ -->
+  <section class="legal-hero">
+    <div class="legal-hero-inner">
+      <a href="landing.html" class="legal-back">&#8592; Back to Home</a>
+      <span class="legal-eyebrow">Legal</span>
+      <h1>Terms of Service</h1>
+      <p>Last updated: August 6, 2026</p>
+    </div>
+  </section>
+
+  <!-- ══════════ CONTENT ══════════ -->
+  <div class="legal-wrap">
+    <div class="legal-card">
+
+      <section>
+        <h2>1. Acceptance of Terms</h2>
+        <p>These Terms of Service ("Terms") govern your use of the BVetter platform, operated by Baliwag Veterinary Services ("BVetter", "we", "us"). By creating an account or using any part of the platform — booking appointments, reporting a lost or found pet, or managing your pet records — you agree to be bound by these Terms. If you do not agree, please do not use the platform.</p>
+      </section>
+
+      <section>
+        <h2>2. Eligibility &amp; Account Registration</h2>
+        <p>You must provide accurate, current information when creating an account, including your name, contact details, and barangay of residence. Pet owner accounts are subject to residency verification before certain features are unlocked. You are responsible for keeping your login credentials confidential and for all activity that occurs under your account.</p>
+      </section>
+
+      <section>
+        <h2>3. Appointment Booking &amp; Cancellation</h2>
+        <p>Appointments booked through BVetter are requests and are confirmed by clinic staff based on availability. Please arrive on time for confirmed appointments; repeated no-shows may affect your ability to book future visits. If you need to cancel or reschedule, please do so as early as possible through your account so the slot can be offered to another pet owner.</p>
+      </section>
+
+      <section>
+        <h2>4. Lost &amp; Found Reporting</h2>
+        <p>The Lost &amp; Found feature is a community tool to help reunite pets with their owners. When submitting a report or a claim, you agree to:</p>
+        <ul>
+          <li>Provide truthful, accurate information and genuine photos of the pet in question;</li>
+          <li>Only submit a claim for a pet that is actually yours or that you are authorized to retrieve;</li>
+          <li>Cooperate with clinic staff during claim verification.</li>
+        </ul>
+        <p>False reports or fraudulent claims may result in account suspension.</p>
+      </section>
+
+      <section>
+        <h2>5. Acceptable Use</h2>
+        <p>You agree not to misuse the platform, including but not limited to: attempting unauthorized access to other accounts, uploading harmful or unlawful content, interfering with the platform's normal operation, or using the service for any purpose other than personal pet care management.</p>
+      </section>
+
+      <section>
+        <h2>6. Medical Disclaimer</h2>
+        <p>BVetter facilitates appointment scheduling and record-keeping; it is not a substitute for in-person veterinary examination or emergency care. If your pet is experiencing a medical emergency, please contact the clinic directly by phone or visit in person rather than relying solely on the platform.</p>
+      </section>
+
+      <section>
+        <h2>7. Intellectual Property</h2>
+        <p>All content on the BVetter platform — including text, graphics, logos, and software — is the property of Baliwag Veterinary Services or its licensors and is protected by applicable intellectual property laws. You may not reproduce or redistribute this content without permission.</p>
+      </section>
+
+      <section>
+        <h2>8. Limitation of Liability</h2>
+        <p>BVetter is provided on an "as is" basis. To the fullest extent permitted by law, Baliwag Veterinary Services is not liable for indirect, incidental, or consequential damages arising from your use of the platform, including missed appointment notifications or delays in the lost &amp; found matching process.</p>
+      </section>
+
+      <section>
+        <h2>9. Account Suspension &amp; Termination</h2>
+        <p>We reserve the right to suspend or terminate accounts that violate these Terms, provide false information, or misuse platform features. You may request deactivation of your account at any time by contacting us.</p>
+      </section>
+
+      <section>
+        <h2>10. Changes to These Terms</h2>
+        <p>We may update these Terms from time to time to reflect changes in our services or legal requirements. Continued use of the platform after changes are posted constitutes acceptance of the revised Terms.</p>
+      </section>
+
+      <section>
+        <h2>11. Governing Law</h2>
+        <p>These Terms are governed by the laws of the Republic of the Philippines, without regard to conflict-of-law principles.</p>
+      </section>
+
+      <section>
+        <h2>12. Contact Us</h2>
+        <p>If you have questions about these Terms, please reach out:</p>
+        <p><strong>Baliwag Veterinary Services</strong><br/>
+        AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026<br/>
+        Email: <a href="mailto:BaliwagtVC@gmail.com">BaliwagtVC@gmail.com</a><br/>
+        Phone: 09959210640</p>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ══════════ FOOTER ══════════ -->
+  <footer class="footer">
+    <img src="../images/img/paw-print.svg" alt="" class="footer-paw"/>
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h3>Baliwag Veterinary Services</h3>
+        <p>Leading the future of veterinary medicine through precision technology and heartfelt dedication.</p>
+      </div>
+      <div class="footer-links">
+        <h4>QUICK LINKS</h4>
+        <ul>
+          <li><a href="privacy-policy.html">Privacy Policy</a></li>
+          <li><a href="terms-of-service.html">Terms of Service</a></li>
+        </ul>
+      </div>
+      <div class="footer-contact">
+        <h4>CONTACT</h4>
+        <p class="footer-address">AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026</p>
+        <p class="footer-email">BaliwagtVC@gmail.com</p>
+        <p class="footer-phone">09959210640</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 Baliwag Veterinary Services. Precision in Medicine, Vitality in Life</span>
+      <div class="footer-socials">
+        <a href="#" class="social-btn">f</a>
+        <a href="#" class="social-btn">in</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../../shared/js/auth.js?v=20260805-auth"></script>
+  <script src="../js/nav.js"></script>
+</body>
+</html>

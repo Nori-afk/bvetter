@@ -488,6 +488,22 @@
         flex-shrink:   0;
     }
 
+    .sidebar-mobile-avatar--initials {
+        display:         flex;
+        align-items:     center;
+        justify-content: center;
+        width:           36px;
+        height:          36px;
+        border-radius:   50%;
+        background:      linear-gradient(135deg, #00b09b, #1a6b3c);
+        color:           #fff;
+        font-size:       0.95rem;
+        font-weight:     600;
+        border:          2px solid rgba(255, 255, 255, 0.25);
+        cursor:          pointer;
+        flex-shrink:     0;
+    }
+
     /* ── Nav — hidden in the collapsed bar, shown inside the panel ── */
     .sidebar-nav {
         display: none;

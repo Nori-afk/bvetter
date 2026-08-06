@@ -158,10 +158,10 @@ async function renderLandingLostFound() {
 async function renderLandingSpecialists() {
   const grid = document.querySelector('.specialists-grid');
   if (!grid) return;
-  const result = await api.allUsers().catch(() => ({ success: false, data: [] }));
-  const vets = result.success && Array.isArray(result.data)
-    ? result.data.filter((user) => user.role === 'vet' && user.status === 'active').slice(0, 4)
-    : [];
+  // api.getVets() hits the public appointments "vets" action — unlike
+  // api.allUsers() (admin-only), it works for guests and pet owners too.
+  const result = await api.getVets().catch(() => ({ success: false, data: [] }));
+  const vets = result.success && Array.isArray(result.data) ? result.data.slice(0, 4) : [];
 
   if (!vets.length) {
     grid.innerHTML = '<div class="specialist-card"><div class="specialist-info"><span class="specialist-name">No active specialists listed</span><p>Veterinarian profiles will appear here once active accounts are available.</p></div></div>';
@@ -171,12 +171,12 @@ async function renderLandingSpecialists() {
   grid.innerHTML = vets.map((vet, index) => `
     <div class="specialist-card">
       <div class="specialist-icon ${index % 2 ? 'green' : 'blue'}">
-        ${vet.avatar ? `<img src="${escapeHtml(vet.avatar)}" alt="${escapeHtml(vet.name)}" class="specialist-avatar"/>` : '<img src="../images/icons/icon-doctor.svg" alt="" class="doc-icon"/>'}
+        ${vet.profile_photo ? `<img src="${escapeHtml(imageUrl(vet.profile_photo))}" alt="${escapeHtml(vet.full_name)}" class="specialist-avatar"/>` : '<img src="../images/icons/icon-doctor.svg" alt="" class="doc-icon"/>'}
       </div>
       <div class="specialist-info">
-        <span class="specialist-name">${escapeHtml(vet.name)}</span>
-        <span class="specialist-role">${escapeHtml(vet.roleLabel || 'Veterinarian')}</span>
-        <p>${escapeHtml(vet.email || 'Baliwag Veterinary Services specialist')}</p>
+        <span class="specialist-name">${escapeHtml(vet.full_name)}</span>
+        <span class="specialist-role">${escapeHtml(vet.position_title || 'Veterinarian')}</span>
+        <p>${escapeHtml(vet.bio || vet.specialization || 'Baliwag Veterinary Services specialist')}</p>
       </div>
     </div>
   `).join('');

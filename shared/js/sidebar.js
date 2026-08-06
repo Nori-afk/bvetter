@@ -30,16 +30,6 @@
         'website management':     '/admin/pages/website-management.html', // input here the directory of the Website management.
     };
 
-    /* Default profile photos — used until the user uploads their own.
-       Reuses images already in the project (no external fetches):
-       vet-profile.png is the existing vet headshot used elsewhere
-       (book-appointment.html); account-avatar.png is the generic
-       silhouette already used as the pet-owner default. */
-    const DEFAULT_AVATARS = {
-        vet:   '/public/images/img/vet-profile.png',
-        admin: '/public/images/img/account-avatar.png'
-    };
-
     const ACTIVE_ICON_CAPABLE = new Set([
         'dashboard',
         'appointment',
@@ -76,12 +66,24 @@
         wrapMobilePanel(sidebar);
     }
 
-    /* Single source of truth for "which photo represents this user" —
-       used by both the desktop/expanded profile card and the mobile
-       top-bar avatar, so they can never show a different picture. */
-    function resolveAvatarUrl(session) {
-        const role = (session && session.role) ? session.role : '';
-        return (session && session.pfp) ? session.pfp : (DEFAULT_AVATARS[role] || DEFAULT_AVATARS.admin);
+    /* Single source of truth for "how do we represent this user" — used by
+       both the desktop/expanded profile card and the mobile top-bar avatar.
+       A newly created vet/asst.-vet/admin has no uploaded photo yet, so
+       there's no real image to fall back to; a letter avatar (first letter
+       of their name) replaces the old generic stock-photo placeholder.
+       Falls back to the same letter avatar if a real uploaded photo fails
+       to load (broken path, offline, etc). */
+    function avatarMarkup(session, imgClass, initialsClass, idAttr) {
+        const name     = (session && session.name) ? session.name : 'Unknown';
+        const firstLet = name.slice(0, 1).toUpperCase();
+        const idHtml   = idAttr ? ' id="' + idAttr + '"' : '';
+        const idJs     = idAttr ? ' id=\\\'' + idAttr + '\\\'' : '';
+
+        if (session && session.pfp) {
+            return '<img src="' + session.pfp + '" alt="' + name + '" class="' + imgClass + '"' + idHtml + ' ' +
+                'onerror="this.onerror=null;this.outerHTML=\'<div' + idJs + ' class=\\\'' + initialsClass + '\\\'>' + firstLet + '</div>\'">';
+        }
+        return '<div class="' + initialsClass + '"' + idHtml + '>' + firstLet + '</div>';
     }
 
     /* ── Mobile top-bar actions (notification bell + avatar) ──
@@ -91,9 +93,6 @@
     function buildMobileActions(sidebar, session) {
         if (sidebar.querySelector('.sidebar-mobile-actions')) return;
 
-        const avatarUrl = resolveAvatarUrl(session);
-        const name      = (session && session.name) ? session.name : 'Unknown';
-
         const wrap = document.createElement('div');
         wrap.className = 'sidebar-mobile-actions';
         wrap.innerHTML =
@@ -101,8 +100,7 @@
             '<img src="/public/images/icons/icon-bell.svg" class="sidebar-mobile-notif-icon" alt="">' +
             '<span class="sidebar-mobile-notif-dot"></span>' +
             '</button>' +
-            '<img src="' + avatarUrl + '" alt="' + name + '" class="sidebar-mobile-avatar" id="sidebar-mobile-avatar-btn" ' +
-            'onerror="this.onerror=null;this.src=\'/public/images/img/account-avatar.png\'">';
+            avatarMarkup(session, 'sidebar-mobile-avatar', 'sidebar-mobile-avatar--initials', 'sidebar-mobile-avatar-btn');
 
         sidebar.appendChild(wrap);
 
@@ -197,15 +195,9 @@
 
     const name      = (session && session.name)      ? session.name      : 'Unknown';
     const role      = (session && session.role)      ? session.role      : '';
-    const avatarUrl = resolveAvatarUrl(session);
     const roleLabel = roleDisplayLabel(role);
-    const firstLet  = name.slice(0, 1).toUpperCase();
 
-    // Always render a photo; fall back to a letter avatar only if the
-    // image itself fails to load (broken path, offline, etc).
-    const avatarHTML =
-        '<img src="' + avatarUrl + '" alt="' + name + '" class="sidebar-profile-avatar" ' +
-        'onerror="this.onerror=null;this.outerHTML=\'<div class=\\\'sidebar-profile-avatar sidebar-profile-avatar--initials\\\'>' + firstLet + '</div>\'">';
+    const avatarHTML = avatarMarkup(session, 'sidebar-profile-avatar', 'sidebar-profile-avatar sidebar-profile-avatar--initials');
 
     footer.innerHTML =
         '<article class="sidebar-profile-card" data-role="' + role + '" aria-label="' + name + ' profile">' +

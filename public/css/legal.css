@@ -1,0 +1,121 @@
+/* =============================================
+   BVetter — legal.css
+   Page: Privacy Policy / Terms of Service
+   Depends: variables.css, components.css (must load first)
+   ============================================= */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-main);
+  background: var(--bg-page);
+  color: var(--text-body);
+}
+
+.legal-hero {
+  background: var(--gradient-hero);
+  padding: 56px 40px 40px;
+  color: var(--text-white);
+}
+
+.legal-hero-inner {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.legal-eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-green-light);
+  margin-bottom: 12px;
+}
+
+.legal-hero h1 {
+  font-size: 34px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.legal-hero p {
+  font-size: 14px;
+  color: rgba(255,255,255,0.8);
+}
+
+.legal-wrap {
+  max-width: 860px;
+  margin: -28px auto 60px;
+  padding: 0 40px;
+}
+
+.legal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  padding: 40px 44px;
+}
+
+.legal-card section + section {
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border-light);
+}
+
+.legal-card h2 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.legal-card h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 16px 0 6px;
+}
+
+.legal-card p {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-body);
+  margin-bottom: 10px;
+}
+
+.legal-card ul {
+  margin: 0 0 10px 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-body);
+}
+
+.legal-card li { margin-bottom: 4px; }
+
+.legal-card a { color: var(--color-green-dark); font-weight: 600; }
+
+.legal-card strong { color: var(--text-primary); }
+
+.legal-back {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-white);
+  text-decoration: none;
+  margin-bottom: 20px;
+  opacity: 0.85;
+}
+
+.legal-back:hover { opacity: 1; }
+
+@media (max-width: 480px) {
+  .legal-hero { padding: 40px 20px 32px; }
+  .legal-hero h1 { font-size: 26px; }
+  .legal-wrap { padding: 0 16px; }
+  .legal-card { padding: 28px 22px; }
+}

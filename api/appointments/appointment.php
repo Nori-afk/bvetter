@@ -704,6 +704,7 @@ function listVeterinarians($pdo)
     // bookable so a vet without a profile isn't silently hidden.
     $stmt = $pdo->query("
         SELECT users.id, users.full_name, users.email, users.phone_number,
+               users.profile_photo,
                veterinarian_profiles.position_title,
                veterinarian_profiles.education,
                veterinarian_profiles.specialization,
