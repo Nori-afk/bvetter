@@ -16,6 +16,7 @@ require_once __DIR__ . '/../config/email_verification.php';
 require_once __DIR__ . '/../config/login_security.php';
 require_once __DIR__ . '/../config/auth_guard.php';
 require_once __DIR__ . '/../config/security_settings.php';
+require_once __DIR__ . '/../config/veterinarian_profile.php';
 
 requireRole($pdo, ['admin']);
 ensureLoginSecuritySchema($pdo);
@@ -313,6 +314,7 @@ function createUser($pdo)
     }
 
     ensureEmailVerificationSchema($pdo);
+    ensureVeterinarianBookableColumn($pdo);
 
     $pdo->beginTransaction();
 
@@ -338,6 +340,8 @@ function createUser($pdo)
         $specialization = trim(isset($_POST['specialization']) ? $_POST['specialization'] : '');
         $clinicLocation = trim(isset($_POST['clinic_location']) ? $_POST['clinic_location'] : '');
         $positionTitle = trim(isset($_POST['position_title']) ? $_POST['position_title'] : 'Veterinarian');
+        // Checkboxes are absent from POST entirely when unchecked, so absence means false.
+        $isBookable = isset($_POST['is_bookable']) && $_POST['is_bookable'] === '1';
 
         if ($education === '' || $specialization === '' || $clinicLocation === '') {
             $pdo->rollBack();
@@ -349,9 +353,9 @@ function createUser($pdo)
 
         $insertVet = $pdo->prepare('
             INSERT INTO veterinarian_profiles
-                (user_id, position_title, education, specialization, clinic_location, employment_status)
+                (user_id, position_title, education, specialization, clinic_location, employment_status, is_bookable)
             VALUES
-                (:user_id, :position_title, :education, :specialization, :clinic_location, :employment_status)
+                (:user_id, :position_title, :education, :specialization, :clinic_location, :employment_status, :is_bookable)
         ');
 
         $insertVet->execute([
@@ -361,6 +365,7 @@ function createUser($pdo)
             ':specialization' => $specialization,
             ':clinic_location' => $clinicLocation,
             ':employment_status' => $accountStatus === 'active' ? 'active' : 'inactive',
+            ':is_bookable' => $isBookable ? 1 : 0,
         ]);
     }
 

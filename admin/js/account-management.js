@@ -235,6 +235,8 @@ function wireAddModal() {
         if (roleSelect)  roleSelect.value = '';
         const statusEl = document.getElementById('add-acc-status');
         if (statusEl) statusEl.value = 'active';
+        const bookableEl = document.getElementById('add-acc-bookable');
+        if (bookableEl) bookableEl.checked = true;
         if (vetFields) vetFields.hidden = true;
         overlay?.querySelectorAll('.dash-field-error').forEach(e => e.remove());
         if (photoCircle) photoCircle.innerHTML = CAMERA_SVG;
@@ -332,6 +334,7 @@ function wireAddModal() {
             formData.append('specialization', document.getElementById('add-acc-specialization').value.trim());
             formData.append('education', document.getElementById('add-acc-education').value.trim());
             formData.append('clinic_location', document.getElementById('add-acc-clinic').value.trim());
+            formData.append('is_bookable', document.getElementById('add-acc-bookable')?.checked ? '1' : '0');
         }
 
         if (photoInput?.files[0]) formData.append('profile_photo', photoInput.files[0]);

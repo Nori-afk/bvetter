@@ -14,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/mailer.php';
 require_once __DIR__ . '/../config/notifications.php';
+require_once __DIR__ . '/../config/veterinarian_profile.php';
 require_once __DIR__ . '/../includes/patient_tables.php';
 require_once __DIR__ . '/appointment_notifications.php';
 
@@ -695,6 +696,12 @@ function deleteAppointment($pdo, $data)
 
 function listVeterinarians($pdo)
 {
+    ensureVeterinarianBookableColumn($pdo);
+
+    // is_bookable = 0 hides assistant vets from this pet-owner-facing list —
+    // they still have full dashboard access, they're just not a pickable
+    // option when booking. NULL (no profile row at all) is treated as
+    // bookable so a vet without a profile isn't silently hidden.
     $stmt = $pdo->query("
         SELECT users.id, users.full_name, users.email, users.phone_number,
                veterinarian_profiles.position_title,
@@ -706,6 +713,7 @@ function listVeterinarians($pdo)
         INNER JOIN roles ON roles.id = users.role_id
         LEFT JOIN veterinarian_profiles ON veterinarian_profiles.user_id = users.id
         WHERE roles.name = 'veterinarian' AND users.account_status = 'active'
+          AND (veterinarian_profiles.is_bookable IS NULL OR veterinarian_profiles.is_bookable = 1)
         ORDER BY users.full_name ASC
     ");
 
