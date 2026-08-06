@@ -334,30 +334,28 @@ function createUser($pdo)
     $userId = (int) $pdo->lastInsertId();
 
     if ($role['name'] === 'veterinarian') {
-        $licenseNumber = trim(isset($_POST['license_number']) ? $_POST['license_number'] : '');
         $education = trim(isset($_POST['education']) ? $_POST['education'] : '');
         $specialization = trim(isset($_POST['specialization']) ? $_POST['specialization'] : '');
         $clinicLocation = trim(isset($_POST['clinic_location']) ? $_POST['clinic_location'] : '');
         $positionTitle = trim(isset($_POST['position_title']) ? $_POST['position_title'] : 'Veterinarian');
 
-        if ($licenseNumber === '' || $education === '' || $specialization === '' || $clinicLocation === '') {
+        if ($education === '' || $specialization === '' || $clinicLocation === '') {
             $pdo->rollBack();
             respond(422, [
                 'success' => false,
-                'message' => 'License number, education, specialization, and clinic location are required for veterinarians.'
+                'message' => 'Education, specialization, and clinic location are required for veterinarians.'
             ]);
         }
 
         $insertVet = $pdo->prepare('
             INSERT INTO veterinarian_profiles
-                (user_id, license_number, position_title, education, specialization, clinic_location, employment_status)
+                (user_id, position_title, education, specialization, clinic_location, employment_status)
             VALUES
-                (:user_id, :license_number, :position_title, :education, :specialization, :clinic_location, :employment_status)
+                (:user_id, :position_title, :education, :specialization, :clinic_location, :employment_status)
         ');
 
         $insertVet->execute([
             ':user_id' => $userId,
-            ':license_number' => $licenseNumber,
             ':position_title' => $positionTitle,
             ':education' => $education,
             ':specialization' => $specialization,
@@ -368,13 +366,24 @@ function createUser($pdo)
 
     $pdo->commit();
 
-    $emailSent = sendEmailVerificationLink($pdo, $userId, $email, $fullName);
+    // Email verification is only enforced for admin accounts at login (see
+    // api/auth/login.php) — veterinarian accounts can log in right away, so
+    // there's no need to send or wait on a verification link for them.
+    if ($role['name'] === 'admin') {
+        $emailSent = sendEmailVerificationLink($pdo, $userId, $email, $fullName);
+
+        respond(201, [
+            'success' => true,
+            'message' => $emailSent
+                ? 'Account created successfully. A verification link was sent to ' . $email . '.'
+                : 'Account created successfully, but the verification email could not be sent. Please ask the user to use "Forgot password" once you resend it.',
+            'user_id' => $userId
+        ]);
+    }
 
     respond(201, [
         'success' => true,
-        'message' => $emailSent
-            ? 'Account created successfully. A verification link was sent to ' . $email . '.'
-            : 'Account created successfully, but the verification email could not be sent. Please ask the user to use "Forgot password" once you resend it.',
+        'message' => 'Account created successfully. They can log in right away with their email and password.',
         'user_id' => $userId
     ]);
 }

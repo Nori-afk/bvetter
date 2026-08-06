@@ -102,18 +102,20 @@ try {
         ]);
     }
 
-    if (in_array($user['role_name'], ['veterinarian', 'admin'], true) && $user['email_verified_at'] === null) {
+    // Email verification and 2FA gate admin accounts only — veterinarian
+    // accounts (incl. assistant vets) skip both and log in on password alone.
+    if ($user['role_name'] === 'admin' && $user['email_verified_at'] === null) {
         respond(403, [
             'success' => false,
             'message' => 'Please verify your email address before logging in. Check your inbox for the verification link.'
         ]);
     }
 
-    // Email-OTP second factor for staff accounts (see api/config/two_factor.php).
+    // Email-OTP second factor for admin accounts (see api/config/two_factor.php).
     // First pass (no otp_code) emails a code and stops; the client then retries
     // the same credentials with otp_code attached to complete the login.
     $securitySettings = getSecuritySettings($pdo);
-    if ($securitySettings['two_factor_enabled'] && in_array($user['role_name'], ['veterinarian', 'admin'], true)) {
+    if ($securitySettings['two_factor_enabled'] && $user['role_name'] === 'admin') {
         $otpCode = trim($_POST['otp_code'] ?? '');
 
         if ($otpCode === '') {

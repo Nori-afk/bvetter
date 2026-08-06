@@ -70,7 +70,7 @@ try {
         respond(200, [
             'success' => true,
             'message' => $enabled
-                ? 'Two-factor authentication is now required for all veterinarian and admin logins.'
+                ? 'Two-factor authentication is now required for admin logins.'
                 : 'Two-factor authentication has been turned off.',
             'data' => settingsPayload($pdo),
         ]);

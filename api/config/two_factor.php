@@ -1,7 +1,8 @@
 <?php
 /**
- * BVetter – Email-OTP two-factor authentication for vet/admin logins
+ * BVetter – Email-OTP two-factor authentication for admin logins
  *
+ * Veterinarian accounts are exempt — only admin logins go through this.
  * When security_settings.two_factor_enabled is on, api/auth/login.php calls:
  *   - issueLoginOtp()  after the password checks out → emails a 6-digit code
  *   - verifyLoginOtp() when the client retries login with the code attached

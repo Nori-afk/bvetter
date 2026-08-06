@@ -511,7 +511,7 @@ function wireAddAccountModal() {
     }
 
     function resetForm() {
-        ['add-acc-name', 'add-acc-phone', 'add-acc-email', 'add-acc-password', 'add-acc-license', 'add-acc-specialization', 'add-acc-education', 'add-acc-clinic'].forEach(id => {
+        ['add-acc-name', 'add-acc-phone', 'add-acc-email', 'add-acc-password', 'add-acc-specialization', 'add-acc-education', 'add-acc-clinic'].forEach(id => {
             const el = document.getElementById(id);
             if (el) { el.value = ''; el.classList.remove('dash-error'); }
         });
@@ -597,7 +597,7 @@ function wireAddAccountModal() {
 
         const isVet = roleSelect?.selectedOptions[0]?.dataset.frontendRole === 'vet';
         if (isVet) {
-            ['add-acc-license', 'add-acc-specialization', 'add-acc-education', 'add-acc-clinic'].forEach(id => {
+            ['add-acc-specialization', 'add-acc-education', 'add-acc-clinic'].forEach(id => {
                 if (!document.getElementById(id)?.value.trim()) markError(id, 'Required for veterinarian accounts.');
             });
         }
@@ -619,7 +619,6 @@ function wireAddAccountModal() {
             formData.append('account_status', document.getElementById('add-acc-status')?.value || 'active');
 
             if (roleSelect.selectedOptions[0]?.dataset.frontendRole === 'vet') {
-                formData.append('license_number', document.getElementById('add-acc-license').value.trim());
                 formData.append('specialization', document.getElementById('add-acc-specialization').value.trim());
                 formData.append('education', document.getElementById('add-acc-education').value.trim());
                 formData.append('clinic_location', document.getElementById('add-acc-clinic').value.trim());

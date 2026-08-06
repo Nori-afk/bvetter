@@ -724,9 +724,10 @@
                 <div>
                     <span class="sec-method-name">Email OTP (Active Method)</span>
                     <span class="sec-method-desc">
-                        When a veterinarian or admin signs in with the correct password, a 6-digit
+                        When an admin signs in with the correct password, a 6-digit
                         code is emailed to their registered address. The code expires after
-                        10 minutes and allows 5 attempts. Pet owner accounts are not affected.
+                        10 minutes and allows 5 attempts. Veterinarian and pet owner accounts
+                        are not affected.
                     </span>
                 </div>
             </div>
@@ -905,15 +906,15 @@
             : 'No login codes verified yet';
 
         meta.innerHTML = on
-            ? `<strong>Email OTP &mdash; required for all veterinarian &amp; admin logins</strong>
+            ? `<strong>Email OTP &mdash; required for admin logins</strong>
                <span>${lastUsed}</span>`
             : `<strong>Two-factor authentication is turned off</strong>
-               <span>Staff sign in with email and password only</span>`;
+               <span>Admins sign in with email and password only</span>`;
 
         const modalState = document.getElementById('twofa-modal-state');
         if (modalState) {
             modalState.textContent = on
-                ? 'Enabled — codes are emailed to staff at every login.'
+                ? 'Enabled — codes are emailed to admins at every login.'
                 : 'Currently disabled — enable the toggle on the security page to enforce it.';
         }
     }
@@ -962,7 +963,7 @@
 
     document.getElementById('toggle-2fa')?.addEventListener('change', async function () {
         const wanted = this.checked;
-        if (!wanted && !confirm('Turn off two-factor authentication for ALL veterinarian and admin logins?')) {
+        if (!wanted && !confirm('Turn off two-factor authentication for ALL admin logins?')) {
             this.checked = true;
             return;
         }

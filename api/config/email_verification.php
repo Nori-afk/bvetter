@@ -1,9 +1,10 @@
 <?php
 /**
- * BVetter – Email Verification for admin-created vet/admin accounts
+ * BVetter – Email Verification for admin-created admin accounts
  *
- * A user created from Account Management (role veterinarian or admin)
- * cannot log in until they click the link emailed here. See:
+ * A user created from Account Management with role "admin" cannot log in
+ * until they click the link emailed here. Veterinarian accounts (incl.
+ * assistant vets) are exempt and can log in right away. See:
  *   - ensureEmailVerificationSchema()  – idempotent table/column setup
  *   - sendEmailVerificationLink()      – issues a token and emails it
  *   - api/auth/verify-email.php        – consumes the token
