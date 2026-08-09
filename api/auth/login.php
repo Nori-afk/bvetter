@@ -111,7 +111,7 @@ try {
         ]);
     }
 
-    // Email-OTP second factor for admin accounts (see api/config/two_factor.php).
+    // For admin and vet side
     // First pass (no otp_code) emails a code and stops; the client then retries
     // the same credentials with otp_code attached to complete the login.
     $securitySettings = getSecuritySettings($pdo);

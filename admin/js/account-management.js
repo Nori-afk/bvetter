@@ -64,7 +64,7 @@ async function loadRoles() {
     ).join('');
 }
 
-/* ── Generic close buttons ─────────────────────────────────── */
+
 function wireCloseButtons() {
     document.querySelectorAll('[data-close]').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -73,13 +73,12 @@ function wireCloseButtons() {
             if (el) el.hidden = true;
         });
     });
-    // close on overlay click
     document.querySelectorAll('.am-modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', e => {
             if (e.target === overlay) overlay.hidden = true;
         });
     });
-    // ESC — covers both am-modal-overlay and dash-overlay
+    
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
             document.querySelectorAll('.am-modal-overlay:not([hidden]), .dash-overlay:not([hidden])').forEach(o => o.hidden = true);
@@ -87,14 +86,14 @@ function wireCloseButtons() {
     });
 }
 
-/* ── KPIs ───────────────────────────────────────────────────── */
+/*  KPIs */
 function updateKPIs() {
     setEl('kpi-total',   allUsers.length);
     setEl('kpi-vet',     allUsers.filter(u => u.role === 'vet' && u.status === 'active').length);
     setEl('kpi-blocked', allUsers.filter(u => u.status === 'blocked').length);
 }
 
-/* ── Table ──────────────────────────────────────────────────── */
+/* Table */
 function applyFilters() {
     const search = (document.getElementById('search-users')?.value || '').toLowerCase();
     filteredUsers = allUsers.filter(u => {
@@ -107,9 +106,6 @@ function applyFilters() {
 }
 
 function renderTable() {
-    const tbody = document.getElementById('user-table-body');
-    if (!tbody) return;
-
     const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
     currentPage = Math.min(currentPage, totalPages);
     const start     = (currentPage - 1) * PAGE_SIZE;
@@ -202,7 +198,7 @@ function wirePagination() {
     });
 }
 
-/* ── ADD USER MODAL (dash-* form) ──────────────────────────── */
+/*  ADD USER MODAL (dash-* form) */
 function wireAddModal() {
     const overlay    = document.getElementById('modal-add-account');
     const closeBtn   = document.getElementById('modal-add-close');

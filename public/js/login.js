@@ -5,7 +5,7 @@
 
 function togglePassword() {
   const pw = document.getElementById('loginPassword');
-  if (!pw) return;
+  if (!pw) return; //short confirmation if the value are missing or walang value if not
   pw.type = pw.type === 'password' ? 'text' : 'password';
 }
 
@@ -57,34 +57,33 @@ function backToLogin(event) {
   document.getElementById('credsStep').style.display = '';
 }
 
-async function handleLogin() {
+async function handleLogin(){
   const email = document.getElementById('loginEmail')?.value.trim() || '';
   const password = document.getElementById('loginPassword')?.value || '';
 
-  if (!email || !password) {
+  if (!email || !password){
     showNotice('Please enter your email and password.');
-    return;
+    return
   }
+  try{
+    const result = await api.login(email,password);
 
-  try {
-    const result = await api.login(email, password);
-
-    if (!result.success) {
+    if(!result.success){
       showNotice(result.message || 'Invalid email or password.');
       return;
     }
 
-    if (result.requires_2fa) {
-      pendingLogin = { email, password };
+    if(result.requires_2fa){
+      pendingLogin ={email,password};
       showOtpStep(result.message);
-      return;
+      return
     }
-
-    completeLogin(result);
-  } catch (error) {
-    showNotice('Login failed. Please try again.');
+    completeLogin(result)
+  }catch(error){
+     showNotice('Login failed. Please try again.');
   }
 }
+
 
 async function handleVerifyOtp() {
   if (!pendingLogin) {

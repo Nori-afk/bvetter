@@ -223,6 +223,7 @@ function updateOwnerVerification($pdo, $userId, $decision, $notes)
 
 function createUser($pdo)
 {
+    // P$_post  is fetching thed ata from the JS
     $fullName = trim(isset($_POST['full_name']) ? $_POST['full_name'] : '');
     $email = trim(isset($_POST['email']) ? $_POST['email'] : '');
     $password = isset($_POST['password']) ? $_POST['password'] : '';
