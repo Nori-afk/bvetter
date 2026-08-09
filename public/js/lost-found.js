@@ -196,7 +196,10 @@ async function getKPI(){
 }
 
 function populateSharedOptions() {
-  const barangayOptions = '<option value="">Select Barangay</option>' + barangays.map((name) => `<option>${escapeHtml(name)}</option>`).join('');
+  // "Others" covers pets lost/found/sighted outside Baliwag City — picking it
+  // reveals a free-text field (see toggleBarangayOther) instead of forcing a
+  // Baliwag barangay that doesn't apply.
+  const barangayOptions = '<option value="">Select Barangay</option>' + barangays.map((name) => `<option>${escapeHtml(name)}</option>`).join('') + '<option value="Others">Others (outside Baliwag City)</option>';
   const petTypeOptions = PET_TYPES.map((name) => `<option>${escapeHtml(name)}</option>`).join('');
 
   const speciesInput = document.getElementById('speciesInput');
@@ -216,6 +219,28 @@ function populateSharedOptions() {
 
   document.getElementById('barangayInput')?.addEventListener('change', updateReportMapFromBarangay);
   document.getElementById('sightingBarangayInput')?.addEventListener('change', updateSightingMapFromBarangay);
+  document.getElementById('barangayInput')?.addEventListener('change', () => toggleBarangayOther('barangayInput', 'barangayOtherInput'));
+  document.getElementById('sightingBarangayInput')?.addEventListener('change', () => toggleBarangayOther('sightingBarangayInput', 'sightingBarangayOtherInput'));
+}
+
+function toggleBarangayOther(selectId, otherId) {
+  const select = document.getElementById(selectId);
+  const other = document.getElementById(otherId);
+  if (!select || !other) return;
+  const isOthers = select.value === 'Others';
+  other.style.display = isOthers ? 'block' : 'none';
+  if (!isOthers) other.value = '';
+}
+
+// Resolves a barangay <select> to the value that should actually be submitted:
+// the picked barangay name, or (when "Others" is chosen) the free-text place
+// typed into the paired text field.
+function requiredBarangayValue(selectId, otherId, label) {
+  const value = requiredValue(selectId, label);
+  if (value === 'Others') {
+    return requiredValue(otherId, `${label} (please specify)`, 2);
+  }
+  return value;
 }
 
 let myReportClaimants = {};
@@ -337,7 +362,7 @@ function renderMyReports() {
               ${pending ? 'View Details' : report.status === 'resolved' ? 'View Case' : 'View Potential Matches'}
               <img src="../images/icons/icon-right-arrow.svg" alt="" class="btn-arrow"/>
             </button>
-            ${!pending && type === 'lost' ? `
+            ${!pending ? `
               <button type="button" class="btn-mark-resolved" onclick="handleResolveOwnReport('${report.id}')">
                 Mark Resolved
               </button>
@@ -418,6 +443,7 @@ function closeModal(id) {
     if (sizeInput) sizeInput.selectedIndex = 0;
     const barangayInput = document.getElementById('barangayInput');
     if (barangayInput) barangayInput.value = '';
+    toggleBarangayOther('barangayInput', 'barangayOtherInput');
     document.querySelectorAll('#reportModal .sex-btn').forEach((btn) => btn.classList.remove('active'));
     document.getElementById('accountToggle')?.classList.remove('on');
     updateCharCounter('notesInput', 'notesCounter');
@@ -430,6 +456,7 @@ function closeModal(id) {
   if (id === 'sightingModal') {
     destroySightingMap();
     resetSightingPhotoPreview();
+    toggleBarangayOther('sightingBarangayInput', 'sightingBarangayOtherInput');
     document.getElementById('sightingAccountToggle')?.classList.remove('on');
     ['sightingContactName', 'sightingContactPhone', 'sightingContactEmail'].forEach((fieldId) => {
       const field = document.getElementById(fieldId);
@@ -504,6 +531,7 @@ function openModal(type) {
   openModalById('reportModal');
   setTimeout(() => initReportMap(), 100);
   restoreDraft(type);
+  toggleBarangayOther('barangayInput', 'barangayOtherInput');
   updateCharCounter('markingsInput', 'markingsCounter');
 
   // image preview code
@@ -596,7 +624,7 @@ const DRAFT_STORAGE_PREFIX = 'bvetter_lf_draft_';
 
 function draftFieldIds(kind) {
   if (kind === 'lost' || kind === 'found') {
-    return ['petNameInput', 'speciesInput', 'breedInput', 'sizeInput', 'markingsInput', 'incidentDateInput', 'barangayInput', 'notesInput', 'contactName', 'contactPhone', 'contactEmail'];
+    return ['petNameInput', 'speciesInput', 'breedInput', 'sizeInput', 'markingsInput', 'incidentDateInput', 'barangayInput', 'barangayOtherInput', 'notesInput', 'contactName', 'contactPhone', 'contactEmail'];
   }
   if (kind === 'claim') {
     return ['claimNameInput', 'claimPhoneInput', 'claimEmailInput'];
@@ -732,7 +760,7 @@ async function submitReport() {
     formData.append('size', requiredValue('sizeInput', 'Size'));
     formData.append('color_markings', requiredValue('markingsInput', 'Color / markings', 5));
     formData.append('incident_date', incidentDate);
-    formData.append('barangay', requiredValue('barangayInput', 'Barangay'));
+    formData.append('barangay', requiredBarangayValue('barangayInput', 'barangayOtherInput', 'Barangay'));
     formData.append('lat', document.getElementById('reportLatInput')?.value || '');
     formData.append('lng', document.getElementById('reportLngInput')?.value || '');
     const notes = optionalValue('notesInput', 'Additional details', 5);
@@ -1220,11 +1248,16 @@ function handleClaim(btn) {
   openClaimModal();
 }
 
-// General "mark resolved" action for a Lost report, reachable straight from
-// the report card — covers a pet coming home on its own, with no sighting or
-// found-report match involved at all.
+// General "mark resolved" action reachable straight from the report card —
+// covers a Lost pet coming home on its own, or a Found pet being reunited
+// with its owner outside the app, with no sighting/claim flow involved at all.
 async function handleResolveOwnReport(reportId) {
-  if (!confirm('Mark this case as resolved? This will remove it from the active lost pets list.')) return;
+  const report = myReports.find((item) => String(item.id) === String(reportId));
+  const isFound = normalizeType(report?.type) === 'found';
+  const confirmMsg = isFound
+    ? 'Mark this case as resolved? This will remove it from the active found pets list.'
+    : 'Mark this case as resolved? This will remove it from the active lost pets list.';
+  if (!confirm(confirmMsg)) return;
 
   const result = await api.resolveOwnReport(reportId);
   if (!result.success) {
@@ -1234,7 +1267,7 @@ async function handleResolveOwnReport(reportId) {
 
   await loadReports();
   await loadMyReports();
-  alert('Marked as resolved. Glad you got your pet back!');
+  alert(isFound ? 'Marked as resolved. Thanks for helping reunite this pet!' : 'Marked as resolved. Glad you got your pet back!');
 }
 
 function openSightingModal() {
@@ -1261,7 +1294,7 @@ async function submitSighting() {
   try {
     date = requiredValue('sightingDateInput', 'Date spotted', 1);
     assertDateNotFuture(date, 'Date spotted');
-    barangay = requiredValue('sightingBarangayInput', 'Barangay');
+    barangay = requiredBarangayValue('sightingBarangayInput', 'sightingBarangayOtherInput', 'Barangay');
     location = requiredValue('sightingLocationInput', 'Specific landmark', 5);
     notes = optionalValue('sightingNotesInput', 'Additional details', 5);
     photo = document.getElementById('sightingPhoto')?.files?.[0];

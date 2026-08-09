@@ -5,11 +5,11 @@
   CSS:     variables.css → components.css → account-settings.css
   JS:      nav.js → api.js → account-settings.js
 
-  TODO backend:
+  Backend:
   - Load profile: api.getProfile() on page load
   - Save profile: api.updateProfile(data)
   - Change password: api.changePassword(data)
-  - Toggle 2FA: PATCH /api/user/2fa
+  - Toggle 2FA: api.setTwoFactor(enabled)
 -->
 <html lang="en">
 <head>
@@ -152,7 +152,7 @@
           <div class="sec-icon-wrap shield-bg">
             <img src="../images/icons/settings-2fa.svg" alt="" class="sec-icon"/>
           </div>
-          <span class="twofa-badge enabled" id="twofaBadge">ENABLED</span>
+          <span class="twofa-badge disabled" id="twofaBadge">DISABLED</span>
         </div>
         <div class="sec-title">Two-Factor Auth</div>
         <div class="sec-desc">Add an extra layer of security to your clinical records and billing data.</div>

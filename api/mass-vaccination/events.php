@@ -106,6 +106,21 @@ function createEvent($pdo, $data)
     respond(201, ['success' => true, 'data' => formatEvent($stmt->fetch())]);
 }
 
+function deleteEvent($pdo, $data)
+{
+    $id = (int) preg_replace('/^evt-/', '', (string) ($data['id'] ?? $data['event_id'] ?? 0));
+    if ($id <= 0) respond(422, ['success' => false, 'message' => 'Invalid event id.']);
+
+    $stmt = $pdo->prepare('DELETE FROM mass_vaccination_events WHERE id = :id');
+    $stmt->execute([':id' => $id]);
+
+    if ($stmt->rowCount() === 0) {
+        respond(404, ['success' => false, 'message' => 'Event not found.']);
+    }
+
+    respond(200, ['success' => true, 'message' => 'Event deleted.']);
+}
+
 function submitReport($pdo, $data)
 {
     $id = (int) preg_replace('/^evt-/', '', (string) ($data['id'] ?? $data['event_id'] ?? 0));
@@ -154,6 +169,7 @@ try {
     if ($action === 'list') listEvents($pdo);
     if ($action === 'create') createEvent($pdo, $input);
     if ($action === 'submit_report') submitReport($pdo, $input);
+    if ($action === 'delete') deleteEvent($pdo, $input);
     respond(400, ['success' => false, 'message' => 'Unknown mass vaccination action.']);
 } catch (PDOException $e) {
     respond(500, ['success' => false, 'message' => 'Mass vaccination request failed.', 'error' => $e->getMessage()]);

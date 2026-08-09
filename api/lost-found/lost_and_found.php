@@ -1228,10 +1228,11 @@ function updateMatchStatus($pdo, $data, $status)
     respond(200, ['success' => true, 'message' => 'Match updated.']);
 }
 
-// Lets a pet owner mark their own Lost report resolved directly (e.g. the pet
-// came home on its own, with no sighting or found-report match involved at
-// all). Scoped to Lost reports only: a Found report only ever resolves through
-// the Claim/proof-of-ownership flow, since whoever filed it isn't the pet's owner.
+// Lets an owner or finder mark their own report resolved directly — a Lost
+// report closes when the pet comes home on its own (no sighting or
+// found-report match involved), and a Found report closes when the finder
+// reunites the pet with its owner outside the app (direct contact, no claim
+// ever filed) — without either case requiring the Claim/proof-of-ownership flow.
 function resolveOwnReport($pdo, $data)
 {
     $reportId = (int) ($data['report_id'] ?? $data['id'] ?? 0);
@@ -1248,9 +1249,6 @@ function resolveOwnReport($pdo, $data)
     if ((int) $report['owner_id'] !== $ownerId) {
         respond(403, ['success' => false, 'message' => 'You can only resolve your own reports.']);
     }
-    if ($report['report_type'] !== 'lost') {
-        respond(422, ['success' => false, 'message' => 'Only lost pet reports can be self-resolved.']);
-    }
     if ($report['status'] !== 'active') {
         respond(422, ['success' => false, 'message' => 'Only an active report can be marked resolved.']);
     }
@@ -1258,7 +1256,10 @@ function resolveOwnReport($pdo, $data)
     $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id")
         ->execute([':id' => $reportId]);
 
-    respond(200, ['success' => true, 'message' => 'Marked as resolved. Glad you got your pet back!']);
+    $message = $report['report_type'] === 'found'
+        ? 'Marked as resolved. Thanks for helping reunite this pet!'
+        : 'Marked as resolved. Glad you got your pet back!';
+    respond(200, ['success' => true, 'message' => $message]);
 }
 
 function createSighting($pdo, $data)

@@ -4,6 +4,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/security_settings.php';
+require_once __DIR__ . '/../config/two_factor.php';
 
 function respond($statusCode, $payload)
 {
@@ -50,6 +51,8 @@ function setupProfileTables($pdo)
     } catch (PDOException $e) {
         // Columns already exist — nothing to do.
     }
+
+    ensureUserTwoFactorColumn($pdo);
 }
 
 function roleLabel($roleName)
@@ -103,6 +106,7 @@ function getProfile($pdo, $userId)
 
     $stmt = $pdo->prepare("
         SELECT users.id, users.full_name, users.email, users.phone_number, users.profile_photo,
+               users.two_factor_enabled,
                veterinarian_profiles.education, veterinarian_profiles.specialization, veterinarian_profiles.bio,
                roles.name AS role_name, users.created_at
         FROM users
@@ -143,6 +147,7 @@ function getProfile($pdo, $userId)
             'role' => $user['role_name'],
             'roleLabel' => roleLabel($user['role_name']),
             'avatarUrl' => $user['profile_photo'] ?: '',
+            'twoFactorEnabled' => (bool) $user['two_factor_enabled'],
             'memberSince' => substr((string) $user['created_at'], 0, 4),
             'stats' => profileStats($pdo, $userId, $user['role_name']),
             'notifications' => [
@@ -252,6 +257,22 @@ function updatePreferences($pdo, $data)
     getProfile($pdo, $userId);
 }
 
+/**
+ * Opts an account into (or out of) its own email-OTP 2FA challenge at login
+ * — see requiresTwoFactor in api/auth/login.php for where this is enforced.
+ */
+function setTwoFactor($pdo, $data)
+{
+    $userId = (int) ($data['user_id'] ?? $data['userId'] ?? 0);
+    if ($userId <= 0) respond(422, ['success' => false, 'message' => 'User id is required.']);
+
+    $enabled = !empty($data['enabled']) ? 1 : 0;
+    $pdo->prepare('UPDATE users SET two_factor_enabled = :enabled WHERE id = :id')
+        ->execute([':enabled' => $enabled, ':id' => $userId]);
+
+    getProfile($pdo, $userId);
+}
+
 function changePassword($pdo, $data)
 {
     $userId = (int) ($data['user_id'] ?? $data['userId'] ?? 0);
@@ -288,6 +309,7 @@ try {
     if ($action === 'update') updateProfile($pdo, $input);
     if ($action === 'preferences') updatePreferences($pdo, $input);
     if ($action === 'password') changePassword($pdo, $input);
+    if ($action === 'two_factor') setTwoFactor($pdo, $input);
 
     respond(400, ['success' => false, 'message' => 'Unknown profile action.']);
 } catch (PDOException $e) {

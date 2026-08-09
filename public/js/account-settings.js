@@ -9,7 +9,8 @@
    - (save profile)         — api.updateProfile(data)
    - (password modal open/close/confirm) — api.changePassword(data)
    - (pw eye toggles)
-   - (2FA toggle)           — UI-only, no backend endpoint yet
+   - (2FA toggle)           — api.setTwoFactor(enabled); enforced at login
+                              via api/auth/login.php (email-OTP challenge)
    - (deactivate modal)     — UI-only, no backend endpoint yet
    - showToast(msg, type)
    ============================================= */
@@ -39,6 +40,7 @@
     if (phoneInput) phoneInput.value = profile.phone || '';
     if (avatarImg && profile.avatarUrl) avatarImg.src = profile.avatarUrl;
     if (navName) navName.textContent = profile.fullName || session.name || 'Pet Owner';
+    applyTwoFactorState(Boolean(profile.twoFactorEnabled));
   }
 
   document.addEventListener('DOMContentLoaded', loadProfile);
@@ -137,17 +139,37 @@
   });
 
   /* ── 2FA Toggle ─────────────────────────────
-     No backend endpoint exists yet — this is still
-     a UI-only demo toggle. See PROJECT NOTES below. */
+     Persists to users.two_factor_enabled and is enforced at login: once on,
+     signing in requires a 6-digit code emailed to the account (same OTP
+     flow admin accounts use, see api/auth/login.php). */
+  function applyTwoFactorState(enabled) {
+    const twofaBadge = document.getElementById('twofaBadge');
+    if (!twofaBadge) return;
+    twofaBadge.classList.toggle('enabled', enabled);
+    twofaBadge.classList.toggle('disabled', !enabled);
+    twofaBadge.textContent = enabled ? 'ENABLED' : 'DISABLED';
+  }
+
   const btnManage  = document.getElementById('btnManage2FA');
   const twofaBadge = document.getElementById('twofaBadge');
   if (btnManage && twofaBadge) {
-    btnManage.addEventListener('click', () => {
-      const isEnabled = twofaBadge.classList.contains('enabled');
-      twofaBadge.classList.toggle('enabled',  !isEnabled);
-      twofaBadge.classList.toggle('disabled',  isEnabled);
-      twofaBadge.textContent = isEnabled ? 'DISABLED' : 'ENABLED';
-      showToast(isEnabled ? '2FA has been disabled.' : '2FA enabled.', 'success');
+    btnManage.addEventListener('click', async () => {
+      const enabling = !twofaBadge.classList.contains('enabled');
+      const confirmMsg = enabling
+        ? "Enable two-factor authentication? You'll need to enter a 6-digit code emailed to you every time you log in."
+        : 'Disable two-factor authentication?';
+      if (!confirm(confirmMsg)) return;
+
+      btnManage.disabled = true;
+      const result = await api.setTwoFactor(enabling).catch(() => ({ success: false }));
+      btnManage.disabled = false;
+
+      if (!result.success) {
+        showToast(result.message || 'Could not update two-factor authentication.', 'error');
+        return;
+      }
+      applyTwoFactorState(enabling);
+      showToast(enabling ? '2FA has been enabled.' : '2FA has been disabled.', 'success');
     });
   }
 

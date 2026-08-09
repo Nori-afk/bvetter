@@ -1046,6 +1046,31 @@
 
     document.getElementById('back-to-dashboard').addEventListener('click', () => setPanel('dashboard'));
 
+    document.getElementById('delete-event-btn')?.addEventListener('click', async () => {
+        const activeId = document.getElementById('post-event-form').dataset.activeEventId;
+        const e = state.events.find(item => item.id === activeId);
+        if (!e) return;
+        if (!confirm(`Delete the ${e.barangay} – ${e.vaccine} event on ${e.dateLabel}? This cannot be undone.`)) return;
+
+        try {
+            const res = await fetch(MASS_VACC_API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'delete', id: e.rawId })
+            });
+            const result = await res.json();
+            if (!result.success) { alert(result.message || 'Failed to delete event.'); return; }
+        } catch (err) {
+            alert('Failed to delete event.'); return;
+        }
+
+        state.events = state.events.filter(item => item.id !== activeId);
+        renderTable();
+        updateMetrics();
+        buildCharts();
+        setPanel('dashboard');
+    });
+
     document.getElementById('include-breakdown').addEventListener('change', () => {
         const show = document.getElementById('include-breakdown').checked;
         document.getElementById('species-breakdown').classList.toggle('hidden', !show);

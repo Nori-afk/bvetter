@@ -509,8 +509,9 @@ forgotPassword: (email) => {
     lostFoundRequest('matches', { report_id: reportId, include_resolved: 1 }),
 
   /**
-   * Self-resolve one of your own Lost reports directly (pet came home on its
-   * own — no sighting or found-report match required).
+   * Self-resolve one of your own Lost or Found reports directly (pet came
+   * home on its own, or was reunited with its owner outside the app — no
+   * sighting, match, or claim required).
    * @param {string} reportId
    */
   resolveOwnReport: (reportId) =>
@@ -744,6 +745,14 @@ forgotPassword: (email) => {
    */
   changePassword: (data) =>
     profileRequest('password', data),
+
+  /**
+   * Enable/disable email-OTP two-factor authentication on your own account —
+   * once on, login requires a 6-digit code emailed at sign-in time.
+   * @param {boolean} enabled
+   */
+  setTwoFactor: (enabled) =>
+    profileRequest('two_factor', { enabled: enabled ? 1 : 0 }),
 
 
   /* ══════════════════════════════════════════

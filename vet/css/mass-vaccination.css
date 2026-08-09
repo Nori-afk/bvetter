@@ -125,6 +125,21 @@ body {
 	border: 1px solid #8c96ac;
 }
 
+.btn-danger {
+	background: var(--mv-danger);
+	color: #fff;
+}
+
+.btn-danger:hover {
+	background: #c22f2f;
+}
+
+.detail-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
 .metric-grid {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));

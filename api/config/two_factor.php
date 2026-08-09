@@ -1,9 +1,14 @@
 <?php
 /**
- * BVetter – Email-OTP two-factor authentication for admin logins
+ * BVetter – Email-OTP two-factor authentication
  *
- * Veterinarian accounts are exempt — only admin logins go through this.
- * When security_settings.two_factor_enabled is on, api/auth/login.php calls:
+ * Two independent ways into the same challenge (see requiresTwoFactor in
+ * api/auth/login.php): the site-wide security_settings.two_factor_enabled
+ * switch (admin logins only), or a per-account opt-in via
+ * users.two_factor_enabled (any role — set from that account's own profile
+ * settings, e.g. public/pages/account-settings.html). Veterinarian accounts
+ * are exempt from the site-wide switch but can still opt in per-account.
+ * Either path calls:
  *   - issueLoginOtp()  after the password checks out → emails a 6-digit code
  *   - verifyLoginOtp() when the client retries login with the code attached
  *
@@ -16,6 +21,19 @@ require_once __DIR__ . '/mailer.php';
 const LOGIN_OTP_TTL_SECONDS      = 600; // 10 minutes
 const LOGIN_OTP_MAX_ATTEMPTS     = 5;
 const LOGIN_OTP_RESEND_THROTTLE  = 60;  // seconds
+
+/**
+ * Pet owners (and any other role) can opt into the same email-OTP challenge
+ * admin accounts get from security_settings — but per-account, via their own
+ * profile toggle, rather than a site-wide switch. This column is that opt-in.
+ */
+function ensureUserTwoFactorColumn(PDO $pdo): void
+{
+    $check = $pdo->query("SHOW COLUMNS FROM users LIKE 'two_factor_enabled'")->fetch();
+    if (!$check) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN two_factor_enabled TINYINT(1) NOT NULL DEFAULT 0 AFTER account_status");
+    }
+}
 
 function ensureLoginOtpSchema(PDO $pdo): void
 {

@@ -24,6 +24,7 @@ require_once __DIR__ . '/../config/two_factor.php';
 ensureEmailVerificationSchema($pdo);
 ensureSessionSchema($pdo);
 ensureLoginSecuritySchema($pdo);
+ensureUserTwoFactorColumn($pdo);
 
 function respond($statusCode, $payload)
 {
@@ -54,6 +55,7 @@ try {
             users.failed_login_attempts,
             users.profile_photo,
             users.email_verified_at,
+            users.two_factor_enabled,
             roles.name AS role_name,
             owner_profiles.verification_status
         FROM users
@@ -102,8 +104,8 @@ try {
         ]);
     }
 
-    // Email verification and 2FA gate admin accounts only — veterinarian
-    // accounts (incl. assistant vets) skip both and log in on password alone.
+    // Email verification gates admin accounts only — veterinarian accounts
+    // (incl. assistant vets) skip it and log in on password alone.
     if ($user['role_name'] === 'admin' && $user['email_verified_at'] === null) {
         respond(403, [
             'success' => false,
@@ -111,11 +113,15 @@ try {
         ]);
     }
 
-    // For admin and vet side
+    // 2FA applies when either: the site-wide admin switch is on and this is an
+    // admin login, OR this specific account opted into its own email-OTP 2FA
+    // from its profile settings (any role, most commonly pet owners).
     // First pass (no otp_code) emails a code and stops; the client then retries
     // the same credentials with otp_code attached to complete the login.
     $securitySettings = getSecuritySettings($pdo);
-    if ($securitySettings['two_factor_enabled'] && $user['role_name'] === 'admin') {
+    $requiresTwoFactor = ($securitySettings['two_factor_enabled'] && $user['role_name'] === 'admin')
+        || (bool) $user['two_factor_enabled'];
+    if ($requiresTwoFactor) {
         $otpCode = trim($_POST['otp_code'] ?? '');
 
         if ($otpCode === '') {
