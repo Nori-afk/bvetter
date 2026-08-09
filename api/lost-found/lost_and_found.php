@@ -1013,7 +1013,12 @@ function rebuildSightingMatches($pdo, $lostReportId)
     $lost = fetchReportForMatch($pdo, $lostReportId);
     if (!$lost || $lost['status'] !== 'active') return;
 
-    $stmt = $pdo->query("SELECT * FROM lost_found_sightings WHERE status = 'active'");
+    // A sighting is only ever a candidate for the lost report it was actually
+    // submitted against — matching it here by species/location similarity
+    // against every other active lost report is what caused one sighting to
+    // fan out and appear under unrelated reports.
+    $stmt = $pdo->prepare("SELECT * FROM lost_found_sightings WHERE status = 'active' AND report_id = :lost_report_id");
+    $stmt->execute([':lost_report_id' => $lostReportId]);
     foreach ($stmt->fetchAll() as $sighting) {
         // Sightings never collect species/breed/sex/size (the sighting form only
         // asks for date, barangay, location, photo, and notes) — leave these blank
@@ -1049,19 +1054,10 @@ function rebuildSightingMatches($pdo, $lostReportId)
         ]);
         $matchId = $existing->fetchColumn();
 
-        // Without species/breed/sex/size, the achievable score is much lower than
-        // the lost-vs-found threshold (45) — it now comes only from location
-        // proximity, notes-text overlap, and photo similarity. A stale suggestion
-        // that no longer clears this bar is removed; an already-approved/resolved
-        // match is left alone since it represents a real closed case.
-        if ($score < 20) {
-            if ($matchId) {
-                $pdo->prepare("DELETE FROM lost_found_matches WHERE id = :id AND status = 'suggested'")
-                    ->execute([':id' => (int) $matchId]);
-            }
-            continue;
-        }
-
+        // The sighting was explicitly submitted against this report, so it's
+        // always linked here — $score/$reasons are kept only as display/sort
+        // metadata (confidence, ORDER BY confidence in listMatches()), never
+        // as a gate on whether the match exists.
         if ($matchId) {
             $update = $pdo->prepare('UPDATE lost_found_matches SET confidence = :confidence, reasons_json = :reasons_json, updated_at = NOW() WHERE id = :id');
             $update->execute([

@@ -371,31 +371,20 @@ INSERT INTO `lost_found_matches` (`id`, `lost_report_id`, `found_report_id`, `si
 (7, 14, 15, NULL, 100, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Similar color or markings\",\"Same barangay\",\"Similar photo color profile\",\"Similar image pattern\"]', 'approved', NULL, '2026-05-24 14:59:32', '2026-05-24 06:58:14', '2026-05-24 06:59:32'),
 (8, 16, 17, NULL, 91, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Similar color or markings\",\"Same barangay\",\"Similar photo color profile\",\"Similar image pattern\"]', 'approved', NULL, '2026-05-24 15:08:36', '2026-05-24 07:03:08', '2026-05-24 07:08:36'),
 (9, 16, NULL, 1, 70, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Same barangay\"]', 'dismissed', NULL, '2026-05-24 15:08:43', '2026-05-24 07:07:49', '2026-05-24 07:08:43'),
-(10, 18, NULL, 1, 70, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Same barangay\"]', 'dismissed', NULL, '2026-05-24 17:13:21', '2026-05-24 07:23:10', '2026-05-24 09:13:21'),
-(11, 19, NULL, 1, 70, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Same barangay\"]', 'dismissed', NULL, '2026-05-25 14:34:33', '2026-05-24 08:54:11', '2026-05-25 06:34:33'),
-(12, 20, NULL, 1, 62, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Same barangay\"]', 'dismissed', NULL, '2026-05-25 14:34:46', '2026-05-25 03:22:22', '2026-05-25 06:34:46'),
 (13, 20, 21, NULL, 65, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Within 1 km\"]', 'dismissed', NULL, '2026-05-25 14:34:35', '2026-05-25 03:29:11', '2026-05-25 06:34:35'),
 (14, 18, 22, NULL, 57, '[\"Same species\",\"Same sex\",\"Same size\",\"Similar color or markings\",\"Within 1 km\"]', 'dismissed', NULL, '2026-05-25 14:34:41', '2026-05-25 03:30:38', '2026-05-25 06:34:41'),
 (15, 20, 22, NULL, 45, '[\"Same species\",\"Same sex\",\"Within 1 km\"]', 'dismissed', NULL, '2026-05-25 14:34:48', '2026-05-25 03:30:38', '2026-05-25 06:34:48'),
 (16, 20, 23, NULL, 80, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Similar color or markings\",\"Same barangay\"]', 'dismissed', NULL, '2026-05-25 14:34:32', '2026-05-25 03:40:31', '2026-05-25 06:34:32'),
 (17, 24, 21, NULL, 64, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Within 1 km\"]', 'dismissed', NULL, '2026-05-25 14:34:36', '2026-05-25 03:40:57', '2026-05-25 06:34:36'),
-(18, 24, NULL, 1, 62, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Same barangay\"]', 'dismissed', NULL, '2026-05-25 14:34:39', '2026-05-25 03:40:57', '2026-05-25 06:34:39'),
 (19, 20, 25, NULL, 50, '[\"Same sex\",\"Same size\",\"Similar color or markings\",\"Same barangay\"]', 'suggested', NULL, NULL, '2026-05-25 03:49:51', '2026-05-25 03:50:05'),
 (20, 26, 22, NULL, 56, '[\"Same species\",\"Same sex\",\"Same size\",\"Within 1 km\"]', 'dismissed', NULL, '2026-05-25 14:34:45', '2026-05-25 06:33:04', '2026-05-25 06:34:45'),
 (21, 27, 25, NULL, 62, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Similar color or markings\",\"Same barangay\"]', 'dismissed', NULL, '2026-05-25 14:36:17', '2026-05-25 06:33:47', '2026-05-25 06:36:17'),
 (22, 28, 25, NULL, 72, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Similar color or markings\",\"Same barangay\"]', 'suggested', NULL, NULL, '2026-05-25 06:36:53', '2026-05-25 06:36:58'),
 (23, 28, 29, NULL, 84, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Similar color or markings\",\"Same barangay\"]', 'suggested', NULL, NULL, '2026-05-25 06:39:26', '2026-05-25 06:39:33'),
-(24, 18, NULL, 2, 65, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Similar color or markings\"]', 'suggested', NULL, NULL, '2026-05-25 06:45:00', '2026-05-25 07:31:44'),
-(25, 20, NULL, 2, 48, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\"]', 'suggested', NULL, NULL, '2026-05-25 06:45:00', '2026-05-25 07:31:44'),
 (26, 28, NULL, 2, 53, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Similar color or markings\"]', 'suggested', NULL, NULL, '2026-05-25 06:45:00', '2026-05-25 07:31:44'),
-(27, 18, NULL, 3, 65, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Within 1 km\"]', 'suggested', NULL, NULL, '2026-05-25 07:30:44', '2026-05-25 07:30:44'),
-(28, 20, NULL, 3, 66, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Within 1 km\"]', 'suggested', NULL, NULL, '2026-05-25 07:30:44', '2026-05-25 07:30:44'),
 (29, 28, NULL, 3, 66, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Within 1 km\"]', 'suggested', NULL, NULL, '2026-05-25 07:30:44', '2026-05-25 07:30:44'),
-(30, 18, NULL, 4, 80, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Similar color or markings\",\"Same barangay\"]', 'suggested', NULL, NULL, '2026-05-25 07:31:44', '2026-05-25 07:31:44'),
-(31, 20, NULL, 4, 62, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Same barangay\"]', 'suggested', NULL, NULL, '2026-05-25 07:31:44', '2026-05-25 07:31:44'),
 (32, 28, NULL, 4, 67, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Similar color or markings\",\"Same barangay\"]', 'suggested', NULL, NULL, '2026-05-25 07:31:44', '2026-05-25 07:31:44'),
-(33, 30, 22, NULL, 56, '[\"Same species\",\"Same sex\",\"Same size\",\"Within 1 km\"]', 'suggested', NULL, NULL, '2026-05-25 07:36:48', '2026-05-25 07:36:48'),
-(34, 30, NULL, 2, 53, '[\"Same species\",\"Similar breed\",\"Same sex\",\"Same size\",\"Similar color or markings\"]', 'suggested', NULL, NULL, '2026-05-25 07:36:48', '2026-05-25 07:36:48');
+(33, 30, 22, NULL, 56, '[\"Same species\",\"Same sex\",\"Same size\",\"Within 1 km\"]', 'suggested', NULL, NULL, '2026-05-25 07:36:48', '2026-05-25 07:36:48');
 
 -- --------------------------------------------------------
 
