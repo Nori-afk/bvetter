@@ -40,7 +40,8 @@
         'chatbot',
         'mass-vacc',
         'acc-management',
-        'web-settings'
+        'web-settings',
+        'support-tickets'
     ]);
 
     /* ── Bootstrap ──────────────────────────────────────────── */

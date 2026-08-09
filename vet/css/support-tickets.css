@@ -107,6 +107,12 @@ html, body {
 
 .btn-submit-ticket:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.st-field-hint {
+    font-size: 12px;
+    color: var(--st-muted);
+    margin-top: 2px;
+}
+
 .table-wrap { overflow-x: auto; }
 
 table { width: 100%; border-collapse: collapse; }
@@ -147,6 +153,23 @@ td {
 .st-detail-notes { font-size: 13px; color: var(--st-muted); }
 
 .st-admin-controls { display: grid; gap: 6px; max-width: 480px; }
+
+.st-admin-actions { display: flex; gap: 10px; margin-top: 4px; }
+.st-admin-actions .btn { margin-top: 0; }
+
+.btn-delete-ticket {
+    background: #fdecea;
+    color: #b3202c;
+}
+
+.btn-delete-ticket:hover { background: #fbdbd8; }
+
+.st-attachment-preview {
+    max-width: 320px;
+    max-height: 220px;
+    border-radius: 10px;
+    display: block;
+}
 
 .st-empty {
     text-align: center;

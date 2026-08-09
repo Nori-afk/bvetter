@@ -13,6 +13,7 @@ if ($method !== 'POST') {
 }
 
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../config/notifications.php';
 
 function respond($statusCode, $payload)
 {
@@ -83,6 +84,72 @@ function ensureTicketSchema($pdo)
             INDEX idx_tickets_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     ");
+
+    // Installs that already had this table from before attachments existed
+    // won't get the new columns from CREATE TABLE IF NOT EXISTS above.
+    $hasAttachment = $pdo->query("SHOW COLUMNS FROM support_tickets LIKE 'attachment_path'")->fetch();
+    if (!$hasAttachment) {
+        $pdo->exec("
+            ALTER TABLE support_tickets
+                ADD COLUMN attachment_path VARCHAR(255) NULL AFTER description,
+                ADD COLUMN attachment_type ENUM('image','video') NULL AFTER attachment_path
+        ");
+    }
+}
+
+/**
+ * Screenshot or short screen-recording attached to a bug report — proof of
+ * what went wrong, alongside the free-text description. Optional: returns
+ * [null, null] when the reporter didn't attach anything.
+ */
+function saveTicketAttachment()
+{
+    $field = 'attachment';
+    if (!isset($_FILES[$field]) || $_FILES[$field]['error'] === UPLOAD_ERR_NO_FILE) {
+        return [null, null];
+    }
+    if ($_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
+        respond(422, ['success' => false, 'message' => 'Attachment upload failed. Please try again.']);
+    }
+
+    $file = $_FILES[$field];
+    $allowedImages = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+    $allowedVideos = ['video/mp4' => 'mp4', 'video/webm' => 'webm', 'video/quicktime' => 'mov'];
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime = $finfo->file($file['tmp_name']);
+
+    $kind = null;
+    $ext = null;
+    if (isset($allowedImages[$mime])) {
+        $kind = 'image';
+        $ext = $allowedImages[$mime];
+        $maxSize = 8 * 1024 * 1024;
+    } elseif (isset($allowedVideos[$mime])) {
+        $kind = 'video';
+        $ext = $allowedVideos[$mime];
+        $maxSize = 30 * 1024 * 1024;
+    } else {
+        respond(422, ['success' => false, 'message' => 'Attachments must be a JPG/PNG/WEBP screenshot or an MP4/WEBM/MOV video.']);
+    }
+
+    if ($file['size'] > $maxSize) {
+        respond(422, ['success' => false, 'message' => $kind === 'video' ? 'Video attachments must not exceed 30MB.' : 'Image attachments must not exceed 8MB.']);
+    }
+
+    $directory = dirname(dirname(__DIR__)) . '/storage/tickets';
+    if (!is_dir($directory) && !mkdir($directory, 0775, true)) {
+        respond(500, ['success' => false, 'message' => 'Could not create upload directory.']);
+    }
+
+    $name = 'ticket_' . time() . '_' . bin2hex(random_bytes(6)) . '.' . $ext;
+    $absolute = $directory . '/' . $name;
+
+    if (!move_uploaded_file($file['tmp_name'], $absolute)) {
+        respond(500, ['success' => false, 'message' => 'Could not save the attachment.']);
+    }
+
+    return ['/storage/tickets/' . $name, $kind];
 }
 
 function mapTicket($row)
@@ -96,6 +163,8 @@ function mapTicket($row)
         'reporterEmail' => $row['reporter_email'],
         'subject' => $row['subject'],
         'description' => $row['description'],
+        'attachmentUrl' => $row['attachment_path'],
+        'attachmentType' => $row['attachment_type'],
         'status' => $row['status'],
         'adminNotes' => $row['admin_notes'],
         'resolvedAt' => $row['resolved_at'],
@@ -112,24 +181,41 @@ function createTicket($pdo, $data)
         respond(422, ['success' => false, 'message' => 'Subject and description are required.']);
     }
 
+    [$attachmentPath, $attachmentType] = saveTicketAttachment();
+    $reporterName = nullableClean($data['reporter_name'] ?? '');
+    $reporterRole = normalizeRole($data['reporter_role'] ?? '');
+
     $stmt = $pdo->prepare("
         INSERT INTO support_tickets
-            (ticket_number, reporter_id, reporter_role, reporter_name, reporter_email, subject, description, status)
+            (ticket_number, reporter_id, reporter_role, reporter_name, reporter_email, subject, description, attachment_path, attachment_type, status)
         VALUES
-            (:ticket_number, :reporter_id, :reporter_role, :reporter_name, :reporter_email, :subject, :description, 'open')
+            (:ticket_number, :reporter_id, :reporter_role, :reporter_name, :reporter_email, :subject, :description, :attachment_path, :attachment_type, 'open')
     ");
     $stmt->execute([
         ':ticket_number' => generateTicketNumber(),
         ':reporter_id' => (int) ($data['reporter_id'] ?? 0) ?: null,
-        ':reporter_role' => normalizeRole($data['reporter_role'] ?? ''),
-        ':reporter_name' => nullableClean($data['reporter_name'] ?? ''),
+        ':reporter_role' => $reporterRole,
+        ':reporter_name' => $reporterName,
         ':reporter_email' => nullableClean($data['reporter_email'] ?? ''),
         ':subject' => $subject,
         ':description' => $description,
+        ':attachment_path' => $attachmentPath,
+        ':attachment_type' => $attachmentType,
     ]);
 
     $id = (int) $pdo->lastInsertId();
     $row = $pdo->query("SELECT * FROM support_tickets WHERE id = $id")->fetch();
+
+    notifyStaff(
+        $pdo,
+        'both',
+        'new_ticket',
+        'New Support Ticket',
+        ($reporterName ?: 'Someone') . " ({$reporterRole}) submitted a new ticket: \"{$subject}\"",
+        $id,
+        true
+    );
+
     respond(201, ['success' => true, 'data' => mapTicket($row)]);
 }
 
@@ -180,6 +266,12 @@ function updateTicketStatus($pdo, $data)
 
     $resolvedByUserId = (int) ($data['resolved_by_user_id'] ?? 0) ?: null;
 
+    $existing = $pdo->query("SELECT * FROM support_tickets WHERE id = $id")->fetch();
+    if (!$existing) {
+        respond(404, ['success' => false, 'message' => 'Ticket not found.']);
+    }
+    $previousStatus = $existing['status'];
+
     $stmt = $pdo->prepare("
         UPDATE support_tickets
         SET status = :status,
@@ -198,10 +290,68 @@ function updateTicketStatus($pdo, $data)
     ]);
 
     $row = $pdo->query("SELECT * FROM support_tickets WHERE id = $id")->fetch();
+
+    // Only fire the moment a ticket actually becomes resolved — not on every
+    // "Save Changes" click while it's already sitting in that status (e.g.
+    // an admin note edit shouldn't re-notify the reporter).
+    if ($status === 'resolved' && $previousStatus !== 'resolved') {
+        notifyTicketReporter($pdo, $row, 'resolved');
+    }
+
+    respond(200, ['success' => true, 'data' => mapTicket($row)]);
+}
+
+function deleteTicket($pdo, $data)
+{
+    $id = (int) ($data['ticket_id'] ?? $data['id'] ?? 0);
+    if ($id <= 0) {
+        respond(422, ['success' => false, 'message' => 'A ticket_id is required.']);
+    }
+
+    $row = $pdo->query("SELECT * FROM support_tickets WHERE id = $id")->fetch();
     if (!$row) {
         respond(404, ['success' => false, 'message' => 'Ticket not found.']);
     }
-    respond(200, ['success' => true, 'data' => mapTicket($row)]);
+
+    notifyTicketReporter($pdo, $row, 'deleted');
+
+    $pdo->prepare('DELETE FROM support_tickets WHERE id = :id')->execute([':id' => $id]);
+
+    respond(200, ['success' => true, 'message' => 'Ticket deleted.']);
+}
+
+/**
+ * Emails the person who filed the ticket when staff resolve or delete it —
+ * a direct reply to something they actively submitted and are waiting on,
+ * so (like password-reset/security mail) it isn't gated behind the
+ * lost_found/appointment/chatbot notification-preference toggles.
+ */
+function notifyTicketReporter($pdo, $ticket, $event)
+{
+    $email = nullableClean($ticket['reporter_email'] ?? '');
+    if (!$email) return;
+
+    $name = $ticket['reporter_name'] ?: 'there';
+    $subject = $ticket['subject'];
+
+    if ($event === 'resolved') {
+        $emailSubject = 'BVetter – Your ticket has been resolved';
+        $notesHtml = nullableClean($ticket['admin_notes'] ?? '')
+            ? '<p><strong>Notes from our team:</strong><br>' . nl2br(htmlspecialchars($ticket['admin_notes'], ENT_QUOTES)) . '</p>'
+            : '';
+        $bodyHtml = "<p>Hi <strong>" . htmlspecialchars($name, ENT_QUOTES) . "</strong>,</p>
+            <p>Your ticket <strong>{$ticket['ticket_number']}</strong> — \"" . htmlspecialchars($subject, ENT_QUOTES) . "\" — has been marked as <strong>resolved</strong>.</p>
+            {$notesHtml}";
+        $heading = 'Ticket Resolved';
+    } else {
+        $emailSubject = 'BVetter – Your ticket has been closed';
+        $bodyHtml = "<p>Hi <strong>" . htmlspecialchars($name, ENT_QUOTES) . "</strong>,</p>
+            <p>Your ticket <strong>{$ticket['ticket_number']}</strong> — \"" . htmlspecialchars($subject, ENT_QUOTES) . "\" — has been closed by our team.</p>";
+        $heading = 'Ticket Closed';
+    }
+
+    $body = notificationEmailWrapper($heading, $bodyHtml);
+    sendAppMail($email, $name, $emailSubject, $body);
 }
 
 try {
@@ -211,8 +361,8 @@ try {
     $data = inputData();
     $action = clean($data['action'] ?? 'list');
 
-    // Changing ticket status is a staff action; users create and list their own.
-    if ($action === 'update_status') {
+    // Changing/deleting a ticket is a staff action; users create and list their own.
+    if (in_array($action, ['update_status', 'delete_ticket'], true)) {
         require_once __DIR__ . '/../config/auth_guard.php';
         requireRole($pdo, ['veterinarian', 'admin']);
     }
@@ -223,6 +373,9 @@ try {
             break;
         case 'update_status':
             updateTicketStatus($pdo, $data);
+            break;
+        case 'delete_ticket':
+            deleteTicket($pdo, $data);
             break;
         case 'list':
         default:

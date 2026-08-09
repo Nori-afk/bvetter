@@ -74,6 +74,12 @@ body {
 
 .btn-submit-ticket:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.mt-field-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
 .table-wrap { overflow-x: auto; }
 
 .mt-table-card table { width: 100%; border-collapse: collapse; }
@@ -104,6 +110,21 @@ body {
 .mt-badge-open { background: var(--color-red-pale); color: var(--color-red); }
 .mt-badge-in_progress { background: var(--color-yellow-light); color: var(--color-yellow); }
 .mt-badge-resolved { background: var(--color-green-pale); color: var(--color-green-dark); }
+
+.mt-row { cursor: pointer; }
+.mt-row:hover { background: var(--bg-page); }
+
+.mt-detail-row td { background: var(--bg-page); }
+.mt-detail { display: grid; gap: 10px; padding: 4px 8px; }
+.mt-detail-desc { white-space: pre-wrap; font-size: 14px; }
+.mt-detail-notes { font-size: 13px; color: var(--text-muted); }
+
+.mt-attachment-preview {
+  max-width: 280px;
+  max-height: 200px;
+  border-radius: var(--radius-md);
+  display: block;
+}
 
 .mt-empty {
   text-align: center;

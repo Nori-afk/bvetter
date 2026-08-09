@@ -704,11 +704,21 @@ forgotPassword: (email) => {
      SUPPORT TICKETS
      ══════════════════════════════════════════ */
 
-  submitTicket: (data) =>
-    fetch(`${API_BASE_REG}/tickets/tickets.php`, {
+  /**
+   * @param {Object} data — subject, description, reporter_* fields, plus an
+   *   optional `attachment` File (screenshot or short screen recording).
+   */
+  submitTicket: (data) => {
+    const formData = new FormData();
+    formData.append('action', 'create');
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') formData.append(key, value);
+    });
+    return fetch(`${API_BASE_REG}/tickets/tickets.php`, {
       method: 'POST',
-      body: JSON.stringify({ ...data, action: 'create' })
-    }).then(r => r.json()),
+      body: formData
+    }).then(r => r.json());
+  },
 
   getMyTickets: (ownerId) => {
     const formData = new FormData();

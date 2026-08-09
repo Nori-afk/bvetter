@@ -32,6 +32,13 @@ function formatDate(value) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function attachmentHtml(ticket) {
+    if (!ticket.attachmentUrl) return '';
+    return ticket.attachmentType === 'video'
+        ? `<video src="${escapeHtml(ticket.attachmentUrl)}" class="st-attachment-preview" controls></video>`
+        : `<a href="${escapeHtml(ticket.attachmentUrl)}" target="_blank" rel="noopener"><img src="${escapeHtml(ticket.attachmentUrl)}" alt="Attachment" class="st-attachment-preview"/></a>`;
+}
+
 async function apiCall(payload) {
     const formData = new FormData();
     Object.entries(payload).forEach(([key, value]) => formData.append(key, value));
@@ -100,7 +107,10 @@ function buildDetailRow(ticket) {
             </select>
             <label class="field-label" for="st-edit-notes-${ticket.id}">Admin Notes</label>
             <textarea id="st-edit-notes-${ticket.id}" rows="2">${escapeHtml(ticket.adminNotes || '')}</textarea>
-            <button type="button" class="btn btn-save-ticket" data-id="${ticket.id}">Save Changes</button>
+            <div class="st-admin-actions">
+                <button type="button" class="btn btn-save-ticket" data-id="${ticket.id}">Save Changes</button>
+                <button type="button" class="btn btn-delete-ticket" data-id="${ticket.id}">Delete Ticket</button>
+            </div>
         </div>
     ` : '';
 
@@ -108,6 +118,7 @@ function buildDetailRow(ticket) {
         <td colspan="${colspan}">
             <div class="st-detail">
                 <p class="st-detail-desc">${escapeHtml(ticket.description)}</p>
+                ${attachmentHtml(ticket)}
                 ${ticket.adminNotes && state.role !== 'admin' ? `<p class="st-detail-notes"><strong>Admin notes:</strong> ${escapeHtml(ticket.adminNotes)}</p>` : ''}
                 ${adminControls}
             </div>
@@ -133,6 +144,19 @@ function buildDetailRow(ticket) {
         await loadTickets();
     });
 
+    detailRow.querySelector('.btn-delete-ticket')?.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        const id = Number(event.target.dataset.id);
+        if (!confirm('Delete this ticket? The reporter will be notified. This cannot be undone.')) return;
+        const result = await apiCall({ action: 'delete_ticket', ticket_id: id });
+        if (!result.success) {
+            alert(result.message || 'Failed to delete ticket.');
+            return;
+        }
+        state.expandedId = null;
+        await loadTickets();
+    });
+
     detailRow.addEventListener('click', (event) => event.stopPropagation());
     return detailRow;
 }
@@ -153,7 +177,8 @@ async function submitTicket(event) {
     submitBtn.textContent = 'Submitting...';
 
     const session = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-    const result = await apiCall({
+    const attachment = document.getElementById('st-attachment')?.files?.[0] || null;
+    const payload = {
         action: 'create',
         reporter_id: state.userId,
         reporter_role: state.role,
@@ -161,7 +186,9 @@ async function submitTicket(event) {
         reporter_email: session?.email || '',
         subject,
         description,
-    });
+    };
+    if (attachment) payload.attachment = attachment;
+    const result = await apiCall(payload);
 
     submitBtn.disabled = false;
     submitBtn.textContent = 'Submit Ticket';

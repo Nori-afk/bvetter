@@ -53,7 +53,7 @@
                     <span class="nav-label">Mass Vaccination</span>
                 </a>
                 <a href="/vet/html/support-tickets.html" class="nav-item active" title="Support Tickets">
-                    <img src="/shared/images/sidebar/report.svg" class="nav-icon" alt="Support Tickets">
+                    <img src="/shared/images/sidebar/support-tickets.svg" class="nav-icon" alt="Support Tickets">
                     <span class="nav-label">Support Tickets</span>
                 </a>
                 <!-- ADMIN-ONLY section: sidebar.js hides these for vet role -->
@@ -86,6 +86,10 @@
 
                     <label class="field-label" for="st-description">Description</label>
                     <textarea id="st-description" name="description" rows="4" required placeholder="What happened? What did you expect instead?"></textarea>
+
+                    <label class="field-label" for="st-attachment">Screenshot or Video (optional)</label>
+                    <input type="file" id="st-attachment" name="attachment" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime">
+                    <span class="st-field-hint">Images up to 8MB, videos up to 30MB.</span>
 
                     <button type="submit" class="btn btn-submit-ticket" id="st-submit-btn">Submit Ticket</button>
                 </form>
