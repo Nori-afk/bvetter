@@ -7,7 +7,19 @@
  * active-sessions table and lets an admin actually end a session — enforced
  * by shared/js/auth.js polling api/auth/session.php?action=check on every
  * protected page.
+ *
+ * Idle sessions are auto-ended the same way (see SESSION_IDLE_TIMEOUT_MINUTES
+ * below): expiry is checked lazily, on the next findSessionByToken() lookup
+ * for that token, rather than by a background job — consistent with the
+ * request-driven style of the rest of this codebase. Because that check runs
+ * on every authenticated request, it's enforced everywhere a token is
+ * validated (requireRole() guards, session.php actions), not just on the
+ * poll.
  */
+
+/** Minutes of inactivity (no authenticated request touching last_seen_at)
+ *  before a session is treated as expired and revoked. */
+const SESSION_IDLE_TIMEOUT_MINUTES = 30;
 
 function ensureSessionSchema(PDO $pdo): void
 {
@@ -153,6 +165,12 @@ function recordLoginSession(PDO $pdo, int $userId, string $token): void
  * Looks up a session by raw bearer token. Returns null for tokens that were
  * never issued; callers must separately check `revoked_at` — a revoked row
  * is still returned so the caller can tell "unknown" apart from "ended".
+ *
+ * A session idle past SESSION_IDLE_TIMEOUT_MINUTES (judged from last_seen_at,
+ * which every "check" poll and this function's own callers keep fresh while
+ * the session is actively used) is revoked here, lazily, before being
+ * returned — so it comes back indistinguishable from an explicitly-ended
+ * session to every existing caller.
  */
 function findSessionByToken(PDO $pdo, string $token): ?array
 {
@@ -168,6 +186,15 @@ function findSessionByToken(PDO $pdo, string $token): ?array
     ');
     $stmt->execute([':token_hash' => hash('sha256', $token)]);
     $row = $stmt->fetch();
+
+    if ($row && $row['revoked_at'] === null) {
+        $idleCutoff = strtotime($row['last_seen_at']) + SESSION_IDLE_TIMEOUT_MINUTES * 60;
+        if (time() > $idleCutoff) {
+            $pdo->prepare('UPDATE user_sessions SET revoked_at = NOW() WHERE id = :id')
+                ->execute([':id' => $row['id']]);
+            $row['revoked_at'] = date('Y-m-d H:i:s');
+        }
+    }
 
     return $row ?: null;
 }

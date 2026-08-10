@@ -16,6 +16,13 @@ composer-setup.php
 **/__pycache__/
 *.pyc
 *.pyo
+.pytest_cache/
+
+# PHPUnit cache
+.phpunit.result.cache
+
+# Database backups (contain real data — see database/backup.php)
+database/backups/
 
 # mPDF temp cache
 tmp/

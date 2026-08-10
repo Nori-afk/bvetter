@@ -67,8 +67,37 @@ My answer: "For example in appointment.js i set or call a fetch appointment.php.
         so may 3 block dito, if ung authentication ay okay na, if ung authnetication ay na expired and laslty if ung user ba ay may permissions
         
 ## Day 3 — Lost & Found (deep-dive CRUD flow)
-_(pending)_
+ in php or in SQL the : is used to bind varibale. Meaning it can be reused many times which help for security 
+ while the ?? is used to set the default of value of something if true to that value for example value_1 ??: default value if the value is not the value_1 it will go with default value. 
+    while the?: have simmilar functionality.
+        $value ?: "Default";
+            if the value is truth not null or empty, it will go to value otherwise it will go to default value
+ this line in the php appointment notifcation
+        $recipientEmail = $row['contact_email'] ?: $row['owner_email'];
+    so we get the value of the form by getting or using the fetch and stored it in var row, so the line above say if there not contanct email, we will notfity the owner email. Because in the appointment we asked the user to input a email so that they can be notify in their appointment. This is deffirent between the owner email, Owner email is the one the pet owner used. 
 
+    the appointment notifcation basically, the backend for sending notifcation to user when they booked, this notifcation is sent thru email and the website app. 
+
+    $_Server = is a command to get the header of the file, or webrowser 
+    why does the creation of account is alsoo in appointment?
+
+    new  finding, we can store pala ung where statement in a list
+    .implode is like join, which pinag sa-sama natin ung mga elements sa array
+
+    jaccard similarity -> in lost and found the function of this is to compare the color, marking in each report of found and lost. tas titingan niya if may similar word ba sa both word for example sa found report merong kulay pink, tas sa lost naman may sentence na mendyo pink, tas kulay white collar. Kapag mas marami ung similar word mas maraming score, mas mababa less similar or same character.
+
+    color blob -> ito naman ung two method  rgbSimilarity() + average_rgb(). Ang gingawa lang nito is sa isang picture, parang pinag sasasama niya ung average color. For example sa picture na ang focus ay ung pet na color brown. icocompress niya yon then parang kukunin ung average. after makuha ung average doon parang sasabihin na ang color or the average color of this color are red,blue or what. So ginagamit to to report and found report, kasi may mga picture so ni cocompare ung average color per picture again if mas mataas ung confidence level ibigisanhin parang same color sila. 
+
+    checkerboard -> shrink the image 12x12 grid, na parang chessboard or checkboard, tas each box or square parang ung system mag add if light ba or dark, if anong color ung box nayon and such. so gingamit nga rin to kasi may two images tayo, this two images is nahahti sa 12x12 grid tas parang each photo is may mga square na ang iidnefity na kung ano type to or what. And then sassabihin ng system if match ba sila or not, In another word parang isnabi if may similar ba ung mga box. For example sa isang box kulay brown, tas sa isang naman medyo light brown, may similar pero may nag iba. ito ung hamming similarity. ->  this is brightness_hash() in image_matcher.py, and hammingSimilarity()
+
+
+    creating report - the backend first verifity if the user is exisiting based on this line "if ($ownerId <= 0) " 
+        after that the we have a method or function taht is for normalize, cleaning, and check if wheter the field have a value. 
+        after confirming the validation like character limit and such we insert it in database.
+        after sending to the database, the notifciation will be proceed
+    the limit of picture or file is 8mb with the system allowing 4 types of file jpeg, png, webp, and pdf.And also uses a method called finfo which check the file bytes and detect real mime type because sometime, or for example when user rename the file virus.exe, to image.png, without checking the byte of file, the system will bypass this. Which can mean lack of security.
+    also the image stored or upload by petowner or users, are renamed by timestamp +12 random hex character, because sometime or some scneario where differnt user upload the same file, after they upload this same file. It can cause error in the database and the server,
+    after this, the system store this picture temporarly and after it point to move_uploaded_file($file['tmp_name'], $absolute) it will be move out to the real storage
 ## Day 4 — ARIMA Prediction Pipeline
 _(pending)_
 

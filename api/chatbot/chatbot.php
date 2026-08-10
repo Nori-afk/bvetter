@@ -3,6 +3,7 @@
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/normalize.php';
 
 function respond($statusCode, $payload)
 {
@@ -18,57 +19,6 @@ function inputData()
         return array_merge($_POST, $json);
     }
     return $_POST;
-}
-
-function clean($value)
-{
-    return trim((string) $value);
-}
-
-function normalizeStatus($value)
-{
-    return strtolower(clean($value)) === 'inactive' ? 'inactive' : 'active';
-}
-
-function normalizeDuration($value)
-{
-    $value = strtolower(clean($value));
-    if ($value === '<24h' || strpos($value, 'less') !== false) return 'Less Than 24 Hours';
-    if (strpos($value, 'more') !== false || strpos($value, '>3') !== false) return 'More than 3 days';
-    return '1-3 Days';
-}
-
-function normalizePetType($value)
-{
-    $value = strtolower(clean($value));
-    if (strpos($value, 'cat') === 0) return 'Cat';
-    if (strpos($value, 'dog') === 0) return 'Dog';
-    return 'Other';
-}
-
-function normalizeSeverity($value)
-{
-    $value = strtolower(clean($value));
-    if (strpos($value, 'not moving') !== false || strpos($value, 'critical') !== false || strpos($value, 'emergency') !== false) return 'Critical';
-    if (strpos($value, 'weak') !== false || strpos($value, 'moderate') !== false) return 'Moderate';
-    return 'Active';
-}
-
-function decodeSymptoms($value)
-{
-    if (is_array($value)) {
-        return array_values(array_filter(array_map('clean', $value)));
-    }
-
-    $value = clean($value);
-    if ($value === '') return [];
-
-    $decoded = json_decode($value, true);
-    if (is_array($decoded)) {
-        return array_values(array_filter(array_map('clean', $decoded)));
-    }
-
-    return array_values(array_filter(array_map('clean', explode(',', $value))));
 }
 
 function setupChatbotTables($pdo)

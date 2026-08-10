@@ -18,6 +18,7 @@ require_once __DIR__ . '/../config/veterinarian_profile.php';
 require_once __DIR__ . '/../includes/patient_tables.php';
 require_once __DIR__ . '/appointment_notifications.php';
 
+#for reusuedability para di na mag type ng type ng response jusko
 function respond($statusCode, $payload)
 {
     http_response_code($statusCode);
@@ -43,6 +44,7 @@ function normalizeSex($value)
 {
     $value = strtolower(clean($value));
     return $value === 'female' ? 'female' : 'male';
+    #if ung value ba is female ang value nia ay female howehver magiging male.
 }
 
 function normalizeStatus($status)
@@ -50,6 +52,8 @@ function normalizeStatus($status)
     $status = strtolower(clean($status));
     $allowed = ['pending', 'confirmed', 'completed', 'cancelled', 'rejected'];
     return in_array($status, $allowed, true) ? $status : 'pending';
+    #ung is_array parang nichchceck niya if ung status natin ay nasa allowed and if gusto ba natin strict search or not (we can 
+    #modifty this by changing the boolean, tas if andon ang status ang ireturn ay ung status if wala naman ung pending )
 }
 
 function getRoleId($pdo, $roleName)
