@@ -8,8 +8,8 @@
     --navy-light: #EFF6FF;
     --green:      #047857;
     --green-bg:   #ECFDF5;
-    --amber:      #B45309;
-    --amber-bg:   #FFFBEB;
+    --amber:      #9D174D;
+    --amber-bg:   #FCE7F3;
     --blue:       #2563EB;
     --blue-bg:    #EFF6FF;
     --admin:      #FF6B35;
@@ -247,7 +247,7 @@ body {
 .kpi-icon--navy  { background: rgba(0,42,88,0.08);   color: #002A58; }
 .kpi-icon--green { background: rgba(4,120,87,0.09);  color: #047857; }
 .kpi-icon--blue  { background: rgba(37,99,235,0.09); color: #2563EB; }
-.kpi-icon--amber { background: rgba(180,83,9,0.09);  color: #B45309; }
+.kpi-icon--amber { background: rgba(157,23,77,0.09);  color: #9D174D; }
 
 .kpi-body { min-width: 0; }
 
@@ -821,7 +821,7 @@ body {
 }
 
 .signin-status--ok      { background: #DCFCE7; color: #16A34A; }
-.signin-status--warning { background: #FEF3C7; color: #D97706; }
+.signin-status--warning { background: #CCFBF1; color: #0F766E; }
 
 /* ── Notification badge (Recommended label) ── */
 .notif-badge-required {

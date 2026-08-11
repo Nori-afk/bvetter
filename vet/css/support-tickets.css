@@ -144,7 +144,7 @@ td {
 }
 
 .st-badge-open { background: #fdecea; color: #b3202c; }
-.st-badge-in_progress { background: #fff4de; color: #a3670c; }
+.st-badge-in_progress { background: #eff6ff; color: #2563eb; }
 .st-badge-resolved { background: #e6f7ea; color: #1B6D24; }
 
 .st-detail-row td { background: #fafbfd; }

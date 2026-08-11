@@ -182,7 +182,7 @@ body {
 
 .summary-card:nth-child(1) { border-left-color: #002A58; }
 .summary-card:nth-child(2) { border-left-color: #3B82F6; }
-.summary-card:nth-child(3) { border-left-color: #F59E0B; }
+.summary-card:nth-child(3) { border-left-color: #0F766E; }
 
 .summary-head {
     display: flex;
@@ -215,7 +215,7 @@ body {
 
 .summary-card:nth-child(1) .metric-icon { background: rgba(0,42,88,0.08); color: #002A58; }
 .summary-card:nth-child(2) .metric-icon { background: rgba(59,130,246,0.10); color: #3B82F6; }
-.summary-card:nth-child(3) .metric-icon { background: rgba(245,158,11,0.10); color: #D97706; }
+.summary-card:nth-child(3) .metric-icon { background: rgba(15,118,110,0.10); color: #0F766E; }
 
 .summary-card strong {
     display: block;

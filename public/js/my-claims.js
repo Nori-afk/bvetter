@@ -133,7 +133,7 @@ function buildDetailPanel(claim) {
     ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0f7a3d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
     : rejected
       ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b42318" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>'
-      : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7a5c00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>';
+      : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>';
   const petName = claim.pet_name || 'Found Pet Report';
   const reviewNote = rejected
     ? (claim.review_notes || 'The vet management team was unable to verify this claim.')

@@ -511,7 +511,7 @@
   padding: 12px 14px;
 }
 .chat-risk-header.low      { background: #F0FDF4; border-bottom: 1px solid #BBF7D0; }
-.chat-risk-header.moderate { background: #FFFBEB; border-bottom: 1px solid #FDE68A; }
+.chat-risk-header.moderate { background: #CCFBF1; border-bottom: 1px solid #5EEAD4; }
 .chat-risk-header.high     { background: #FEF2F2; border-bottom: 1px solid #FECACA; }
 
 .chat-risk-indicator {
@@ -524,7 +524,7 @@
   flex-shrink: 0;
 }
 .chat-risk-indicator.low      { background: #DCFCE7; }
-.chat-risk-indicator.moderate { background: #FEF3C7; }
+.chat-risk-indicator.moderate { background: #CCFBF1; }
 .chat-risk-indicator.high     { background: #FEE2E2; }
 .chat-risk-indicator svg { width: 18px; height: 18px; display: block; }
 
@@ -535,7 +535,7 @@
   line-height: 1.25;
 }
 .chat-risk-header.low      .chat-risk-level { color: #15803D; }
-.chat-risk-header.moderate .chat-risk-level { color: #92400E; }
+.chat-risk-header.moderate .chat-risk-level { color: #0F766E; }
 .chat-risk-header.high     .chat-risk-level { color: #B91C1C; }
 
 .chat-risk-sublabel {

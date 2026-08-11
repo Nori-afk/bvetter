@@ -843,7 +843,7 @@ function generate_trend_svg(array $rows, string $category): string
 
 function generate_donut_svg(array $rows, string $category): string
 {
-    $colors = ['#2f9df0','#0f2a6d','#1728d9','#22c55e','#f59e0b','#ef4444','#8b5cf6'];
+    $colors = ['#2f9df0','#0f2a6d','#1728d9','#22c55e','#0f766e','#ef4444','#8b5cf6'];
     $slices = [];
 
     if (in_array($category, ['consultation_summary','all_patient'])) {

@@ -193,7 +193,7 @@ body {
     box-shadow: 0 6px 20px rgba(0,42,88,0.10);
 }
 
-.pending-request   { border-left-color: #F59E0B; }
+.pending-request   { border-left-color: #14B8A6; }
 .confirmed-request { border-left-color: #059669; }
 
 .card-kicker {
@@ -374,7 +374,7 @@ body {
     margin:       1px 2px !important;
 }
 
-#calendar .fc-event-pending   { background: #D97706 !important; }
+#calendar .fc-event-pending   { background: #0F766E !important; }
 #calendar .fc-event-confirmed { background: #1B6D24 !important; }
 #calendar .fc-event-canceled  { background: #DC2626 !important; }
 
@@ -815,7 +815,7 @@ body {
 
 .appt-avatar-confirmed  { background: #d1fae5; color: #065f46; }
 .appt-avatar-completed  { background: #dbeafe; color: #1e40af; }
-.appt-avatar-pending    { background: #fef3c7; color: #92400e; }
+.appt-avatar-pending    { background: #ccfbf1; color: #0f766e; }
 .appt-avatar-cancelled,
 .appt-avatar-canceled   { background: #fee2e2; color: #991b1b; }
 .appt-avatar-danger     { background: #fee2e2; color: #991b1b; }
@@ -857,7 +857,7 @@ body {
 
 .appt-badge-confirmed { background: #d1fae5; color: #065f46; }
 .appt-badge-completed { background: #dbeafe; color: #1e40af; }
-.appt-badge-pending   { background: #fef3c7; color: #92400e; }
+.appt-badge-pending   { background: #ccfbf1; color: #0f766e; }
 .appt-badge-cancelled,
 .appt-badge-canceled  { background: #fee2e2; color: #991b1b; }
 

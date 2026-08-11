@@ -437,7 +437,7 @@ body {
 .am-role-vet-ii  { background: #E8EFFF; color: #2B4F9B; }
 .am-role-vet-iii { background: #E0E8FF; color: #1A3670; }
 .am-role-vet     { background: #EEF4FF; color: #2B6CB0; }
-.am-role-owner   { background: #FEFCE8; color: #92400E; }
+.am-role-owner   { background: #CCFBF1; color: #0F766E; }
 .am-role-admin   { background: #FFF0EB; color: #C4380E; }
 
 /* Status */
@@ -447,7 +447,7 @@ body {
 
 .am-status.active   .am-status-dot { background: var(--secondary-light-green); }
 .am-status.blocked  .am-status-dot { background: var(--accent-red); }
-.am-status.pending  .am-status-dot { background: #D97706; }
+.am-status.pending  .am-status-dot { background: #0F766E; }
 .am-status.inactive .am-status-dot { background: var(--text-tertiary); }
 
 /* Actions */

@@ -4,8 +4,8 @@
 
 /* ── Semantic color tokens (used by JS-generated HTML) ───────── */
 :root {
-    --color-background-warning:   #FFFBEB;
-    --color-text-warning:         #92400E;
+    --color-background-warning:   #CCFBF1;
+    --color-text-warning:         #0F766E;
     --color-background-info:      #EFF6FF;
     --color-text-info:            #1E40AF;
     --color-border-info:          #BFDBFE;
@@ -36,8 +36,8 @@
     --teal-bg:  #EFF6FF;
     --green:    #047857;
     --green-bg: #ECFDF5;
-    --amber:    #B45309;
-    --amber-bg: #FFFBEB;
+    --amber:    #0F766E;
+    --amber-bg: #CCFBF1;
     --red:      #B91C1C;
     --red-bg:   #FEF2F2;
 
@@ -374,11 +374,11 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 /* ── Prediction banner ───────────────────────────────────────── */
 .prediction-banner {
     padding: 20px 22px;
-    background: #FFFBEB;
+    background: #CCFBF1;
     border-radius: var(--r-md);
-    border: 1px solid #FDE68A;
-    border-left: 3px solid #D97706;
-    color: #78350F;
+    border: 1px solid #5EEAD4;
+    border-left: 3px solid #0F766E;
+    color: #134E4A;
     position: relative;
     overflow: hidden;
 }
@@ -389,7 +389,7 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     right: -20px; top: -20px;
     width: 88px; height: 88px;
     border-radius: 50%;
-    background: rgba(217,119,6,0.06);
+    background: rgba(15,118,110,0.06);
     pointer-events: none;
 }
 
@@ -405,7 +405,7 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.09em;
-    color: #B45309;
+    color: #0F766E;
 }
 
 .prediction img, .prediction svg { width: 15px; height: 15px; flex-shrink: 0; }
@@ -422,7 +422,7 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 
 .prediction-banner > span:last-child {
     font-size: 11.5px;
-    color: #92400E;
+    color: #0F766E;
     font-weight: 500;
 }
 
@@ -952,7 +952,7 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     background: var(--color-background-warning);
     color: var(--color-text-warning);
     border-radius: var(--r-sm);
-    border: 1px solid #FDE68A;
+    border: 1px solid #5EEAD4;
     margin: 10px 0;
 }
 
@@ -1337,7 +1337,7 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 }
 
 .ip-risk-chip.ip-risk-high   { background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; }
-.ip-risk-chip.ip-risk-medium { background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; }
+.ip-risk-chip.ip-risk-medium { background: #CCFBF1; color: #0F766E; border: 1px solid #5EEAD4; }
 .ip-risk-chip.ip-risk-low    { background: #F0FDF4; color: #166534; border: 1px solid #BBF7D0; }
 
 .ip-model-row {
