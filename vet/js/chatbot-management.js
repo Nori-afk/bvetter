@@ -695,7 +695,7 @@
 		event.preventDefault();
 		const values = consultationFormValues();
 		if (!values.petType || !values.symptoms.length || !values.duration || !values.condition || !values.severity || !values.recommendation) {
-			alert('Please complete all required fields.');
+			await vbAlert('Please complete all required fields.');
 			return;
 		}
 
@@ -714,7 +714,7 @@
 				openConsultationModal('saved-create', saved.id);
 			}
 		} catch (error) {
-			alert(error.message || 'Failed to save consultation rule.');
+			await vbAlert(error.message || 'Failed to save consultation rule.');
 			return;
 		}
 
@@ -873,7 +873,7 @@
 			const index = consultationRules.findIndex((item) => item.id === id);
 			if (index >= 0) consultationRules.splice(index, 1);
 		} catch (error) {
-			alert(error.message || 'Failed to delete consultation rule.');
+			await vbAlert(error.message || 'Failed to delete consultation rule.');
 			return;
 		}
 		state.consultationPage = 1;
@@ -1456,7 +1456,7 @@
 				inquiryRules.unshift(saved);
 			}
 		} catch (error) {
-			alert(error.message || 'Failed to save inquiry rule.');
+			await vbAlert(error.message || 'Failed to save inquiry rule.');
 			return;
 		}
 
@@ -1483,7 +1483,7 @@
 			const index = inquiryRules.findIndex((item) => item.id === targetId);
 			if (index >= 0) inquiryRules.splice(index, 1);
 		} catch (error) {
-			alert(error.message || 'Failed to delete inquiry rule.');
+			await vbAlert(error.message || 'Failed to delete inquiry rule.');
 			return;
 		}
 		state.inquiryPage = 1;
@@ -1520,7 +1520,7 @@
 					await deleteSymptomEntry(Number(id));
 					closeModal();
 				} catch (error) {
-					alert(error.message || 'Failed to delete symptom.');
+					await vbAlert(error.message || 'Failed to delete symptom.');
 				}
 			})();
 		}
@@ -1698,7 +1698,7 @@
 					const index = consultationRules.findIndex((item) => item.id === row.id);
 					if (index >= 0) consultationRules[index] = saved;
 				} catch (error) {
-					alert(error.message || 'Failed to update consultation rule.');
+					await vbAlert(error.message || 'Failed to update consultation rule.');
 					return;
 				}
 				state.consultationPage = 1;
@@ -1729,7 +1729,7 @@
 					syncConsultationSelection();
 					closeModal();
 				} catch (error) {
-					alert(error.message || 'Failed to save symptom.');
+					await vbAlert(error.message || 'Failed to save symptom.');
 				} finally {
 					if (submitButton) submitButton.disabled = false;
 				}

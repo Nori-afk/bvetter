@@ -24,7 +24,8 @@ function formatTicketDate(value) {
 let myTickets = [];
 let expandedTicketId = null;
 
-async function loadMyTickets() {
+async function loadMyTickets(options = {}) {
+  const silent = options.silent === true;
   const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
   const ownerId = user?.userId || user?.id || '';
   const result = await api.getMyTickets(ownerId);
@@ -33,7 +34,11 @@ async function loadMyTickets() {
   const emptyState = document.getElementById('mt-empty-state');
   if (!tbody) return;
 
-  myTickets = result.success ? result.data : [];
+  const fresh = result.success ? result.data : [];
+  // Silent (polled) refreshes skip the rebuild when nothing changed, so an
+  // expanded ticket row / the submit form above the table aren't disturbed.
+  if (silent && JSON.stringify(fresh) === JSON.stringify(myTickets)) return;
+  myTickets = fresh;
   renderMyTicketsTable(myTickets, emptyState, tbody);
 }
 
@@ -122,4 +127,5 @@ async function submitOwnerTicket(event) {
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('ticketForm').addEventListener('submit', submitOwnerTicket);
   loadMyTickets();
+  if (typeof startPolling === 'function') startPolling(loadMyTickets, 15000);
 });

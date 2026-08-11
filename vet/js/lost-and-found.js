@@ -742,7 +742,7 @@ function bindRootActions(root) {
 				}
 				runConfirmableAction(action, id);
 			} catch (error) {
-				alert(error.message);
+				await vbAlert(error.message);
 			}
 		});
 	});
@@ -779,7 +779,7 @@ function openConfirmDialog({ tone = 'success', title, message, confirmLabel, can
 			await loadAllData(true);
 		} catch (error) {
 			okButton.disabled = false;
-			alert(error.message);
+			await vbAlert(error.message);
 		}
 	});
 }
@@ -1611,16 +1611,16 @@ function wireUploadFormIfPresent() {
 		event.preventDefault();
 		const formData = new FormData(form);
 		if (formData.get('type') === 'lost' && !String(formData.get('pet_name') || '').trim()) {
-			alert('Pet name is required for lost pet reports.');
+			await vbAlert('Pet name is required for lost pet reports.');
 			return;
 		}
 		if (formData.get('type') === 'lost' && !String(formData.get('sex') || '').trim()) {
-			alert("Please select the pet's sex.");
+			await vbAlert("Please select the pet's sex.");
 			return;
 		}
 		const incidentDate = String(formData.get('incident_date') || '');
 		if (incidentDate && incidentDate > todayISODate()) {
-			alert('Date lost/found cannot be a future date.');
+			await vbAlert('Date lost/found cannot be a future date.');
 			return;
 		}
 		const session = getSession();
@@ -1633,7 +1633,7 @@ function wireUploadFormIfPresent() {
 			await loadAllData();
 			openModal(buildUploadSuccessModal());
 		} catch (error) {
-			alert(error.message);
+			await vbAlert(error.message);
 		}
 	});
 }

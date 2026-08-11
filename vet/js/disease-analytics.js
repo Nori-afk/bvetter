@@ -218,13 +218,13 @@ async function submitCreateEvent() {
         }
 
         if (result.success) {
-            alert(successMsg);
+            await vbAlert(successMsg);
             closeCreateEventModal();
         } else {
-            alert(`Could not create event: ${result.message || 'Unknown error.'}`);
+            await vbAlert(`Could not create event: ${result.message || 'Unknown error.'}`);
         }
     } catch (e) {
-        alert(`Could not create event: ${e.message}`);
+        await vbAlert(`Could not create event: ${e.message}`);
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = btn.dataset.originalText; }
     }

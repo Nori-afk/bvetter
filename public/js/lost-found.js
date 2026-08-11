@@ -151,14 +151,19 @@ function setLoading(target, message = 'Loading reports...') {
   if (el) el.innerHTML = `<div class="empty-state">${escapeHtml(message)}</div>`;
 }
 
-async function loadReports() {
-  setLoading('petGrid');
+async function loadReports(options = {}) {
+  const silent = options.silent === true;
+  if (!silent) setLoading('petGrid');
   const filters = {};
   if (currentFilter !== 'all') filters.type = currentFilter;
   if (activeFilters.type[0]) filters.species = activeFilters.type[0];
   if (activeFilters.barangay[0]) filters.barangay = activeFilters.barangay[0];
   const result = await api.getReports(filters);
-  publicReports = result.success ? (result.data || []) : [];
+  const fresh = result.success ? (result.data || []) : [];
+  // Silent (polled) refreshes skip the re-render entirely when nothing
+  // actually changed, so the grid doesn't flicker/reset scroll every tick.
+  if (silent && JSON.stringify(fresh) === JSON.stringify(publicReports)) return;
+  publicReports = fresh;
   renderPublicGrid();
 }
 
@@ -245,20 +250,21 @@ function requiredBarangayValue(selectId, otherId, label) {
 
 let myReportClaimants = {};
 
-async function loadMyReports() {
+async function loadMyReports(options = {}) {
+  const silent = options.silent === true;
   const grid = document.querySelector('.my-reports-grid');
-  if (grid) grid.innerHTML = '<div class="empty-state">Loading your reports...</div>';
+  if (!silent && grid) grid.innerHTML = '<div class="empty-state">Loading your reports...</div>';
   const result = await api.getMyReports();
-  myReports = result.success ? (result.data || []) : [];
+  const freshReports = result.success ? (result.data || []) : [];
 
-  myReportClaimants = {};
+  const freshClaimants = {};
   try {
     const session = sessionUser();
     if (session?.userId) {
       const claimsResult = await api.getClaims({ report_owner_id: session.userId });
       (claimsResult.success ? (claimsResult.data || []) : []).forEach((claim) => {
         if (['approved', 'resolved'].includes(claim.status)) {
-          myReportClaimants[claim.report_id] = {
+          freshClaimants[claim.report_id] = {
             name: claim.claimant_name || 'Unknown',
             phone: claim.claimant_phone || '',
             email: claim.claimant_email || ''
@@ -270,6 +276,13 @@ async function loadMyReports() {
     /* claimant lookup failed — history table will just omit the column value */
   }
 
+  // Silent (polled) refreshes skip the re-render entirely when nothing
+  // actually changed, so the grid doesn't flicker/reset scroll every tick.
+  if (silent && JSON.stringify(freshReports) === JSON.stringify(myReports)
+      && JSON.stringify(freshClaimants) === JSON.stringify(myReportClaimants)) return;
+
+  myReports = freshReports;
+  myReportClaimants = freshClaimants;
   renderMyReports();
 }
 
@@ -1730,5 +1743,16 @@ document.addEventListener('DOMContentLoaded', function () {
   } else {
     if (params.get('filter')) currentFilter = params.get('filter');
     loadReports();
+  }
+
+  // Keep whichever view (All/Lost/Found grid, or My Reports) is currently
+  // visible in sync without a manual page reload.
+  if (typeof startPolling === 'function') {
+    startPolling((opts) => {
+      const myReportsSection = document.getElementById('myReportsSection');
+      return (myReportsSection && myReportsSection.style.display !== 'none')
+        ? loadMyReports(opts)
+        : loadReports(opts);
+    }, 15000);
   }
 });

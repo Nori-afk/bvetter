@@ -1050,7 +1050,7 @@
         const activeId = document.getElementById('post-event-form').dataset.activeEventId;
         const e = state.events.find(item => item.id === activeId);
         if (!e) return;
-        if (!confirm(`Delete the ${e.barangay} – ${e.vaccine} event on ${e.dateLabel}? This cannot be undone.`)) return;
+        if (!(await vbConfirm(`Delete the ${e.barangay} – ${e.vaccine} event on ${e.dateLabel}? This cannot be undone.`, 'Delete'))) return;
 
         try {
             const res = await fetch(MASS_VACC_API, {
@@ -1059,9 +1059,9 @@
                 body: JSON.stringify({ action: 'delete', id: e.rawId })
             });
             const result = await res.json();
-            if (!result.success) { alert(result.message || 'Failed to delete event.'); return; }
+            if (!result.success) { await vbAlert(result.message || 'Failed to delete event.'); return; }
         } catch (err) {
-            alert('Failed to delete event.'); return;
+            await vbAlert('Failed to delete event.'); return;
         }
 
         state.events = state.events.filter(item => item.id !== activeId);
@@ -1138,7 +1138,7 @@
             const result = await res.json();
             if (result.success) Object.assign(e, result.data);
         } catch (err) {
-            alert('Failed to save report.'); return;
+            await vbAlert('Failed to save report.'); return;
         }
 
         // Re-render everything with fresh state — charts now pick up the new totals
@@ -1146,7 +1146,7 @@
         updateMetrics();
         buildCharts();
         hydrateDetail(e.id);
-        alert('Vaccination report saved.');
+        await vbAlert('Vaccination report saved.');
     });
 
     const dateInput        = document.getElementById('event-date');
@@ -1372,14 +1372,14 @@
             });
             const result = await res.json();
             if (result.success) state.events.unshift(result.data);
-            else { alert(result.message || 'Failed to create event.'); return; }
+            else { await vbAlert(result.message || 'Failed to create event.'); return; }
 
             renderTable();
             updateMetrics();
             buildCharts();
             closeModal();
             showEventSummary(result.data);
-        } catch (err) { alert('Failed to create event.'); return; }
+        } catch (err) { await vbAlert('Failed to create event.'); return; }
     });
 
     document.getElementById('range-filter')?.addEventListener('change', e => buildCharts(e.target.value));

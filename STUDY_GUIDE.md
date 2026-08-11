@@ -99,8 +99,29 @@ My answer: "For example in appointment.js i set or call a fetch appointment.php.
     also the image stored or upload by petowner or users, are renamed by timestamp +12 random hex character, because sometime or some scneario where differnt user upload the same file, after they upload this same file. It can cause error in the database and the server,
     after this, the system store this picture temporarly and after it point to move_uploaded_file($file['tmp_name'], $absolute) it will be move out to the real storage
 ## Day 4 — ARIMA Prediction Pipeline
-_(pending)_
+ architecture of the arima services
+    browser -> php, sent a fetch to -> flash to run the python file. 
 
+to check if the services are running, we first read the output of the test evaluate
+    - in the first figure, risk class distribution we notice there low value of low, that why the test of it are kinda low also. Which make it the distribution of data kinda low.
+    - confusion matrix also show that the low have only low dataasets. but the high and medium are kinda okay and functioning, But when the system encounter a low it may not function well
+    -the per class metrics show, the accuracy level of precision, recall, and f1 score. The precision score both 0.98, and the recall is 1, and laslty the f1 scoree with the score of 0.99. Ihave doubt in this, because the value are very high or accurate.
+    - in the figure 4, i have hard time understanding it. 
+    -the figure 5 is the mean decrease in impurity. This state that the higher the input the most usufull but across the selection the only usefull are lag_1
+    -the figure 6 are hard to understand
+    -the figure 7 is the arima forecast, where we forecast the mange in poblacion year. And based on the output it seem working, but the prediction might not accurate. or not confident. maybe its due to the missing data across the year
+    -the figure7b is the same, but in the mass vaccination term. the accuration of prediciton is kinda off
+    the figure 8 is just showing the MAE RMSE AND MAPE, which are totally working fine kaso parang off ung MAPE
+    -the figure 9 is kinda hard to understand.
+    
+    - in the first phase of the devolopment of the vbetter, may ML tayong gingamit pero nag fail to, kasi sa isang barangay tiaong may 21-30 cases siya a mmonth, but it always show high. kaya ni thow nalnag ung ML nato tas ang pinalit ay mas simple if mas mababa sa 50th percentile its low kapag 50-75 its meduim and kapag 75 and up ayon ung high 
+
+    method fallback forecast
+        there are two variable that stick out the slope and fc
+            slope is actual logic condition, while the fc is defensive check it will return an array or list contain that value
+    in method run_arima
+        i think its the fc variable
+            it will build a list to set up actual design logic
 ## Day 5 — Broad Pattern Pass + DB Schema + Mock Defense
 _(pending)_
 

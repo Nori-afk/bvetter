@@ -138,7 +138,7 @@ function buildDetailRow(ticket) {
             resolved_by_user_id: state.userId,
         });
         if (!result.success) {
-            alert(result.message || 'Failed to update ticket.');
+            await vbAlert(result.message || 'Failed to update ticket.');
             return;
         }
         await loadTickets();
@@ -147,10 +147,10 @@ function buildDetailRow(ticket) {
     detailRow.querySelector('.btn-delete-ticket')?.addEventListener('click', async (event) => {
         event.stopPropagation();
         const id = Number(event.target.dataset.id);
-        if (!confirm('Delete this ticket? The reporter will be notified. This cannot be undone.')) return;
+        if (!(await vbConfirm('Delete this ticket? The reporter will be notified. This cannot be undone.', 'Delete'))) return;
         const result = await apiCall({ action: 'delete_ticket', ticket_id: id });
         if (!result.success) {
-            alert(result.message || 'Failed to delete ticket.');
+            await vbAlert(result.message || 'Failed to delete ticket.');
             return;
         }
         state.expandedId = null;
@@ -194,7 +194,7 @@ async function submitTicket(event) {
     submitBtn.textContent = 'Submit Ticket';
 
     if (!result.success) {
-        alert(result.message || 'Failed to submit ticket.');
+        await vbAlert(result.message || 'Failed to submit ticket.');
         return;
     }
 

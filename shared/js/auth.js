@@ -114,6 +114,53 @@ function vbConfirm(message, confirmLabel) {
     });
 }
 
+/**
+ * Self-contained alert modal (styles injected once) used in place of the
+ * native window.alert() dialog — same look as vbConfirm, single "OK" button.
+ * Works identically on every page since it doesn't depend on that page's
+ * stylesheet.
+ */
+function vbAlert(message, okLabel) {
+    return new Promise((resolve) => {
+        let overlay = document.getElementById('vbAlertOverlay');
+        if (!overlay) {
+            const style = document.createElement('style');
+            style.textContent = `
+                #vbAlertOverlay { position:fixed; inset:0; z-index:9999; display:none;
+                    align-items:center; justify-content:center; background:rgba(15,23,42,0.55); }
+                #vbAlertOverlay .vb-alert-box { background:#fff; border-radius:16px; padding:28px 32px;
+                    text-align:center; max-width:340px; box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:inherit; }
+                #vbAlertOverlay .vb-alert-msg { color:#1f2937; font-size:15px; font-weight:600; margin-bottom:20px;
+                    white-space:pre-line; }
+                #vbAlertOverlay .vb-alert-ok { border:none; border-radius:8px; padding:10px 24px;
+                    font-weight:700; font-size:14px; cursor:pointer; font-family:inherit; background:#00B928; color:#fff; }
+            `;
+            document.head.appendChild(style);
+            overlay = document.createElement('div');
+            overlay.id = 'vbAlertOverlay';
+            document.body.appendChild(overlay);
+        }
+
+        overlay.innerHTML = `
+            <div class="vb-alert-box">
+                <div class="vb-alert-msg"></div>
+                <button type="button" class="vb-alert-ok">${okLabel || 'OK'}</button>
+            </div>
+        `;
+        overlay.querySelector('.vb-alert-msg').textContent = message;
+        overlay.style.display = 'flex';
+
+        const cleanup = () => {
+            overlay.style.display = 'none';
+            resolve();
+        };
+        overlay.querySelector('.vb-alert-ok').addEventListener('click', cleanup, { once: true });
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) cleanup();
+        }, { once: true });
+    });
+}
+
 function setSession(session) {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
 }

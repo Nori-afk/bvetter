@@ -50,6 +50,46 @@ function hydrateNavUser() {
 
 document.addEventListener('DOMContentLoaded', hydrateNavUser);
 
+/* =============================================
+   LIGHTWEIGHT POLLING — keeps a page's own data
+   fresh without a manual reload. Loaded here (not a
+   separate file) since nav.js is already included on
+   every page that needs it, before the page's own JS.
+
+   Pauses while the tab is hidden (nothing to refresh
+   if nobody's looking), re-checks immediately when the
+   tab regains focus (same pattern as the session-check
+   polling in shared/js/auth.js), and never lets two
+   ticks overlap if a fetch is slow.
+
+   loadFn is called as loadFn({ silent: true }) so each
+   page's loader can skip its own "Loading..." flash and
+   skip the re-render entirely when the fetched data is
+   unchanged — callers opt into that by checking options.silent.
+   ============================================= */
+function startPolling(loadFn, intervalMs = 15000) {
+  let inFlight = false;
+
+  async function tick() {
+    if (inFlight || document.hidden) return;
+    inFlight = true;
+    try {
+      await loadFn({ silent: true });
+    } catch {
+      // Network hiccup — try again next tick.
+    } finally {
+      inFlight = false;
+    }
+  }
+
+  const intervalId = setInterval(tick, intervalMs);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) tick();
+  });
+
+  return { stop: () => clearInterval(intervalId) };
+}
+
 /* Close dropdown when clicking outside */
 document.addEventListener('click', function (e) {
   var pill = document.querySelector('.nav-user-pill');
@@ -185,11 +225,13 @@ async function buildOwnerNotifications() {
       .slice(0, 3)
       .forEach((appt) => {
         const id = `appt-${appt.id}`;
+        const rawTime = appt.created_at || appt.preferred_date;
         notifications.push({
           id,
           title: appt.status === 'pending' ? 'Appointment Awaiting Confirmation' : 'Upcoming Appointment',
           detail: `${appt.pet?.name || appt.patient || 'Your pet'} — ${formatNotifDate(appt.preferred_date)}${appt.time_slot ? ` at ${appt.time_slot}` : ''}`,
-          time: formatNotifDate(appt.created_at || appt.preferred_date) || 'Just now',
+          time: formatNotifDate(rawTime) || 'Just now',
+          sortTime: Date.parse(rawTime) || 0,
           read: read.has(id)
         });
       });
@@ -205,11 +247,13 @@ async function buildOwnerNotifications() {
       .forEach((claim) => {
         const id = `claim-${claim.id}`;
         const label = claim.status === 'approved' ? 'Claim Approved' : claim.status === 'rejected' ? 'Claim Rejected' : 'Claim Resolved';
+        const rawTime = claim.reviewed_at || claim.updated_at || claim.created_at;
         notifications.push({
           id,
           title: label,
           detail: `Your claim for ${claim.pet_name || 'a pet'}${claim.report_case ? ` (${claim.report_case})` : ''} was ${claim.status}.`,
-          time: formatNotifDate(claim.reviewed_at || claim.updated_at || claim.created_at) || 'Just now',
+          time: formatNotifDate(rawTime) || 'Just now',
+          sortTime: Date.parse(rawTime) || 0,
           read: read.has(id)
         });
       });
@@ -227,11 +271,13 @@ async function buildOwnerNotifications() {
       .forEach((report) => {
         const id = `report-${report.id}`;
         const label = report.status === 'active' ? 'Report Approved' : report.status === 'rejected' ? 'Report Rejected' : 'Report Resolved';
+        const rawTime = report.resolved_at || report.updated_at || report.created_at;
         notifications.push({
           id,
           title: label,
           detail: `Your ${(report.type || '').toLowerCase()} report for ${report.petName || 'a pet'} is now ${report.status}.`,
-          time: formatNotifDate(report.resolved_at || report.updated_at || report.created_at) || 'Just now',
+          time: formatNotifDate(rawTime) || 'Just now',
+          sortTime: Date.parse(rawTime) || 0,
           read: read.has(id)
         });
       });
@@ -255,6 +301,7 @@ async function buildOwnerNotifications() {
           title: 'New Potential Match Found',
           detail: `A possible match (${match.confidence}% confidence) was found for ${report.petName || report.title || 'your lost pet'}.`,
           time: formatNotifDate(match.createdAt) || 'Just now',
+          sortTime: Date.parse(match.createdAt) || 0,
           read: read.has(id)
         });
       });
@@ -274,6 +321,7 @@ async function buildOwnerNotifications() {
           title: 'New Claim on Your Found Report',
           detail: `Someone submitted a claim for ${claim.pet_name || 'a pet'}${claim.report_case ? ` (${claim.report_case})` : ''}.`,
           time: formatNotifDate(claim.created_at) || 'Just now',
+          sortTime: Date.parse(claim.created_at) || 0,
           read: read.has(id)
         });
       });
@@ -282,17 +330,25 @@ async function buildOwnerNotifications() {
       .slice(0, 3)
       .forEach((claim) => {
         const id = `claim-out-${claim.id}`;
+        const rawTime = claim.reviewed_at || claim.updated_at || claim.created_at;
         notifications.push({
           id,
           title: 'Your Found Pet Was Claimed',
           detail: `${claim.claimant_name || 'A claimant'} was approved for ${claim.pet_name || 'the pet'}${claim.report_case ? ` (${claim.report_case})` : ''} you posted.`,
-          time: formatNotifDate(claim.reviewed_at || claim.updated_at || claim.created_at) || 'Just now',
+          time: formatNotifDate(rawTime) || 'Just now',
+          sortTime: Date.parse(rawTime) || 0,
           read: read.has(id)
         });
       });
   } catch (error) {
     /* incoming claims lookup failed — skip silently */
   }
+
+  // Each category above is pushed in its own block, so without this sort the
+  // list reads oldest-category-first rather than most-recent-first — a truly
+  // recent notification from a later-pushed category would land past the
+  // visible page and be hidden behind "Show more" instead of at the top.
+  notifications.sort((a, b) => (b.sortTime || 0) - (a.sortTime || 0));
 
   const visible = notifications.filter((item) => !dismissed.has(item.id));
 
@@ -409,7 +465,7 @@ function syncNotifDotFromItems(items) {
   setNotifDotVisible(unreadCount > 0);
 }
 
-async function refreshNotifDot() {
+async function refreshNotifDot(options = {}) {
   if (!getNotifDotElements().length) return;
 
   const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
@@ -418,20 +474,28 @@ async function refreshNotifDot() {
     return;
   }
 
+  // Polling ticks (options.silent) bypass the cache on purpose — they're
+  // exactly the mechanism that should produce a fresh count instead of
+  // reusing a stale one. Regular page-load calls still respect it, so
+  // navigating between pages within the TTL window doesn't re-run the
+  // full 6-endpoint aggregation for no reason.
   const cacheKey = `vbetter_notif_unread_${getCurrentOwnerId()}`;
-  try {
-    const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
-    if (cached && (Date.now() - cached.ts) < NOTIF_DOT_CACHE_TTL_MS) {
-      setNotifDotVisible(cached.count > 0);
-      return;
-    }
-  } catch { /* malformed cache — fall through to a fresh fetch */ }
+  if (!options.silent) {
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
+      if (cached && (Date.now() - cached.ts) < NOTIF_DOT_CACHE_TTL_MS) {
+        setNotifDotVisible(cached.count > 0);
+        return;
+      }
+    } catch { /* malformed cache — fall through to a fresh fetch */ }
+  }
 
   const items = await buildOwnerNotifications();
   syncNotifDotFromItems(items);
 }
 
 document.addEventListener('DOMContentLoaded', refreshNotifDot);
+document.addEventListener('DOMContentLoaded', () => startPolling(refreshNotifDot, 20000));
 
 /* Dismiss a single notification: hide it going forward via localStorage,
    since notifications are rebuilt live from appointments/claims/reports

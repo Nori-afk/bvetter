@@ -343,7 +343,7 @@ async function updateStatus(id, nextStatus, { skipReload } = {}) {
 	if (window.VetAPI?.updateAppointmentStatus) {
 		const result = await window.VetAPI.updateAppointmentStatus(id, nextStatus);
 		if (!result.ok) {
-			alert(result.error || 'Failed to update appointment.');
+			await vbAlert(result.error || 'Failed to update appointment.');
 			return;
 		}
 	}
@@ -685,7 +685,7 @@ async function loadVisitTypesIntoModal() {
 		: { ok: false, data: [], error: 'Visit type API unavailable.' };
 	state.visitTypes = result.ok ? result.data : [];
 	openModal(settingsModalTemplate(state.visitTypes));
-	if (!result.ok) alert(result.error || 'Could not load visit types.');
+	if (!result.ok) await vbAlert(result.error || 'Could not load visit types.');
 }
 
 async function openSettingsModal() {
@@ -713,7 +713,7 @@ async function removeVisitType(id) {
 		? await window.VetAPI.removeVisitType(id)
 		: { ok: false, error: 'Visit type API unavailable.' };
 	if (!result.ok) {
-		alert(result.error || 'Could not remove that visit type.');
+		await vbAlert(result.error || 'Could not remove that visit type.');
 		return;
 	}
 	await loadVisitTypesIntoModal();
@@ -817,22 +817,22 @@ async function applyReschedule() {
 	if (!selected) return;
 
 	if (!state.selectedDate) {
-		alert('Please select a new date on the calendar.');
+		await vbAlert('Please select a new date on the calendar.');
 		return;
 	}
 	if (state.selectedDate < toIsoDate(new Date())) {
-		alert('Cannot reschedule to a past date.');
+		await vbAlert('Cannot reschedule to a past date.');
 		return;
 	}
 	if (!state.selectedSlot) {
-		alert('Please select an available time slot.');
+		await vbAlert('Please select an available time slot.');
 		return;
 	}
 
 	if (window.VetAPI?.rescheduleAppointment) {
 		const result = await window.VetAPI.rescheduleAppointment(selected.id, state.selectedDate, state.selectedSlot);
 		if (!result.ok) {
-			alert(result.error || 'Failed to reschedule appointment.');
+			await vbAlert(result.error || 'Failed to reschedule appointment.');
 			return;
 		}
 	}
@@ -859,13 +859,13 @@ function applyCancel() {
 async function applyDelete() {
 	const input = document.getElementById('delete-confirm');
 	if (!input || input.value.trim() !== 'DELETE') {
-		alert('Please type DELETE exactly to confirm this permanent action.');
+		await vbAlert('Please type DELETE exactly to confirm this permanent action.');
 		return;
 	}
 	if (window.VetAPI?.deleteAppointment) {
 		const result = await window.VetAPI.deleteAppointment(state.selectedAppointmentId);
 		if (!result.ok) {
-			alert(result.error || 'Failed to delete appointment.');
+			await vbAlert(result.error || 'Failed to delete appointment.');
 			return;
 		}
 	}

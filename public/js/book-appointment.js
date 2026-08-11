@@ -364,7 +364,10 @@ async function fetchVets() {
   // the list items actually exist.
   document.dispatchEvent(new CustomEvent('bv-vets-loaded'));
 }
-async function loadRecentHistory() {
+let lastRecentAppointments = null;
+
+async function loadRecentHistory(options = {}) {
+  const silent = options.silent === true;
   try {
     const session = JSON.parse(
       sessionStorage.getItem('vbetter_session') ||
@@ -385,11 +388,16 @@ async function loadRecentHistory() {
 
     if (!json.success || !json.data) return;
 
-    const container = document.getElementById('recentHistoryList');
-    container.innerHTML = '';
-
     // LIMIT TO ONLY 5
     const recentAppointments = json.data.slice(0, 5);
+
+    // Silent (polled) refreshes skip the rebuild when nothing changed.
+    const snapshot = JSON.stringify(recentAppointments);
+    if (silent && snapshot === lastRecentAppointments) return;
+    lastRecentAppointments = snapshot;
+
+    const container = document.getElementById('recentHistoryList');
+    container.innerHTML = '';
 
     recentAppointments.forEach(appt => {
       let reviewBtn = '';
@@ -641,7 +649,11 @@ function submitRatingModal() {
   closeRatingModal();
 }
 
-initRatingStars();async function loadAppointmentHistory() {
+initRatingStars();
+let lastAppointmentHistory = null;
+
+async function loadAppointmentHistory(options = {}) {
+  const silent = options.silent === true;
   try {
     const session = JSON.parse(
       sessionStorage.getItem('vbetter_session') ||
@@ -660,6 +672,12 @@ initRatingStars();async function loadAppointmentHistory() {
 
     const json = await res.json();
     console.log('Appointment history:', json);
+
+    // Silent (polled) refreshes skip the rebuild when nothing changed.
+    const snapshot = JSON.stringify(json.data || []);
+    if (silent && snapshot === lastAppointmentHistory) return;
+    lastAppointmentHistory = snapshot;
+
     const histList = document.getElementById('histList');
     const histEmpty = document.getElementById('histEmpty');
     const completedCountEl = document.getElementById('complted-visit');
@@ -921,6 +939,20 @@ function closeReviewsModal() {
 fetchVets();
 loadRecentHistory();
 loadCspStatus();
+
+// Keep whichever history view is currently on screen in sync without a
+// manual page reload — the small "Recent Appointment History" widget on
+// the vet-selection page, or the full history page, whichever is active.
+// Does nothing while the booking wizard (pageBooking) is on screen, so it
+// never touches the in-progress booking draft.
+if (typeof startPolling === 'function') {
+  startPolling((opts) => {
+    const pageHistoryEl = document.getElementById('pageHistory');
+    if (pageHistoryEl && pageHistoryEl.classList.contains('active')) return loadAppointmentHistory(opts);
+    const pageVetEl = document.getElementById('pageVet');
+    if (pageVetEl && pageVetEl.classList.contains('active')) return loadRecentHistory(opts);
+  }, 15000);
+}
 
 function getAverageRate(average) {
   if (average >= 5.0) {

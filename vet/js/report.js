@@ -291,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
         link.remove();
         URL.revokeObjectURL(link.href);
     } catch (err) {
-        alert('Could not export the report. Please try again.');
+        await vbAlert('Could not export the report. Please try again.');
     }
     closeExportModal();
 }

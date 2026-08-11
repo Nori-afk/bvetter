@@ -1553,14 +1553,14 @@ async function handleAddSubmit(event) {
 			const record = getRecordById(Number(result.id || patientId));
 			openModal(renderSuccessModal(record || { ...buildBlankRecord(), ...data, id: result.id || patientId }));
 		} catch (error) {
-			alert(error.message || 'Failed to save patient record.');
+			await vbAlert(error.message || 'Failed to save patient record.');
 		}
 		return;
 	}
 
 	const petEntries = getPetEntriesData(form);
 	if (petEntries.length === 0) {
-		alert('Please enter at least one pet name.');
+		await vbAlert('Please enter at least one pet name.');
 		return;
 	}
 
@@ -1572,7 +1572,7 @@ async function handleAddSubmit(event) {
 		const record = getRecordById(Number(ids[0]));
 		openModal(renderSuccessModal(record || { ...buildBlankRecord(), ...sharedData, ...petEntries[0], id: ids[0] }, ids.length - 1));
 	} catch (error) {
-		alert(error.message || 'Failed to save patient record.');
+		await vbAlert(error.message || 'Failed to save patient record.');
 	}
 }
 
@@ -1680,7 +1680,7 @@ function openEditModal(id) {
 			try {
 				updated = await updateRecord(id, getFormData(editForm));
 			} catch (error) {
-				alert(error.message || 'Failed to update patient record.');
+				await vbAlert(error.message || 'Failed to update patient record.');
 				return;
 			}
 			if (!updated) return;
@@ -1808,7 +1808,7 @@ function handleModalAction(action, target) {
 					</div>
 				`);
 			})
-			.catch((error) => alert(error.message || 'Failed to delete patient record.'));
+			.catch((error) => vbAlert(error.message || 'Failed to delete patient record.'));
 	}
 }
 

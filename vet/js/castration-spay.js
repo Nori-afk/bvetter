@@ -95,9 +95,9 @@ async function loadPrograms() {
   });
   tbody.querySelectorAll('[data-delete-program]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Delete this program? This cannot be undone.')) return;
+      if (!(await vbConfirm('Delete this program? This cannot be undone.', 'Delete'))) return;
       const res = await window.VetAPI.deleteCspProgram(Number(btn.dataset.deleteProgram));
-      if (!res.ok) { alert(res.error || 'Failed to delete program.'); return; }
+      if (!res.ok) { await vbAlert(res.error || 'Failed to delete program.'); return; }
       refreshAll();
     });
   });
@@ -194,24 +194,24 @@ async function loadRoster() {
 
   tbody.querySelectorAll('[data-cancel-reg]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Cancel this registration?')) return;
+      if (!(await vbConfirm('Cancel this registration?', 'Cancel Registration'))) return;
       const res = await window.VetAPI.cancelCspRegistration(Number(btn.dataset.cancelReg));
-      if (!res.ok) { alert(res.error || 'Failed to cancel.'); return; }
+      if (!res.ok) { await vbAlert(res.error || 'Failed to cancel.'); return; }
       refreshAll();
     });
   });
   tbody.querySelectorAll('[data-complete-reg]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const res = await window.VetAPI.updateCspProgram({ program_id: state.rosterProgramId, status: 'completed' });
-      if (!res.ok) { alert(res.error || 'Failed to update.'); return; }
+      if (!res.ok) { await vbAlert(res.error || 'Failed to update.'); return; }
       refreshAll();
     });
   });
   tbody.querySelectorAll('[data-delete-reg]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      if (!confirm('Delete this registration? This cannot be undone.')) return;
+      if (!(await vbConfirm('Delete this registration? This cannot be undone.', 'Delete'))) return;
       const res = await window.VetAPI.deleteCspRegistration(Number(btn.dataset.deleteReg));
-      if (!res.ok) { alert(res.error || 'Failed to delete registration.'); return; }
+      if (!res.ok) { await vbAlert(res.error || 'Failed to delete registration.'); return; }
       refreshAll();
     });
   });
@@ -222,14 +222,14 @@ async function assignSelected() {
   const programId = document.getElementById('assign-program-select').value;
   const selected = Array.from(document.querySelectorAll('.waiting-row-check:checked')).map((cb) => Number(cb.value));
 
-  if (!programId) { alert('Create or select an open program first.'); return; }
-  if (!selected.length) { alert('Select at least one waiting registration.'); return; }
+  if (!programId) { await vbAlert('Create or select an open program first.'); return; }
+  if (!selected.length) { await vbAlert('Select at least one waiting registration.'); return; }
 
   const result = await window.VetAPI.assignCspRegistrations(Number(programId), selected);
-  if (!result.ok) { alert(result.error || 'Failed to assign registrations.'); return; }
+  if (!result.ok) { await vbAlert(result.error || 'Failed to assign registrations.'); return; }
 
   await window.VetAPI.notifyCspProgram(Number(programId));
-  alert(result.data.message || 'Registrations assigned and owners notified.');
+  await vbAlert(result.data.message || 'Registrations assigned and owners notified.');
   refreshAll();
 }
 
@@ -237,7 +237,7 @@ async function notifyRosterProgram() {
   const programId = document.getElementById('roster-program-select').value;
   if (!programId) return;
   const result = await window.VetAPI.notifyCspProgram(Number(programId));
-  alert(result.message || (result.ok ? 'Notifications sent.' : 'Failed to send notifications.'));
+  await vbAlert(result.message || (result.ok ? 'Notifications sent.' : 'Failed to send notifications.'));
 }
 
 /* ── Create / Manage Program modal ───────────── */
