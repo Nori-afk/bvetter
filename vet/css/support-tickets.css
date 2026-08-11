@@ -160,6 +160,13 @@ td {
 .btn-delete-ticket {
     background: #fdecea;
     color: #b3202c;
+    border: 1px solid #f5c6c0;
+    border-radius: 8px;
+    padding: 10px 22px;
+    font-weight: 700;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
 }
 
 .btn-delete-ticket:hover { background: #fbdbd8; }
