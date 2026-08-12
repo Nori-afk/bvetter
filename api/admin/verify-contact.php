@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * BVetter – Contact Verification & Forgot Password
  *

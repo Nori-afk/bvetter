@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 //LOCATION OR TYPE NG FILE NATO
 header('Content-Type: application/json');
 
