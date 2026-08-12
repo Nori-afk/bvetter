@@ -16,8 +16,8 @@
 	--lf-green-btn-hover: #0C8A26;
 	--lf-red: #BA1A1A;
 	--lf-red-soft: #FFDAD6;
-	--lf-yellow: #0F766E;
-	--lf-yellow-soft: #CCFBF1;
+	--lf-yellow: #856404;
+	--lf-yellow-soft: #FFF3CD;
 	--lf-border: #E0E3E8;
 	--lf-border-light: #F0F0F0;
 	--lf-shadow: 0 4px 16px rgba(0, 0, 0, 0.07);
@@ -236,7 +236,7 @@ body {
 	color: var(--lf-ink);
 	border-color: #E2E8F0;
 	border-top: none;
-	border-left: 3px solid #0F766E;
+	border-left: 3px solid #B45309;
 	border-radius: 0 14px 14px 0;
 }
 
@@ -250,11 +250,11 @@ body {
 }
 
 .stat-card.featured h5 {
-	color: #0F766E;
+	color: #B45309;
 }
 
 .stat-card.featured small {
-	color: #0F766E;
+	color: #92400E;
 }
 
 .stat-card strong {
@@ -285,9 +285,9 @@ body {
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
-	background: #CCFBF1;
-	color: #0F766E;
-	border: 1px solid #5EEAD4;
+	background: #FFFBEB;
+	color: #92400E;
+	border: 1px solid #FDE68A;
 	border-radius: 99px;
 	padding: 3px 8px;
 	margin-top: 6px;
@@ -1113,14 +1113,14 @@ body {
 	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Ccircle cx='6' cy='6' r='2.5' fill='white'/%3E%3C/svg%3E");
 }
 
-/* Pending — teal circle, clock dot */
+/* Pending — amber circle, clock dot */
 .lf-pill-pending {
-	background: #CCFBF1;
-	color: #0F766E;
-	border: 1px solid #5EEAD4;
+	background: #FEF3C7;
+	color: #92400E;
+	border: 1px solid #FCD34D;
 }
 .lf-pill-pending::before {
-	background-color: #0F766E;
+	background-color: #B45309;
 	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Ccircle cx='6' cy='6' r='2.5' fill='white'/%3E%3C/svg%3E");
 }
 

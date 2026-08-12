@@ -24,8 +24,16 @@ const ROLE_ROUTES = {
 };
 
 const LOGIN_PAGE = '/public/pages/login.html';
+// Not linked from any public page — admin accounts authenticate here only.
+// Keep in sync with the file at admin/pages/ and with api/auth/admin-login.php.
+const ADMIN_LOGIN_PAGE = '/admin/pages/ops-3bab26d632.html';
 const SESSION_API = '/api/auth/session.php';
 const SESSION_CHECK_INTERVAL_MS = 30000;
+
+/** Which login page a given (possibly stale/unknown) role should land on. */
+function loginPageFor(role) {
+    return role === 'admin' ? ADMIN_LOGIN_PAGE : LOGIN_PAGE;
+}
 
 /* ── Bearer token injection ─────────────────────────────────────
    Server-side role guards (api/config/auth_guard.php) identify the
@@ -191,8 +199,9 @@ async function verifySessionWithServer() {
         });
         const data = await res.json();
         if (!data.valid) {
+            const role = getSession()?.role;
             clearSession();
-            window.location.replace(LOGIN_PAGE);
+            window.location.replace(loginPageFor(role));
         }
     } catch {
         // Network hiccup — don't force a logout over a dropped request.
@@ -229,6 +238,7 @@ async function logout() {
     const confirmed = await vbConfirm('Are you sure you want to log out?', 'Log Out');
     if (!confirmed) return;
 
+    const role = getSession()?.role;
     const token = sessionStorage.getItem('bvetter_token');
     if (token) {
         try {
@@ -244,7 +254,7 @@ async function logout() {
         }
     }
     clearSession();
-    window.location.href = LOGIN_PAGE;
+    window.location.href = loginPageFor(role);
 }
 
 /**
@@ -259,7 +269,11 @@ function requireAuth(allowedRoles = []) {
     const session = getSession();
 
     if (!session || !session.role) {
-        window.location.replace(LOGIN_PAGE);
+        // Admin-only pages (requireAuth(['admin'])) send an unauthenticated
+        // visitor straight to the hidden admin login rather than the public
+        // one, which no longer accepts admin credentials at all.
+        const isAdminOnlyPage = allowedRoles.length === 1 && allowedRoles[0] === 'admin';
+        window.location.replace(isAdminOnlyPage ? ADMIN_LOGIN_PAGE : LOGIN_PAGE);
         return;
     }
 

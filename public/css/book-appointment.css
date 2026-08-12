@@ -709,8 +709,8 @@ body {
 }
 
 .csp-status-card {
-  background: var(--color-yellow-light, #EFF6FF);
-  border: 1px solid var(--color-yellow, #3B82F6);
+  background: var(--color-yellow-light, #FFF8E1);
+  border: 1px solid var(--color-yellow, #F2B807);
   border-radius: 12px;
   padding: 18px 22px;
   margin-bottom: 16px;
@@ -1445,7 +1445,7 @@ body {
   box-shadow: 0 4px 12px rgba(0,0,0,0.07);
 }
 
-.appt-pending   { border-left-color: #0F766E; }
+.appt-pending   { border-left-color: #FBBF24; }
 .appt-completed { border-left-color: #10B981; }
 .appt-cancelled { border-left-color: #F87171; }
 
@@ -1493,9 +1493,9 @@ body {
 }
 
 .s-pending {
-  background: #CCFBF1;
-  color: #0F766E;
-  border: 1px solid #5EEAD4;
+  background: #FFFBEB;
+  color: #92400E;
+  border: 1px solid #FDE68A;
 }
 
 .s-completed {

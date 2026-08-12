@@ -120,7 +120,7 @@ body {
 }
 
 .metric-card:nth-child(1) { border-left-color: #002A58; }
-.metric-card:nth-child(2) { border-left-color: #3B82F6; }
+.metric-card:nth-child(2) { border-left-color: #D97706; }
 .metric-card:nth-child(3) { border-left-color: #047857; }
 
 .metric-head {
@@ -152,7 +152,7 @@ body {
 }
 
 .metric-card:nth-child(1) .metric-icon { background: rgba(0,42,88,0.08); color: #002A58; }
-.metric-card:nth-child(2) .metric-icon { background: rgba(59,130,246,0.10); color: #3B82F6; }
+.metric-card:nth-child(2) .metric-icon { background: rgba(217,119,6,0.10); color: #D97706; }
 .metric-card:nth-child(3) .metric-icon { background: rgba(4,120,87,0.10); color: #047857; }
 
 .metric-value {

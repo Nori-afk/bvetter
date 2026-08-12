@@ -168,7 +168,7 @@
       '<path d="M7 10l2 2 4-4"/></svg>',
 
     shieldMod:
-      '<svg viewBox="0 0 20 20" fill="none" stroke="#0F766E"' +
+      '<svg viewBox="0 0 20 20" fill="none" stroke="#92400E"' +
       ' stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
       '<path d="M10 2l6.5 2.5v5C16.5 13.8 13.5 17 10 18 6.5 17 3.5 13.8 3.5 9.5v-5L10 2z"/>' +
       '<path d="M10 8v3M10 13v.5"/></svg>',

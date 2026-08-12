@@ -64,9 +64,9 @@
   --color-red-light:     #FFDAD6;   /* badge backgrounds */
   --color-red-pale:      #FDECEA;   /* icon wrap backgrounds */
 
-  /* Blue — pending states, warnings (was yellow; moved onto the navy/blue family to stay on-brand) */
-  --color-yellow:        #1D4ED8;   /* text on pending-badge backgrounds */
-  --color-yellow-light:  #EFF6FF;   /* pending badge backgrounds */
+  /* Yellow — pending states, warnings */
+  --color-yellow:        #856404;   /* text on yellow backgrounds */
+  --color-yellow-light:  #FFF3CD;   /* pending badge backgrounds */
 
 
   /* ══════════════════════════════════════════

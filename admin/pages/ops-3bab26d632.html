@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<!--
+  Admin-only login. Deliberately NOT linked from any public page or nav —
+  see shared/js/auth.js (ADMIN_LOGIN_PAGE) and api/auth/admin-login.php.
+  The public login page (public/pages/login.html) rejects admin credentials
+  outright, so this is the only door admin accounts can use.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="robots" content="noindex, nofollow"/>
+  <title>BVetter</title>
+  <link rel="icon" type="image/png" href="../../vet/images/logo.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../../public/css/variables.css"/>
+  <link rel="stylesheet" href="../../public/css/login.css"/>
+</head>
+<body>
+  <div class="page-wrapper">
+    <div class="left-panel">
+      <img src="../../public/images/logos/logo-white.png" alt="Baliwag City Veterinary Services" class="left-logo"/>
+      <img src="../../public/images/backgrounds/green-bg.png" alt="" class="bg-image"/>
+      <div class="left-content">
+        <h1>Admin<br/>Portal</h1>
+        <p>SIGN IN TO MANAGE ACCOUNTS, CONTENT, AND SYSTEM SECURITY.</p>
+      </div>
+      <div class="cross-deco cross-1">+</div>
+      <div class="cross-deco cross-2">+</div>
+    </div>
+
+    <div class="right-panel">
+      <div class="form-container">
+        <img src="../../public/images/logos/logo-color.png" alt="Baliwag City Veterinary Services" class="right-logo"/>
+        <!-- STEP 1: credentials -->
+        <div id="credsStep">
+          <h2>Admin Sign In</h2>
+          <p class="subtitle">Enter your administrator credentials.</p>
+
+          <div class="form-group">
+            <label>EMAIL ADDRESS</label>
+            <div class="input-wrapper">
+              <img src="../../public/images/icons/icon-email.svg" alt="" class="input-icon"/>
+              <input type="email" id="loginEmail" name="email" placeholder="your@email.com" autocomplete="email"/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>PASSWORD</label>
+            <div class="input-wrapper">
+              <img src="../../public/images/icons/icon-password.svg" alt="" class="input-icon"/>
+              <input type="password" id="loginPassword" name="password" placeholder="••••••••••••" autocomplete="current-password"/>
+              <img src="../../public/images/icons/icon-eye.svg" alt="Show password" class="toggle-pw" onclick="togglePassword()"/>
+            </div>
+            <div class="forgot-row">
+              <a href="../../public/pages/forgot-password.html" class="forgot-link">Forgot Password?</a>
+            </div>
+          </div>
+
+          <button class="btn-login" onclick="handleLogin()">
+            Login
+            <img src="../../public/images/icons/icon-arrow-right.png" alt="" class="btn-icon"/>
+          </button>
+        </div>
+
+        <!-- STEP 2: email verification code (2FA) -->
+        <div id="otpStep" style="display:none;">
+          <h2>Check Your Email</h2>
+          <p class="subtitle" id="otpSubtitle">We sent a 6-digit verification code to your email. Enter it below to finish signing in.</p>
+
+          <div class="form-group">
+            <label>VERIFICATION CODE</label>
+            <div class="input-wrapper">
+              <img src="../../public/images/icons/icon-password.svg" alt="" class="input-icon"/>
+              <input type="text" id="loginOtp" name="otp" placeholder="123456" inputmode="numeric" maxlength="6" autocomplete="one-time-code" style="letter-spacing:6px;font-weight:700;"/>
+            </div>
+          </div>
+
+          <button class="btn-login" onclick="handleVerifyOtp()">
+            Verify &amp; Login
+            <img src="../../public/images/icons/icon-arrow-right.png" alt="" class="btn-icon"/>
+          </button>
+
+          <p class="signup-text">
+            Didn't get it? <a href="#" class="signup-link" id="resendOtpLink" onclick="handleResendOtp(event)">Resend code</a>
+            &nbsp;·&nbsp; <a href="#" class="signup-link" onclick="backToLogin(event)">Back to login</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ NOTICE MODAL — replaces browser alert() ══ -->
+  <div class="modal-overlay" id="noticeModal" onclick="closeModalOutside(event,'noticeModal')">
+    <div class="modal-box narrow notice-box" role="alertdialog" aria-modal="true" aria-labelledby="noticeMessage">
+      <div class="notice-icon" id="noticeIcon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="9" stroke="#0FA82E" stroke-width="1.8"/>
+          <rect x="11.1" y="6.5" width="1.8" height="7" rx="0.9" fill="#0FA82E"/>
+          <rect x="11.1" y="15.5" width="1.8" height="1.8" rx="0.9" fill="#0FA82E"/>
+        </svg>
+      </div>
+      <p class="notice-message" id="noticeMessage"></p>
+      <button class="notice-ok-btn" onclick="closeModal('noticeModal')">Got it</button>
+    </div>
+  </div>
+
+  <!-- ══ SCRIPTS — unauthenticated page ══ -->
+  <script src="../../shared/js/auth.js"></script>
+  <script src="../../public/js/api.js"></script>
+  <script src="../js/admin-login.js"></script>
+</body>
+</html>

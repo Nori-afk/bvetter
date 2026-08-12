@@ -236,6 +236,22 @@ const api = {
     }).then(r => r.json()),
 
   /**
+   * Admin-only login — hits admin-login.php instead of login.php.
+   * Same request/response shape as api.login().
+   */
+  adminLogin: (email, password, otpCode) =>
+    fetch(`${API_BASE_REG}/auth/admin-login.php`, {
+      method: 'POST',
+      body: (() => {
+        const formData = new FormData();
+        formData.append('email', email);
+        formData.append('password', password);
+        if (otpCode) formData.append('otp_code', otpCode);
+        return formData;
+      })()
+    }).then(r => r.json()),
+
+  /**
    * Logout — invalidates token on server
    */
   logout: () => {

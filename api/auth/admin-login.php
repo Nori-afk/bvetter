@@ -1,10 +1,11 @@
 <?php
 /**
- * BVetter – Public login (pet owner + veterinarian accounts)
+ * BVetter – Admin-only login
  *
- * Admin accounts cannot complete a login here — see login_flow.php's
- * attemptLogin(). They authenticate exclusively through admin-login.php,
- * whose URL is not linked from anywhere in the public site.
+ * Mirrors login.php but only completes a login for role_name === 'admin';
+ * everyone else gets the same generic rejection login.php gives admins.
+ * Reachable only from the hidden admin login page — its URL is not linked
+ * from any public page.
  */
 
 header('Content-Type: application/json');
@@ -29,7 +30,7 @@ $password = isset($_POST['password']) ? $_POST['password'] : '';
 $otpCode = isset($_POST['otp_code']) ? trim($_POST['otp_code']) : '';
 
 try {
-    [$statusCode, $payload] = attemptLogin($pdo, $email, $password, $otpCode, ['pet_owner', 'veterinarian']);
+    [$statusCode, $payload] = attemptLogin($pdo, $email, $password, $otpCode, ['admin']);
     http_response_code($statusCode);
     echo json_encode($payload);
 } catch (PDOException $e) {

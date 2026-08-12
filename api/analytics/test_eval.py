@@ -1,11 +1,13 @@
 """
 BVetter Model Evaluation — Figures & Explanations
 ==================================================
-Evaluates both models used in the analytics pipeline:
-  1. Random Forest Regressor (case-count forecast accuracy check only —
-     NOT used for risk classification; see risk_note in arima_service.py)
-  2. ARIMA / SARIMA (Disease-Specific Forecasting) + the rule-based risk
-     threshold that replaced the earlier RandomForestClassifier
+Evaluates every model actually used in the analytics pipeline:
+  1. All-Disease Random Forest Regressor (case-count forecast accuracy check
+     for the yearly ARIMA path — see risk_note in arima_service.py)
+  2. Disease-Specific Random Forest Regressor (powers period="month" forecasts,
+     both the all-disease and per-disease views — see get_disease_specific_regressor())
+  3. ARIMA / SARIMA (period="year" forecasts, all-disease and disease-specific)
+     + the rule-based risk threshold that replaced the earlier RandomForestClassifier
 
 Risk classification used to be evaluated here as a trained classifier
 (confusion matrix, ROC/AUC, precision/recall/F1). That approach was
@@ -45,6 +47,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from arima_service import (
     get_all_disease_models,
+    get_disease_specific_regressor,
     load_all_disease_dataframe,
     _load_disease_specific_df,
     _compute_disease_metrics,
@@ -55,6 +58,7 @@ from arima_service import (
     run_arima,
     adf_test_report,
     FEATURE_COLS,
+    DISEASE_FEATURE_COLS,
     EXCEL_PATH,
 )
 
@@ -231,13 +235,13 @@ print(_wrap(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 3 — RF Regressor: Actual vs Predicted
+# FIGURE 3 — All-Disease RF Regressor: Actual vs Predicted
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 3 — RF Regressor: Actual vs Predicted")
+_section("Figure 3 — All-Disease RF Regressor: Actual vs Predicted")
 
 fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), facecolor="white")
-fig.suptitle("Figure 3 — RF Case Regressor — Actual vs Predicted (Test Set)",
+fig.suptitle("Figure 3 — All-Disease RF Regressor — Actual vs Predicted (Test Set)",
              fontsize=13, fontweight="bold", y=1.02)
 
 # Scatter
@@ -273,9 +277,8 @@ fig.text(0.5, -0.06, (
     f"Explanation: MAE = {mae_val:.2f} cases — on average the model is off by this "
     f"many cases per month per barangay. RMSE = {rmse_val:.2f} (penalises large "
     f"errors more). R² = {r2_val:.4f} ({r2_val*100:.2f}% of variance explained). "
-    "A residuals histogram centred near zero with roughly symmetric "
-    "tails indicates unbiased predictions. A heavy right tail means the model "
-    "under-predicts during outbreak spikes."
+    "This regressor validates the yearly (ARIMA-driven) all-disease forecast's "
+    "plausibility -- see Figure 4 for the model that actually powers monthly forecasts."
 ), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
 plt.tight_layout()
@@ -293,11 +296,97 @@ print(_wrap(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 4 — ARIMA: Sample Forecast with Confidence Interval
+# FIGURE 4 — Disease-Specific RF Regressor: Actual vs Predicted
+#   The model that actually powers period="month" forecasts (both the
+#   all-disease and per-disease views) -- see get_disease_specific_regressor()
+#   and _rf_disease_monthly_forecast() in arima_service.py. Added after RF was
+#   wired in for monthly forecasting (year stays ARIMA); this model didn't
+#   exist when Figures 1-3/5-9 were first built, so it needs its own honest
+#   accuracy check, not just a reused number from the all-disease regressor.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_section("Figure 4 — Disease-Specific RF Regressor: Actual vs Predicted")
+
+disease_reg_model = get_disease_specific_regressor()
+disease_rf        = disease_reg_model.get("regressor")
+
+if disease_rf is not None:
+    ds_df    = disease_reg_model["df"]
+    ds_train = disease_reg_model["train_idx"]
+    ds_test  = disease_reg_model["test_idx"]
+    X_ds     = ds_df[DISEASE_FEATURE_COLS].values
+    y_ds     = ds_df["cases"].values
+    y_ds_test = y_ds[ds_test]
+    y_ds_pred = disease_rf.predict(X_ds[ds_test])
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), facecolor="white")
+    fig.suptitle("Figure 4 — Disease-Specific RF Regressor — Actual vs Predicted (Test Set)",
+                 fontsize=13, fontweight="bold", y=1.02)
+
+    ax = axes[0]
+    max_val = max(y_ds_test.max(), y_ds_pred.max(), 1) * 1.05
+    ax.scatter(y_ds_test, y_ds_pred, alpha=0.25, s=16, color=BRAND_GREEN, edgecolors="none")
+    ax.plot([0, max_val], [0, max_val], "r--", lw=1.2, label="Perfect fit (y = x)")
+    ax.set_xlabel("Actual cases (this disease, this barangay, this month)")
+    ax.set_ylabel("Predicted cases")
+    ax.set_title("Scatter: Predicted vs Actual")
+    ax.legend(fontsize=9)
+    ax.spines[["top", "right"]].set_visible(False)
+
+    ax2 = axes[1]
+    ds_residuals = y_ds_pred - y_ds_test
+    ax2.hist(ds_residuals, bins=30, color=BRAND_GREEN, edgecolor="white", alpha=0.85)
+    ax2.axvline(0, color=BRAND_RED, linestyle="--", lw=1.2)
+    ax2.axvline(ds_residuals.mean(), color=BRAND_AMBER, linestyle="-", lw=1.2,
+                label=f"Mean residual = {ds_residuals.mean():.2f}")
+    ax2.set_xlabel("Residual (Predicted − Actual)")
+    ax2.set_ylabel("Frequency")
+    ax2.set_title("Residuals Distribution")
+    ax2.legend(fontsize=9)
+    ax2.spines[["top", "right"]].set_visible(False)
+
+    ds_mae  = disease_reg_model["mae"]
+    ds_rmse = disease_reg_model["rmse"]
+    ds_mape = disease_reg_model["mape"]
+    ds_r2   = r2_score(y_ds_test, y_ds_pred)
+    fig.text(0.5, -0.08, (
+        f"Explanation: pooled across all diagnoses and 27 barangays "
+        f"({disease_reg_model['trained_on']} rows), predicting the next month's case "
+        f"count for one disease+barangay from its own lag/rolling/seasonal history plus that "
+        f"disease's own baseline rate (see arima_service.py docstring for why the baseline-rate "
+        f"feature was needed -- most diagnoses are rare, so lag features alone got swamped). "
+        f"MAE = {ds_mae:.2f} cases, RMSE = {ds_rmse:.2f}, R² = {ds_r2:.4f}. Tree-ensemble "
+        "regressors like this one systematically pull elevated values toward the average "
+        "(visible as points below the red diagonal on the right side of the scatter) -- a real, "
+        "structural limitation, not a bug, and the reason yearly forecasts stay on ARIMA."
+    ), ha="center", fontsize=8.5, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
+
+    plt.tight_layout()
+    _save(fig, "fig4_disease_rf_regressor_actual_vs_predicted.png")
+
+    print(f"  Disease-Specific RF — trained on {disease_reg_model['trained_on']} rows "
+          f"(pooled across diagnoses)")
+    print(f"  MAE: {ds_mae:.4f}  RMSE: {ds_rmse:.4f}  MAPE: {ds_mape}%  R2: {ds_r2:.4f}")
+    print(_wrap(
+        f"INTERPRETATION — Figure 4: MAE of {ds_mae:.2f} cases looks small in absolute terms, "
+        "but most rows in this pooled dataset are 0 (most diagnoses are rare most months) -- "
+        f"MAPE of {ds_mape}% is the more honest read of how uncertain this model actually is "
+        "for a specific, moderate-volume disease. This is the model behind the vet-facing "
+        "'next month' forecast; the yearly (12-month sum) forecast uses ARIMA/SARIMA instead "
+        "(Figure 5), specifically because tree ensembles like this one can't extrapolate a "
+        "rising trend the way ARIMA can."
+    ))
+else:
+    print("  Disease-specific regressor unavailable (insufficient pooled training data); skipping Figure 4.")
+    ds_mae = ds_rmse = ds_mape = None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FIGURE 5 — ARIMA: Sample Forecast with Confidence Interval
 #            (one representative disease × barangay)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 4 — ARIMA Forecast (sample series)")
+_section("Figure 5 — ARIMA Forecast (sample series)")
 
 # Pick a disease with data; fall back gracefully
 CANDIDATE_DISEASES = ["Rabies", "Skin Disease", "Distemper", "Parvovirus", "Mange"]
@@ -342,7 +431,7 @@ if chosen_series is not None:
 
     fig, ax = plt.subplots(figsize=(12, 4.5), facecolor="white")
     fig.suptitle(
-        f"Figure 4 — ARIMA Forecast: {chosen_disease} in {chosen_barangay}  "
+        f"Figure 5 — ARIMA Forecast: {chosen_disease} in {chosen_barangay}  "
         f"[Model: {result['model_type']}, order={result['order']}]",
         fontsize=12, fontweight="bold"
     )
@@ -384,16 +473,16 @@ if chosen_series is not None:
     ), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
     plt.tight_layout()
-    _save(fig, "fig4_arima_forecast_sample.png")
+    _save(fig, "fig5_arima_forecast_sample.png")
     print(f"  Disease: {chosen_disease}  |  Barangay: {chosen_barangay}")
     print(f"  Forecast: {result['forecast']}  |  Trend: {result['trend']}")
 else:
-    print("  No series with ≥ 12 observations found; skipping Figure 4.")
+    print("  No series with ≥ 12 observations found; skipping Figure 5.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 5 — Mass Vaccination ARIMA Forecast (Aggregate + Per-Barangay)
-#   Answers RQ 2.2 directly (Figure 4 above is disease-case forecasting, a
+# FIGURE 6 — Mass Vaccination ARIMA Forecast (Aggregate + Per-Barangay)
+#   Answers RQ 2.2 directly (Figure 5 above is disease-case forecasting, a
 #   different pipeline). Data source: Forecast_Input_* sheets (README-designated
 #   for vaccination forecasting). Per-barangay panel uses the real
 #   Barangay_Masterlist allocation_weight (2025 dog-population share) applied to
@@ -402,7 +491,7 @@ else:
 #   not an independently-fit per-barangay model.
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 5 — Mass Vaccination ARIMA Forecast")
+_section("Figure 6 — Mass Vaccination ARIMA Forecast")
 
 from arima_service import (
     load_vaccination_series, run_vaccination_arima,
@@ -429,7 +518,7 @@ barangay_next_month = [
 fig = plt.figure(figsize=(13, 5), facecolor="white")
 gs  = gridspec.GridSpec(1, 2, figure=fig, width_ratios=[1.4, 1], wspace=0.28)
 fig.suptitle(
-    f"Figure 5 — Mass Vaccination ARIMA Forecast (Total Animals Vaccinated)  "
+    f"Figure 6 — Mass Vaccination ARIMA Forecast (Total Animals Vaccinated)  "
     f"[Model: {vacc_result['model_type']}]",
     fontsize=12, fontweight="bold", y=1.03
 )
@@ -480,7 +569,7 @@ fig.text(0.5, -0.11, (
 ), ha="center", fontsize=8.5, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
 plt.tight_layout()
-_save(fig, "fig5_vaccination_forecast.png")
+_save(fig, "fig6_vaccination_forecast.png")
 
 print(f"  Aggregate forecast: {vacc_result['forecast']}  |  Trend: {vacc_result['trend']}")
 if note_txt:
@@ -490,7 +579,7 @@ for b, v in barangay_next_month[:5]:
     print(f"    {b:22s} {v:.1f}")
 
 print(_wrap(
-    "INTERPRETATION — Figure 5: The municipal forecast (left) is the only real, ARIMA-fitted "
+    "INTERPRETATION — Figure 6: The municipal forecast (left) is the only real, ARIMA-fitted "
     "time series available for vaccination demand — it already accounts for the 2023-2025 "
     "data-basis difference (see data-quality flag above; 2025 uses one official annual total "
     "allocated across months rather than granular monthly logs, per the workbook's own README) "
@@ -503,9 +592,10 @@ print(_wrap(
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ARIMA pooled regression metrics (R² / MSE / RMSE / Explained Variance) —
-# same total_cases target and holdout scheme as the RF Regressor (Figure 3),
-# so the two models are reported on comparable metrics. No new figure; this
-# reuses the per-barangay all-disease series already built for training.
+# same total_cases target and holdout scheme as the All-Disease RF Regressor
+# (Figure 3), so the two models are reported on comparable metrics. No new
+# figure; this reuses the per-barangay all-disease series already built for
+# training.
 # ─────────────────────────────────────────────────────────────────────────────
 
 _section("ARIMA Pooled Regression Metrics (All-Disease, pooled across barangays)")
@@ -535,9 +625,9 @@ if _arima_actual:
     print(_wrap(
         f"INTERPRETATION: ARIMA forecasts each barangay's total_cases from its own "
         f"3-month-ahead holdout, using only that barangay's history (no cross-feature "
-        f"or disease-composition inputs). R² = {arima_r2:.4f} vs the RF Regressor's "
-        f"{r2_val:.4f} (Figure 3) reflects that gap — RF has access to seasonal and "
-        "disease-mix features in addition to case history, while ARIMA is a pure "
+        f"or disease-composition inputs). R² = {arima_r2:.4f} vs the All-Disease RF "
+        f"Regressor's {r2_val:.4f} (Figure 3) reflects that gap — RF has access to seasonal "
+        "and disease-mix features in addition to case history, while ARIMA is a pure "
         "univariate time-series model."
     ))
 else:
@@ -545,10 +635,10 @@ else:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 6 — ARIMA Metrics Across Barangays (MAE / RMSE / MAPE)
+# FIGURE 7 — ARIMA Metrics Across Barangays (MAE / RMSE / MAPE)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 6 — ARIMA Metrics Across Barangays")
+_section("Figure 7 — ARIMA Metrics Across Barangays")
 
 arima_results   = []
 disease_to_eval = chosen_disease or "Rabies"
@@ -578,7 +668,7 @@ if arima_results:
 
     fig, axes = plt.subplots(1, 3, figsize=(14, 5), facecolor="white")
     fig.suptitle(
-        f"Figure 6 — ARIMA Holdout Metrics per Barangay  [{disease_to_eval}]",
+        f"Figure 7 — ARIMA Holdout Metrics per Barangay  [{disease_to_eval}]",
         fontsize=13, fontweight="bold"
     )
 
@@ -608,7 +698,7 @@ if arima_results:
     ), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
     plt.tight_layout()
-    _save(fig, "fig6_arima_metrics_barangays.png")
+    _save(fig, "fig7_arima_metrics_barangays.png")
 
     print(f"  Evaluated {len(df_ar)} barangays with sufficient data.")
     print(f"  Avg MAE : {df_ar['MAE'].mean():.2f}")
@@ -616,7 +706,7 @@ if arima_results:
     print(f"  Avg MAPE: {df_ar['MAPE'].mean():.1f} %")
 
     print(_wrap(
-        f"INTERPRETATION — Figure 6: Average MAE of {df_ar['MAE'].mean():.2f} means "
+        f"INTERPRETATION — Figure 7: Average MAE of {df_ar['MAE'].mean():.2f} means "
         f"the ARIMA model is off by roughly that many cases per month in the holdout "
         "window. Barangays with tall MAE bars likely had an outbreak during the "
         "test period that ARIMA could not anticipate. These are candidates for "
@@ -627,10 +717,10 @@ else:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 7 — ARIMA Residual Analysis (ACF-style manual + QQ)
+# FIGURE 8 — ARIMA Residual Analysis (ACF-style manual + QQ)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 7 — ARIMA Residual Analysis")
+_section("Figure 8 — ARIMA Residual Analysis")
 
 if chosen_series is not None and len(chosen_series) >= 12:
     try:
@@ -644,7 +734,7 @@ if chosen_series is not None and len(chosen_series) >= 12:
 
         fig, axes = plt.subplots(1, 3, figsize=(14, 4.5), facecolor="white")
         fig.suptitle(
-            f"Figure 7 — ARIMA Residual Diagnostics  [{chosen_disease} / {chosen_barangay}]",
+            f"Figure 8 — ARIMA Residual Diagnostics  [{chosen_disease} / {chosen_barangay}]",
             fontsize=12, fontweight="bold"
         )
 
@@ -688,11 +778,11 @@ if chosen_series is not None and len(chosen_series) >= 12:
         ), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
         plt.tight_layout()
-        _save(fig, "fig7_arima_residuals.png")
+        _save(fig, "fig8_arima_residuals.png")
 
         print(f"  Shapiro-Wilk: W={sw_stat:.4f}  p={sw_p:.4f}")
         print(_wrap(
-            f"INTERPRETATION — Figure 7: If residuals are random and bell-shaped, "
+            f"INTERPRETATION — Figure 8: If residuals are random and bell-shaped, "
             f"the ARIMA model has captured the signal adequately. Patterns in the "
             "time plot (e.g., seasonal waves) mean the model is missing structure — "
             "consider a SARIMA order instead. Heavy tails in the Q-Q plot mean "
@@ -701,7 +791,7 @@ if chosen_series is not None and len(chosen_series) >= 12:
     except Exception as e:
         print(f"  Residual analysis skipped: {e}")
 else:
-    print("  Series too short for residual analysis; skipping Figure 7.")
+    print("  Series too short for residual analysis; skipping Figure 8.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -714,7 +804,7 @@ else:
 #   metric instead of only using it as a silent internal switch.
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("ADF Stationarity Test (validation check for Figure 7)")
+_section("ADF Stationarity Test (validation check for Figure 8)")
 
 adf_single = None
 if chosen_series is not None:
@@ -731,14 +821,14 @@ if chosen_series is not None:
         "that null, meaning the series is already stationary and ARIMA's differencing "
         "term (d) can stay at 0. A p-value at or above 0.05 means the raw series drifts "
         "over time, so arima_service.py automatically applies one round of differencing "
-        "(d=1) before fitting -- this is why the model order search in Figure 4/6 is not "
+        "(d=1) before fitting -- this is why the model order search in Figure 5/7 is not "
         "run on raw case counts directly."
     ))
 else:
     print("  No representative series available; skipping single-series ADF test.")
 
 # Aggregate ADF check across every barangay used for the disease evaluated in
-# Figure 6, so the stationarity claim is verified across the dataset rather
+# Figure 7, so the stationarity claim is verified across the dataset rather
 # than on one cherry-picked series.
 adf_results = []
 try:
@@ -809,35 +899,38 @@ print(_wrap(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 8 — Summary Dashboard
+# FIGURE 9 — Summary Dashboard
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 8 — Summary Dashboard")
+_section("Figure 9 — Summary Dashboard")
 
-fig = plt.figure(figsize=(10, 8), facecolor="#F9FAFB")
-gs  = gridspec.GridSpec(2, 2, figure=fig, hspace=0.5, wspace=0.4)
+fig = plt.figure(figsize=(12, 8), facecolor="#F9FAFB")
+gs  = gridspec.GridSpec(2, 3, figure=fig, hspace=0.5, wspace=0.4)
 
 fig.suptitle("BVetter Analytics — Model Evaluation Summary",
              fontsize=16, fontweight="bold", y=1.02)
 
-# ── KPI tiles ── (4 honest tiles; no padding with numbers that don't mean
+# ── KPI tiles ── (5 honest tiles; no padding with numbers that don't mean
 # much on their own — see module docstring for why the old 6-tile layout,
 # 3 of which reported a retired classifier's accuracy/recall/F1, was dropped)
 kpi_data = [
-    ("RF Regressor MAE",   f"{models['mae']}", BRAND_AMBER, "Avg absolute error in monthly\ncase count predictions"),
+    ("All-Disease RF MAE",  f"{models['mae']}", BRAND_AMBER, "Yearly (ARIMA) forecast\naccuracy validation"),
+    ("Disease-RF MAE",
+     f"{ds_mae:.2f}" if ds_mae is not None else "N/A",
+     BRAND_GREEN, "Monthly forecast accuracy\n(powers the month view)"),
     ("ADF Stationarity",
      f"{sum(1 for r in adf_results if r['is_stationary'])}/{len(adf_results)}" if adf_results else "N/A",
      BRAND_GRAY,  "Barangay series confirmed\nstationary before ARIMA fit"),
     ("ARIMA Avg MAE",
      f"{df_ar['MAE'].mean():.2f}" if arima_results else "N/A",
-     BRAND_BLUE, "Average 3-month holdout MAE\nacross barangays (disease-specific)"),
+     BRAND_BLUE, "Average 3-month holdout MAE\nacross barangays (yearly view)"),
     ("ARIMA/Threshold Agreement",
      f"{agreement_rate:.0%}" if agreement_rate is not None else "N/A",
-     BRAND_GREEN, "Trend direction vs. risk level\nagree (all-disease pipeline)"),
+     BRAND_RED, "Trend direction vs. risk level\nagree (all-disease pipeline)"),
 ]
 
 for idx, (title, value, color, note) in enumerate(kpi_data):
-    row, col = divmod(idx, 2)
+    row, col = divmod(idx, 3)
     ax = fig.add_subplot(gs[row, col])
     ax.set_facecolor(color)
     ax.text(0.5, 0.62, value, ha="center", va="center",
@@ -854,17 +947,17 @@ for idx, (title, value, color, note) in enumerate(kpi_data):
         spine.set_visible(False)
 
 fig.text(0.5, -0.04, (
-    "Summary: the RF regressor and ARIMA case forecaster work together in the BVetter "
-    "pipeline. Risk classification is a transparent p50/p75 threshold on trust-gated "
-    "current case counts (Figure 1), not a trained classifier — so there's no accuracy/"
-    "recall/F1 to report for it; the Agreement Rate tile is the honest cross-check instead. "
-    "ARIMA extrapolates the time series trend for up to 12 months ahead, after an "
-    "Augmented Dickey-Fuller (ADF) test confirms whether each series is stationary and "
-    "needs differencing first."
+    "Summary: two Random Forest regressors and ARIMA/SARIMA work together in the BVetter "
+    "pipeline -- one RF validates the all-disease yearly forecast's plausibility, the other "
+    "RF actually powers monthly forecasts, and ARIMA/SARIMA powers yearly forecasts (chosen "
+    "over RF for that view because tree ensembles can't extrapolate a rising trend). Risk "
+    "classification is a transparent p50/p75 threshold on trust-gated current case counts "
+    "(Figure 1), not a trained classifier -- so there's no accuracy/recall/F1 to report for "
+    "it; the Agreement Rate tile is the honest cross-check instead."
 ), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
 plt.tight_layout()
-_save(fig, "fig8_summary_dashboard.png", dpi=180)
+_save(fig, "fig9_summary_dashboard.png", dpi=180)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -881,13 +974,18 @@ print(f"""
 ║    Method                : RuleBasedThreshold (p50/p75)      ║
 ║    Not a trained classifier — see Figure 1 / risk_note       ║
 ╠══════════════════════════════════════════════════════════════╣
-║  RANDOM FOREST CASE REGRESSOR (accuracy check only,          ║
+║  ALL-DISEASE RF REGRESSOR (yearly-forecast validation only,  ║
 ║  not used for forecasts or risk — ARIMA/rule do that)        ║
 ║    MAE                   : {models['mae']}                           ║
 ║    RMSE                  : {models['rmse']}                           ║
 ║    MAPE                  : {models['mape']} %                        ║
 ╠══════════════════════════════════════════════════════════════╣
-║  ARIMA / SARIMA (Disease-Specific, 3-month holdout)          ║
+║  DISEASE-SPECIFIC RF REGRESSOR (powers period="month")       ║
+║    MAE                   : {f'{ds_mae:.2f}' if ds_mae is not None else 'N/A'}                           ║
+║    RMSE                  : {f'{ds_rmse:.2f}' if ds_rmse is not None else 'N/A'}                           ║
+║    MAPE                  : {f'{ds_mape}' if ds_mape is not None else 'N/A'} %                        ║
+╠══════════════════════════════════════════════════════════════╣
+║  ARIMA / SARIMA (Disease-Specific, powers period="year")     ║
 ║    Avg MAE               : {df_ar['MAE'].mean():.2f} cases/month            ║
 ║    Avg RMSE              : {df_ar['RMSE'].mean():.2f}                        ║
 ║    Barangays evaluated   : {len(df_ar)}                             ║
@@ -904,10 +1002,11 @@ print(f"""
 ║    fig1_risk_threshold_rule.png                              ║
 ║    fig2_feature_importance.png                               ║
 ║    fig3_rf_regressor_actual_vs_predicted.png                 ║
-║    fig4_arima_forecast_sample.png                            ║
-║    fig5_vaccination_forecast.png                              ║
-║    fig6_arima_metrics_barangays.png                          ║
-║    fig7_arima_residuals.png                                  ║
-║    fig8_summary_dashboard.png                                ║
+║    fig4_disease_rf_regressor_actual_vs_predicted.png         ║
+║    fig5_arima_forecast_sample.png                            ║
+║    fig6_vaccination_forecast.png                             ║
+║    fig7_arima_metrics_barangays.png                          ║
+║    fig8_arima_residuals.png                                  ║
+║    fig9_summary_dashboard.png                                ║
 ╚══════════════════════════════════════════════════════════════╝
 """)

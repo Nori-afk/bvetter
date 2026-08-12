@@ -138,7 +138,7 @@
 #panel-castration-spay .metric-card:nth-child(2) { border-left-color: #3B82F6; }
 #panel-castration-spay .metric-card:nth-child(3) { border-left-color: #059669; }
 #panel-castration-spay .metric-card:nth-child(4) { border-left-color: #EF4444; }
-#panel-castration-spay .metric-card:nth-child(5) { border-left-color: #7C3AED; }
+#panel-castration-spay .metric-card:nth-child(5) { border-left-color: #D97706; }
 
 #panel-castration-spay .metric-card h2 {
 	margin: 0;
@@ -250,7 +250,7 @@
 #panel-castration-spay .pill-scheduled { background: #F0FDF4; color: #16A34A; }
 #panel-castration-spay .pill-completed { background: #ECFDF5; color: #059669; }
 #panel-castration-spay .pill-cancelled { background: #FEF2F2; color: #DC2626; }
-#panel-castration-spay .pill-pending_schedule { background: #F5F3FF; color: #7C3AED; }
+#panel-castration-spay .pill-pending_schedule { background: #FFFBEB; color: #D97706; }
 
 #panel-castration-spay select,
 #panel-castration-spay input,

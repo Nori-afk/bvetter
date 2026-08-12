@@ -8,8 +8,8 @@
     --navy-light: #EFF6FF;
     --green:      #047857;
     --green-bg:   #ECFDF5;
-    --amber:      #9D174D;
-    --amber-bg:   #FCE7F3;
+    --amber:      #B45309;
+    --amber-bg:   #FFFBEB;
     --blue:       #2563EB;
     --blue-bg:    #EFF6FF;
     --text-1:     #0F172A;
@@ -245,7 +245,7 @@ body {
 .kpi-icon--navy  { background: rgba(0,42,88,0.08);   color: #002A58; }
 .kpi-icon--green { background: rgba(4,120,87,0.09);  color: #047857; }
 .kpi-icon--blue  { background: rgba(37,99,235,0.09); color: #2563EB; }
-.kpi-icon--amber { background: rgba(157,23,77,0.09);  color: #9D174D; }
+.kpi-icon--amber { background: rgba(180,83,9,0.09);  color: #B45309; }
 
 .kpi-body { min-width: 0; }
 
@@ -808,7 +808,7 @@ body {
 .sched-pet-icon--teal   { background: #CCFBF1; }
 .sched-pet-icon--blue   { background: #DBEAFE; }
 .sched-pet-icon--purple { background: #EDE9FE; }
-.sched-pet-icon--amber  { background: #FCE7F3; }
+.sched-pet-icon--amber  { background: #FEF3C7; }
 
 .sched-info {
     flex: 1;
@@ -869,8 +869,8 @@ body {
 }
 
 .sched-badge--pending {
-    background: #CCFBF1;
-    color: #0F766E;
+    background: #FEF3C7;
+    color: #92400E;
 }
 
 .sched-arrow {

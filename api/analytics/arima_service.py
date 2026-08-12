@@ -941,29 +941,33 @@ def _hybrid_predict_one_alldisease(
     # SCALE-1: request 12 monthly forecasts for "year" so we can sum them
     fc_steps = 12 if period == "year" else max(steps, 3)
 
-    if period == "year":
-        # Yearly view stays on ARIMA -- see _rf_monthly_forecast's docstring for
-        # why a 12-step recursive RF forecast is the wrong tool for this one.
-        series = arima_series.get(barangay_name)
-        if series is not None and len(series) >= 6:
-            key = (barangay_name, fc_steps)
-            if key not in arima_cache:
-                arima_cache[key] = run_arima(series, steps=fc_steps)
-            arima_result = arima_cache[key]
-        else:
-            arima_result = {
-                "forecast": [current_cases] * fc_steps,
-                "lower_ci": [max(0, current_cases * 0.8)] * fc_steps,
-                "upper_ci": [current_cases * 1.2] * fc_steps,
-                "order": [0, 0, 0], "trend": "stable", "model_type": "ARIMAFallback",
-            }
-    else:
-        # Monthly view uses the trained RandomForestRegressor directly.
-        rf_cache = models.setdefault("rf_monthly_cache", {})
+    # RF-for-monthly was built and benchmarked (get_disease_specific_regressor's
+    # held-out R^2 came back ~0.01-0.06 in test_eval.py's Figure 4 -- tree
+    # ensembles pooled across sparse, mostly-zero series just don't have enough
+    # signal to trust for a live forecast). ARIMA is used for both "month" and
+    # "year" views instead. Left here, commented out (not deleted), in case RF
+    # quality improves later -- uncomment this block and remove the fallthrough
+    # ARIMA call below to re-enable it for period="month".
+    #
+    # if period == "month":
+    #     rf_cache = models.setdefault("rf_monthly_cache", {})
+    #     key = (barangay_name, fc_steps)
+    #     if key not in rf_cache:
+    #         rf_cache[key] = _rf_monthly_forecast(barangay_name, trusted_bdf, models["regressor"], steps=fc_steps)
+    #     arima_result = rf_cache[key]
+    series = arima_series.get(barangay_name)
+    if series is not None and len(series) >= 6:
         key = (barangay_name, fc_steps)
-        if key not in rf_cache:
-            rf_cache[key] = _rf_monthly_forecast(barangay_name, trusted_bdf, models["regressor"], steps=fc_steps)
-        arima_result = rf_cache[key]
+        if key not in arima_cache:
+            arima_cache[key] = run_arima(series, steps=fc_steps)
+        arima_result = arima_cache[key]
+    else:
+        arima_result = {
+            "forecast": [current_cases] * fc_steps,
+            "lower_ci": [max(0, current_cases * 0.8)] * fc_steps,
+            "upper_ci": [current_cases * 1.2] * fc_steps,
+            "order": [0, 0, 0], "trend": "stable", "model_type": "ARIMAFallback",
+        }
 
     arima_next = arima_result["forecast"][0]   # next-month value, used for the fused/insight-panel number
 
@@ -1447,8 +1451,13 @@ def get_disease_specific_regressor() -> dict:
     mae_val  = round(float(mean_absolute_error(y[test_idx], preds)), 2)
     rmse_val = rmse(y[test_idx], preds)
     mape_val = mape(y[test_idx], preds)
-    _disease_regressor_model = {"regressor": rf, "mae": mae_val, "rmse": rmse_val,
-                                 "mape": mape_val, "trained_on": len(df)}
+    _disease_regressor_model = {
+        "regressor": rf, "mae": mae_val, "rmse": rmse_val, "mape": mape_val, "trained_on": len(df),
+        # Exposed so callers (e.g. test_eval.py) can score the exact held-out
+        # split that produced these numbers, instead of re-deriving one --
+        # same rigor as get_all_disease_models()'s train_idx/test_idx.
+        "df": df, "train_idx": train_idx, "test_idx": test_idx,
+    }
     print(f"Disease-Specific RF ready — trained on {len(df)} rows, MAE {mae_val}, RMSE {rmse_val}")
     return _disease_regressor_model
 
@@ -1546,9 +1555,9 @@ def predict_disease_specific(
     # SCALE-2: forecast 12 months for year period so we can sum
     fc_steps = 12 if period == "year" else max(steps, 3)
 
-    # Monthly view uses the shared Random Forest regressor; yearly view stays on
-    # ARIMA/SARIMA -- see _rf_disease_monthly_forecast's docstring for why.
-    disease_rf_model = get_disease_specific_regressor() if period != "year" else None
+    # RF-for-monthly disabled -- see the matching comment in
+    # _hybrid_predict_one_alldisease(). Left defined, just not called.
+    # disease_rf_model = get_disease_specific_regressor() if period != "year" else None
 
     for barangay in targets:
         b_df = agg[agg["barangay"].str.strip().str.lower() == barangay.strip().lower()]
@@ -1563,28 +1572,30 @@ def predict_disease_specific(
 
         n_obs = len(series.dropna())
 
-        if period == "year":
-            # SPEED-5: pick the ARIMA/SARIMA order once per barangay and reuse it
-            # for both the holdout evaluation and the real forecast (previously
-            # each ran its own independent 16-combo grid search -- 34 model fits
-            # per barangay instead of ~18, which is most of why this was slow).
-            order = s_order = None
-            if n_obs >= 6:
-                order, s_order = _sarima_order_search(series, seasonal=(n_obs >= 12))
-            metrics   = _compute_disease_metrics(series, steps=min(steps, 3), order=order, s_order=s_order)
-            fc_result = _run_disease_arima(series, steps=fc_steps, order=order, s_order=s_order)
-        else:
-            rf_reg = disease_rf_model.get("regressor") if disease_rf_model else None
-            disease_base_rate = float(agg["cases"].mean()) if not agg.empty else 0.0
-            fc_result = _rf_disease_monthly_forecast(series, rf_reg, disease_base_rate, steps=fc_steps)
-            metrics = {
-                "mae": disease_rf_model.get("mae") if disease_rf_model else None,
-                "rmse": disease_rf_model.get("rmse") if disease_rf_model else None,
-                "mape": disease_rf_model.get("mape") if disease_rf_model else None,
-                "holdout_size": 0,
-                "note": ("Accuracy from the shared Random Forest regressor's held-out test set "
-                         "(trained across all diseases and barangays together), not this specific series."),
-            }
+        # SPEED-5: pick the ARIMA/SARIMA order once per barangay and reuse it
+        # for both the holdout evaluation and the real forecast (previously
+        # each ran its own independent 16-combo grid search -- 34 model fits
+        # per barangay instead of ~18, which is most of why this was slow).
+        order = s_order = None
+        if n_obs >= 6:
+            order, s_order = _sarima_order_search(series, seasonal=(n_obs >= 12))
+        metrics   = _compute_disease_metrics(series, steps=min(steps, 3), order=order, s_order=s_order)
+        fc_result = _run_disease_arima(series, steps=fc_steps, order=order, s_order=s_order)
+
+        # RF-for-monthly disabled (see comment above disease_rf_model) -- kept
+        # here, commented out, in case RF quality improves later.
+        # if period != "year":
+        #     rf_reg = disease_rf_model.get("regressor") if disease_rf_model else None
+        #     disease_base_rate = float(agg["cases"].mean()) if not agg.empty else 0.0
+        #     fc_result = _rf_disease_monthly_forecast(series, rf_reg, disease_base_rate, steps=fc_steps)
+        #     metrics = {
+        #         "mae": disease_rf_model.get("mae") if disease_rf_model else None,
+        #         "rmse": disease_rf_model.get("rmse") if disease_rf_model else None,
+        #         "mape": disease_rf_model.get("mape") if disease_rf_model else None,
+        #         "holdout_size": 0,
+        #         "note": ("Accuracy from the shared Random Forest regressor's held-out test set "
+        #                  "(trained across all diseases and barangays together), not this specific series."),
+        #     }
 
         current_cases = float(
             current_by_barangay.get(barangay, 0) or
@@ -1653,8 +1664,9 @@ def predict_disease_specific(
             "model_mae": metrics["mae"], "model_rmse": metrics["rmse"],
             "model_mape": metrics["mape"], "model_accuracy": None,
             "eval_note": metrics["note"],
-            "split_method": ("time_based_chronological_last3months_holdout" if period == "year"
-                              else "random_80_20_holdout_shared_regressor"),
+            # Always the ARIMA/SARIMA holdout now -- RF-for-monthly (which used a
+            # random 80/20 split instead) is disabled, see comment above.
+            "split_method": "time_based_chronological_last3months_holdout",
         })
 
     results.sort(key=lambda x: (

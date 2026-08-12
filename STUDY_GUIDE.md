@@ -122,6 +122,14 @@ to check if the services are running, we first read the output of the test evalu
     in method run_arima
         i think its the fc variable
             it will build a list to set up actual design logic
+    methods functions  and what they do
+        adf_test_report = this method will be used in augmented dickey fuller stationary parang ginagamit to see if the data are actualling moving or if the data is ginagamit throughout the system or the analysis.
+            the "_" is used, normal variable. parang sinasabi na gusto ko kunin ung value pero parang di ko naman kailgan
+            adfuller() -> is the augmented filler test  it does this series have stable mean over time or does drift.trend.
+        select_arima_order():  dito parang nag se-select pdq where ito ung 5AIC, 
+        RMSE() AND MAPE - RMSE STAND FOR ROOT MEAN SQUARED ERROR, AND MEAN ABSOLUTE PERCENTAGE ERROR
+        _FORECAST_IS_RUNWAY = PARANG ITO UNG NI SANITY CHECK ( KUNG TAMA UNG CALCUATION) UNG MGA DATA
+        
 ## Day 5 — Broad Pattern Pass + DB Schema + Mock Defense
 _(pending)_
 

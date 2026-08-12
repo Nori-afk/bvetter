@@ -228,7 +228,7 @@ body {
 }
 
 .warning-note {
-	color: #0F766E;
+	color: #D97706;
 }
 
 .metric-value.danger {
@@ -473,8 +473,8 @@ tr[data-event-id]:hover {
 }
 
 .status-pill.pending {
-	color: #0F766E;
-	background: #CCFBF1;
+	color: #D97706;
+	background: #FFFBEB;
 }
 
 .back-link {
@@ -539,8 +539,8 @@ tr[data-event-id]:hover {
 }
 
 .pill.pending {
-	background: #CCFBF1;
-	color: #0F766E;
+	background: #FFFBEB;
+	color: #D97706;
 }
 
 .detail-grid {
@@ -1123,8 +1123,8 @@ tr[data-event-id]:hover {
 }
 
 .summary-status.pending {
-	background: #CCFBF1;
-	color: #0F766E;
+	background: #FFFBEB;
+	color: #D97706;
 }
 
 .summary-done-btn {

@@ -515,8 +515,8 @@ html, body {
 }
 
 .status-pill.pending {
-    background: rgba(15, 118, 110, 0.12);
-    color: #0F766E;
+    background: rgba(217, 119, 6, 0.12);
+    color: #D97706;
 }
 
 .status-pill.rejected {

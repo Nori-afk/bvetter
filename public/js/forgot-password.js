@@ -117,12 +117,12 @@ function showDevLink(link) {
     const banner = document.createElement('div');
     banner.id = 'dev-reset-banner';
     banner.style.cssText = `
-        background:#eff6ff;border:1.5px solid #93c5fd;border-radius:8px;
+        background:#fffbea;border:1.5px solid #f6c90e;border-radius:8px;
         padding:12px 14px;margin-top:14px;font-size:12px;
         font-family:'Manrope',sans-serif;
     `;
     banner.innerHTML = `
-        <strong style="color:#1D4ED8;">⚠ Dev Mode — Reset Link:</strong><br>
+        <strong style="color:#7a5c00;">⚠ Dev Mode — Reset Link:</strong><br>
         <a href="${link}" style="color:#00802c;word-break:break-all;font-weight:600;">${link}</a>
     `;
     card.appendChild(banner);
