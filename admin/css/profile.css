@@ -39,6 +39,14 @@ body {
     display: flex;
 }
 
+/* Below 768px the sidebar leaves position:fixed and rejoins the flex flow
+   (see shared/css/sidebar.css) — without this, .main-holder's default
+   flex-direction:row crams it into one row with .profile-main instead of
+   stacking them, which is what pushed the page off-screen on phones. */
+@media (max-width: 768px) {
+    .main-holder { flex-direction: column; }
+}
+
 /* ── Page shell ── */
 .profile-main {
     margin-left: calc(var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap));

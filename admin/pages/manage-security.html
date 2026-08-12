@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <link rel="manifest" href="/manifest.json">
+    <script src="/shared/js/pwa-register.js" defer></script>
+    <meta name="theme-color" content="#002A58">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="BVetter">
+    <link rel="apple-touch-icon" href="/public/images/pwa/icon-192.png">
     <title>BVetter – Security & Access Control</title>
     <link rel="icon" type="image/png" href="/vet/images/logo.png"/>
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -532,6 +538,11 @@
         .sec-checkbox-row input { width: 17px; height: 17px; accent-color: var(--secondary-light-green); cursor: pointer; }
 
         @media (max-width: 960px) {
+            /* Below 768px the sidebar leaves position:fixed and rejoins the
+               flex flow (see shared/css/sidebar.css) — without this, body's
+               default flex-direction:row crams it into one row with
+               .sec-main instead of stacking them. */
+            body { flex-direction: column; }
             .sec-main { margin-left: 0; width: 100%; padding: 20px; }
             .sec-top-row { grid-template-columns: 1fr; }
         }

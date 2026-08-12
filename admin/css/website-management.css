@@ -460,6 +460,11 @@ input[type="file"] { display: none; }
 
 /* ── RESPONSIVE ── */
 @media (max-width: 960px) {
+  /* Below 768px the sidebar leaves position:fixed and rejoins the flex
+     flow (see shared/css/sidebar.css) — without this, body's default
+     flex-direction:row squeezes .wm-main into a sliver next to it
+     instead of stacking them below it. */
+  body { flex-direction: column; }
   .wm-main { margin-left: 0; width: 100%; padding: 20px; }
   .wm-assets-grid { grid-template-columns: 1fr 1fr; }
   .wm-two-col { grid-template-columns: 1fr; }

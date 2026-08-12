@@ -1079,6 +1079,12 @@ body {
 
 /* ── RESPONSIVE ─────────────────────────────────────────────── */
 @media (max-width: 960px) {
+    /* Below 768px the sidebar leaves position:fixed and rejoins the flex
+       flow (see shared/css/sidebar.css) — without this, body's default
+       flex-direction:row crams it into one row with .am-main instead of
+       stacking them, which is what pushed the page into horizontal
+       overflow on phones. */
+    body { flex-direction: column; }
     .am-main { margin-left: 0; width: 100%; padding: 20px; }
     .am-kpi-strip { grid-template-columns: 1fr; }
     .am-form-row { grid-template-columns: 1fr; }

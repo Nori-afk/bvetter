@@ -790,6 +790,16 @@ def get_all_disease_models():
     # instead of an ML classifier that was trained not to know the answer.
     _all_disease_models = {
         "df": df, "regressor": rf_reg,
+        # Trust-gated frame (same rule ARIMA already uses -- see _arima_safe_frame)
+        # so anything reading "current" case counts for risk labeling doesn't get
+        # fooled by a sparse/incompletely-logged live tail month the same way a
+        # raw ARIMA fit would. Real example this caught: Tiaong runs 23-28
+        # cases/month through Dec-2025, then has a gap (no Jan-Apr 2026 rows) before
+        # a single DB-sourced May-2026 row of 1 case -- reading raw df's last row
+        # for "current_cases" mislabels it Low, the exact failure mode this whole
+        # threshold rule replaced a classifier to fix, just re-entering through a
+        # data-freshness gap instead of a hidden feature.
+        "arima_df": arima_df,
         "mae": mae_val, "rmse": rmse_val, "mape": mape_val,
         "importance": importance, "trained_on": len(df),
         "db_rows_added": n_db_rows,
@@ -832,6 +842,7 @@ def _hybrid_predict_one_alldisease(
     thresholds: dict = None,
 ) -> dict:
     df           = models["df"]
+    arima_df     = models.get("arima_df", df)
     arima_series = models["arima_series"]
     arima_cache  = models.setdefault("arima_cache", {})
 
@@ -839,7 +850,12 @@ def _hybrid_predict_one_alldisease(
     if bdf.empty:
         return _empty_prediction(barangay_name)
 
-    latest_row    = bdf.iloc[-1]
+    # Trust-gated lookup (see get_all_disease_models' "arima_df" note) so a
+    # sparse/incomplete live tail month can't misreport "current" case count.
+    # Falls back to the raw last row only if this barangay somehow has no
+    # trusted rows at all (shouldn't happen -- every barangay has Excel history).
+    trusted_bdf   = arima_df[arima_df["barangay"] == barangay_name].sort_values(["year", "month_no"])
+    latest_row    = trusted_bdf.iloc[-1] if not trusted_bdf.empty else bdf.iloc[-1]
     current_cases = float(current_override) if current_override is not None else float(latest_row["total_cases"])
 
     # SCALE-1: request 12 monthly forecasts for "year" so we can sum them
@@ -1532,8 +1548,12 @@ def disease_predict():
         except Exception as e:
             return jsonify({"success": False, "error": str(e)}), 500
         df       = models["df"]
+        arima_df = models.get("arima_df", df)
         targets  = requested if requested else list(df["barangay"].unique())
-        all_c    = df.groupby("barangay")["total_cases"].last().to_dict()
+        # Trust-gated lookup (see get_all_disease_models' "arima_df" note) --
+        # otherwise a barangay's untrusted live tail month pollutes both its own
+        # risk label and the p50/p75 thresholds computed from all_c.values() below.
+        all_c    = arima_df.groupby("barangay")["total_cases"].last().to_dict()
         # Apply live current-case overrides before computing risk thresholds,
         # so risk bands reflect today's actual case distribution across
         # barangays, not just each barangay's last historical row.

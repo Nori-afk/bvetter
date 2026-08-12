@@ -2,8 +2,18 @@
 BVetter Model Evaluation — Figures & Explanations
 ==================================================
 Evaluates both models used in the analytics pipeline:
-  1. Random Forest (Risk Classifier + Case Regressor)
-  2. ARIMA / SARIMA (Disease-Specific Forecasting)
+  1. Random Forest Regressor (case-count forecast accuracy check only —
+     NOT used for risk classification; see risk_note in arima_service.py)
+  2. ARIMA / SARIMA (Disease-Specific Forecasting) + the rule-based risk
+     threshold that replaced the earlier RandomForestClassifier
+
+Risk classification used to be evaluated here as a trained classifier
+(confusion matrix, ROC/AUC, precision/recall/F1). That approach was
+replaced in arima_service.py with a transparent p50/p75 threshold rule
+after the classifier — trained without case-count features — misclassified
+Tiaong (the highest-volume barangay in the dataset) as Low risk. This
+script now evaluates the rule that replaced it instead of a model that no
+longer exists in the live pipeline.
 
 Outputs one PNG file per section plus a combined summary figure.
 Run from the api/analytics/ directory:
@@ -25,17 +35,10 @@ import matplotlib
 matplotlib.use("Agg")                   # non-interactive backend (no display needed)
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from matplotlib.colors import LinearSegmentedColormap
 
 from sklearn.metrics import (
-    confusion_matrix, ConfusionMatrixDisplay,
-    classification_report,
-    accuracy_score, precision_score, recall_score, f1_score,
     mean_absolute_error, mean_squared_error, r2_score, explained_variance_score,
-    roc_curve, auc,
-    RocCurveDisplay,
 )
-from sklearn.preprocessing import label_binarize
 
 warnings.filterwarnings("ignore")
 sys.path.insert(0, os.path.dirname(__file__))
@@ -46,6 +49,9 @@ from arima_service import (
     _load_disease_specific_df,
     _compute_disease_metrics,
     _run_disease_arima,
+    _hybrid_predict_one_alldisease,
+    _disease_risk_thresholds,
+    _disease_risk_label,
     run_arima,
     adf_test_report,
     FEATURE_COLS,
@@ -87,277 +93,105 @@ def _wrap(text: str, width: int = 90) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 _section("Loading models …")
-models       = get_all_disease_models()
-df           = models["df"]
-le           = models["label_encoder"]
-classes      = models["classes"]
-clf_features = models["clf_features"]   # seasonal + ratio cols only — see risk_note
-X            = df[FEATURE_COLS].values
-X_cls        = df[clf_features].values
-y_cls        = le.transform(df["risk_class"].fillna("Low").astype(str))
-y_reg        = df["total_cases"].values
+models   = get_all_disease_models()
+df       = models["df"]
+arima_df = models["arima_df"]   # trust-gated frame -- see get_all_disease_models() note
+X        = df[FEATURE_COLS].values
+y_reg    = df["total_cases"].values
 
-# Reuse the exact stratified split the models were trained on (models["train_idx"]/
-# ["test_idx"]) rather than recomputing one here — otherwise this script could score
-# rows the model was trained on, or use a different split than what produced
-# models["accuracy"]/["mae"], silently invalidating the reported metrics.
+# Reuse the exact split the models were trained on (models["train_idx"]/["test_idx"])
+# rather than recomputing one here — otherwise this script could score rows the
+# model was trained on, silently invalidating the reported MAE/RMSE/MAPE.
 train_idx = models["train_idx"]
 test_idx  = models["test_idx"]
 split     = len(train_idx)
 X_train, X_test = X[train_idx], X[test_idx]
-X_cls_train, X_cls_test = X_cls[train_idx], X_cls[test_idx]
-y_cls_train, y_cls_test = y_cls[train_idx], y_cls[test_idx]
 y_reg_train, y_reg_test = y_reg[train_idx], y_reg[test_idx]
 
-rf_cls = models["classifier"]
-rf_reg = models["regressor"]
-y_cls_pred  = rf_cls.predict(X_cls_test)
-y_reg_pred  = rf_reg.predict(X_test)
+rf_reg     = models["regressor"]
+y_reg_pred = rf_reg.predict(X_test)
 
-print(f"  Dataset    : {len(df)} rows  |  train {split}  /  test {len(X_test)}  ({models['split_method']})")
-print(f"  Risk classes: {classes}")
-print(f"  {models.get('smote_note', 'SMOTE not applied')}")
-print(_wrap(
-    "Note: Figure 1's train-side bars show the real, pre-SMOTE class counts "
-    "(what was actually collected). SMOTE-synthesized samples exist only inside "
-    "the classifier's training step and are not part of any reported dataset figures."
-))
+print(f"  Dataset            : {len(df)} rows  |  train {split}  /  test {len(X_test)}")
+print(f"  Risk classification: {models.get('rf_model_type', 'RuleBasedThreshold')} "
+      "(p50/p75 case-count rule) — not a trained classifier, see risk_note below.")
+print(_wrap(models.get("risk_note", "")))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 1 — Class Distribution
+# FIGURE 1 — Risk Classification: Threshold Rule (current, all-disease)
+#   Replaces the old class-distribution/confusion-matrix/per-class-metrics/ROC
+#   figures, which evaluated a RandomForestClassifier that no longer exists in
+#   the live pipeline (see module docstring). This shows what actually decides
+#   risk today: a transparent threshold on trust-gated current case counts.
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 1 — Class Distribution")
+_section("Figure 1 — Risk Classification: Threshold Rule (current, all-disease)")
 
-from collections import Counter
-train_dist = Counter(le.inverse_transform(y_cls_train))
-test_dist  = Counter(le.inverse_transform(y_cls_test))
+current_by_barangay = arima_df.groupby("barangay")["total_cases"].last().sort_values(ascending=False)
+thresholds_now       = _disease_risk_thresholds(list(current_by_barangay.values))
+labels_by_barangay   = {b: _disease_risk_label(v, thresholds_now) for b, v in current_by_barangay.items()}
 
-fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), facecolor="white")
-fig.suptitle("Figure 1 — Risk-Class Distribution (Train vs Test Split)",
-             fontsize=13, fontweight="bold", y=1.02)
-
-for ax, dist, label in zip(axes, [train_dist, test_dist], ["Train (80%)", "Test (20%)"]):
-    labels_ = list(RISK_PALETTE.keys())
-    counts  = [dist.get(l, 0) for l in labels_]
-    colors  = [RISK_PALETTE[l] for l in labels_]
-    bars = ax.bar(labels_, counts, color=colors, edgecolor="white", linewidth=1.5)
-    for bar, cnt in zip(bars, counts):
-        ax.text(bar.get_x() + bar.get_width() / 2,
-                bar.get_height() + 0.5, str(cnt),
-                ha="center", va="bottom", fontsize=10, fontweight="bold")
-    total = sum(counts)
-    ax.set_title(f"{label}  (n={total})", fontsize=11)
-    ax.set_ylabel("Row count")
-    ax.set_ylim(0, max(counts) * 1.2)
-    ax.spines[["top", "right"]].set_visible(False)
-
-fig.text(0.5, -0.08, (
-    "Explanation: A balanced class distribution lets the Random Forest learn all risk "
-    "levels equally. A severely imbalanced dataset (e.g., 90 % Low) inflates accuracy "
-    "while High-risk recall remains poor — the metric that matters most clinically. "
-    "Check whether one class dominates before trusting the overall accuracy score."
-), ha="center", fontsize=9, color=BRAND_GRAY,
-   wrap=True, transform=fig.transFigure)
-
-plt.tight_layout()
-_save(fig, "fig1_class_distribution.png")
-
-print(_wrap(
-    "INTERPRETATION — Figure 1: If 'Low' rows greatly outnumber 'High' rows "
-    "the model learns a biased prior. In that case macro-averaged F1 and "
-    "per-class High-recall are more informative than overall accuracy."
-))
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 2 — Confusion Matrix (Raw + Normalised)
-# ─────────────────────────────────────────────────────────────────────────────
-
-_section("Figure 2 — Confusion Matrix")
-
-# Use only labels present in both test and prediction sets for the matrix
-present_labels = np.unique(np.concatenate([y_cls_test, y_cls_pred]))
-present_names  = [classes[i] for i in present_labels]
-
-cm_raw  = confusion_matrix(y_cls_test, y_cls_pred, labels=present_labels)
-cm_norm = cm_raw.astype(float) / cm_raw.sum(axis=1, keepdims=True).clip(min=1)
-
-fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), facecolor="white")
-fig.suptitle("Figure 2 — Random Forest Risk Classifier — Confusion Matrix",
-             fontsize=13, fontweight="bold", y=1.02)
-
-for ax, cm, title, fmt, vmax in [
-    (axes[0], cm_raw,  "Raw counts",       "d",   None),
-    (axes[1], cm_norm, "Row-normalised (%)", ".0%", 1.0),
-]:
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=present_names)
-    disp.plot(cmap="Blues", ax=ax, colorbar=False, values_format=fmt)
-    ax.set_title(title, fontsize=11)
-    ax.tick_params(labelsize=9)
-
-fig.text(0.5, -0.08, (
-    "Explanation: Rows = actual labels, Columns = predicted labels. "
-    "Diagonal cells = correct predictions. "
-    "The normalised matrix reveals recall per class independent of class frequency. "
-    "A near-zero top-right cell means the model rarely misses 'High' cases as 'Low' "
-    "— the most dangerous error in disease surveillance."
-), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
-
-plt.tight_layout()
-_save(fig, "fig2_confusion_matrix.png")
-
-# Print per-class report — use only labels present in the test split
-print("\nClassification Report:")
-present_labels = np.unique(np.concatenate([y_cls_test, y_cls_pred]))
-present_names  = [classes[i] for i in present_labels]
-print(classification_report(y_cls_test, y_cls_pred,
-                            labels=present_labels,
-                            target_names=present_names,
-                            zero_division=0))
-
-high_idx = list(classes).index("High") if "High" in classes else None
-if high_idx is not None and high_idx in present_labels:
-    high_recall = recall_score(y_cls_test, y_cls_pred,
-                               labels=present_labels, average=None,
-                               zero_division=0)[list(present_labels).index(high_idx)]
-else:
-    high_recall = 0.0
-    print("  Note: 'High' risk class absent from test set — recall reported as 0.")
-print(_wrap(
-    f"INTERPRETATION — Figure 2: High-risk recall = {high_recall:.1%}. "
-    "This is the fraction of actual High-risk barangays the model correctly flags. "
-    "False negatives here (missed High-risk) are the costliest errors — "
-    "a recall below 0.80 suggests the model needs more High-risk training samples "
-    "or a lower decision threshold."
-))
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 3 — Per-Class Precision / Recall / F1 Bar Chart
-# ─────────────────────────────────────────────────────────────────────────────
-
-_section("Figure 3 — Per-Class Precision / Recall / F1")
-
-report_dict = classification_report(
-    y_cls_test, y_cls_pred,
-    labels=present_labels, target_names=present_names,
-    output_dict=True, zero_division=0
-)
-
-metrics_labels = ["precision", "recall", "f1-score"]
-# Only chart the classes that appear in test data
-chart_classes = present_names
-x     = np.arange(len(chart_classes))
-width = 0.25
-
-fig, ax = plt.subplots(figsize=(10, 5), facecolor="white")
-fig.suptitle("Figure 3 — Random Forest Classifier — Per-Class Metrics",
+fig, ax = plt.subplots(figsize=(11, 6), facecolor="white")
+fig.suptitle("Figure 1 — Current Risk Classification (Rule-Based Threshold, All-Disease)",
              fontsize=13, fontweight="bold")
 
-colors_ = [BRAND_BLUE, BRAND_GREEN, BRAND_AMBER]
-for i, (metric, color) in enumerate(zip(metrics_labels, colors_)):
-    vals = [report_dict[cls].get(metric, 0) for cls in chart_classes]
-    bars = ax.bar(x + (i - 1) * width, vals, width, label=metric.capitalize(),
-                  color=color, edgecolor="white", linewidth=1.2)
-    for bar, v in zip(bars, vals):
-        ax.text(bar.get_x() + bar.get_width() / 2,
-                bar.get_height() + 0.01, f"{v:.2f}",
-                ha="center", va="bottom", fontsize=8)
-
-ax.set_xticks(x)
-ax.set_xticklabels(chart_classes, fontsize=11)
-ax.set_ylim(0, 1.15)
-ax.set_ylabel("Score (0–1)")
-ax.set_xlabel("Risk Class")
-ax.legend(fontsize=9)
-ax.axhline(0.8, color=BRAND_RED, linestyle="--", linewidth=0.8, alpha=0.6, label="0.80 target")
+bar_colors = [RISK_PALETTE[labels_by_barangay[b]] for b in current_by_barangay.index]
+ax.bar(current_by_barangay.index, current_by_barangay.values, color=bar_colors,
+       edgecolor="white", linewidth=0.8)
+ax.set_xticks(range(len(current_by_barangay.index)))
+ax.set_xticklabels(current_by_barangay.index, rotation=75, fontsize=7)
+ax.axhline(thresholds_now["low_max"], color=BRAND_GRAY, linestyle="--", linewidth=1,
+           label=f"p50 = {thresholds_now['low_max']:.1f} (Low / Medium cutoff)")
+ax.axhline(thresholds_now["med_max"], color="black", linestyle="--", linewidth=1,
+           label=f"p75 = {thresholds_now['med_max']:.1f} (Medium / High cutoff)")
+ax.set_ylabel("Current cases (most recent trusted month)")
+ax.legend(fontsize=8)
 ax.spines[["top", "right"]].set_visible(False)
 
-fig.text(0.5, -0.05, (
-    "Explanation: Precision = when the model predicts a class, how often is it correct? "
-    "Recall = of all actual cases of that class, how many did the model find? "
-    "F1 = harmonic mean of both. For disease surveillance, High-recall is the priority: "
-    "missing a High-risk barangay is worse than a false alarm."
-), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
+fig.text(0.5, -0.14, (
+    "Explanation: risk is not a trained ML classifier — it's a transparent rule "
+    "(< p50 = Low, p50-p75 = Medium, >= p75 = High), computed fresh from each barangay's "
+    "current case count. This replaced an earlier RandomForestClassifier that, trained "
+    "without case-count features, misclassified Tiaong — the barangay with the highest "
+    "case volume in the dataset — as Low risk. Case counts here come from the trust-gated "
+    "series (the same rule ARIMA forecasting already uses for its own tail data), so a "
+    "single sparse or gap-broken live month can't misreport a barangay's real level."
+), ha="center", fontsize=8.5, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
 plt.tight_layout()
-_save(fig, "fig3_per_class_metrics.png")
+_save(fig, "fig1_risk_threshold_rule.png")
+
+n_high = sum(1 for l in labels_by_barangay.values() if l == "High")
+n_med  = sum(1 for l in labels_by_barangay.values() if l == "Medium")
+n_low  = sum(1 for l in labels_by_barangay.values() if l == "Low")
+top_barangay = current_by_barangay.index[0]
+print(f"  Thresholds   : Low < {thresholds_now['low_max']:.1f}  |  "
+      f"Medium {thresholds_now['low_max']:.1f}-{thresholds_now['med_max']:.1f}  |  "
+      f"High >= {thresholds_now['med_max']:.1f}")
+print(f"  Distribution : {n_high} High, {n_med} Medium, {n_low} Low  (n={len(labels_by_barangay)})")
+print(f"  Highest current case count: {top_barangay} "
+      f"({current_by_barangay.iloc[0]:.0f} cases) → {labels_by_barangay[top_barangay]}")
 
 print(_wrap(
-    "INTERPRETATION — Figure 3: Bars above 0.80 (dashed red line) are acceptable for "
-    "a veterinary surveillance system. Pay special attention to the 'High' class recall. "
-    "If precision is high but recall is low, the classifier is conservative — it flags few "
-    "barangays as High risk, but most of those flags are correct."
+    "INTERPRETATION — Figure 1: bars are current per-barangay case counts, colored by the "
+    "rule's own output. A barangay sitting above the black p75 line is High by construction "
+    "— there's no separate 'accuracy' to report for a rule that IS the definition of the "
+    "label, which is exactly why this replaced a classifier score."
 ))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 4 — ROC Curves (one-vs-rest, multi-class)
+# FIGURE 2 — Feature Importance
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 4 — ROC Curves")
-
-y_prob  = rf_cls.predict_proba(X_cls_test)
-y_bin   = label_binarize(y_cls_test, classes=range(len(classes)))
-
-fig, ax = plt.subplots(figsize=(7, 5.5), facecolor="white")
-fig.suptitle("Figure 4 — ROC Curves (One-vs-Rest per Risk Class)",
-             fontsize=13, fontweight="bold")
-
-line_colors = [BRAND_RED, BRAND_AMBER, BRAND_GREEN]
-for i, (cls_name, color) in enumerate(zip(classes, line_colors)):
-    if y_bin.shape[1] <= i:
-        continue
-    fpr, tpr, _ = roc_curve(y_bin[:, i], y_prob[:, i])
-    roc_auc     = auc(fpr, tpr)
-    ax.plot(fpr, tpr, color=color, lw=2,
-            label=f"{cls_name}  AUC = {roc_auc:.3f}")
-
-ax.plot([0, 1], [0, 1], "k--", lw=1, alpha=0.5, label="Random (AUC = 0.500)")
-ax.set_xlim([0, 1]); ax.set_ylim([0, 1.05])
-ax.set_xlabel("False Positive Rate (1 − Specificity)", fontsize=10)
-ax.set_ylabel("True Positive Rate (Recall / Sensitivity)", fontsize=10)
-ax.legend(loc="lower right", fontsize=9)
-ax.spines[["top", "right"]].set_visible(False)
-
-fig.text(0.5, -0.05, (
-    "Explanation: The ROC curve plots true positive rate (sensitivity) vs false positive "
-    "rate at every decision threshold. AUC = 1.0 is perfect; AUC = 0.5 is random guessing. "
-    "A high AUC for 'High' risk means the model can reliably separate dangerous barangays "
-    "from safe ones across all probability cut-offs."
-), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
-
-plt.tight_layout()
-_save(fig, "fig4_roc_curves.png")
-
-for i, cls_name in enumerate(classes):
-    if y_bin.shape[1] > i:
-        fpr_, tpr_, _ = roc_curve(y_bin[:, i], y_prob[:, i])
-        print(f"  {cls_name:8s} AUC = {auc(fpr_, tpr_):.4f}")
-
-print(_wrap(
-    "INTERPRETATION — Figure 4: AUC > 0.90 indicates strong discriminative ability. "
-    "The 'High' AUC is the most critical: it measures how well the model separates "
-    "genuinely high-risk barangays from the rest at any threshold. "
-    "If the AUC for 'High' is below 0.80, consider adding more training data or "
-    "adjusting class weights."
-))
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 5 — Feature Importance
-# ─────────────────────────────────────────────────────────────────────────────
-
-_section("Figure 5 — Feature Importance")
+_section("Figure 2 — Feature Importance")
 
 importance = models["importance"]
 feat_names = list(importance.keys())
 feat_vals  = list(importance.values())
 
 fig, ax = plt.subplots(figsize=(10, 5.5), facecolor="white")
-fig.suptitle("Figure 5 — Random Forest — Feature Importance (Mean Decrease in Impurity)",
+fig.suptitle("Figure 2 — Random Forest — Feature Importance (Mean Decrease in Impurity)",
              fontsize=13, fontweight="bold")
 
 colors_ = [BRAND_BLUE if v >= 0.05 else BRAND_GRAY for v in feat_vals]
@@ -381,14 +215,14 @@ fig.text(0.5, -0.05, (
 ), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
 plt.tight_layout()
-_save(fig, "fig5_feature_importance.png")
+_save(fig, "fig2_feature_importance.png")
 
 print("  Top-5 features:")
 for fname, fval in list(importance.items())[:5]:
     print(f"    {fname:25s}  {fval:.4f}")
 
 print(_wrap(
-    "INTERPRETATION — Figure 5: Features above the 5% line (dashed red) meaningfully "
+    "INTERPRETATION — Figure 2: Features above the 5% line (dashed red) meaningfully "
     "contribute to predictions. If lag_1 alone accounts for > 50% of importance, "
     "the RF is essentially learning 'tomorrow ≈ today', which is useful but indicates "
     "limited pattern learning. Diverse feature importance across lag, rolling, and "
@@ -397,13 +231,13 @@ print(_wrap(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 6 — RF Regressor: Actual vs Predicted
+# FIGURE 3 — RF Regressor: Actual vs Predicted
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 6 — RF Regressor: Actual vs Predicted")
+_section("Figure 3 — RF Regressor: Actual vs Predicted")
 
 fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), facecolor="white")
-fig.suptitle("Figure 6 — RF Case Regressor — Actual vs Predicted (Test Set)",
+fig.suptitle("Figure 3 — RF Case Regressor — Actual vs Predicted (Test Set)",
              fontsize=13, fontweight="bold", y=1.02)
 
 # Scatter
@@ -445,12 +279,12 @@ fig.text(0.5, -0.06, (
 ), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
 plt.tight_layout()
-_save(fig, "fig6_rf_regressor_actual_vs_predicted.png")
+_save(fig, "fig3_rf_regressor_actual_vs_predicted.png")
 
 print(f"  Regressor — MAE: {mae_val:.4f}  MSE: {mse_val:.4f}  RMSE: {rmse_val:.4f}  "
       f"MAPE: {models['mape']}%  R2: {r2_val:.4f}  Explained Variance: {evs_val:.4f}")
 print(_wrap(
-    f"INTERPRETATION — Figure 6: Points close to the red diagonal (y=x) indicate "
+    f"INTERPRETATION — Figure 3: Points close to the red diagonal (y=x) indicate "
     f"accurate predictions. Systematic deviation above or below the line is bias. "
     f"An MAE of ~{mae_val:.1f} cases means the model is useful for trend detection "
     "but not precise enough for exact case counts — which is expected and acceptable "
@@ -459,11 +293,11 @@ print(_wrap(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 7 — ARIMA: Sample Forecast with Confidence Interval
+# FIGURE 4 — ARIMA: Sample Forecast with Confidence Interval
 #            (one representative disease × barangay)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 7 — ARIMA Forecast (sample series)")
+_section("Figure 4 — ARIMA Forecast (sample series)")
 
 # Pick a disease with data; fall back gracefully
 CANDIDATE_DISEASES = ["Rabies", "Skin Disease", "Distemper", "Parvovirus", "Mange"]
@@ -508,7 +342,7 @@ if chosen_series is not None:
 
     fig, ax = plt.subplots(figsize=(12, 4.5), facecolor="white")
     fig.suptitle(
-        f"Figure 7 — ARIMA Forecast: {chosen_disease} in {chosen_barangay}  "
+        f"Figure 4 — ARIMA Forecast: {chosen_disease} in {chosen_barangay}  "
         f"[Model: {result['model_type']}, order={result['order']}]",
         fontsize=12, fontweight="bold"
     )
@@ -550,16 +384,16 @@ if chosen_series is not None:
     ), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
     plt.tight_layout()
-    _save(fig, "fig7_arima_forecast_sample.png")
+    _save(fig, "fig4_arima_forecast_sample.png")
     print(f"  Disease: {chosen_disease}  |  Barangay: {chosen_barangay}")
     print(f"  Forecast: {result['forecast']}  |  Trend: {result['trend']}")
 else:
-    print("  No series with ≥ 12 observations found; skipping Figure 7.")
+    print("  No series with ≥ 12 observations found; skipping Figure 4.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 7B — Mass Vaccination ARIMA Forecast (Aggregate + Per-Barangay)
-#   Answers RQ 2.2 directly (Figure 7 above is disease-case forecasting, a
+# FIGURE 5 — Mass Vaccination ARIMA Forecast (Aggregate + Per-Barangay)
+#   Answers RQ 2.2 directly (Figure 4 above is disease-case forecasting, a
 #   different pipeline). Data source: Forecast_Input_* sheets (README-designated
 #   for vaccination forecasting). Per-barangay panel uses the real
 #   Barangay_Masterlist allocation_weight (2025 dog-population share) applied to
@@ -568,7 +402,7 @@ else:
 #   not an independently-fit per-barangay model.
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 7B — Mass Vaccination ARIMA Forecast")
+_section("Figure 5 — Mass Vaccination ARIMA Forecast")
 
 from arima_service import (
     load_vaccination_series, run_vaccination_arima,
@@ -595,7 +429,7 @@ barangay_next_month = [
 fig = plt.figure(figsize=(13, 5), facecolor="white")
 gs  = gridspec.GridSpec(1, 2, figure=fig, width_ratios=[1.4, 1], wspace=0.28)
 fig.suptitle(
-    f"Figure 7B — Mass Vaccination ARIMA Forecast (Total Animals Vaccinated)  "
+    f"Figure 5 — Mass Vaccination ARIMA Forecast (Total Animals Vaccinated)  "
     f"[Model: {vacc_result['model_type']}]",
     fontsize=12, fontweight="bold", y=1.03
 )
@@ -646,7 +480,7 @@ fig.text(0.5, -0.11, (
 ), ha="center", fontsize=8.5, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
 plt.tight_layout()
-_save(fig, "fig7b_vaccination_forecast.png")
+_save(fig, "fig5_vaccination_forecast.png")
 
 print(f"  Aggregate forecast: {vacc_result['forecast']}  |  Trend: {vacc_result['trend']}")
 if note_txt:
@@ -656,23 +490,25 @@ for b, v in barangay_next_month[:5]:
     print(f"    {b:22s} {v:.1f}")
 
 print(_wrap(
-    "INTERPRETATION — Figure 7B: The municipal forecast (left) is the only real, ARIMA-fitted "
+    "INTERPRETATION — Figure 5: The municipal forecast (left) is the only real, ARIMA-fitted "
     "time series available for vaccination demand — it already accounts for the 2023-2025 "
-    "regime shift (see data-quality flag above) by flooring to a seasonal baseline. The "
-    "per-barangay breakdown (right) answers the operational question 'how many doses per "
-    "barangay' using a real population-based weighting, but should be reported as an allocation "
-    "of the aggregate forecast, not as 27 independently-validated barangay forecasts."
+    "data-basis difference (see data-quality flag above; 2025 uses one official annual total "
+    "allocated across months rather than granular monthly logs, per the workbook's own README) "
+    "by flooring to a seasonal baseline. The per-barangay breakdown (right) answers the "
+    "operational question 'how many doses per barangay' using a real population-based "
+    "weighting, but should be reported as an allocation of the aggregate forecast, not as "
+    "27 independently-validated barangay forecasts."
 ))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ARIMA pooled regression metrics (R² / MSE / RMSE / Explained Variance) —
-# same total_cases target and holdout scheme as the RF Regressor (Figure 6),
+# same total_cases target and holdout scheme as the RF Regressor (Figure 3),
 # so the two models are reported on comparable metrics. No new figure; this
 # reuses the per-barangay all-disease series already built for training.
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("ARIMA Regression Metrics (All-Disease, pooled across barangays)")
+_section("ARIMA Pooled Regression Metrics (All-Disease, pooled across barangays)")
 
 _arima_actual, _arima_pred = [], []
 for _barangay, _series in models["arima_series"].items():
@@ -700,7 +536,7 @@ if _arima_actual:
         f"INTERPRETATION: ARIMA forecasts each barangay's total_cases from its own "
         f"3-month-ahead holdout, using only that barangay's history (no cross-feature "
         f"or disease-composition inputs). R² = {arima_r2:.4f} vs the RF Regressor's "
-        f"{r2_val:.4f} (Figure 6) reflects that gap — RF has access to seasonal and "
+        f"{r2_val:.4f} (Figure 3) reflects that gap — RF has access to seasonal and "
         "disease-mix features in addition to case history, while ARIMA is a pure "
         "univariate time-series model."
     ))
@@ -709,10 +545,10 @@ else:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 8 — ARIMA Metrics Across Barangays (MAE / RMSE / MAPE)
+# FIGURE 6 — ARIMA Metrics Across Barangays (MAE / RMSE / MAPE)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 8 — ARIMA Metrics Across Barangays")
+_section("Figure 6 — ARIMA Metrics Across Barangays")
 
 arima_results   = []
 disease_to_eval = chosen_disease or "Rabies"
@@ -742,7 +578,7 @@ if arima_results:
 
     fig, axes = plt.subplots(1, 3, figsize=(14, 5), facecolor="white")
     fig.suptitle(
-        f"Figure 8 — ARIMA Holdout Metrics per Barangay  [{disease_to_eval}]",
+        f"Figure 6 — ARIMA Holdout Metrics per Barangay  [{disease_to_eval}]",
         fontsize=13, fontweight="bold"
     )
 
@@ -772,7 +608,7 @@ if arima_results:
     ), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
     plt.tight_layout()
-    _save(fig, "fig8_arima_metrics_barangays.png")
+    _save(fig, "fig6_arima_metrics_barangays.png")
 
     print(f"  Evaluated {len(df_ar)} barangays with sufficient data.")
     print(f"  Avg MAE : {df_ar['MAE'].mean():.2f}")
@@ -780,7 +616,7 @@ if arima_results:
     print(f"  Avg MAPE: {df_ar['MAPE'].mean():.1f} %")
 
     print(_wrap(
-        f"INTERPRETATION — Figure 8: Average MAE of {df_ar['MAE'].mean():.2f} means "
+        f"INTERPRETATION — Figure 6: Average MAE of {df_ar['MAE'].mean():.2f} means "
         f"the ARIMA model is off by roughly that many cases per month in the holdout "
         "window. Barangays with tall MAE bars likely had an outbreak during the "
         "test period that ARIMA could not anticipate. These are candidates for "
@@ -791,10 +627,10 @@ else:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 9 — ARIMA Residual Analysis (ACF-style manual + QQ)
+# FIGURE 7 — ARIMA Residual Analysis (ACF-style manual + QQ)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 9 — ARIMA Residual Analysis")
+_section("Figure 7 — ARIMA Residual Analysis")
 
 if chosen_series is not None and len(chosen_series) >= 12:
     try:
@@ -808,7 +644,7 @@ if chosen_series is not None and len(chosen_series) >= 12:
 
         fig, axes = plt.subplots(1, 3, figsize=(14, 4.5), facecolor="white")
         fig.suptitle(
-            f"Figure 9 — ARIMA Residual Diagnostics  [{chosen_disease} / {chosen_barangay}]",
+            f"Figure 7 — ARIMA Residual Diagnostics  [{chosen_disease} / {chosen_barangay}]",
             fontsize=12, fontweight="bold"
         )
 
@@ -852,11 +688,11 @@ if chosen_series is not None and len(chosen_series) >= 12:
         ), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
         plt.tight_layout()
-        _save(fig, "fig9_arima_residuals.png")
+        _save(fig, "fig7_arima_residuals.png")
 
         print(f"  Shapiro-Wilk: W={sw_stat:.4f}  p={sw_p:.4f}")
         print(_wrap(
-            f"INTERPRETATION — Figure 9: If residuals are random and bell-shaped, "
+            f"INTERPRETATION — Figure 7: If residuals are random and bell-shaped, "
             f"the ARIMA model has captured the signal adequately. Patterns in the "
             "time plot (e.g., seasonal waves) mean the model is missing structure — "
             "consider a SARIMA order instead. Heavy tails in the Q-Q plot mean "
@@ -865,11 +701,11 @@ if chosen_series is not None and len(chosen_series) >= 12:
     except Exception as e:
         print(f"  Residual analysis skipped: {e}")
 else:
-    print("  Series too short for residual analysis; skipping Figure 9.")
+    print("  Series too short for residual analysis; skipping Figure 7.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 9B — ADF Stationarity Test (ARIMA model-validation step)
+# ADF Stationarity Test (ARIMA model-validation step, no separate figure number)
 #   ARIMA assumes the series being fit is stationary (constant mean/variance
 #   over time). The Augmented Dickey-Fuller test is the standard way to check
 #   this before trusting the model's forecast/CI math. arima_service.py
@@ -878,7 +714,7 @@ else:
 #   metric instead of only using it as a silent internal switch.
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 9B — ADF Stationarity Test")
+_section("ADF Stationarity Test (validation check for Figure 7)")
 
 adf_single = None
 if chosen_series is not None:
@@ -890,19 +726,19 @@ if chosen_series is not None:
     print(f"  Critical values     : {adf_single['critical_values']}")
     print(f"  Result              : {verdict}")
     print(_wrap(
-        "INTERPRETATION — Figure 9B: The null hypothesis of the ADF test is that the "
+        "INTERPRETATION: The null hypothesis of the ADF test is that the "
         "series has a unit root (i.e., is non-stationary). A p-value below 0.05 rejects "
         "that null, meaning the series is already stationary and ARIMA's differencing "
         "term (d) can stay at 0. A p-value at or above 0.05 means the raw series drifts "
         "over time, so arima_service.py automatically applies one round of differencing "
-        "(d=1) before fitting -- this is why the model order search in Figure 7/8 is not "
+        "(d=1) before fitting -- this is why the model order search in Figure 4/6 is not "
         "run on raw case counts directly."
     ))
 else:
     print("  No representative series available; skipping single-series ADF test.")
 
 # Aggregate ADF check across every barangay used for the disease evaluated in
-# Figure 8, so the stationarity claim is verified across the dataset rather
+# Figure 6, so the stationarity claim is verified across the dataset rather
 # than on one cherry-picked series.
 adf_results = []
 try:
@@ -940,30 +776,54 @@ else:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 10 — Summary Dashboard
+# ARIMA / Threshold Agreement Rate — cross-check between two independent
+# signals (ARIMA trend direction and the rule-based risk level) for the
+# all-disease pipeline. This is the honest replacement for the retired
+# classifier's precision/recall/F1: it's a real, computed number, not a
+# vanity accuracy score against a rule that IS the label's own definition.
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 10 — Summary Dashboard")
+_section("ARIMA / Threshold Agreement Rate")
 
-acc_val   = accuracy_score(y_cls_test, y_cls_pred)
-prec_val  = precision_score(y_cls_test, y_cls_pred, average="weighted", zero_division=0)
-rec_val   = recall_score(y_cls_test, y_cls_pred, average="weighted", zero_division=0)
-f1_val    = f1_score(y_cls_test, y_cls_pred, average="weighted", zero_division=0)
-high_rec  = recall_score(y_cls_test, y_cls_pred, average=None, zero_division=0)[
-    list(classes).index("High")
-]
+agreements = []
+for barangay in current_by_barangay.index:
+    pred = _hybrid_predict_one_alldisease(
+        barangay, models, steps=3, current_override=None,
+        period="year", thresholds=thresholds_now,
+    )
+    agreements.append(bool(pred["model_agreement"]))
 
-fig = plt.figure(figsize=(14, 8), facecolor="#F9FAFB")
-gs  = gridspec.GridSpec(2, 3, figure=fig, hspace=0.5, wspace=0.4)
+agreement_rate = (sum(agreements) / len(agreements)) if agreements else None
+if agreement_rate is not None:
+    print(f"  Barangays checked: {len(agreements)}  |  Agreement rate: {agreement_rate:.1%}")
+else:
+    print("  No barangays available to check.")
+
+print(_wrap(
+    "INTERPRETATION: 'Agreement' checks whether the ARIMA trend direction "
+    "(rising/stable/falling) and the rule-based risk level (High/Medium/Low) point the "
+    "same way for a barangay -- two independently-computed signals (a time-series trend "
+    "vs. a case-count percentile) agreeing is a real cross-check, unlike a classifier's "
+    "self-reported accuracy against the label it was trained to predict."
+))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FIGURE 8 — Summary Dashboard
+# ─────────────────────────────────────────────────────────────────────────────
+
+_section("Figure 8 — Summary Dashboard")
+
+fig = plt.figure(figsize=(10, 8), facecolor="#F9FAFB")
+gs  = gridspec.GridSpec(2, 2, figure=fig, hspace=0.5, wspace=0.4)
 
 fig.suptitle("BVetter Analytics — Model Evaluation Summary",
-             fontsize=16, fontweight="bold", y=1.01)
+             fontsize=16, fontweight="bold", y=1.02)
 
-# ── KPI tiles ──
+# ── KPI tiles ── (4 honest tiles; no padding with numbers that don't mean
+# much on their own — see module docstring for why the old 6-tile layout,
+# 3 of which reported a retired classifier's accuracy/recall/F1, was dropped)
 kpi_data = [
-    ("RF Accuracy",        f"{acc_val:.1%}",   BRAND_BLUE,  "Overall classification accuracy\n(all risk classes)"),
-    ("High-Risk Recall",   f"{high_rec:.1%}",  BRAND_RED,   "Fraction of actual High-risk\nbarangays correctly flagged"),
-    ("RF Weighted F1",     f"{f1_val:.3f}",    BRAND_GREEN, "Harmonic mean of precision\n& recall (weighted)"),
     ("RF Regressor MAE",   f"{models['mae']}", BRAND_AMBER, "Avg absolute error in monthly\ncase count predictions"),
     ("ADF Stationarity",
      f"{sum(1 for r in adf_results if r['is_stationary'])}/{len(adf_results)}" if adf_results else "N/A",
@@ -971,10 +831,13 @@ kpi_data = [
     ("ARIMA Avg MAE",
      f"{df_ar['MAE'].mean():.2f}" if arima_results else "N/A",
      BRAND_BLUE, "Average 3-month holdout MAE\nacross barangays (disease-specific)"),
+    ("ARIMA/Threshold Agreement",
+     f"{agreement_rate:.0%}" if agreement_rate is not None else "N/A",
+     BRAND_GREEN, "Trend direction vs. risk level\nagree (all-disease pipeline)"),
 ]
 
 for idx, (title, value, color, note) in enumerate(kpi_data):
-    row, col = divmod(idx, 3)
+    row, col = divmod(idx, 2)
     ax = fig.add_subplot(gs[row, col])
     ax.set_facecolor(color)
     ax.text(0.5, 0.62, value, ha="center", va="center",
@@ -991,17 +854,17 @@ for idx, (title, value, color, note) in enumerate(kpi_data):
         spine.set_visible(False)
 
 fig.text(0.5, -0.04, (
-    "Summary: The Random Forest risk classifier and ARIMA case forecaster work "
-    "together in the BVetter pipeline. RF classifies each barangay's risk level using "
-    "lag features and rolling statistics; ARIMA extrapolates the time series trend "
-    "for up to 12 months ahead, after an Augmented Dickey-Fuller (ADF) test confirms "
-    "whether each series is stationary and needs differencing first. High-Risk Recall "
-    "is the most operationally important metric — a value close to 1.0 means nearly "
-    "all outbreak-risk barangays are correctly flagged for veterinary intervention."
+    "Summary: the RF regressor and ARIMA case forecaster work together in the BVetter "
+    "pipeline. Risk classification is a transparent p50/p75 threshold on trust-gated "
+    "current case counts (Figure 1), not a trained classifier — so there's no accuracy/"
+    "recall/F1 to report for it; the Agreement Rate tile is the honest cross-check instead. "
+    "ARIMA extrapolates the time series trend for up to 12 months ahead, after an "
+    "Augmented Dickey-Fuller (ADF) test confirms whether each series is stationary and "
+    "needs differencing first."
 ), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
 plt.tight_layout()
-_save(fig, "fig10_summary_dashboard.png", dpi=180)
+_save(fig, "fig8_summary_dashboard.png", dpi=180)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1014,21 +877,17 @@ print(f"""
 ╔══════════════════════════════════════════════════════════════╗
 ║           BVetter — MODEL EVALUATION RESULTS                ║
 ╠══════════════════════════════════════════════════════════════╣
-║  RANDOM FOREST RISK CLASSIFIER                              ║
-║    Accuracy (weighted)   : {acc_val:.4f}                         ║
-║    Precision (weighted)  : {prec_val:.4f}                         ║
-║    Recall (weighted)     : {rec_val:.4f}                         ║
-║    F1-score (weighted)   : {f1_val:.4f}                         ║
-║    High-risk recall ★    : {high_rec:.4f}  ← key clinical metric  ║
-║    Train rows            : {split}                             ║
-║    Test rows             : {len(X_test)}                              ║
+║  RISK CLASSIFICATION                                         ║
+║    Method                : RuleBasedThreshold (p50/p75)      ║
+║    Not a trained classifier — see Figure 1 / risk_note       ║
 ╠══════════════════════════════════════════════════════════════╣
-║  RANDOM FOREST CASE REGRESSOR                               ║
+║  RANDOM FOREST CASE REGRESSOR (accuracy check only,          ║
+║  not used for forecasts or risk — ARIMA/rule do that)        ║
 ║    MAE                   : {models['mae']}                           ║
 ║    RMSE                  : {models['rmse']}                           ║
 ║    MAPE                  : {models['mape']} %                        ║
 ╠══════════════════════════════════════════════════════════════╣
-║  ARIMA / SARIMA (Disease-Specific, 3-month holdout)         ║
+║  ARIMA / SARIMA (Disease-Specific, 3-month holdout)          ║
 ║    Avg MAE               : {df_ar['MAE'].mean():.2f} cases/month            ║
 ║    Avg RMSE              : {df_ar['RMSE'].mean():.2f}                        ║
 ║    Barangays evaluated   : {len(df_ar)}                             ║
@@ -1038,16 +897,17 @@ print(f"""
 ║    Sample series stationary  : {adf_single['is_stationary'] if adf_single else 'N/A'}                        ║
 ║    Stationary across barangays: {sum(1 for r in adf_results if r['is_stationary'])}/{len(adf_results)} tested          ║
 ╠══════════════════════════════════════════════════════════════╣
-║  OUTPUT FILES                                               ║
-║    fig1_class_distribution.png                              ║
-║    fig2_confusion_matrix.png                                ║
-║    fig3_per_class_metrics.png                               ║
-║    fig4_roc_curves.png                                      ║
-║    fig5_feature_importance.png                              ║
-║    fig6_rf_regressor_actual_vs_predicted.png                ║
-║    fig7_arima_forecast_sample.png                           ║
-║    fig8_arima_metrics_barangays.png                         ║
-║    fig9_arima_residuals.png                                 ║
-║    fig10_summary_dashboard.png                              ║
+║  ARIMA / THRESHOLD AGREEMENT RATE                            ║
+║    Rate                  : {f'{agreement_rate:.1%}' if agreement_rate is not None else 'N/A'}                        ║
+╠══════════════════════════════════════════════════════════════╣
+║  OUTPUT FILES                                                ║
+║    fig1_risk_threshold_rule.png                              ║
+║    fig2_feature_importance.png                               ║
+║    fig3_rf_regressor_actual_vs_predicted.png                 ║
+║    fig4_arima_forecast_sample.png                            ║
+║    fig5_vaccination_forecast.png                              ║
+║    fig6_arima_metrics_barangays.png                          ║
+║    fig7_arima_residuals.png                                  ║
+║    fig8_summary_dashboard.png                                ║
 ╚══════════════════════════════════════════════════════════════╝
 """)
