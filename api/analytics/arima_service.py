@@ -837,6 +837,86 @@ def get_all_disease_models():
     return _all_disease_models
 
 
+def _rf_next_step_features(recent_total_cases: list, last_ratios: dict, next_year: int, next_month: int) -> list:
+    """
+    Builds one FEATURE_COLS row for a not-yet-observed month, matching the exact
+    feature definitions used at training time in load_all_disease_dataframe():
+      - lag_1/2/3, rolling_mean/max/std_3: computed from the last 3 *known* months
+        (mirrors the training-time shift(1).rolling(3) pattern -- these describe
+        the 3 months immediately before the month being predicted).
+      - month_sin/cos/month_no/year: the calendar position of the future month.
+      - skin/para/resp/gastro_ratio: unknown for a future month (disease-mix isn't
+        known in advance) -- carried forward from the most recent known month as
+        the simplest defensible estimate (assumes the mix doesn't shift sharply
+        month to month, which lag features already partially capture for volume).
+    """
+    vals = (recent_total_cases + [0.0, 0.0, 0.0])[-3:] if len(recent_total_cases) < 3 else recent_total_cases[-3:]
+    lag_1, lag_2, lag_3 = vals[-1], vals[-2], vals[-3]
+    arr = np.array(vals, dtype=float)
+    rolling_mean_3 = float(arr.mean())
+    rolling_max_3  = float(arr.max())
+    rolling_std_3  = float(arr.std()) if len(arr) > 1 else 0.0
+    month_sin = float(np.sin(2 * np.pi * next_month / 12))
+    month_cos = float(np.cos(2 * np.pi * next_month / 12))
+    return [
+        lag_1, lag_2, lag_3, rolling_mean_3, rolling_max_3, rolling_std_3,
+        month_sin, month_cos, next_month, next_year,
+        last_ratios.get("skin_ratio", 0.0), last_ratios.get("para_ratio", 0.0),
+        last_ratios.get("resp_ratio", 0.0), last_ratios.get("gastro_ratio", 0.0),
+    ]
+
+
+def _rf_monthly_forecast(barangay_name: str, trusted_bdf: pd.DataFrame, rf_reg, steps: int = 3) -> dict:
+    """
+    Next-month-onward forecast using the same RandomForestRegressor trained in
+    get_all_disease_models() (200 trees, real train/test MAE/RMSE/R2 -- see
+    models["mae"]/["rmse"]), instead of ARIMA. Used for period="month" only --
+    "year" keeps ARIMA (see _hybrid_predict_one_alldisease), because a 12-step
+    recursive RF forecast compounds error at every step and RF trees can't
+    extrapolate past the highest value they were trained on, unlike ARIMA's
+    trend modelling. For a single next-month number this recursion risk is
+    much smaller, so it's a reasonable trade for that one view.
+
+    Confidence interval: RandomForestRegressor has no built-in conf_int() the
+    way ARIMA does. This uses the spread across the forest's individual trees'
+    predictions (10th/90th percentile) as an empirical stand-in -- a standard,
+    if approximate, technique for tree-ensemble prediction intervals.
+    """
+    if trusted_bdf.empty:
+        return {"forecast": [0.0] * steps, "lower_ci": [0.0] * steps, "upper_ci": [0.0] * steps,
+                "order": [0, 0, 0], "trend": "stable", "model_type": "RFMonthlyFallback"}
+
+    last_row = trusted_bdf.iloc[-1]
+    last_ratios = {
+        "skin_ratio": float(last_row.get("skin_ratio", 0.0)),
+        "para_ratio": float(last_row.get("para_ratio", 0.0)),
+        "resp_ratio": float(last_row.get("resp_ratio", 0.0)),
+        "gastro_ratio": float(last_row.get("gastro_ratio", 0.0)),
+    }
+    recent_vals = [float(v) for v in trusted_bdf["total_cases"].tail(3).values]
+    next_year, next_month = int(last_row["year"]), int(last_row["month_no"])
+
+    forecast, lower_ci, upper_ci = [], [], []
+    for _ in range(steps):
+        next_month += 1
+        if next_month > 12:
+            next_month = 1
+            next_year += 1
+        X = np.array([_rf_next_step_features(recent_vals, last_ratios, next_year, next_month)])
+        point = max(0.0, float(rf_reg.predict(X)[0]))
+        tree_preds = [max(0.0, float(t.predict(X)[0])) for t in rf_reg.estimators_]
+        lo, hi = float(np.percentile(tree_preds, 10)), float(np.percentile(tree_preds, 90))
+        forecast.append(round(point, 1))
+        lower_ci.append(round(min(lo, point), 1))
+        upper_ci.append(round(max(hi, point), 1))
+        recent_vals = (recent_vals + [point])[-3:]   # feed prediction back in as next step's lag
+
+    slope = forecast[-1] - forecast[0]
+    trend = "rising" if slope > 0.5 else ("falling" if slope < -0.5 else "stable")
+    return {"forecast": forecast, "lower_ci": lower_ci, "upper_ci": upper_ci,
+            "order": [0, 0, 0], "trend": trend, "model_type": "RFMonthlyRegressor"}
+
+
 def _hybrid_predict_one_alldisease(
     barangay_name: str, models: dict, steps: int, current_override, period: str = "year",
     thresholds: dict = None,
@@ -861,19 +941,29 @@ def _hybrid_predict_one_alldisease(
     # SCALE-1: request 12 monthly forecasts for "year" so we can sum them
     fc_steps = 12 if period == "year" else max(steps, 3)
 
-    series = arima_series.get(barangay_name)
-    if series is not None and len(series) >= 6:
-        key = (barangay_name, fc_steps)
-        if key not in arima_cache:
-            arima_cache[key] = run_arima(series, steps=fc_steps)
-        arima_result = arima_cache[key]
+    if period == "year":
+        # Yearly view stays on ARIMA -- see _rf_monthly_forecast's docstring for
+        # why a 12-step recursive RF forecast is the wrong tool for this one.
+        series = arima_series.get(barangay_name)
+        if series is not None and len(series) >= 6:
+            key = (barangay_name, fc_steps)
+            if key not in arima_cache:
+                arima_cache[key] = run_arima(series, steps=fc_steps)
+            arima_result = arima_cache[key]
+        else:
+            arima_result = {
+                "forecast": [current_cases] * fc_steps,
+                "lower_ci": [max(0, current_cases * 0.8)] * fc_steps,
+                "upper_ci": [current_cases * 1.2] * fc_steps,
+                "order": [0, 0, 0], "trend": "stable", "model_type": "ARIMAFallback",
+            }
     else:
-        arima_result = {
-            "forecast": [current_cases] * fc_steps,
-            "lower_ci": [max(0, current_cases * 0.8)] * fc_steps,
-            "upper_ci": [current_cases * 1.2] * fc_steps,
-            "order": [0, 0, 0], "trend": "stable", "model_type": "ARIMAFallback",
-        }
+        # Monthly view uses the trained RandomForestRegressor directly.
+        rf_cache = models.setdefault("rf_monthly_cache", {})
+        key = (barangay_name, fc_steps)
+        if key not in rf_cache:
+            rf_cache[key] = _rf_monthly_forecast(barangay_name, trusted_bdf, models["regressor"], steps=fc_steps)
+        arima_result = rf_cache[key]
 
     arima_next = arima_result["forecast"][0]   # next-month value, used for the fused/insight-panel number
 
@@ -941,7 +1031,10 @@ def _hybrid_predict_one_alldisease(
         "predicted_lower":  lo_display,
         "predicted_upper":  hi_display,
         "predicted_period": period,
-        "model_type": "AllDiseaseARIMA+RuleBasedThreshold",
+        # Reflects which engine actually produced this forecast: ARIMA for
+        # period="year", the RandomForestRegressor for period="month" -- see
+        # _rf_monthly_forecast's docstring for why they're split that way.
+        "model_type": f"AllDisease{arima_result['model_type']}+RuleBasedThreshold",
     }
 
 
@@ -1265,6 +1358,157 @@ def _compute_disease_metrics(series: pd.Series, steps: int = 3, order: tuple = N
                 "note": "Accuracy check unavailable for this barangay right now."}
 
 
+DISEASE_FEATURE_COLS = [
+    "lag_1", "lag_2", "lag_3",
+    "rolling_mean_3", "rolling_max_3", "rolling_std_3",
+    "month_sin", "month_cos", "month_no", "year",
+    "disease_base_rate",
+]
+
+_disease_regressor_model = {}
+
+
+def _build_disease_specific_training_frame() -> pd.DataFrame:
+    """
+    Pools every (disease, barangay) monthly series from Consult_Diagnosis_3Y into
+    one training set for a single shared RandomForestRegressor -- mirrors the
+    lag/rolling/seasonal feature engineering in load_all_disease_dataframe(), but
+    without the disease-mix ratio columns (skin_ratio etc.): those describe a
+    *different* disease's share of total cases and don't apply once the series
+    is already scoped to one disease.
+
+    disease_base_rate (that disease's own mean case count across every
+    barangay-month, a single number per disease) is included because lag_1
+    alone is NOT enough to distinguish diseases here, unlike the all-disease
+    model where lag_1 carries ~80% of feature importance across barangays that
+    share similar dynamics. Verified empirically: pooled across all 42
+    diagnoses, 88.8% of rows are 0 (most diseases are rare most months), and
+    even rows with lag_1 in [4,6] have a median target of 0 -- rare one-off
+    diseases spiking to 5 then reverting to 0 swamp a chronic/recurring
+    condition like Mange that stays elevated. disease_base_rate lets the tree
+    split rare-spike diseases from steadier ones even when their lag values
+    happen to coincide.
+    """
+    raw = _load_consult_diagnosis_raw()
+    diseases = sorted(raw["diagnosis"].str.strip().unique())
+    frames = []
+    for disease in diseases:
+        agg = _load_disease_specific_df(disease)
+        if agg.empty:
+            continue
+        disease_base_rate = float(agg["cases"].mean())
+        for _barangay, b_df in agg.groupby("barangay"):
+            b_df  = b_df.sort_values(["year", "month_no"]).reset_index(drop=True)
+            cases = b_df["cases"].astype(float)
+            frame = pd.DataFrame({
+                "lag_1":          cases.shift(1),
+                "lag_2":          cases.shift(2),
+                "lag_3":          cases.shift(3),
+                "rolling_mean_3": cases.shift(1).rolling(3).mean(),
+                "rolling_max_3":  cases.shift(1).rolling(3).max(),
+                "rolling_std_3":  cases.shift(1).rolling(3).std().fillna(0),
+                "month_sin":      np.sin(2 * np.pi * b_df["month_no"] / 12),
+                "month_cos":      np.cos(2 * np.pi * b_df["month_no"] / 12),
+                "month_no":       b_df["month_no"],
+                "year":           b_df["year"],
+                "disease_base_rate": disease_base_rate,
+                "cases":          cases,
+            })
+            frames.append(frame.dropna(subset=["lag_1", "lag_2", "lag_3", "rolling_mean_3"]))
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=DISEASE_FEATURE_COLS + ["cases"])
+
+
+def get_disease_specific_regressor() -> dict:
+    """
+    Warm-started once per server run (lazy, on first period='month' disease-
+    specific request) -- see get_all_disease_models() for the equivalent
+    all-disease pattern. mae/rmse/mape here are real held-out test-set metrics
+    for the shared model, not per-(disease,barangay) numbers -- there's no
+    per-series holdout the way ARIMA has, since this one regressor is trained
+    once across every disease and barangay together.
+    """
+    global _disease_regressor_model
+    if _disease_regressor_model:
+        return _disease_regressor_model
+    print("Training Disease-Specific RandomForestRegressor (pooled across diseases)…")
+    df = _build_disease_specific_training_frame()
+    if len(df) < 20:
+        _disease_regressor_model = {"regressor": None, "mae": None, "rmse": None, "mape": None, "trained_on": len(df)}
+        return _disease_regressor_model
+
+    X = df[DISEASE_FEATURE_COLS].values
+    y = df["cases"].values
+    idx = np.arange(len(df))
+    train_idx, test_idx = train_test_split(idx, test_size=0.2, random_state=42)
+    rf = RandomForestRegressor(n_estimators=200, max_depth=10, min_samples_split=4,
+                                min_samples_leaf=2, random_state=42, n_jobs=-1)
+    rf.fit(X[train_idx], y[train_idx])
+    preds = rf.predict(X[test_idx])
+    mae_val  = round(float(mean_absolute_error(y[test_idx], preds)), 2)
+    rmse_val = rmse(y[test_idx], preds)
+    mape_val = mape(y[test_idx], preds)
+    _disease_regressor_model = {"regressor": rf, "mae": mae_val, "rmse": rmse_val,
+                                 "mape": mape_val, "trained_on": len(df)}
+    print(f"Disease-Specific RF ready — trained on {len(df)} rows, MAE {mae_val}, RMSE {rmse_val}")
+    return _disease_regressor_model
+
+
+def _rf_disease_next_step_features(recent_vals: list, next_year: int, next_month: int,
+                                    disease_base_rate: float) -> list:
+    vals = (recent_vals + [0.0, 0.0, 0.0])[-3:] if len(recent_vals) < 3 else recent_vals[-3:]
+    lag_1, lag_2, lag_3 = vals[-1], vals[-2], vals[-3]
+    arr = np.array(vals, dtype=float)
+    rolling_mean_3 = float(arr.mean())
+    rolling_max_3  = float(arr.max())
+    rolling_std_3  = float(arr.std()) if len(arr) > 1 else 0.0
+    month_sin = float(np.sin(2 * np.pi * next_month / 12))
+    month_cos = float(np.cos(2 * np.pi * next_month / 12))
+    return [lag_1, lag_2, lag_3, rolling_mean_3, rolling_max_3, rolling_std_3,
+            month_sin, month_cos, next_month, next_year, disease_base_rate]
+
+
+def _rf_disease_monthly_forecast(series: pd.Series, rf_reg, disease_base_rate: float, steps: int = 3) -> dict:
+    """
+    Same technique and rationale as _rf_monthly_forecast (see its docstring for
+    the ARIMA-for-year/RF-for-month split and the tree-spread confidence
+    interval), applied to a single disease+barangay series via the shared
+    get_disease_specific_regressor() model instead of the all-disease one.
+    disease_base_rate is this disease's own mean case rate (see
+    _build_disease_specific_training_frame's docstring for why it's needed --
+    without it, lag_1 alone got swamped by the ~89% of rows that are 0 across
+    the 42 pooled diseases).
+    """
+    if rf_reg is None or series is None or series.dropna().empty:
+        return {"forecast": [0.0] * steps, "lower_ci": [0.0] * steps, "upper_ci": [0.0] * steps,
+                "order": [0, 0, 0], "seasonal_order": None, "trend": "stable",
+                "model_type": "DiseaseRFMonthlyFallback", "n_obs": 0}
+
+    vals = series.dropna().values.astype(float)
+    recent_vals = list(vals[-3:])
+    last_period = series.index[-1]
+    next_year, next_month = last_period.year, last_period.month
+
+    forecast, lower_ci, upper_ci = [], [], []
+    for _ in range(steps):
+        next_month += 1
+        if next_month > 12:
+            next_month, next_year = 1, next_year + 1
+        X = np.array([_rf_disease_next_step_features(recent_vals, next_year, next_month, disease_base_rate)])
+        point = max(0.0, float(rf_reg.predict(X)[0]))
+        tree_preds = [max(0.0, float(t.predict(X)[0])) for t in rf_reg.estimators_]
+        lo, hi = float(np.percentile(tree_preds, 10)), float(np.percentile(tree_preds, 90))
+        forecast.append(round(point, 1))
+        lower_ci.append(round(min(lo, point), 1))
+        upper_ci.append(round(max(hi, point), 1))
+        recent_vals = (recent_vals + [point])[-3:]
+
+    slope = forecast[-1] - forecast[0]
+    trend = "rising" if slope > 0.5 else ("falling" if slope < -0.5 else "stable")
+    return {"forecast": forecast, "lower_ci": lower_ci, "upper_ci": upper_ci,
+            "order": [0, 0, 0], "seasonal_order": None, "trend": trend,
+            "model_type": "DiseaseRFMonthlyRegressor", "n_obs": len(vals)}
+
+
 def predict_disease_specific(
     disease_name: str, requested_barangays: list, period: str,
     steps: int, current_cases_by_barangay: dict,
@@ -1302,6 +1546,10 @@ def predict_disease_specific(
     # SCALE-2: forecast 12 months for year period so we can sum
     fc_steps = 12 if period == "year" else max(steps, 3)
 
+    # Monthly view uses the shared Random Forest regressor; yearly view stays on
+    # ARIMA/SARIMA -- see _rf_disease_monthly_forecast's docstring for why.
+    disease_rf_model = get_disease_specific_regressor() if period != "year" else None
+
     for barangay in targets:
         b_df = agg[agg["barangay"].str.strip().str.lower() == barangay.strip().lower()]
         if b_df.empty:
@@ -1313,17 +1561,30 @@ def predict_disease_specific(
             ).dt.to_period("M")
             series = b_df.groupby("period_dt")["cases"].sum().astype(float).asfreq("M", fill_value=0)
 
-        # SPEED-5: pick the ARIMA/SARIMA order once per barangay and reuse it for
-        # both the holdout evaluation and the real forecast (previously each ran
-        # its own independent 16-combo grid search -- 34 model fits per barangay
-        # instead of ~18, which is most of why this endpoint was slow).
         n_obs = len(series.dropna())
-        order = s_order = None
-        if n_obs >= 6:
-            order, s_order = _sarima_order_search(series, seasonal=(n_obs >= 12))
 
-        metrics   = _compute_disease_metrics(series, steps=min(steps, 3), order=order, s_order=s_order)
-        fc_result = _run_disease_arima(series, steps=fc_steps, order=order, s_order=s_order)
+        if period == "year":
+            # SPEED-5: pick the ARIMA/SARIMA order once per barangay and reuse it
+            # for both the holdout evaluation and the real forecast (previously
+            # each ran its own independent 16-combo grid search -- 34 model fits
+            # per barangay instead of ~18, which is most of why this was slow).
+            order = s_order = None
+            if n_obs >= 6:
+                order, s_order = _sarima_order_search(series, seasonal=(n_obs >= 12))
+            metrics   = _compute_disease_metrics(series, steps=min(steps, 3), order=order, s_order=s_order)
+            fc_result = _run_disease_arima(series, steps=fc_steps, order=order, s_order=s_order)
+        else:
+            rf_reg = disease_rf_model.get("regressor") if disease_rf_model else None
+            disease_base_rate = float(agg["cases"].mean()) if not agg.empty else 0.0
+            fc_result = _rf_disease_monthly_forecast(series, rf_reg, disease_base_rate, steps=fc_steps)
+            metrics = {
+                "mae": disease_rf_model.get("mae") if disease_rf_model else None,
+                "rmse": disease_rf_model.get("rmse") if disease_rf_model else None,
+                "mape": disease_rf_model.get("mape") if disease_rf_model else None,
+                "holdout_size": 0,
+                "note": ("Accuracy from the shared Random Forest regressor's held-out test set "
+                         "(trained across all diseases and barangays together), not this specific series."),
+            }
 
         current_cases = float(
             current_by_barangay.get(barangay, 0) or
@@ -1392,7 +1653,8 @@ def predict_disease_specific(
             "model_mae": metrics["mae"], "model_rmse": metrics["rmse"],
             "model_mape": metrics["mape"], "model_accuracy": None,
             "eval_note": metrics["note"],
-            "split_method": "time_based_chronological_last3months_holdout",
+            "split_method": ("time_based_chronological_last3months_holdout" if period == "year"
+                              else "random_80_20_holdout_shared_regressor"),
         })
 
     results.sort(key=lambda x: (
@@ -1409,7 +1671,7 @@ def _friendly_model_label(model_type):
         return "Basic Estimate"
     if "arima" in s and ("rf" in s or "alldisease" in s):
         return "Advanced Forecast"
-    if "sarima" in s or "arima" in s:
+    if "sarima" in s or "arima" in s or "rfmonthly" in s:
         return "Smart Forecast"
     return "Forecast"
 
@@ -1595,7 +1857,7 @@ def disease_predict():
                     f"predicts {pred['predicted_cases']:.0f} "
                     f"({'annual' if period == 'year' else 'next-month'}) cases."
                 ),
-                "steps": sl, "model_type": "AllDiseaseARIMA+RuleBasedThreshold",
+                "steps": sl, "model_type": pred["model_type"],
                 "model_mae": models["mae"], "model_rmse": models.get("rmse"),
                 "model_mape": models.get("mape"),
                 "eval_note": models.get("risk_note_short", ""),

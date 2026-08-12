@@ -65,8 +65,14 @@ function friendlyModelLabel(modelType) {
     // would otherwise match the "arima" check below and get labeled "Smart
     // Forecast", which is exactly backwards from what it should signal.
     if (s.includes('fallback') || s.includes('movingaverage') || s.includes('wma')) return 'Basic Estimate';
-    if (s.includes('arima') && (s.includes('rf') || s.includes('alldisease'))) return 'Advanced Forecast';
-    if (s.includes('sarima') || s.includes('arima')) return 'Smart Forecast';
+    // 'alldisease' alone (not just 'arima' && 'alldisease') so the RF-based
+    // monthly forecast for the all-disease pipeline ("AllDiseaseRFMonthlyRegressor...")
+    // still reads as the same "combined pipeline" tier as its ARIMA counterpart.
+    if (s.includes('alldisease')) return 'Advanced Forecast';
+    if (s.includes('arima') && s.includes('rf')) return 'Advanced Forecast';
+    // Disease-specific RF monthly forecast ("DiseaseRFMonthlyRegressor") sits at
+    // the same tier as plain SARIMA/ARIMA -- a real per-series model, not a fallback.
+    if (s.includes('sarima') || s.includes('arima') || s.includes('rfmonthly')) return 'Smart Forecast';
     return 'Forecast';
 }
 
@@ -599,8 +605,11 @@ function renderBarChart(targetId, rows, chartType) {
         let badge = '';
         if (chartType === 'predicted') {
             const src = (item.source || '').toLowerCase();
-            if (src.includes('sarima') || src.includes('arima')) {
-                badge = (src.includes('alldisease') || src.includes('rf'))
+            // 'rfmonthly' alongside sarima/arima so the RF-based monthly forecast
+            // (both all-disease and per-disease) still gets a model badge instead
+            // of falling through to the generic "Estimate" badge below.
+            if (src.includes('sarima') || src.includes('arima') || src.includes('rfmonthly')) {
+                badge = src.includes('alldisease')
                     ? `<span class="source-badge model">Advanced Forecast</span>`
                     : `<span class="source-badge model">Smart Forecast</span>`;
             }
