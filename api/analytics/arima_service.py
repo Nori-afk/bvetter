@@ -1,7 +1,21 @@
 """
-BVetter Analytics Backend — v3.1 (Speed + Scaling fixes applied to v3)
+BVetter Analytics Backend — v3.2 (RF-as-classifier realignment applied to v3.1)
 =======================================================================
-Changes from v3:
+Changes from v3.1:
+  MODEL-1  : All-disease risk classification is a RandomForestClassifier again
+             (it started as one, was replaced with a rule-based threshold after
+             a real bug -- see get_all_disease_models() for the full history).
+             This version includes case-count features in training, which the
+             buggy version deliberately excluded; that's what caused the bug,
+             not the idea of a classifier itself.
+  MODEL-2  : RandomForestRegressor removed entirely, from both the all-disease
+             and disease-specific pipelines. It never actually produced a live
+             forecast (RF-for-monthly was built, benchmarked poorly, and
+             disabled in v3 already) -- it only powered a standalone case-count
+             accuracy metric. ARIMA/SARIMA -- which already produced every real
+             forecast -- now reports its own pooled accuracy in that metric's
+             place.
+Changes from v3 (retained):
   SPEED-1  : CACHE_TTL 300 → 600 s
   SPEED-2  : _sarima_order_search grid reduced 81 → 16 combos
   SPEED-3  : _ma_fallback bootstrap resamples 1000 → 200
@@ -27,9 +41,11 @@ from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from statsmodels.tsa.stattools import adfuller
 
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import mean_absolute_error, accuracy_score, precision_recall_fscore_support, confusion_matrix
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from imblearn.over_sampling import SMOTE
 
 warnings.filterwarnings("ignore")
 app = Flask(__name__)
@@ -571,9 +587,9 @@ def vaccination_forecast_barangay():
 
 
 # ════════════════════════════════════════════════════════════════════════
-# ALL-DISEASE HYBRID  (ARIMA forecast + RandomForestRegressor accuracy check
-# + rule-based risk thresholds — see get_all_disease_models() for why risk
-# is threshold-based rather than a trained classifier)
+# ALL-DISEASE HYBRID  (ARIMA forecast + RandomForestClassifier risk label —
+# see get_all_disease_models() for why case-count features are included in
+# training this time, unlike an earlier version of this same classifier)
 # ════════════════════════════════════════════════════════════════════════
 
 FEATURE_COLS = [
@@ -605,7 +621,8 @@ def load_db_disease_monthly(after_year: int, after_month: int) -> pd.DataFrame:
     DB rows have no risk_class (that's a label from the Excel sheet with no
     live equivalent yet), so they're tagged is_db_sourced=True and excluded
     from the RF risk classifier's training set in get_all_disease_models();
-    they still feed the ARIMA series and the case-count regressor.
+    they still feed the ARIMA series (subject to _arima_safe_frame's trust
+    gate) and the general case-count history in df/total_cases.
     """
     cols = ["barangay", "year", "month_no", "skin_related_cases", "parasitic_cases",
             "respiratory_cases", "gastrointestinal_cases", "total_cases",
@@ -743,183 +760,169 @@ def _build_arima_series_for_df(df: pd.DataFrame, value_col: str = "total_cases")
     return out
 
 
+def _arima_pooled_accuracy(arima_series: dict) -> dict:
+    """
+    Real 3-month-holdout MAE/RMSE/MAPE for the all-disease ARIMA forecast,
+    pooled across every barangay with enough history. This is what
+    get_all_disease_models() now reports as its headline accuracy metric --
+    it used to be a RandomForestRegressor's held-out test-set accuracy, but
+    that regressor never actually produced a live forecast (ARIMA/SARIMA
+    already did, for both period=month and period=year), so reporting the
+    regressor's accuracy was reporting the wrong model's number. This reports
+    the accuracy of the model that actually runs.
+    """
+    actual, pred = [], []
+    for series in arima_series.values():
+        series = series.dropna()
+        if len(series) < 9:
+            continue
+        train  = series.iloc[:-3]
+        actual_vals = series.iloc[-3:].values.astype(float)
+        fc = run_arima(train, steps=3)
+        actual.extend(actual_vals.tolist())
+        pred.extend(fc["forecast"])
+    if not actual:
+        return {"mae": None, "rmse": None, "mape": None}
+    actual_arr, pred_arr = np.array(actual), np.array(pred)
+    return {
+        "mae":  round(float(mean_absolute_error(actual_arr, pred_arr)), 2),
+        "rmse": rmse(actual_arr, pred_arr),
+        "mape": mape(actual_arr, pred_arr),
+    }
+
+
 def get_all_disease_models():
     global _all_disease_models
     if _all_disease_models:
         return _all_disease_models
-    print("Training All-Disease Hybrid (ARIMA + RuleBasedThreshold)…")
+    print("Training All-Disease Hybrid (ARIMA + RandomForestClassifier)…")
     df     = load_all_disease_dataframe()
-    X      = df[FEATURE_COLS].values
-    y_reg  = df["total_cases"].values
     n_db_rows = int(df.get("is_db_sourced", pd.Series(dtype=bool)).sum())
     arima_df = _arima_safe_frame(df)
     n_arima_db_rows = int(arima_df.get("is_db_sourced", pd.Series(dtype=bool)).sum())
+    arima_series = _build_arima_series_for_df(arima_df)
+    arima_acc    = _arima_pooled_accuracy(arima_series)
 
-    # Regressor trains on the FULL history (Excel + live DB continuation) —
-    # forecasting case counts from past case counts doesn't
-    # need a risk_class label, so DB rows are safe to include here. This is
-    # only used for the reported MAE/RMSE/MAPE accuracy metrics, not for
-    # producing forecasts (ARIMA does that) or risk labels (see below).
-    idx = np.arange(len(df))
-    train_idx, test_idx = train_test_split(idx, test_size=0.2, random_state=42)
+    # Classifier trains only on rows with a real risk_class label -- that's
+    # every Excel-sourced row, but never a live DB-continuation row (see
+    # load_db_disease_monthly()'s docstring: no risk_class exists yet for
+    # live patient_visit_records data).
+    df_cls = df[df["risk_class"].notna()].reset_index(drop=True)
+    X_cls  = df_cls[FEATURE_COLS].values
+    le     = LabelEncoder()
+    y_cls  = le.fit_transform(df_cls["risk_class"].astype(str))
 
-    rf_reg = RandomForestRegressor(n_estimators=200, max_depth=10,
+    # Stratified (not chronological) split: the "Low" class is only ~6 of
+    # ~891 rows, all early in sort order -- a chronological split would make
+    # it invisible during evaluation.
+    cls_idx = np.arange(len(df_cls))
+    train_idx, test_idx = train_test_split(
+        cls_idx, test_size=0.2, random_state=42, stratify=y_cls)
+
+    # SMOTE on the training fold only (never the held-out test set), to
+    # address that same scarcity. k_neighbors is capped below the smallest
+    # class's count in the training fold so SMOTE doesn't hard-fail on it.
+    train_class_counts = pd.Series(y_cls[train_idx]).value_counts()
+    k_neighbors = max(1, min(5, int(train_class_counts.min()) - 1))
+    X_train_bal, y_train_bal = SMOTE(
+        random_state=42, k_neighbors=k_neighbors
+    ).fit_resample(X_cls[train_idx], y_cls[train_idx])
+
+    # Case-count features (lag_1/2/3, rolling_mean/max/std_3) are included
+    # this time -- see the module docstring (MODEL-1) and the note below for
+    # why an earlier version of this exact classifier deliberately excluded
+    # them, and what that caused.
+    rf_cls = RandomForestClassifier(n_estimators=200, max_depth=10,
         min_samples_split=4, min_samples_leaf=2, random_state=42, n_jobs=-1)
-    rf_reg.fit(X[train_idx], y_reg[train_idx])
-    preds_test = rf_reg.predict(X[test_idx])
-    mae_val  = round(float(mean_absolute_error(y_reg[test_idx], preds_test)), 2)
-    rmse_val = rmse(y_reg[test_idx], preds_test)
-    mape_val = mape(y_reg[test_idx], preds_test)
+    rf_cls.fit(X_train_bal, y_train_bal)
+
+    y_test_cls  = y_cls[test_idx]
+    preds_test  = rf_cls.predict(X_cls[test_idx])
+    all_labels  = np.arange(len(le.classes_))
+    accuracy_val = round(float(accuracy_score(y_test_cls, preds_test)) * 100, 1)
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        y_test_cls, preds_test, labels=all_labels, zero_division=0)
+    cm = confusion_matrix(y_test_cls, preds_test, labels=all_labels)
     importance = dict(sorted(
-        {FEATURE_COLS[i]: round(float(v), 4) for i, v in enumerate(rf_reg.feature_importances_)}.items(),
+        {FEATURE_COLS[i]: round(float(v), 4) for i, v in enumerate(rf_cls.feature_importances_)}.items(),
         key=lambda x: x[1], reverse=True))
 
-    # Risk classification used to be a RandomForestClassifier deliberately
-    # trained WITHOUT case-count features (lag_1/2/3, rolling stats), out of
-    # concern that those features let it trivially reconstruct risk_class
-    # and "inflate" accuracy to 100%. In practice, risk_class in the source
-    # data barely overlaps by case count (Low ~9, Medium 10-17, High 16-30)
-    # -- it IS essentially a threshold on volume, so hiding volume from the
-    # classifier didn't reduce overfitting, it removed the one signal that
-    # defines the label. Real-world result: a barangay with the highest
-    # case count in the whole dataset (Tiaong, consistently 21-30/month,
-    # always "High" in the source data) got classified "Low/stable" because
-    # the model could only see season + disease-mix, not volume. Replaced
-    # with the same transparent, verifiable threshold rule already used for
-    # the per-disease pipeline (_disease_risk_thresholds/_disease_risk_label)
-    # instead of an ML classifier that was trained not to know the answer.
+    # This classifier started as exactly this design (case-count features
+    # included). It was later changed to deliberately EXCLUDE lag/rolling
+    # case-count features, on the theory that seeing them let it trivially
+    # reconstruct risk_class and "inflate" accuracy to 100%. In practice,
+    # risk_class in the source data barely overlaps by case count (Low ~9,
+    # Medium 10-17, High 16-30) -- it IS essentially a threshold on volume,
+    # so hiding volume from the classifier didn't reduce overfitting, it
+    # removed the one signal that defines the label. Real-world result: a
+    # barangay with the highest case count in the whole dataset (Tiaong,
+    # consistently 21-30/month, always "High" in the source data) got
+    # classified "Low/stable" because the model could only see season +
+    # disease-mix, not volume. That version was replaced with a transparent
+    # threshold rule instead of fixing the actual cause. This version keeps
+    # the classifier, restores the case-count features, and keeps the
+    # stratified split + SMOTE (that part of the excluded-features design was
+    # never the problem -- the "Low" class really does only have ~6 rows).
     _all_disease_models = {
-        "df": df, "regressor": rf_reg,
+        "df": df, "classifier": rf_cls, "label_encoder": le,
         # Trust-gated frame (same rule ARIMA already uses -- see _arima_safe_frame)
         # so anything reading "current" case counts for risk labeling doesn't get
         # fooled by a sparse/incompletely-logged live tail month the same way a
         # raw ARIMA fit would. Real example this caught: Tiaong runs 23-28
         # cases/month through Dec-2025, then has a gap (no Jan-Apr 2026 rows) before
         # a single DB-sourced May-2026 row of 1 case -- reading raw df's last row
-        # for "current_cases" mislabels it Low, the exact failure mode this whole
-        # threshold rule replaced a classifier to fix, just re-entering through a
+        # for "current_cases" would misreport it, the same failure mode the
+        # excluded-features classifier had, just re-entering through a
         # data-freshness gap instead of a hidden feature.
         "arima_df": arima_df,
-        "mae": mae_val, "rmse": rmse_val, "mape": mape_val,
-        "importance": importance, "trained_on": len(df),
+        "mae": arima_acc["mae"], "rmse": arima_acc["rmse"], "mape": arima_acc["mape"],
+        "importance": importance, "trained_on": len(df_cls),
         "db_rows_added": n_db_rows,
-        "train_idx": train_idx, "test_idx": test_idx,
-        "arima_series": _build_arima_series_for_df(arima_df),
-        "arima_cache": {}, "rf_model_type": "RuleBasedThreshold",
+        "cls_train_idx": train_idx, "cls_test_idx": test_idx,
+        "classifier_accuracy": accuracy_val,
+        "classifier_precision": {cls: round(float(v), 3) for cls, v in zip(le.classes_, precision)},
+        "classifier_recall": {cls: round(float(v), 3) for cls, v in zip(le.classes_, recall)},
+        "classifier_f1": {cls: round(float(v), 3) for cls, v in zip(le.classes_, f1)},
+        "classifier_confusion_matrix": cm.tolist(),
+        "classifier_classes": list(le.classes_),
+        "arima_series": arima_series,
+        "arima_cache": {}, "rf_model_type": "RandomForestClassifier",
         # Developer-facing explanation for the /hybrid-model-info diagnostic
         # endpoint. Not shown in the vet UI -- see "risk_note_short" for that.
         "risk_note": (
-            "Risk classification uses simple, verifiable thresholds on case count "
-            "(< p50 = Low, p50-p75 = Medium, >= p75 = High, computed fresh from the "
-            "current cases across all barangays each request) instead of a trained "
-            "ML classifier. Source data shows risk_class barely overlaps by volume "
-            "(Low ~9 cases, Medium 10-17, High 16-30), so a threshold rule matches "
-            "the ground truth directly and can't misclassify a high-volume barangay "
-            "as low risk the way a classifier trained without volume features could. "
-            f"The regressor (used only for the MAE/RMSE/MAPE accuracy metrics below, "
-            f"not for forecasts or risk) trains on {n_db_rows} live row(s) from "
-            "patient_visit_records beyond the Excel snapshot's latest month. Of those, "
-            f"only {n_arima_db_rows} feed the ARIMA/SARIMA series -- ARIMA only trusts "
-            "a live month once it forms an unbroken run right after the Excel "
-            "snapshot's last month, since a single sparse or gap-broken month at the "
-            "tail of the series would otherwise crater the forecast (a real example: "
-            "one under-logged month misread as 'cases collapsed to near zero')."
+            f"Risk classification is a RandomForestClassifier trained on "
+            f"{len(df_cls)} risk_class-labeled rows from Barangay_Disease_Monthly, "
+            "including case-count features (lag_1/2/3, rolling stats) -- an earlier "
+            "version of this classifier excluded those features and, as a result, "
+            "misclassified Tiaong (the highest-volume barangay in the dataset) as "
+            "Low risk, because volume was the one signal hidden from it. Train/test "
+            "split is stratified by risk_class (not chronological), and SMOTE "
+            "oversampling is applied to the training fold only, because the Low "
+            f"class has only ~6 of {len(df_cls)} rows. Held-out accuracy: {accuracy_val}%. "
+            f"Live rows from patient_visit_records ({n_db_rows} beyond the Excel "
+            f"snapshot's latest month, {n_arima_db_rows} of those trusted into the "
+            "ARIMA/SARIMA series -- see _arima_safe_frame) have no risk_class label "
+            "yet, so they aren't part of the classifier's training set; they still "
+            "feed ARIMA. Reported MAE/RMSE/MAPE below are ARIMA's own pooled 3-month "
+            "holdout accuracy across barangays -- the RandomForestRegressor that used "
+            "to report this number never produced a live forecast (ARIMA/SARIMA "
+            "already did, for both month and year views) and has been removed."
         ),
         # Plain-language version shown in the vet-facing insight panel --
-        # no model names or stats jargon (p50/p75, regressor, classifier).
+        # no model names or stats jargon.
         "risk_note_short": (
-            "Risk level compares each barangay's current case count to the typical "
-            "range seen across all barangays this period."
+            "Risk level is predicted by a trained Random Forest model from each "
+            "barangay's recent case history, seasonality, and disease mix."
         ),
     }
-    print(f"All-Disease model ready — MAE {mae_val}, RMSE {rmse_val} "
-          f"({n_db_rows} live DB rows blended into regressor/ARIMA training)")
+    print(f"All-Disease model ready — Classifier accuracy {accuracy_val}%, "
+          f"ARIMA pooled MAE {arima_acc['mae']} "
+          f"({n_db_rows} live DB rows blended into ARIMA training)")
     return _all_disease_models
-
-
-def _rf_next_step_features(recent_total_cases: list, last_ratios: dict, next_year: int, next_month: int) -> list:
-    """
-    Builds one FEATURE_COLS row for a not-yet-observed month, matching the exact
-    feature definitions used at training time in load_all_disease_dataframe():
-      - lag_1/2/3, rolling_mean/max/std_3: computed from the last 3 *known* months
-        (mirrors the training-time shift(1).rolling(3) pattern -- these describe
-        the 3 months immediately before the month being predicted).
-      - month_sin/cos/month_no/year: the calendar position of the future month.
-      - skin/para/resp/gastro_ratio: unknown for a future month (disease-mix isn't
-        known in advance) -- carried forward from the most recent known month as
-        the simplest defensible estimate (assumes the mix doesn't shift sharply
-        month to month, which lag features already partially capture for volume).
-    """
-    vals = (recent_total_cases + [0.0, 0.0, 0.0])[-3:] if len(recent_total_cases) < 3 else recent_total_cases[-3:]
-    lag_1, lag_2, lag_3 = vals[-1], vals[-2], vals[-3]
-    arr = np.array(vals, dtype=float)
-    rolling_mean_3 = float(arr.mean())
-    rolling_max_3  = float(arr.max())
-    rolling_std_3  = float(arr.std()) if len(arr) > 1 else 0.0
-    month_sin = float(np.sin(2 * np.pi * next_month / 12))
-    month_cos = float(np.cos(2 * np.pi * next_month / 12))
-    return [
-        lag_1, lag_2, lag_3, rolling_mean_3, rolling_max_3, rolling_std_3,
-        month_sin, month_cos, next_month, next_year,
-        last_ratios.get("skin_ratio", 0.0), last_ratios.get("para_ratio", 0.0),
-        last_ratios.get("resp_ratio", 0.0), last_ratios.get("gastro_ratio", 0.0),
-    ]
-
-
-def _rf_monthly_forecast(barangay_name: str, trusted_bdf: pd.DataFrame, rf_reg, steps: int = 3) -> dict:
-    """
-    Next-month-onward forecast using the same RandomForestRegressor trained in
-    get_all_disease_models() (200 trees, real train/test MAE/RMSE/R2 -- see
-    models["mae"]/["rmse"]), instead of ARIMA. Used for period="month" only --
-    "year" keeps ARIMA (see _hybrid_predict_one_alldisease), because a 12-step
-    recursive RF forecast compounds error at every step and RF trees can't
-    extrapolate past the highest value they were trained on, unlike ARIMA's
-    trend modelling. For a single next-month number this recursion risk is
-    much smaller, so it's a reasonable trade for that one view.
-
-    Confidence interval: RandomForestRegressor has no built-in conf_int() the
-    way ARIMA does. This uses the spread across the forest's individual trees'
-    predictions (10th/90th percentile) as an empirical stand-in -- a standard,
-    if approximate, technique for tree-ensemble prediction intervals.
-    """
-    if trusted_bdf.empty:
-        return {"forecast": [0.0] * steps, "lower_ci": [0.0] * steps, "upper_ci": [0.0] * steps,
-                "order": [0, 0, 0], "trend": "stable", "model_type": "RFMonthlyFallback"}
-
-    last_row = trusted_bdf.iloc[-1]
-    last_ratios = {
-        "skin_ratio": float(last_row.get("skin_ratio", 0.0)),
-        "para_ratio": float(last_row.get("para_ratio", 0.0)),
-        "resp_ratio": float(last_row.get("resp_ratio", 0.0)),
-        "gastro_ratio": float(last_row.get("gastro_ratio", 0.0)),
-    }
-    recent_vals = [float(v) for v in trusted_bdf["total_cases"].tail(3).values]
-    next_year, next_month = int(last_row["year"]), int(last_row["month_no"])
-
-    forecast, lower_ci, upper_ci = [], [], []
-    for _ in range(steps):
-        next_month += 1
-        if next_month > 12:
-            next_month = 1
-            next_year += 1
-        X = np.array([_rf_next_step_features(recent_vals, last_ratios, next_year, next_month)])
-        point = max(0.0, float(rf_reg.predict(X)[0]))
-        tree_preds = [max(0.0, float(t.predict(X)[0])) for t in rf_reg.estimators_]
-        lo, hi = float(np.percentile(tree_preds, 10)), float(np.percentile(tree_preds, 90))
-        forecast.append(round(point, 1))
-        lower_ci.append(round(min(lo, point), 1))
-        upper_ci.append(round(max(hi, point), 1))
-        recent_vals = (recent_vals + [point])[-3:]   # feed prediction back in as next step's lag
-
-    slope = forecast[-1] - forecast[0]
-    trend = "rising" if slope > 0.5 else ("falling" if slope < -0.5 else "stable")
-    return {"forecast": forecast, "lower_ci": lower_ci, "upper_ci": upper_ci,
-            "order": [0, 0, 0], "trend": trend, "model_type": "RFMonthlyRegressor"}
 
 
 def _hybrid_predict_one_alldisease(
     barangay_name: str, models: dict, steps: int, current_override, period: str = "year",
-    thresholds: dict = None,
 ) -> dict:
     df           = models["df"]
     arima_df     = models.get("arima_df", df)
@@ -941,20 +944,6 @@ def _hybrid_predict_one_alldisease(
     # SCALE-1: request 12 monthly forecasts for "year" so we can sum them
     fc_steps = 12 if period == "year" else max(steps, 3)
 
-    # RF-for-monthly was built and benchmarked (get_disease_specific_regressor's
-    # held-out R^2 came back ~0.01-0.06 in test_eval.py's Figure 4 -- tree
-    # ensembles pooled across sparse, mostly-zero series just don't have enough
-    # signal to trust for a live forecast). ARIMA is used for both "month" and
-    # "year" views instead. Left here, commented out (not deleted), in case RF
-    # quality improves later -- uncomment this block and remove the fallthrough
-    # ARIMA call below to re-enable it for period="month".
-    #
-    # if period == "month":
-    #     rf_cache = models.setdefault("rf_monthly_cache", {})
-    #     key = (barangay_name, fc_steps)
-    #     if key not in rf_cache:
-    #         rf_cache[key] = _rf_monthly_forecast(barangay_name, trusted_bdf, models["regressor"], steps=fc_steps)
-    #     arima_result = rf_cache[key]
     series = arima_series.get(barangay_name)
     if series is not None and len(series) >= 6:
         key = (barangay_name, fc_steps)
@@ -987,26 +976,48 @@ def _hybrid_predict_one_alldisease(
         lo_display        = arima_result["lower_ci"][0]
         hi_display        = arima_result["upper_ci"][0]
 
-    # Risk label is a simple, verifiable threshold on case count -- same
-    # approach as the per-disease pipeline (_disease_risk_thresholds /
-    # _disease_risk_label) -- rather than an ML classifier. See the note in
-    # get_all_disease_models() for why: a classifier trained without
-    # case-count features can't tell a high-volume barangay from a low-volume
-    # one, which is exactly backwards for a "how risky is this" question.
-    thresholds = thresholds or {"low_max": 0, "med_max": 0}
-    current_risk_label = _disease_risk_label(current_cases, thresholds)
-    fut_label           = _disease_risk_label(predicted_display, thresholds)
-    proba_dict = {
-        "High": round(min(1.0, predicted_display / max(thresholds["med_max"], 1)), 3) if thresholds["med_max"] > 0 else 0.0,
-        "Medium": 0.0, "Low": 0.0,
-    }
-    proba_dict["Low"] = round(max(0.0, 1.0 - proba_dict["High"]), 3)
-    # No per-barangay MAPE exists for this pipeline (only one regressor MAPE
-    # for the whole model, in models["mape"]) -- use it as a shared baseline
-    # alongside this barangay's own prediction-interval width.
-    confidence = forecast_confidence(predicted_display, lo_display, hi_display, models.get("mape"))
+    # Risk label comes from the trained RandomForestClassifier (see
+    # get_all_disease_models() for training details/history) instead of a
+    # threshold rule.
+    rf_cls = models["classifier"]
+    le     = models["label_encoder"]
+
+    # Current risk: classifier on this barangay's latest trusted feature row.
+    # If a live current_override was supplied, it replaces lag_1 so the
+    # predicted risk reflects the same number shown in "current_cases"
+    # instead of contradicting it with a stale feature row.
+    cur_feat = latest_row[FEATURE_COLS].values.astype(float).copy()
+    if current_override is not None:
+        cur_feat[FEATURE_COLS.index("lag_1")] = current_cases
+    current_risk_label = le.inverse_transform(rf_cls.predict(cur_feat.reshape(1, -1)))[0]
+
+    # Future risk: shift lag_1/2/3, recompute rolling stats using the ARIMA
+    # next-month forecast as the new lag_1, and advance the calendar features
+    # one month -- the same feature-construction technique this classifier
+    # used historically for a not-yet-observed month. Disease-mix ratios are
+    # carried forward unchanged (unknown for a future month).
+    fut_feat = cur_feat.copy()
+    l1, l2, l3 = (FEATURE_COLS.index(c) for c in ("lag_1", "lag_2", "lag_3"))
+    rm, rx, rs = (FEATURE_COLS.index(c) for c in ("rolling_mean_3", "rolling_max_3", "rolling_std_3"))
+    ms, mc, mn, yr = (FEATURE_COLS.index(c) for c in ("month_sin", "month_cos", "month_no", "year"))
+    old1, old2 = fut_feat[l1], fut_feat[l2]
+    fut_feat[l3], fut_feat[l2], fut_feat[l1] = old2, old1, arima_next
+    window = [arima_next, old1, old2]
+    fut_feat[rm], fut_feat[rx], fut_feat[rs] = np.mean(window), np.max(window), float(np.std(window, ddof=0))
+    cur_month_no  = int(latest_row["month_no"])
+    next_month_no = (cur_month_no % 12) + 1
+    fut_feat[mn] = next_month_no
+    fut_feat[ms] = np.sin(2 * np.pi * next_month_no / 12)
+    fut_feat[mc] = np.cos(2 * np.pi * next_month_no / 12)
+    fut_feat[yr] = int(latest_row["year"]) + (1 if cur_month_no == 12 else 0)
+
+    fut_proba  = rf_cls.predict_proba(fut_feat.reshape(1, -1))[0]
+    fut_label  = le.inverse_transform([int(np.argmax(fut_proba))])[0]
+    proba_dict = {cls: round(float(p), 3) for cls, p in zip(le.classes_, fut_proba)}
+    confidence = round(float(np.max(fut_proba)) * 100, 1)
+
     trend      = arima_result["trend"]
-    risk_lower = fut_label.lower()
+    risk_lower = str(fut_label).lower()
     agreement  = (
         (trend == "rising"  and risk_lower in ["high", "medium"]) or
         (trend == "stable"  and risk_lower == "medium") or
@@ -1026,8 +1037,7 @@ def _hybrid_predict_one_alldisease(
         "rf_future_risk": str(fut_label),
         "rf_future_proba": proba_dict,
         "rf_confidence": confidence,
-        "rf_model_type": "RuleBasedThreshold",
-        "risk_thresholds": thresholds,
+        "rf_model_type": "RandomForestClassifier",
         "model_agreement": agreement,
         "fused_predicted": arima_next,
         # SCALE-1: period-correct display value for bar chart
@@ -1035,10 +1045,7 @@ def _hybrid_predict_one_alldisease(
         "predicted_lower":  lo_display,
         "predicted_upper":  hi_display,
         "predicted_period": period,
-        # Reflects which engine actually produced this forecast: ARIMA for
-        # period="year", the RandomForestRegressor for period="month" -- see
-        # _rf_monthly_forecast's docstring for why they're split that way.
-        "model_type": f"AllDisease{arima_result['model_type']}+RuleBasedThreshold",
+        "model_type": f"AllDisease{arima_result['model_type']}+RandomForestClassifier",
     }
 
 
@@ -1362,160 +1369,17 @@ def _compute_disease_metrics(series: pd.Series, steps: int = 3, order: tuple = N
                 "note": "Accuracy check unavailable for this barangay right now."}
 
 
-DISEASE_FEATURE_COLS = [
-    "lag_1", "lag_2", "lag_3",
-    "rolling_mean_3", "rolling_max_3", "rolling_std_3",
-    "month_sin", "month_cos", "month_no", "year",
-    "disease_base_rate",
-]
-
-_disease_regressor_model = {}
-
-
-def _build_disease_specific_training_frame() -> pd.DataFrame:
-    """
-    Pools every (disease, barangay) monthly series from Consult_Diagnosis_3Y into
-    one training set for a single shared RandomForestRegressor -- mirrors the
-    lag/rolling/seasonal feature engineering in load_all_disease_dataframe(), but
-    without the disease-mix ratio columns (skin_ratio etc.): those describe a
-    *different* disease's share of total cases and don't apply once the series
-    is already scoped to one disease.
-
-    disease_base_rate (that disease's own mean case count across every
-    barangay-month, a single number per disease) is included because lag_1
-    alone is NOT enough to distinguish diseases here, unlike the all-disease
-    model where lag_1 carries ~80% of feature importance across barangays that
-    share similar dynamics. Verified empirically: pooled across all 42
-    diagnoses, 88.8% of rows are 0 (most diseases are rare most months), and
-    even rows with lag_1 in [4,6] have a median target of 0 -- rare one-off
-    diseases spiking to 5 then reverting to 0 swamp a chronic/recurring
-    condition like Mange that stays elevated. disease_base_rate lets the tree
-    split rare-spike diseases from steadier ones even when their lag values
-    happen to coincide.
-    """
-    raw = _load_consult_diagnosis_raw()
-    diseases = sorted(raw["diagnosis"].str.strip().unique())
-    frames = []
-    for disease in diseases:
-        agg = _load_disease_specific_df(disease)
-        if agg.empty:
-            continue
-        disease_base_rate = float(agg["cases"].mean())
-        for _barangay, b_df in agg.groupby("barangay"):
-            b_df  = b_df.sort_values(["year", "month_no"]).reset_index(drop=True)
-            cases = b_df["cases"].astype(float)
-            frame = pd.DataFrame({
-                "lag_1":          cases.shift(1),
-                "lag_2":          cases.shift(2),
-                "lag_3":          cases.shift(3),
-                "rolling_mean_3": cases.shift(1).rolling(3).mean(),
-                "rolling_max_3":  cases.shift(1).rolling(3).max(),
-                "rolling_std_3":  cases.shift(1).rolling(3).std().fillna(0),
-                "month_sin":      np.sin(2 * np.pi * b_df["month_no"] / 12),
-                "month_cos":      np.cos(2 * np.pi * b_df["month_no"] / 12),
-                "month_no":       b_df["month_no"],
-                "year":           b_df["year"],
-                "disease_base_rate": disease_base_rate,
-                "cases":          cases,
-            })
-            frames.append(frame.dropna(subset=["lag_1", "lag_2", "lag_3", "rolling_mean_3"]))
-    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=DISEASE_FEATURE_COLS + ["cases"])
-
-
-def get_disease_specific_regressor() -> dict:
-    """
-    Warm-started once per server run (lazy, on first period='month' disease-
-    specific request) -- see get_all_disease_models() for the equivalent
-    all-disease pattern. mae/rmse/mape here are real held-out test-set metrics
-    for the shared model, not per-(disease,barangay) numbers -- there's no
-    per-series holdout the way ARIMA has, since this one regressor is trained
-    once across every disease and barangay together.
-    """
-    global _disease_regressor_model
-    if _disease_regressor_model:
-        return _disease_regressor_model
-    print("Training Disease-Specific RandomForestRegressor (pooled across diseases)…")
-    df = _build_disease_specific_training_frame()
-    if len(df) < 20:
-        _disease_regressor_model = {"regressor": None, "mae": None, "rmse": None, "mape": None, "trained_on": len(df)}
-        return _disease_regressor_model
-
-    X = df[DISEASE_FEATURE_COLS].values
-    y = df["cases"].values
-    idx = np.arange(len(df))
-    train_idx, test_idx = train_test_split(idx, test_size=0.2, random_state=42)
-    rf = RandomForestRegressor(n_estimators=200, max_depth=10, min_samples_split=4,
-                                min_samples_leaf=2, random_state=42, n_jobs=-1)
-    rf.fit(X[train_idx], y[train_idx])
-    preds = rf.predict(X[test_idx])
-    mae_val  = round(float(mean_absolute_error(y[test_idx], preds)), 2)
-    rmse_val = rmse(y[test_idx], preds)
-    mape_val = mape(y[test_idx], preds)
-    _disease_regressor_model = {
-        "regressor": rf, "mae": mae_val, "rmse": rmse_val, "mape": mape_val, "trained_on": len(df),
-        # Exposed so callers (e.g. test_eval.py) can score the exact held-out
-        # split that produced these numbers, instead of re-deriving one --
-        # same rigor as get_all_disease_models()'s train_idx/test_idx.
-        "df": df, "train_idx": train_idx, "test_idx": test_idx,
-    }
-    print(f"Disease-Specific RF ready — trained on {len(df)} rows, MAE {mae_val}, RMSE {rmse_val}")
-    return _disease_regressor_model
-
-
-def _rf_disease_next_step_features(recent_vals: list, next_year: int, next_month: int,
-                                    disease_base_rate: float) -> list:
-    vals = (recent_vals + [0.0, 0.0, 0.0])[-3:] if len(recent_vals) < 3 else recent_vals[-3:]
-    lag_1, lag_2, lag_3 = vals[-1], vals[-2], vals[-3]
-    arr = np.array(vals, dtype=float)
-    rolling_mean_3 = float(arr.mean())
-    rolling_max_3  = float(arr.max())
-    rolling_std_3  = float(arr.std()) if len(arr) > 1 else 0.0
-    month_sin = float(np.sin(2 * np.pi * next_month / 12))
-    month_cos = float(np.cos(2 * np.pi * next_month / 12))
-    return [lag_1, lag_2, lag_3, rolling_mean_3, rolling_max_3, rolling_std_3,
-            month_sin, month_cos, next_month, next_year, disease_base_rate]
-
-
-def _rf_disease_monthly_forecast(series: pd.Series, rf_reg, disease_base_rate: float, steps: int = 3) -> dict:
-    """
-    Same technique and rationale as _rf_monthly_forecast (see its docstring for
-    the ARIMA-for-year/RF-for-month split and the tree-spread confidence
-    interval), applied to a single disease+barangay series via the shared
-    get_disease_specific_regressor() model instead of the all-disease one.
-    disease_base_rate is this disease's own mean case rate (see
-    _build_disease_specific_training_frame's docstring for why it's needed --
-    without it, lag_1 alone got swamped by the ~89% of rows that are 0 across
-    the 42 pooled diseases).
-    """
-    if rf_reg is None or series is None or series.dropna().empty:
-        return {"forecast": [0.0] * steps, "lower_ci": [0.0] * steps, "upper_ci": [0.0] * steps,
-                "order": [0, 0, 0], "seasonal_order": None, "trend": "stable",
-                "model_type": "DiseaseRFMonthlyFallback", "n_obs": 0}
-
-    vals = series.dropna().values.astype(float)
-    recent_vals = list(vals[-3:])
-    last_period = series.index[-1]
-    next_year, next_month = last_period.year, last_period.month
-
-    forecast, lower_ci, upper_ci = [], [], []
-    for _ in range(steps):
-        next_month += 1
-        if next_month > 12:
-            next_month, next_year = 1, next_year + 1
-        X = np.array([_rf_disease_next_step_features(recent_vals, next_year, next_month, disease_base_rate)])
-        point = max(0.0, float(rf_reg.predict(X)[0]))
-        tree_preds = [max(0.0, float(t.predict(X)[0])) for t in rf_reg.estimators_]
-        lo, hi = float(np.percentile(tree_preds, 10)), float(np.percentile(tree_preds, 90))
-        forecast.append(round(point, 1))
-        lower_ci.append(round(min(lo, point), 1))
-        upper_ci.append(round(max(hi, point), 1))
-        recent_vals = (recent_vals + [point])[-3:]
-
-    slope = forecast[-1] - forecast[0]
-    trend = "rising" if slope > 0.5 else ("falling" if slope < -0.5 else "stable")
-    return {"forecast": forecast, "lower_ci": lower_ci, "upper_ci": upper_ci,
-            "order": [0, 0, 0], "seasonal_order": None, "trend": trend,
-            "model_type": "DiseaseRFMonthlyRegressor", "n_obs": len(vals)}
+## The disease-specific pipeline never had its own RF model of any kind before
+## v3.2 (it always used SARIMA/ARIMA + the rule-based threshold below) -- a
+## pooled RandomForestRegressor was added in v3 to try RF-for-monthly here too,
+## disabled immediately after benchmarking poorly (test_eval.py's old Figure 4
+## held-out R^2 came back ~0.01-0.06 -- tree ensembles pooled across sparse,
+## mostly-zero series don't have enough signal to trust for a live forecast),
+## and is removed as of v3.2 along with the all-disease regressor (see module
+## docstring, MODEL-2). Scope for a classifier here was considered and
+## explicitly declined -- this pipeline never had one historically, and adding
+## a new one (rather than restoring one) was judged bigger-than-necessary scope
+## for what the manuscript actually claims.
 
 
 def predict_disease_specific(
@@ -1555,10 +1419,6 @@ def predict_disease_specific(
     # SCALE-2: forecast 12 months for year period so we can sum
     fc_steps = 12 if period == "year" else max(steps, 3)
 
-    # RF-for-monthly disabled -- see the matching comment in
-    # _hybrid_predict_one_alldisease(). Left defined, just not called.
-    # disease_rf_model = get_disease_specific_regressor() if period != "year" else None
-
     for barangay in targets:
         b_df = agg[agg["barangay"].str.strip().str.lower() == barangay.strip().lower()]
         if b_df.empty:
@@ -1581,21 +1441,6 @@ def predict_disease_specific(
             order, s_order = _sarima_order_search(series, seasonal=(n_obs >= 12))
         metrics   = _compute_disease_metrics(series, steps=min(steps, 3), order=order, s_order=s_order)
         fc_result = _run_disease_arima(series, steps=fc_steps, order=order, s_order=s_order)
-
-        # RF-for-monthly disabled (see comment above disease_rf_model) -- kept
-        # here, commented out, in case RF quality improves later.
-        # if period != "year":
-        #     rf_reg = disease_rf_model.get("regressor") if disease_rf_model else None
-        #     disease_base_rate = float(agg["cases"].mean()) if not agg.empty else 0.0
-        #     fc_result = _rf_disease_monthly_forecast(series, rf_reg, disease_base_rate, steps=fc_steps)
-        #     metrics = {
-        #         "mae": disease_rf_model.get("mae") if disease_rf_model else None,
-        #         "rmse": disease_rf_model.get("rmse") if disease_rf_model else None,
-        #         "mape": disease_rf_model.get("mape") if disease_rf_model else None,
-        #         "holdout_size": 0,
-        #         "note": ("Accuracy from the shared Random Forest regressor's held-out test set "
-        #                  "(trained across all diseases and barangays together), not this specific series."),
-        #     }
 
         current_cases = float(
             current_by_barangay.get(barangay, 0) or
@@ -1836,13 +1681,11 @@ def disease_predict():
             if km: all_c[km] = v
             else:  all_c[b]  = v
         avg_c      = round(sum(all_c.values()) / max(1, len(all_c)), 1)
-        thresholds = _disease_risk_thresholds(list(all_c.values()))
         results  = []
         for barangay in targets:
             override = cc_key.get(str(barangay).strip().lower())
             pred     = _hybrid_predict_one_alldisease(barangay, models, steps=steps,
-                                                      current_override=override, period=period,
-                                                      thresholds=thresholds)
+                                                      current_override=override, period=period)
             tier, sl = _build_all_disease_protocol(barangay, pred, avg_c, models)
             pct      = round(((pred["current_cases"] - avg_c) / max(1, avg_c)) * 100)
             results.append({
@@ -1853,8 +1696,7 @@ def disease_predict():
                 "arima_order": pred["arima_order"], "seasonal_order": None,
                 "rf_current_risk": pred["rf_current_risk"], "rf_future_risk": pred["rf_future_risk"],
                 "risk_class": pred["rf_future_risk"], "risk_proba": pred["rf_future_proba"],
-                "confidence": pred["rf_confidence"], "rf_model_type": "RuleBasedThreshold",
-                "risk_thresholds": thresholds,
+                "confidence": pred["rf_confidence"], "rf_model_type": "RandomForestClassifier",
                 "risk_note": models.get("risk_note_short", ""),
                 # SCALE-1: period-correct predicted_cases for bar chart
                 "predicted_cases":  pred.get("predicted_cases", pred["fused_predicted"]),
@@ -1901,21 +1743,26 @@ def model_info():
         return jsonify({
             "success": True,
             "all_disease": {
-                "description": "All-disease barangay totals — ARIMA forecast + rule-based risk thresholds",
-                "arima": {"method": "Auto-ARIMA (5-combo grid + ADF)", "ci_level": "80%"},
-                "random_forest": {
-                    "type": "RandomForestRegressor (case-count forecast accuracy only, not used for risk)",
-                    "regressor_mae": models["mae"], "regressor_rmse": models.get("rmse"),
-                    "regressor_mape": models.get("mape"),
-                    "trained_on_rows": models["trained_on"],
-                    "regressor_features": FEATURE_COLS,
-                    "top_features": dict(list(models["importance"].items())[:5]),
-                    "risk_note": models.get("risk_note", ""),
+                "description": "All-disease barangay totals — ARIMA forecast + Random Forest risk classifier",
+                "arima": {
+                    "method": "Auto-ARIMA (5-combo grid + ADF)", "ci_level": "80%",
+                    "pooled_mae": models["mae"], "pooled_rmse": models.get("rmse"),
+                    "pooled_mape": models.get("mape"),
+                    "note": "Pooled 3-month holdout accuracy across barangays for the model that "
+                            "actually produces every live forecast here (month and year views alike).",
                 },
                 "risk_classification": {
-                    "type": "RuleBasedThreshold",
-                    "method": "Case-count p50/p75 thresholds across all barangays, computed fresh per request",
-                    "note": "Not a trained ML classifier — see risk_note for why.",
+                    "type": "RandomForestClassifier",
+                    "features": FEATURE_COLS,
+                    "trained_on_rows": models["trained_on"],
+                    "accuracy": models.get("classifier_accuracy"),
+                    "precision": models.get("classifier_precision"),
+                    "recall": models.get("classifier_recall"),
+                    "f1": models.get("classifier_f1"),
+                    "confusion_matrix": models.get("classifier_confusion_matrix"),
+                    "classes": models.get("classifier_classes"),
+                    "top_features": dict(list(models["importance"].items())[:5]),
+                    "risk_note": models.get("risk_note", ""),
                 },
             },
             "disease_specific": {

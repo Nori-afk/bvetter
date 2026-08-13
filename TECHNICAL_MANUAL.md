@@ -320,24 +320,40 @@ via MySQL). In-memory TTL cache (`CACHE_TTL = 600s`) fronts every expensive comp
 **All-disease hybrid** (`/disease-predict` with `disease=""` or `"all"`)
 - `load_all_disease_dataframe()` builds lag/rolling/seasonal/disease-mix features per barangay
   from `Barangay_Disease_Monthly`.
-- `RandomForestRegressor` forecasts `total_cases`; `RandomForestClassifier` predicts
-  `risk_class`. The classifier **deliberately excludes** lag/rolling case-count features —
-  including them let `lag_1` alone reconstruct the risk threshold and produced a misleading
-  100% accuracy, since `total_cases` barely moves month-to-month per barangay. The classifier
-  only sees seasonal signals (month sin/cos, month number, year) and disease-mix ratios.
-- Train/test split is **stratified by risk_class** (not chronological) because the "Low" class
-  has only 6 of 891 rows, all early in the sort order — a chronological split would have made
-  "Low" invisible in evaluation.
+- Risk (`risk_class`: Low/Medium/High) is predicted by a `RandomForestClassifier`. Case-count
+  features (`lag_1/2/3`, rolling stats) are **included** in training. An earlier version of
+  this same classifier deliberately excluded them, on the theory that including them let
+  `lag_1` alone reconstruct the risk threshold and "inflate" accuracy to 100%. In practice,
+  `risk_class` in the source data barely overlaps by case count (Low ~9, Medium 10-17, High
+  16-30) — it IS essentially a threshold on volume, so hiding volume didn't reduce
+  overfitting, it removed the one signal that defines the label. Real-world result: the
+  highest-volume barangay in the dataset (Tiaong, consistently 21-30 cases/month, always
+  "High" in the source data) got classified "Low" because the model could only see season and
+  disease-mix, not volume. That version was replaced with a rule-based threshold instead of
+  fixing the actual cause; the classifier came back with the case-count features restored (see
+  `arima_service.py`'s module docstring, MODEL-1, and `get_all_disease_models()`'s `risk_note`
+  for the full history).
+- Forecasting (`total_cases`) is **ARIMA/SARIMA only** — there is no regressor. A
+  `RandomForestRegressor` used to sit alongside the classifier here (and a second one in the
+  disease-specific pipeline), but neither ever produced a live forecast: RF-for-monthly was
+  built, benchmarked poorly (held-out R² ~0.01–0.06, pooled across sparse mostly-zero series),
+  and left disabled from early on. Both regressors were removed as of v3.2; the MAE/RMSE/MAPE
+  this pipeline reports is ARIMA's own pooled 3-month holdout accuracy across barangays — the
+  accuracy of the model that actually runs, not a side model's.
+- Train/test split for the classifier is **stratified by risk_class** (not chronological)
+  because the "Low" class has only 6 of 891 rows, all early in the sort order — a chronological
+  split would have made "Low" invisible in evaluation.
 - SMOTE oversampling is applied to the **classifier's training fold only** (never touches the
   held-out test set) to address that same "Low" class scarcity; `k_neighbors` is capped below
   the minority class count to avoid a hard SMOTE failure.
-- Both models are warm-started at process boot (`get_all_disease_models()` called in `__main__`)
-  so the first real request isn't slowed by training.
-- ARIMA and RF results are fused per barangay (`_hybrid_predict_one_alldisease`) into a tiered
-  action protocol (critical/monitor/stable) with concrete next-step recommendations
+- The classifier is warm-started at process boot (`get_all_disease_models()` called in
+  `__main__`) so the first real request isn't slowed by training.
+- ARIMA and the classifier are fused per barangay (`_hybrid_predict_one_alldisease`) into a
+  tiered action protocol (critical/monitor/stable) with concrete next-step recommendations
   (`_build_all_disease_protocol`).
 - For `period=year`, `predicted_cases` is the **sum of 12 monthly ARIMA forecasts** (matching
   what an annual bar chart would show); for `period=month`, it's the single next-month value.
+  Both come from ARIMA — there is no separate RF-for-month path in this pipeline.
 
 **Disease-specific forecasting** (`/disease-predict` with a named disease)
 - Reads `Consult_Diagnosis_3Y`, aggregates per barangay/month, and fits SARIMA (seasonal, if

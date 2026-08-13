@@ -129,6 +129,8 @@ to check if the services are running, we first read the output of the test evalu
         select_arima_order():  dito parang nag se-select pdq where ito ung 5AIC, 
         RMSE() AND MAPE - RMSE STAND FOR ROOT MEAN SQUARED ERROR, AND MEAN ABSOLUTE PERCENTAGE ERROR
         _FORECAST_IS_RUNWAY = PARANG ITO UNG NI SANITY CHECK ( KUNG TAMA UNG CALCUATION) UNG MGA DATA
+
+        
         
 ## Day 5 — Broad Pattern Pass + DB Schema + Mock Defense
 _(pending)_

@@ -8,18 +8,28 @@ touch either). Run with:
     pytest api/analytics/test_forecast_core.py
 
 Deliberately scoped to this one file rather than the whole api/analytics/
-directory: test_eval.py is a figure-generation script, not a test module,
-and currently fails on import against this file's own pipeline (see the
-"Regression: risk classification" tests below for why that pipeline
-changed) — running it isn't what we want here.
+directory: test_eval.py is a figure-generation script (it trains real
+models against the Excel dataset), not a fast/deterministic unit-test
+module, so it's run separately.
 
-The risk-classification tests encode a real production bug and its fix:
-risk labeling used to be a RandomForestClassifier trained without
-case-count features. It classified Tiaong -- the barangay with the highest
-case count in the whole dataset -- as "Low/stable" risk, because volume was
-exactly the one signal hidden from it. It was replaced with the transparent
-threshold rule tested below. These tests exist so that regression can't
-silently happen again.
+The risk-classification tests below (_disease_risk_thresholds /
+_disease_risk_label) cover the DISEASE-SPECIFIC pipeline, which has always
+been a rule-based threshold, never a trained classifier.
+
+The ALL-DISEASE pipeline is different: risk labeling there started as a
+RandomForestClassifier, was broken by a later version that deliberately
+trained it WITHOUT case-count features (to avoid it "trivially" reading the
+threshold off lag_1) -- that version misclassified Tiaong, the barangay with
+the highest case count in the whole dataset, as "Low/stable" risk, because
+volume was exactly the one signal hidden from it. Rather than fix the actual
+cause, it was replaced with a rule-based threshold identical in spirit to
+the disease-specific one below. As of v3.2 it's a RandomForestClassifier
+again, with case-count features restored (see arima_service.py's
+get_all_disease_models() for the full history). Testing that classifier
+meaningfully needs real training data, which this file deliberately avoids
+importing -- its regression guard (verifying the highest-volume barangay is
+never classified Low) lives in test_eval.py instead, where real models are
+already loaded.
 """
 
 import os

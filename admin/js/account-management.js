@@ -106,6 +106,9 @@ function applyFilters() {
 }
 
 function renderTable() {
+    const tbody = document.getElementById('user-table-body');
+    if (!tbody) return;
+
     const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
     currentPage = Math.min(currentPage, totalPages);
     const start     = (currentPage - 1) * PAGE_SIZE;
