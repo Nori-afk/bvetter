@@ -336,6 +336,19 @@
 
         .sec-btn-terminate:hover { background: #FFF5F5; }
 
+        .sec-session-table-wrap {
+            max-height: 420px;
+            overflow-y: auto;
+        }
+
+        .sec-session-table-wrap::-webkit-scrollbar { width: 8px; }
+        .sec-session-table-wrap::-webkit-scrollbar-track { background: transparent; }
+        .sec-session-table-wrap::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+        .sec-session-table-wrap::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
         .sec-session-table {
             width: 100%;
             border-collapse: collapse;
@@ -351,6 +364,9 @@
             text-align: left;
             background: var(--bg-page);
             border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 1;
         }
 
         .sec-session-table td {
@@ -701,21 +717,23 @@
                 <button class="sec-btn-terminate" type="button" id="terminate-all-btn">TERMINATE ALL</button>
             </div>
 
-            <table class="sec-session-table">
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Device / Browser</th>
-                        <th>Location</th>
-                        <th>Last Activity</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="session-table-body">
-                    <!-- Populated by JS -->
-                </tbody>
-            </table>
+            <div class="sec-session-table-wrap">
+                <table class="sec-session-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Device / Browser</th>
+                            <th>Location</th>
+                            <th>Last Activity</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="session-table-body">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
         </div>
 
     </main>
