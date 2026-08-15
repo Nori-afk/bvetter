@@ -269,6 +269,7 @@ function db_consultation_rows($pdo)
                 pvr.visit_date,
                 pvr.diagnosis,
                 pvr.disease_category,
+                pvr.patient_status_at_visit,
                 pets.species,
                 {$barangayExpr} AS barangay,
                 " . ($profileJoin ? 'prp.source' : "''") . " AS source
@@ -291,11 +292,29 @@ function db_consultation_rows($pdo)
             'animalGroup' => $row['species'] ?: 'N/A',
             'diagnosis' => $row['diagnosis'] ?: '',
             'diseaseCategory' => $row['disease_category'] ?: 'General/Other',
-            'riskLevel' => 'N/A',
+            'riskLevel' => risk_level_from_status($row['patient_status_at_visit']),
             'cases' => 1,
             'source' => $row['source'] ?: '',
         ];
     }, $rows);
+}
+
+// Record Status (Active Patient / Monitoring / Critical) is the same field
+// the vet already sets on the Add/Edit Patient form, snapshotted per visit
+// in patient_status_at_visit (see api/includes/patient_tables.php). It's a
+// vet-entered signal, not a guess -- unlike disease_category there is no
+// ground-truth model here either, but the vet's own severity call is a real
+// answer, so this maps it instead of leaving every DB row at 'N/A'.
+// Rows saved before this column existed have patient_status_at_visit = NULL
+// and honestly stay 'N/A' rather than being backfilled with a guess.
+function risk_level_from_status($status)
+{
+    switch ($status) {
+        case 'Critical': return 'High';
+        case 'Monitoring': return 'Medium';
+        case 'Active Patient': return 'Low';
+        default: return 'N/A';
+    }
 }
 
 function consultation_rows($pdo = null)

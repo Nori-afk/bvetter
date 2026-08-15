@@ -335,9 +335,9 @@ function insertVisit($pdo, $petId, $ownerId, $data)
 {
     $stmt = $pdo->prepare("
         INSERT INTO patient_visit_records
-            (pet_id, owner_id, visit_title, visit_date, follow_up_date, symptoms, diagnosis, treatment, medications_json, category, disease_category, attending_vet, vaccination_status, vaccine_brand)
+            (pet_id, owner_id, visit_title, visit_date, follow_up_date, symptoms, diagnosis, treatment, medications_json, category, disease_category, patient_status_at_visit, attending_vet, vaccination_status, vaccine_brand)
         VALUES
-            (:pet_id, :owner_id, :visit_title, :visit_date, :follow_up_date, :symptoms, :diagnosis, :treatment, :medications_json, :category, :disease_category, :attending_vet, :vaccination_status, :vaccine_brand)
+            (:pet_id, :owner_id, :visit_title, :visit_date, :follow_up_date, :symptoms, :diagnosis, :treatment, :medications_json, :category, :disease_category, :patient_status_at_visit, :attending_vet, :vaccination_status, :vaccine_brand)
     ");
     $visitDate = clean($data['visitDate'] ?? '');
     $followUpDate = clean($data['followUpDate'] ?? '');
@@ -353,6 +353,7 @@ function insertVisit($pdo, $petId, $ownerId, $data)
         ':medications_json' => medicationsJson($data),
         ':category' => clean($data['category'] ?? 'Routine Checkup'),
         ':disease_category' => clean($data['diseaseCategory'] ?? 'General/Other'),
+        ':patient_status_at_visit' => clean($data['status'] ?? 'Active Patient'),
         ':attending_vet' => clean($data['attendingVet'] ?? ''),
         ':vaccination_status' => clean($data['vaccinationStatus'] ?? ''),
         ':vaccine_brand' => clean($data['vaccineBrand'] ?? ''),

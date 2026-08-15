@@ -59,6 +59,16 @@ function setupPatientTables($pdo)
         $pdo->exec("ALTER TABLE patient_visit_records ADD INDEX idx_pvr_disease_category (disease_category)");
     }
 
+    // Snapshot of patient_record_profiles.patient_status at the moment this
+    // visit was saved. patient_record_profiles keeps only the pet's CURRENT
+    // status (pet_id is UNIQUE there), so without this snapshot an older
+    // visit's risk level would silently drift whenever the pet's status
+    // later changes -- see db_consultation_rows() in api/reports/reports.php.
+    $statusAtVisitCheck = $pdo->query("SHOW COLUMNS FROM patient_visit_records LIKE 'patient_status_at_visit'")->fetch();
+    if (!$statusAtVisitCheck) {
+        $pdo->exec("ALTER TABLE patient_visit_records ADD COLUMN patient_status_at_visit VARCHAR(60) NULL AFTER disease_category");
+    }
+
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS patient_vaccination_records (
             id INT AUTO_INCREMENT PRIMARY KEY,

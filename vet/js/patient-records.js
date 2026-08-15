@@ -1159,7 +1159,7 @@ function renderAdd(record) {
 						<div class="field">
 							<label class="field-label" for="disease-category">DISEASE CATEGORY</label>
 							<select class="form-input" id="disease-category" name="diseaseCategory">
-								${['General/Other', 'Skin', 'Parasitic', 'Respiratory', 'Gastrointestinal'].map((item) => `<option ${data.diseaseCategory === item ? 'selected' : ''}>${item}</option>`).join('')}
+								${['General/Other', 'Skin', 'Parasitic', 'Respiratory', 'Gastrointestinal', 'Zoonotic'].map((item) => `<option ${data.diseaseCategory === item ? 'selected' : ''}>${item}</option>`).join('')}
 							</select>
 						</div>
 						<div class="field">
