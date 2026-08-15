@@ -58,22 +58,29 @@ async function renderLandingEvents() {
   const dots = document.querySelector('.events-dots');
   if (!track) return;
 
-  const [announcementResult, vaccinationResult] = await Promise.all([
+  const [announcementResult, vaccinationResult, castrationResult] = await Promise.all([
     api.getAnnouncements({ status: 'published', limit: 8 }).catch(() => ({ success: false, data: [] })),
-    api.getMassVaccinationEvents().catch(() => ({ success: false, data: [] }))
+    api.getMassVaccinationEvents().catch(() => ({ success: false, data: [] })),
+    api.getCspPrograms().catch(() => ({ success: false, data: [] }))
   ]);
 
   const announcements = announcementResult.success ? announcementResult.data : [];
-  const vaccinationEvents = vaccinationResult.success ? vaccinationResult.data : [];
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const vaccinationEvents = (vaccinationResult.success ? vaccinationResult.data : [])
+    .filter((item) => item.status !== 'Completed' && (!item.date || item.date >= todayStr));
+  const castrationPrograms = castrationResult.success ? castrationResult.data : [];
+  // Real, actionable programs (vaccination + castration) go first so they
+  // can't get pushed out of the 8-card cap by a backlog of manual announcements.
   const cards = [
-    ...announcements.map((item) => ({
-      tag: 'Upcoming Event',
-      type: item.category || 'Community Advisory',
-      title: item.title,
-      description: item.description,
-      date: item.dateLabel || formatDate(item.date),
-      location: item.location || 'Baliwag City Veterinary Services',
-      image: imageUrl(item.image, '../images/img/event-1.png')
+    ...castrationPrograms.map((item) => ({
+      tag: item.status === 'open' ? 'Open for Registration' : 'Scheduled',
+      type: 'Castration & Spay Program',
+      title: item.title || 'Municipal Castration & Spay Program',
+      description: 'Register your pet for our community Castration & Spay Program.',
+      date: formatDate(item.program_date),
+      location: item.venue || 'Venue TBA',
+      image: '../images/img/event-1.png',
+      link: 'book-appointment.html'
     })),
     ...vaccinationEvents.map((item) => ({
       tag: item.status || 'Vaccination Event',
@@ -82,7 +89,18 @@ async function renderLandingEvents() {
       description: 'Community vaccination event managed by the veterinary clinic.',
       date: item.dateLabel || formatDate(item.date),
       location: item.barangay || 'Barangay TBA',
-      image: '../images/img/event-2.png'
+      image: '../images/img/event-2.png',
+      link: 'book-appointment.html'
+    })),
+    ...announcements.map((item) => ({
+      tag: 'Upcoming Event',
+      type: item.category || 'Community Advisory',
+      title: item.title,
+      description: item.description,
+      date: item.dateLabel || formatDate(item.date),
+      location: item.location || 'Baliwag City Veterinary Services',
+      image: imageUrl(item.image, '../images/img/event-1.png'),
+      link: null
     }))
   ].slice(0, 8);
 
@@ -96,7 +114,7 @@ async function renderLandingEvents() {
   totalEvents = cards.length;
   currentEvent = 0;
   track.innerHTML = cards.map((item, index) => `
-    <div class="event-card">
+    <div class="event-card${item.link ? ' event-card-clickable' : ''}"${item.link ? ` onclick="window.location.href='${escapeHtml(item.link)}'"` : ''}>
       <div class="event-card-img-side">
         <span class="event-tag ${index % 2 ? 'seminar' : 'upcoming'}">${escapeHtml(item.tag)}</span>
         <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}" class="event-img"/>

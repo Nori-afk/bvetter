@@ -683,6 +683,16 @@ forgotPassword: (email) => {
      ══════════════════════════════════════════ */
 
   /**
+   * Open/scheduled Castration & Spay programs, for the public landing page.
+   * No auth required — same pattern as getMassVaccinationEvents().
+   */
+  getCspPrograms: () =>
+    fetch(`${API_BASE_REG}/castration-spay/program.php`, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'list_open_programs' })
+    }).then(r => r.json()),
+
+  /**
    * Register a pet on the Castration & Spay Program waiting list.
    * @param {Object} data — same owner/pet fields as bookAppointment(), no date/time.
    */

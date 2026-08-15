@@ -424,6 +424,25 @@ function listPrograms($pdo)
     respond(200, ['success' => true, 'data' => $data]);
 }
 
+/* ── Public: what the landing page shows. Only open/scheduled — a pet owner
+   can still act on either — never planning, completed, or cancelled. ── */
+function listOpenPrograms($pdo)
+{
+    $rows = $pdo->query("
+        SELECT id, title, program_date, time_slot, venue, status
+        FROM csp_programs
+        WHERE status IN ('open', 'scheduled')
+        ORDER BY (program_date IS NULL) ASC, program_date ASC
+    ")->fetchAll();
+
+    $data = array_map(function ($row) {
+        $row['id'] = (int) $row['id'];
+        return $row;
+    }, $rows);
+
+    respond(200, ['success' => true, 'data' => $data]);
+}
+
 function notifyWaitingListOfNewProgram($pdo, $programId)
 {
     $stmt = $pdo->prepare('SELECT * FROM csp_programs WHERE id = :id LIMIT 1');
@@ -769,6 +788,7 @@ try {
     if ($action === 'delete_registration') deleteRegistration($pdo, $input);
     if ($action === 'list_registrations') listRegistrations($pdo, $input);
     if ($action === 'list_programs') listPrograms($pdo);
+    if ($action === 'list_open_programs') listOpenPrograms($pdo);
     if ($action === 'create_program') createProgram($pdo, $input);
     if ($action === 'update_program') updateProgram($pdo, $input);
     if ($action === 'delete_program') deleteProgram($pdo, $input);
