@@ -557,11 +557,11 @@ async function submitReview(appointmentId, rating, comment) {
     if (json.success) {
       loadAppointmentHistory(); // refresh history
     } else {
-      alert(json.message || 'Failed to submit review.');
+      await vbAlert(json.message || 'Failed to submit review.');
     }
   } catch (err) {
     console.error(err);
-    alert('Failed to submit review.');
+    await vbAlert('Failed to submit review.');
   }
 }
 async function replaceContent(){
@@ -582,11 +582,11 @@ async function replaceContent(){
       document.getElementById('stat-patients-val').textContent = json.data;
       loadAppointmentHistory(); // refresh history
     } else {
-      alert(json.message || 'Failed to submit review.');
+      await vbAlert(json.message || 'Failed to submit review.');
     }
   } catch (err) {
     console.error(err);
-    alert('Failed to submit review.');
+    await vbAlert('Failed to submit review.');
   }
 }
 
@@ -1470,14 +1470,14 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
       const required = ['owner_name','owner_contact','owner_email','pet_name','pet_type'];
       if (required.some(k => !payload[k])) {
         hideBookingOverlay();
-        alert('Please complete all required fields.');
+        await vbAlert('Please complete all required fields.');
         return;
       }
       try {
         const result = await api.registerCspProgram(payload);
         if (!result.success) {
           hideBookingOverlay();
-          alert(result.message || 'Failed to submit registration.');
+          await vbAlert(result.message || 'Failed to submit registration.');
           return;
         }
         showBookingSuccess('Registration submitted successfully!');
@@ -1487,7 +1487,7 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
         goStep(5);
       } catch (error) {
         hideBookingOverlay();
-        alert('Failed to submit registration. Please try again.');
+        await vbAlert('Failed to submit registration. Please try again.');
       }
       return;
     }
@@ -1499,14 +1499,14 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     ];
     if (required.some(k => !payload[k])) {
       hideBookingOverlay();
-      alert('Please complete all required appointment fields.');
+      await vbAlert('Please complete all required appointment fields.');
       return;
     }
 
     const todayIso = toLocalIsoDate();
     if (payload.preferred_date < todayIso) {
       hideBookingOverlay();
-      alert('Please select a date that has not yet passed.');
+      await vbAlert('Please select a date that has not yet passed.');
       return;
     }
 
@@ -1514,7 +1514,7 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
       const result = await api.bookAppointment(payload);
       if (!result.success) {
         hideBookingOverlay();
-        alert(result.message || 'Failed to book appointment.');
+        await vbAlert(result.message || 'Failed to book appointment.');
         return;
       }
       showBookingSuccess('Successfully booked! We’ve sent a confirmation to your email.');
@@ -1524,7 +1524,7 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
       goStep(5);
     } catch (error) {
       hideBookingOverlay();
-      alert('Failed to book appointment. Please try again.');
+      await vbAlert('Failed to book appointment. Please try again.');
     }
   }
 

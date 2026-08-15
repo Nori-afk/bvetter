@@ -1032,20 +1032,20 @@
     });
 
     async function endSession(id) {
-        if (!confirm('End this session? That device will be signed out.')) return;
+        if (!(await vbConfirm('End this session? That device will be signed out.', 'End Session'))) return;
         const result = await api.adminEndSession(id).catch(() => ({ success: false }));
         if (!result.success) {
-            alert(result.message || 'Could not end this session.');
+            await vbAlert(result.message || 'Could not end this session.');
             return;
         }
         await loadSessions();
     }
 
     document.getElementById('terminate-all-btn')?.addEventListener('click', async () => {
-        if (!confirm('Terminate ALL other sessions, for every user account, system-wide? Everyone but you will be signed out.')) return;
+        if (!(await vbConfirm('Terminate ALL other sessions, for every user account, system-wide? Everyone but you will be signed out.', 'Terminate All'))) return;
         const result = await api.adminEndOtherSessions().catch(() => ({ success: false }));
         if (!result.success) {
-            alert(result.message || 'Could not terminate other sessions.');
+            await vbAlert(result.message || 'Could not terminate other sessions.');
             return;
         }
         await loadSessions();
@@ -1144,14 +1144,14 @@
 
     document.getElementById('toggle-2fa')?.addEventListener('change', async function () {
         const wanted = this.checked;
-        if (!wanted && !confirm('Turn off two-factor authentication for ALL admin logins?')) {
+        if (!wanted && !(await vbConfirm('Turn off two-factor authentication for ALL admin logins?', 'Turn Off'))) {
             this.checked = true;
             return;
         }
 
         const result = await api.updateTwoFactor(wanted).catch(() => ({ success: false }));
         if (!result.success) {
-            alert(result.message || 'Could not update the 2FA setting.');
+            await vbAlert(result.message || 'Could not update the 2FA setting.');
             this.checked = !wanted;
             return;
         }
@@ -1161,7 +1161,7 @@
 
     document.getElementById('toggle-inactivity-lockout')?.addEventListener('change', async function () {
         const wanted = this.checked;
-        if (!wanted && !confirm('Turn off inactivity auto-lockout? Accounts already blocked by it stay blocked until manually restored.')) {
+        if (!wanted && !(await vbConfirm('Turn off inactivity auto-lockout? Accounts already blocked by it stay blocked until manually restored.', 'Turn Off'))) {
             this.checked = true;
             return;
         }
@@ -1169,7 +1169,7 @@
         const days = securitySettings?.inactivityLockout?.days || 90;
         const result = await api.updateInactivityLockout({ enabled: wanted, days }).catch(() => ({ success: false }));
         if (!result.success) {
-            alert(result.message || 'Could not update the inactivity lockout setting.');
+            await vbAlert(result.message || 'Could not update the inactivity lockout setting.');
             this.checked = !wanted;
             return;
         }

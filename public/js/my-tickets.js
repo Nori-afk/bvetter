@@ -116,7 +116,7 @@ async function submitOwnerTicket(event) {
   submitBtn.textContent = 'Submit Ticket';
 
   if (!result.success) {
-    alert(result.message || 'Failed to submit ticket.');
+    await vbAlert(result.message || 'Failed to submit ticket.');
     return;
   }
 

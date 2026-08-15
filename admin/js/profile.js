@@ -262,7 +262,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	});
 
 	document.getElementById("revoke-sessions-btn")?.addEventListener("click", async () => {
-		if (!window.confirm("Revoke all other sessions? You will remain signed in on this device.")) return;
+		if (!(await vbConfirm("Revoke all other sessions? You will remain signed in on this device.", "Revoke"))) return;
 		try {
 			await fetch(SESSION_API, {
 				method: "POST",

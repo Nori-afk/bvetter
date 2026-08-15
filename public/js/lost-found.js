@@ -703,9 +703,9 @@ function clearDraft(kind) {
   }
 }
 
-function handleSaveDraftClick(kind) {
+async function handleSaveDraftClick(kind) {
   saveDraft(kind);
-  alert('Draft saved on this device. It will be restored the next time you open this form here.');
+  await vbAlert('Draft saved on this device. It will be restored the next time you open this form here.');
 }
 
 function assertDateNotFuture(value, label) {
@@ -797,7 +797,7 @@ async function submitReport() {
     await loadMyReports();
     setTimeout(() => openModalById(currentReportType === 'lost' ? 'lostSuccessModal' : 'foundSuccessModal'), 150);
   } catch (error) {
-    alert(error.message);
+    await vbAlert(error.message);
     const submitBtn = document.querySelector('#reportModal .btn-submit');
     if (submitBtn) submitBtn.disabled = false;
   }
@@ -1251,11 +1251,11 @@ function handleNotMine(btn) {
   btn.closest('.lf-match-card')?.remove();
 }
 
-function handleClaim(btn) {
+async function handleClaim(btn) {
   const foundId = btn?.dataset?.foundId || '';
   if (foundId) currentClaimReportId = foundId;
   if (!currentClaimReportId) {
-    alert('Only found pet reports can be claimed. Please contact the clinic for sighting reports.');
+    await vbAlert('Only found pet reports can be claimed. Please contact the clinic for sighting reports.');
     return;
   }
   openClaimModal();
@@ -1270,17 +1270,17 @@ async function handleResolveOwnReport(reportId) {
   const confirmMsg = isFound
     ? 'Mark this case as resolved? This will remove it from the active found pets list.'
     : 'Mark this case as resolved? This will remove it from the active lost pets list.';
-  if (!confirm(confirmMsg)) return;
+  if (!(await vbConfirm(confirmMsg, 'Mark Resolved'))) return;
 
   const result = await api.resolveOwnReport(reportId);
   if (!result.success) {
-    alert(result.message || 'Could not resolve this report.');
+    await vbAlert(result.message || 'Could not resolve this report.');
     return;
   }
 
   await loadReports();
   await loadMyReports();
-  alert(isFound ? 'Marked as resolved. Thanks for helping reunite this pet!' : 'Marked as resolved. Glad you got your pet back!');
+  await vbAlert(isFound ? 'Marked as resolved. Thanks for helping reunite this pet!' : 'Marked as resolved. Glad you got your pet back!');
 }
 
 function openSightingModal() {
@@ -1296,7 +1296,7 @@ function openSightingModal() {
 async function submitSighting() {
   const session = sessionUser();
   if (!session?.userId) {
-    alert('Your session has expired. Please log in again before submitting a sighting.');
+    await vbAlert('Your session has expired. Please log in again before submitting a sighting.');
     return;
   }
 
@@ -1313,7 +1313,7 @@ async function submitSighting() {
     photo = document.getElementById('sightingPhoto')?.files?.[0];
     assertValidPhoto(photo, 'Sighting photo', ['image/jpeg', 'image/png', 'image/webp']);
   } catch (error) {
-    alert(error.message);
+    await vbAlert(error.message);
     return;
   }
 
@@ -1334,7 +1334,7 @@ async function submitSighting() {
 
   const result = await api.submitSighting(formData);
   if (!result.success) {
-    alert(result.message || 'Could not submit sighting.');
+    await vbAlert(result.message || 'Could not submit sighting.');
     return;
   }
   closeModal('sightingModal');
@@ -1586,12 +1586,12 @@ function resetClaimDocPreview() {
 async function submitClaim() {
   const session = sessionUser();
   if (!session?.userId) {
-    alert('Your session has expired. Please log in again before submitting a claim.');
+    await vbAlert('Your session has expired. Please log in again before submitting a claim.');
     return;
   }
 
   if (!currentClaimReportId) {
-    alert('Please select a found report first.');
+    await vbAlert('Please select a found report first.');
     return;
   }
 
@@ -1608,7 +1608,7 @@ async function submitClaim() {
     if (!file) throw new Error('Please upload a proof of ownership document.');
     assertValidPhoto(file, 'Proof document', ['image/jpeg', 'image/png', 'application/pdf']);
   } catch (error) {
-    alert(error.message);
+    await vbAlert(error.message);
     return;
   }
 
@@ -1620,7 +1620,7 @@ async function submitClaim() {
 
   const result = await api.submitClaim(currentClaimReportId, formData);
   if (!result.success) {
-    alert(result.message || 'Could not submit claim.');
+    await vbAlert(result.message || 'Could not submit claim.');
     return;
   }
   clearDraft('claim');

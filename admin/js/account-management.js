@@ -348,7 +348,7 @@ function wireAddModal() {
         submitBtn.disabled = false;
 
         if (!result.success) {
-            alert(result.message || 'Could not create account.');
+            await vbAlert(result.message || 'Could not create account.');
             return;
         }
 
@@ -363,7 +363,7 @@ function wireUnblockModal() {
         if (!pendingUnblockId) return;
         const result = await api.updateUserStatus(pendingUnblockId, 'active').catch(() => ({ success: false }));
         if (!result.success) {
-            alert(result.message || 'Could not unblock this account.');
+            await vbAlert(result.message || 'Could not unblock this account.');
             return;
         }
         pendingUnblockId = null;
@@ -392,7 +392,7 @@ function wireBlockModal() {
         if (!pendingBlockId) return;
         const result = await api.updateUserStatus(pendingBlockId, 'blocked').catch(() => ({ success: false }));
         if (!result.success) {
-            alert(result.message || 'Could not block this account.');
+            await vbAlert(result.message || 'Could not block this account.');
             return;
         }
         pendingBlockId = null;
@@ -421,7 +421,7 @@ function wireDeleteModal() {
         if (!pendingDeleteId) return;
         const result = await api.deleteUser(pendingDeleteId).catch(() => ({ success: false }));
         if (!result.success) {
-            alert(result.message || 'Could not delete this account.');
+            await vbAlert(result.message || 'Could not delete this account.');
             return;
         }
         pendingDeleteId = null;
@@ -448,7 +448,7 @@ function wireVerifyModal() {
         if (!pendingVerifyId) return;
         const result = await api.approveUser(pendingVerifyId).catch(() => ({ success: false }));
         if (!result.success) {
-            alert(result.message || 'Could not approve this account.');
+            await vbAlert(result.message || 'Could not approve this account.');
             return;
         }
         pendingVerifyId = null;
@@ -460,7 +460,7 @@ function wireVerifyModal() {
         if (!pendingVerifyId) return;
         const result = await api.rejectUser(pendingVerifyId).catch(() => ({ success: false }));
         if (!result.success) {
-            alert(result.message || 'Could not reject this account.');
+            await vbAlert(result.message || 'Could not reject this account.');
             return;
         }
         pendingVerifyId = null;
@@ -521,11 +521,11 @@ function openVerifyModal(id) {
 async function handleReject(id) {
     const user = allUsers.find(u => u.id === id);
     if (!user) return;
-    if (!confirm(`Reject application for ${user.name}?`)) return;
+    if (!(await vbConfirm(`Reject application for ${user.name}?`, 'Reject'))) return;
 
     const result = await api.rejectUser(id).catch(() => ({ success: false }));
     if (!result.success) {
-        alert(result.message || 'Could not reject this account.');
+        await vbAlert(result.message || 'Could not reject this account.');
         return;
     }
     await loadUsers();

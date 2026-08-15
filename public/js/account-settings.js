@@ -158,7 +158,7 @@
       const confirmMsg = enabling
         ? "Enable two-factor authentication? You'll need to enter a 6-digit code emailed to you every time you log in."
         : 'Disable two-factor authentication?';
-      if (!confirm(confirmMsg)) return;
+      if (!(await vbConfirm(confirmMsg, enabling ? 'Enable' : 'Disable'))) return;
 
       btnManage.disabled = true;
       const result = await api.setTwoFactor(enabling).catch(() => ({ success: false }));

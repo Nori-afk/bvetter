@@ -487,15 +487,15 @@ async function submitRegistration() {
     // user navigated back and forth between steps and something drifted out
     // of sync (e.g. email changed after verification, a field left empty).
     if (!fullname) {
-        alert('Please enter your full name.');
+        await vbAlert('Please enter your full name.');
         return;
     }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        alert('Please enter a valid email address.');
+        await vbAlert('Please enter a valid email address.');
         return;
     }
     if (!otpState.email.verified || otpState.email.verifiedValue !== email) {
-        alert('This email address has not been verified. Please go back and verify it.');
+        await vbAlert('This email address has not been verified. Please go back and verify it.');
         goTo(1);
         return;
     }
@@ -503,23 +503,23 @@ async function submitRegistration() {
         ? PasswordPolicy.validate(password)
         : (password.length < 8 ? 'Password must be at least 8 characters.' : null);
     if (submitPwError) {
-        alert(submitPwError);
+        await vbAlert(submitPwError);
         return;
     }
     if (password !== confirmPassword) {
-        alert('Passwords do not match.');
+        await vbAlert('Passwords do not match.');
         return;
     }
     if (!phone || !isValidPHPhone(phone)) {
-        alert('Please enter a valid Philippine mobile number.');
+        await vbAlert('Please enter a valid Philippine mobile number.');
         return;
     }
     if (!barangayId) {
-        alert('Please select your barangay.');
+        await vbAlert('Please select your barangay.');
         return;
     }
     if (!proofInput?.files.length) {
-        alert('Please upload your proof of residence.');
+        await vbAlert('Please upload your proof of residence.');
         return;
     }
 
@@ -535,7 +535,7 @@ async function submitRegistration() {
         const result = await api.register(formData);
 
         if (!result.success) {
-            alert(result.message || 'Registration failed.');
+            await vbAlert(result.message || 'Registration failed.');
             return;
         }
 
@@ -546,7 +546,7 @@ async function submitRegistration() {
 
         goTo(4);
     } catch {
-        alert('Registration failed. Please try again.');
+        await vbAlert('Registration failed. Please try again.');
     }
 }
 
@@ -571,7 +571,7 @@ async function loadBarangays() {
 
     try {
         const result = await api.getBarangays();
-        if (!result.success) { alert(result.message || 'Failed to load barangays.'); return; }
+        if (!result.success) { await vbAlert(result.message || 'Failed to load barangays.'); return; }
 
         select.innerHTML = '<option value="">Select Barangay</option>';
         result.data.forEach(b => {
@@ -581,7 +581,7 @@ async function loadBarangays() {
             select.appendChild(opt);
         });
     } catch {
-        alert('Could not load barangays.');
+        await vbAlert('Could not load barangays.');
     }
 }
 
