@@ -265,6 +265,19 @@ function openProgramModal(programId = null) {
     document.getElementById('program-status-input').value = 'planning';
   }
 
+  // A program can't be scheduled into the past, and a year out covers any real
+  // planning window — this only catches a mistyped year. When editing a program
+  // that already ran, keep its own date reachable so the record stays editable.
+  const dateInput = document.getElementById('program-date-input');
+  if (dateInput) {
+    const horizon = new Date();
+    horizon.setFullYear(horizon.getFullYear() + 1);
+    const today = new Date().toISOString().slice(0, 10);
+    const current = dateInput.value;
+    dateInput.min = current && current < today ? current : today;
+    dateInput.max = horizon.toISOString().slice(0, 10);
+  }
+
   modal.classList.remove('hidden');
 }
 

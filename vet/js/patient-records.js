@@ -280,6 +280,17 @@ function todayIso() {
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Oldest date of birth a patient record accepts. Well past the lifespan of the
+// dogs and cats this clinic sees, so it only catches typos (a mistyped year)
+// rather than rejecting a genuinely old animal.
+const MAX_PET_AGE_YEARS = 30;
+
+function earliestPetDobIso() {
+	const d = new Date();
+	d.setFullYear(d.getFullYear() - MAX_PET_AGE_YEARS);
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function setFieldError(input, errorEl, message) {
 	if (input) input.classList.toggle('invalid', Boolean(message));
 	if (errorEl) {
@@ -1309,7 +1320,7 @@ function renderEditModal(record) {
 						</div>
 						<div class="em-field">
 							<label class="em-label" for="edit-dob">DATE OF BIRTH</label>
-							<input class="em-input" id="edit-dob" name="dateOfBirth" type="date" value="${escapeHtml(record.dateOfBirth || '')}">
+							<input class="em-input" id="edit-dob" name="dateOfBirth" type="date" min="${earliestPetDobIso()}" max="${todayIso()}" value="${escapeHtml(record.dateOfBirth || '')}">
 						</div>
 						<div class="em-field">
 							<label class="em-label" for="edit-age-value">AGE</label>

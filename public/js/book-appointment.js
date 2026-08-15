@@ -59,10 +59,23 @@ function isWeekendIso(dateIso) {
   return isWeekendDate(new Date(y, m - 1, d));
 }
 
+// How far ahead an owner may book. Keeps the calendar from filling with
+// speculative bookings that hold slots nobody will honour. Mirrored
+// server-side in bookAppointment() — the input attribute is only UX.
+const BOOKING_HORIZON_MONTHS = 3;
+
+function bookingHorizonDate() {
+  const horizon = new Date();
+  horizon.setHours(0, 0, 0, 0);
+  horizon.setMonth(horizon.getMonth() + BOOKING_HORIZON_MONTHS);
+  return horizon;
+}
+
 function buildCalendar(year, month) {
   const today_input = toLocalIsoDate();
   const apptDate = document.getElementById("apptDate");
   apptDate.min = today_input;
+  apptDate.max = toLocalIsoDate(bookingHorizonDate());
   // petVaccDate intentionally has no min/max — owners can log a past
   // vaccination date or one scheduled for the future.
 
@@ -83,6 +96,8 @@ function buildCalendar(year, month) {
 
   // Remove time so only the date is compared
   today.setHours(0, 0, 0, 0);
+
+  const horizon = bookingHorizonDate();
 
   // Rebuild grid: labels + day cells
   grid.innerHTML = DAY_LABELS
@@ -108,6 +123,7 @@ function buildCalendar(year, month) {
 
     const isPast = cellDate < today;
     const isWeekend = isWeekendDate(cellDate);
+    const isBeyondHorizon = cellDate > horizon;
 
     const isToday =
       d === today.getDate() &&
@@ -117,12 +133,13 @@ function buildCalendar(year, month) {
     cell.className = 'cal-day';
 
     if (isToday) cell.classList.add('today');
-    if (isPast || isWeekend) cell.classList.add('disabled');
+    if (isPast || isWeekend || isBeyondHorizon) cell.classList.add('disabled');
 
     cell.textContent = d;
 
-    // Only allow clicking today/future weekdays — vet isn't available weekends
-    if (!isPast && !isWeekend) {
+    // Only allow clicking today/future weekdays inside the booking horizon —
+    // vet isn't available weekends
+    if (!isPast && !isWeekend && !isBeyondHorizon) {
       cell.addEventListener('click', () => {
         grid.querySelectorAll('.cal-day').forEach(c => c.classList.remove('today'));
 
@@ -1183,6 +1200,21 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     return true;
   }
 
+  function validateApptDateHorizon() {
+    const el = document.getElementById('apptDate');
+    if (!el || !el.value) return true;
+    const group = el.closest('.form-group');
+    const [y, m, d] = el.value.split('-').map(Number);
+    const picked = new Date(y, m - 1, d);
+    picked.setHours(0, 0, 0, 0);
+    if (picked > bookingHorizonDate()) {
+      setGroupError(group, `Appointments can only be booked up to ${BOOKING_HORIZON_MONTHS} months ahead.`);
+      return false;
+    }
+    clearGroupError(group);
+    return true;
+  }
+
   function validateTimeSlotField() {
     const slotGrid = document.querySelector('#step3 .slot-grid');
     const group = slotGrid ? slotGrid.closest('.form-group') : null;
@@ -1215,6 +1247,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       if (!isCspMode()) {
         if (!validateRequiredField('apptDate', 'Please select a preferred date.')) valid = false;
         else if (!validateApptDateWeekend())                                      valid = false;
+        else if (!validateApptDateHorizon())                                      valid = false;
         if (!validateTimeSlotField())                                             valid = false;
         // apptNotes is optional — not validated
       }

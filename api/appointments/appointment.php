@@ -18,12 +18,42 @@ require_once __DIR__ . '/../config/veterinarian_profile.php';
 require_once __DIR__ . '/../includes/patient_tables.php';
 require_once __DIR__ . '/appointment_notifications.php';
 
+// How far ahead an appointment may be scheduled. Mirrors
+// BOOKING_HORIZON_MONTHS in public/js/book-appointment.js — the date input's
+// max attribute is UX only, this is the boundary that actually holds.
+const BOOKING_HORIZON_MONTHS = 3;
+
 #for reusuedability para di na mag type ng type ng response jusko
 function respond($statusCode, $payload)
 {
     http_response_code($statusCode);
     echo json_encode($payload);
     exit;
+}
+
+/**
+ * Shared date rules for booking and rescheduling: real date, not in the past,
+ * a weekday, and inside the booking horizon. Called before any write so both
+ * paths agree on what a valid appointment date is.
+ */
+function assertSchedulableDate($date, $pastMessage)
+{
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || strtotime($date) === false) {
+        respond(422, ['success' => false, 'message' => 'A valid date is required.']);
+    }
+    if (strtotime($date) < strtotime(date('Y-m-d'))) {
+        respond(422, ['success' => false, 'message' => $pastMessage]);
+    }
+    if (in_array((int) date('N', strtotime($date)), [6, 7], true)) {
+        respond(422, ['success' => false, 'message' => 'The clinic is closed on Saturdays and Sundays.']);
+    }
+    $horizon = strtotime('+' . BOOKING_HORIZON_MONTHS . ' months', strtotime(date('Y-m-d')));
+    if (strtotime($date) > $horizon) {
+        respond(422, [
+            'success' => false,
+            'message' => 'Appointments can only be scheduled up to ' . BOOKING_HORIZON_MONTHS . ' months ahead.'
+        ]);
+    }
 }
 
 function inputData()
@@ -377,12 +407,7 @@ function createAppointment($pdo, $data)
     if (!$typeCheck->fetch()) {
         respond(422, ['success' => false, 'message' => 'Please select a valid visit type.']);
     }
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $preferredDate) || strtotime($preferredDate) === false) {
-        respond(422, ['success' => false, 'message' => 'A valid date is required.']);
-    }
-    if (strtotime($preferredDate) < strtotime(date('Y-m-d'))) {
-        respond(422, ['success' => false, 'message' => 'Cannot book an appointment on a past date.']);
-    }
+    assertSchedulableDate($preferredDate, 'Cannot book an appointment on a past date.');
     if ($preferredDate === date('Y-m-d')) {
         $slotTimestamp = strtotime($preferredDate . ' ' . $timeSlot);
         if ($slotTimestamp !== false && $slotTimestamp <= time()) {
@@ -599,15 +624,7 @@ function rescheduleAppointment($pdo, $data, $session = null)
     if ($appointmentId <= 0) {
         respond(422, ['success' => false, 'message' => 'Invalid appointment id.']);
     }
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || strtotime($date) === false) {
-        respond(422, ['success' => false, 'message' => 'A valid date is required.']);
-    }
-    if (strtotime($date) < strtotime(date('Y-m-d'))) {
-        respond(422, ['success' => false, 'message' => 'Cannot reschedule to a past date.']);
-    }
-    if (in_array((int) date('N', strtotime($date)), [6, 7], true)) {
-        respond(422, ['success' => false, 'message' => 'The clinic is closed on Saturdays and Sundays.']);
-    }
+    assertSchedulableDate($date, 'Cannot reschedule to a past date.');
     if (!preg_match('/^\d{2}:\d{2}$/', $timeSlot)) {
         respond(422, ['success' => false, 'message' => 'A valid time slot is required.']);
     }

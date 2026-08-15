@@ -173,7 +173,16 @@ function openCreateEventModal(barangay, disease, riskClassification) {
     document.getElementsByName('eventType').forEach(r => { r.checked = r.value === 'vaccination'; });
     toggleVaccineField();
     const dateInput = document.getElementById('eventAnnouncementDate');
-    if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
+    if (dateInput) {
+        // An event can't be scheduled in the past, and a year out is well
+        // beyond any real planning window — this only catches typos.
+        const today = new Date();
+        const horizon = new Date();
+        horizon.setFullYear(horizon.getFullYear() + 1);
+        dateInput.value = today.toISOString().slice(0, 10);
+        dateInput.min = today.toISOString().slice(0, 10);
+        dateInput.max = horizon.toISOString().slice(0, 10);
+    }
     document.getElementById('createEventModal')?.classList.remove('hidden');
 }
 

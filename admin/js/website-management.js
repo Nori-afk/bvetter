@@ -300,6 +300,20 @@ function renderAnnouncements() {
   });
 }
 
+// An announcement can't be scheduled into the past, and a year out covers any
+// real planning window — this only catches a mistyped year. When editing an
+// older announcement, keep its own date reachable so it stays editable.
+function applyAnnDateBounds() {
+  const el = document.getElementById('ann-date-input');
+  if (!el) return;
+  const horizon = new Date();
+  horizon.setFullYear(horizon.getFullYear() + 1);
+  const today = new Date().toISOString().slice(0, 10);
+  const current = el.value;
+  el.min = current && current < today ? current : today;
+  el.max = horizon.toISOString().slice(0, 10);
+}
+
 function editAnn(id) {
   const ann = announcements.find(a => a.id === id);
   if (!ann) return;
@@ -309,6 +323,7 @@ function editAnn(id) {
   document.getElementById('ann-type-input').value  = ann.category || 'event';
   document.getElementById('ann-body-input').value  = ann.description || '';
   document.getElementById('ann-modal-title').textContent = 'Edit Announcement';
+  applyAnnDateBounds();
   openModal('modal-ann');
 }
 
@@ -330,6 +345,7 @@ document.getElementById('btn-add-ann').addEventListener('click', () => {
   document.getElementById('ann-type-input').value  = 'event';
   document.getElementById('ann-body-input').value  = '';
   document.getElementById('ann-modal-title').textContent = 'New Announcement';
+  applyAnnDateBounds();
   openModal('modal-ann');
 });
 
