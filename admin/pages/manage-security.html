@@ -115,10 +115,10 @@
 
         .sec-page-title-icon:hover { color: var(--primary-blue); }
 
-        /* ── TWO-COL TOP ROW ── */
+        /* ── TOP ROW (2FA / Password Policy / Account Lifespan) ── */
         .sec-top-row {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(3, 1fr);
             gap: 18px;
         }
 
@@ -595,6 +595,10 @@
 
         .sec-checkbox-row input { width: 17px; height: 17px; accent-color: var(--secondary-light-green); cursor: pointer; }
 
+        @media (max-width: 1240px) {
+            .sec-top-row { grid-template-columns: 1fr 1fr; }
+        }
+
         @media (max-width: 960px) {
             /* Below 768px the sidebar leaves position:fixed and rejoins the
                flex flow (see shared/css/sidebar.css) — without this, body's
@@ -747,6 +751,38 @@
                 </div>
             </div>
 
+            <!-- Account Lifespan (Inactivity Lockout) Card -->
+            <div class="sec-card">
+                <div class="sec-card-header">
+                    <div class="sec-card-title-row">
+                        <div class="sec-card-icon">
+                            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#00B928" stroke-width="2">
+                                <circle cx="12" cy="12" r="9"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 3"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="sec-card-label">Account Lifespan</span>
+                            <span class="sec-card-sub">Auto-block accounts that go quiet for too long.</span>
+                        </div>
+                    </div>
+
+                    <!-- Toggle -->
+                    <label class="sec-toggle" title="Toggle inactivity auto-lockout">
+                        <input type="checkbox" id="toggle-inactivity-lockout" aria-label="Toggle inactivity auto-lockout">
+                        <span class="sec-toggle-track"></span>
+                        <span class="sec-toggle-thumb"></span>
+                    </label>
+                </div>
+
+                <div class="sec-2fa-meta" id="inactivity-meta">
+                    <strong>Loading&hellip;</strong>
+                    <span></span>
+                </div>
+
+                <button class="sec-btn-configure" type="button" id="configure-inactivity-btn">Set Lockout Duration</button>
+            </div>
+
         </div>
 
         <!-- SESSION MANAGEMENT -->
@@ -853,6 +889,28 @@
             <div class="sec-modal-actions">
                 <button class="sec-btn-secondary" type="button" id="policy-modal-close">Cancel</button>
                 <button class="sec-btn-primary" type="button" id="policy-save-btn">Save Policy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ ACCOUNT LIFESPAN MODAL ══ -->
+    <div class="sec-modal-overlay" id="inactivity-modal">
+        <div class="sec-modal" role="dialog" aria-modal="true" aria-labelledby="inactivity-modal-title">
+            <div>
+                <div class="sec-modal-title" id="inactivity-modal-title">Account Lifespan</div>
+                <div class="sec-modal-sub">Accounts with no login for this many days are blocked automatically, across every role. Enable the toggle on the security page to turn this on.</div>
+            </div>
+
+            <div class="sec-field">
+                <span class="sec-field-label">Block After (Days)</span>
+                <input type="number" id="inactivity-days" min="1" max="3650" step="1">
+            </div>
+
+            <div class="sec-modal-status" id="inactivity-status"></div>
+
+            <div class="sec-modal-actions">
+                <button class="sec-btn-secondary" type="button" id="inactivity-modal-close">Cancel</button>
+                <button class="sec-btn-primary" type="button" id="inactivity-save-btn">Save Duration</button>
             </div>
         </div>
     </div>
@@ -1056,6 +1114,21 @@
         `;
     }
 
+    function renderInactivityCard() {
+        const meta   = document.getElementById('inactivity-meta');
+        const toggle = document.getElementById('toggle-inactivity-lockout');
+        if (!securitySettings || !meta) return;
+
+        const lifespan = securitySettings.inactivityLockout;
+        toggle.checked = lifespan.enabled;
+
+        meta.innerHTML = lifespan.enabled
+            ? `<strong>Auto-lockout is on</strong>
+               <span>Accounts with no login for ${lifespan.days} day${lifespan.days === 1 ? '' : 's'} are blocked automatically</span>`
+            : `<strong>Auto-lockout is off</strong>
+               <span>Accounts never get blocked for inactivity, no matter how long they've been idle</span>`;
+    }
+
     async function loadSecuritySettings() {
         const result = await api.getSecuritySettings().catch(() => ({ success: false }));
         if (!result.success) {
@@ -1066,6 +1139,7 @@
         securitySettings = result.data;
         renderTwoFactorCard();
         renderPolicyCard();
+        renderInactivityCard();
     }
 
     document.getElementById('toggle-2fa')?.addEventListener('change', async function () {
@@ -1083,6 +1157,66 @@
         }
         securitySettings = result.data;
         renderTwoFactorCard();
+    });
+
+    document.getElementById('toggle-inactivity-lockout')?.addEventListener('change', async function () {
+        const wanted = this.checked;
+        if (!wanted && !confirm('Turn off inactivity auto-lockout? Accounts already blocked by it stay blocked until manually restored.')) {
+            this.checked = true;
+            return;
+        }
+
+        const days = securitySettings?.inactivityLockout?.days || 90;
+        const result = await api.updateInactivityLockout({ enabled: wanted, days }).catch(() => ({ success: false }));
+        if (!result.success) {
+            alert(result.message || 'Could not update the inactivity lockout setting.');
+            this.checked = !wanted;
+            return;
+        }
+        securitySettings = result.data;
+        renderInactivityCard();
+    });
+
+    /* ── Account Lifespan modal ── */
+    const inactivityModal = document.getElementById('inactivity-modal');
+
+    document.getElementById('configure-inactivity-btn')?.addEventListener('click', () => {
+        if (!securitySettings) return;
+        document.getElementById('inactivity-days').value = securitySettings.inactivityLockout.days;
+        const status = document.getElementById('inactivity-status');
+        status.className = 'sec-modal-status';
+        status.textContent = '';
+        inactivityModal.classList.add('open');
+    });
+
+    document.getElementById('inactivity-modal-close')?.addEventListener('click', () => inactivityModal.classList.remove('open'));
+
+    document.getElementById('inactivity-save-btn')?.addEventListener('click', async function () {
+        const status = document.getElementById('inactivity-status');
+        const days = parseInt(document.getElementById('inactivity-days').value, 10);
+
+        if (!Number.isInteger(days) || days < 1 || days > 3650) {
+            status.className = 'sec-modal-status error';
+            status.textContent = 'Duration must be between 1 and 3650 days.';
+            return;
+        }
+
+        this.disabled = true;
+        const result = await api.updateInactivityLockout({
+            enabled: securitySettings.inactivityLockout.enabled,
+            days,
+        }).catch(() => ({ success: false }));
+        this.disabled = false;
+
+        if (!result.success) {
+            status.className = 'sec-modal-status error';
+            status.textContent = result.message || 'Could not save the lockout duration.';
+            return;
+        }
+
+        securitySettings = result.data;
+        renderInactivityCard();
+        inactivityModal.classList.remove('open');
     });
 
     /* ── 2FA config modal ── */
@@ -1162,7 +1296,7 @@
     });
 
     // Click outside a modal closes it
-    [twofaModal, policyModal].forEach(overlay => {
+    [twofaModal, policyModal, inactivityModal].forEach(overlay => {
         overlay?.addEventListener('click', (event) => {
             if (event.target === overlay) overlay.classList.remove('open');
         });

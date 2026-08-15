@@ -129,7 +129,12 @@ function renderTable() {
 
         const roleCss = roleClass(u.roleLabel || u.role);
 
-        const statusEl = `<span class="am-status ${u.status}"><span class="am-status-dot"></span>${capitalize(u.status)}</span>`;
+        const blockedTitle = u.status === 'blocked' && u.blockedReason === 'inactivity'
+            ? ' title="Blocked automatically for inactivity"'
+            : u.status === 'blocked' && u.blockedReason === 'failed_login'
+                ? ' title="Blocked after repeated failed login attempts"'
+                : '';
+        const statusEl = `<span class="am-status ${u.status}"${blockedTitle}><span class="am-status-dot"></span>${capitalize(u.status)}</span>`;
 
         let actionsEl = `
             <button class="am-btn-delete" onclick="openDeleteModal('${u.id}')" title="Delete user">

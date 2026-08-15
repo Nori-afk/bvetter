@@ -3,10 +3,11 @@
  * BVetter – Security & Access Control settings (admin only)
  *
  * Actions (POST, bearer token required):
- *   get            – current 2FA + password policy settings, and 2FA last-used info
- *   update_2fa     – enable/disable clinic-wide email-OTP 2FA for vet/admin logins
- *   update_policy  – set password policy (min length / special / number / uppercase)
- *   send_test_code – email the calling admin a sample login code (delivery test)
+ *   get                       – current 2FA + password policy + inactivity lockout settings
+ *   update_2fa                – enable/disable clinic-wide email-OTP 2FA for vet/admin logins
+ *   update_policy              – set password policy (min length / special / number / uppercase)
+ *   update_inactivity_lockout – enable/disable auto-block of accounts idle past N days, and set N
+ *   send_test_code            – email the calling admin a sample login code (delivery test)
  */
 
 header('Content-Type: application/json');
@@ -50,6 +51,10 @@ function settingsPayload(PDO $pdo): array
         ],
         'policyDescription'   => passwordPolicyDescription($settings),
         'twoFactorLastUsedEpoch' => $lastUsed ? (int) $lastUsed : null,
+        'inactivityLockout' => [
+            'enabled' => $settings['inactivity_lockout_enabled'],
+            'days'    => $settings['inactivity_lockout_days'],
+        ],
     ];
 }
 
@@ -100,6 +105,34 @@ try {
         respond(200, [
             'success' => true,
             'message' => 'Password policy updated. It applies whenever a password is next set.',
+            'data' => settingsPayload($pdo),
+        ]);
+    }
+
+    if ($action === 'update_inactivity_lockout') {
+        $enabled = ($_POST['enabled'] ?? '') === '1' ? 1 : 0;
+        $days    = (int) ($_POST['days'] ?? 0);
+
+        if ($days < 1 || $days > 3650) {
+            respond(422, ['success' => false, 'message' => 'Inactivity duration must be between 1 and 3650 days.']);
+        }
+
+        ensureSecuritySettingsSchema($pdo);
+        $pdo->prepare('
+            UPDATE security_settings
+            SET inactivity_lockout_enabled = :enabled,
+                inactivity_lockout_days = :days
+            WHERE id = 1
+        ')->execute([
+            ':enabled' => $enabled,
+            ':days'    => $days,
+        ]);
+
+        respond(200, [
+            'success' => true,
+            'message' => $enabled
+                ? "Accounts inactive for more than {$days} days will now be blocked automatically."
+                : 'Inactivity auto-lockout has been turned off. Accounts already blocked by it stay blocked until manually restored.',
             'data' => settingsPayload($pdo),
         ]);
     }

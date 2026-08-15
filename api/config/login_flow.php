@@ -49,6 +49,8 @@ function attemptLogin(PDO $pdo, string $email, string $password, string $otpCode
             users.phone_number,
             users.password_hash,
             users.account_status,
+            users.blocked_reason,
+            users.last_login_at,
             users.failed_login_attempts,
             users.profile_photo,
             users.email_verified_at,
@@ -89,7 +91,23 @@ function attemptLogin(PDO $pdo, string $email, string $password, string $otpCode
         ]];
     }
 
+    // Backstop for the inactivity lockout: even if no admin has opened Account
+    // Management (which runs sweepInactiveAccounts()) since this account went
+    // stale, the account itself still gets blocked and rejected right here,
+    // the moment it tries to log in.
+    if ($user['account_status'] === 'active' && maybeBlockForInactivity($pdo, $user)) {
+        $user['account_status'] = 'blocked';
+        $user['blocked_reason'] = 'inactivity';
+    }
+
     if ($user['account_status'] === 'blocked') {
+        if ($user['blocked_reason'] === 'inactivity') {
+            $days = getSecuritySettings($pdo)['inactivity_lockout_days'];
+            return [403, [
+                'success' => false,
+                'message' => "Your account was blocked after {$days} days of inactivity. Please contact the Baliwag City Veterinary Office to restore access."
+            ]];
+        }
         return [403, [
             'success' => false,
             'message' => 'Your account has been blocked due to multiple failed login attempts. Please contact the Baliwag City Veterinary Office to restore access.'

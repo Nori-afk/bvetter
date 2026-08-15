@@ -450,6 +450,19 @@ const api = {
     }).then(r => r.json());
   },
 
+  /** (Admin only) enable/disable auto-blocking accounts idle past N days, and set N */
+  updateInactivityLockout: ({ enabled, days }) => {
+    const body = new FormData();
+    body.append('action', 'update_inactivity_lockout');
+    body.append('enabled', enabled ? '1' : '0');
+    body.append('days', days);
+    return fetch(`${API_BASE_REG}/admin/security-settings.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
   /** (Admin only) email the caller a sample login code (delivery test) */
   sendTestTwoFactorCode: () => {
     const body = new FormData();

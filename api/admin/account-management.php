@@ -78,6 +78,7 @@ function listUsers($pdo)
             users.phone_number,
             users.profile_photo,
             users.account_status,
+            users.blocked_reason,
             users.created_at,
             roles.name AS role_name,
             owner_profiles.verification_status,
@@ -123,6 +124,7 @@ function listUsers($pdo)
             'roleLabel' => roleLabel($row['role_name']),
             'status' => $status,
             'accountStatus' => $row['account_status'],
+            'blockedReason' => $row['blocked_reason'],
             'verificationStatus' => $row['verification_status'],
             'barangay' => $row['barangay_name'],
             'created' => $row['created_at'],
@@ -406,21 +408,34 @@ function updateAccountStatus($pdo)
         ]);
     }
 
-    $userQuery = $pdo->prepare('SELECT id FROM users WHERE id = :id LIMIT 1');
+    $userQuery = $pdo->prepare('SELECT id, account_status, last_login_at FROM users WHERE id = :id LIMIT 1');
     $userQuery->execute([':id' => $userId]);
-    if (!$userQuery->fetch()) {
+    $existing = $userQuery->fetch();
+    if (!$existing) {
         respond(404, [
             'success' => false,
             'message' => 'User not found.'
         ]);
     }
 
-    // Unblocking also clears the failed-login counter so the user gets a
-    // fresh 3 attempts (see api/config/login_security.php).
-    $updateUser = $status === 'active'
-        ? $pdo->prepare('UPDATE users SET account_status = :status, failed_login_attempts = 0 WHERE id = :id')
-        : $pdo->prepare('UPDATE users SET account_status = :status WHERE id = :id');
-    $updateUser->execute([':status' => $status, ':id' => $userId]);
+    if ($status === 'active') {
+        // Unblocking also clears the failed-login counter so the user gets a
+        // fresh 3 attempts (see api/config/login_security.php), and clears
+        // blocked_reason since the account is no longer blocked.
+        //
+        // Restoring from 'blocked' additionally resets last_login_at to now —
+        // otherwise a restored account whose last_login_at is still old would
+        // get immediately re-blocked by the very next sweepInactiveAccounts()
+        // sweep or login attempt, silently undoing this restore.
+        $resetLoginClock = $existing['account_status'] === 'blocked' && $existing['last_login_at'] !== null;
+        $sql = 'UPDATE users SET account_status = :status, failed_login_attempts = 0, blocked_reason = NULL'
+             . ($resetLoginClock ? ', last_login_at = NOW()' : '')
+             . ' WHERE id = :id';
+        $pdo->prepare($sql)->execute([':status' => $status, ':id' => $userId]);
+    } else {
+        $pdo->prepare('UPDATE users SET account_status = :status WHERE id = :id')
+            ->execute([':status' => $status, ':id' => $userId]);
+    }
 
     respond(200, [
         'success' => true,
@@ -500,6 +515,7 @@ $action = isset($_POST['action']) ? $_POST['action'] : 'list';
 
 try {
     if ($action === 'list') {
+        sweepInactiveAccounts($pdo);
         listUsers($pdo);
     }
 
