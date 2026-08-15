@@ -317,7 +317,7 @@ function rebuildCalendarEvents() {
 				? '#d6a308'
 				: item.status === 'completed'
 					? '#2f8243'
-					: item.status === 'canceled'
+					: (item.status === 'canceled' || item.status === 'cancelled')
 						? '#b3202c'
 						: '#1e61a7'
 		});
