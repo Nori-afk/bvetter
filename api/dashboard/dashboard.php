@@ -227,7 +227,12 @@ function disease_case_series($pdo, string $selected, string $period = 'year'): a
     }
 
     /* ── Merge live DB counts ─────────────────────────────────────────── */
-    foreach (db_disease_barangay_counts($pdo, $selected, $period) as $b => $cases) {
+    // Pin the merge to $latestYear for the 'year' period so live 2026+ entries
+    // don't silently get counted into a bucket labeled "Full Year $latestYear".
+    // 'month' period is left on its old real-current-month behavior for now
+    // (same class of issue, not yet addressed -- see conversation).
+    $mergeYear = $period === 'year' ? $latestYear : null;
+    foreach (db_disease_barangay_counts($pdo, $selected, $period, $mergeYear) as $b => $cases) {
         if ($b === '' || $b === 'Unspecified') continue;
         $counts[$b] = ($counts[$b] ?? 0) + $cases;
     }
@@ -252,7 +257,7 @@ function disease_case_series($pdo, string $selected, string $period = 'year'): a
     return [$actualCases, $predictedCases];
 }
 
-function db_disease_barangay_counts($pdo, string $selected, string $dateType = 'all'): array
+function db_disease_barangay_counts($pdo, string $selected, string $dateType = 'all', ?int $year = null): array
 {
     if (!bv_table_exists($pdo, 'patient_visit_records') || !bv_table_exists($pdo, 'pets')) {
         return [];
@@ -265,7 +270,14 @@ function db_disease_barangay_counts($pdo, string $selected, string $dateType = '
         ? "COALESCE(NULLIF(b.name, ''), NULLIF(op.complete_address, ''), 'Unspecified')"
         : "'Unspecified'";
 
-    [$start, $end] = bv_date_window($dateType);
+    // $year pins the window to a specific dataset year (e.g. the latest Excel
+    // year) instead of today's real calendar year -- without it, merging live
+    // DB rows into an Excel-year bucket via bv_date_window($dateType) silently
+    // pulls in whatever year "today" happens to be, which drifts once the
+    // Excel snapshot's latest year and the real calendar year diverge.
+    [$start, $end] = $year !== null
+        ? [new DateTime("$year-01-01"), new DateTime("$year-12-31")]
+        : bv_date_window($dateType);
     $where  = ['COALESCE(patient_visit_records.diagnosis, patient_visit_records.category, "") <> ""'];
     $params = [];
 
@@ -327,6 +339,18 @@ function disease_analytics_data($pdo)
         $barangayCounts[$row['barangay']] = $row['value'];
     }
     $topBarangay = array_key_first($barangayCounts) ?: 'N/A';
+
+    /* ── True "this year" headline number ──────────────────────────────
+     * $totalCases above is the Excel dataset's latest complete year
+     * ($latestYear, e.g. 2025) and drives the "Full Year $latestYear"
+     * chart. The KPI card below says "This Year", so it needs the real
+     * calendar year's live DB count instead -- starts at 0 and fills in
+     * as 2026+ visits get logged, rather than relabeling last year's data.
+     */
+    $currentCalendarYear = (int) date('Y');
+    $currentYearTotal    = $period === 'year'
+        ? array_sum(db_disease_barangay_counts($pdo, $selected, 'year'))
+        : $totalCases;
 
     /* ── Top disease label ───────────────────────────────────────────── */
     $consultRows   = bv_sheet_rows('Consult_Diagnosis_3Y');
@@ -485,10 +509,14 @@ function disease_analytics_data($pdo)
         'kpis'            => [
             [
                 'label' => 'Total Cases ' . ($period === 'month' ? 'This Month' : 'This Year'),
-                'value' => number_format($totalCases),
-                'trend' => $isAllDiseases
-                    ? 'All diseases · all barangays'
-                    : 'Filtered: ' . ucwords($selected) . ' · ' . $periodLabel,
+                'value' => number_format($currentYearTotal),
+                'trend' => $period === 'year'
+                    ? ($isAllDiseases
+                        ? "All diseases · all barangays · {$currentCalendarYear} live"
+                        : 'Filtered: ' . ucwords($selected) . " · {$currentCalendarYear} to date")
+                    : ($isAllDiseases
+                        ? 'All diseases · all barangays'
+                        : 'Filtered: ' . ucwords($selected) . ' · ' . $periodLabel),
             ],
             [
                 'label' => 'Most Common Disease',

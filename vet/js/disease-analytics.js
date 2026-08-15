@@ -17,7 +17,7 @@ let diseaseAnalyticsData = {
     filters: ['All Diseases'],
     selectedDisease: 'All Diseases',
     period: 'year',
-    periodLabel: 'Full Year 2025',
+    periodLabel: 'Full Year',
     isAllDiseases: true,
     kpis: [
         { label: 'Total Patients This Year', value: '0',   trend: 'Loading…' },
@@ -523,7 +523,7 @@ function renderOverview() {
     `;
 
     const isMonthly   = diseaseAnalyticsData.period === 'month';
-    const periodLabel = diseaseAnalyticsData.periodLabel || (isMonthly ? 'Latest Month' : 'Full Year 2025');
+    const periodLabel = diseaseAnalyticsData.periodLabel || (isMonthly ? 'Latest Month' : 'Full Year');
     const allDiseases = diseaseAnalyticsData.isAllDiseases;
     const diseaseName = diseaseAnalyticsData.selectedDisease || 'All Diseases';
 
