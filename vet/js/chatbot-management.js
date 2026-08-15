@@ -152,18 +152,39 @@
 		}
 	};
 
-	let locationLegendRows = [
-		{ name: 'Sabang', color: '#ff3b30' },
-		{ name: 'Tiong', color: '#ff5b2e' },
-		{ name: 'Tarcan', color: '#d1f400' },
-		{ name: 'Poblacion', color: '#14b8a6' },
-		{ name: 'San Rafael', color: '#00d34f' },
-		{ name: 'Tibag', color: '#3ee489' },
-		{ name: 'San Jose', color: '#2e92ff' },
-		{ name: 'Matang Tubig', color: '#ff3b30' },
-		{ name: 'Santo Nino', color: '#ff5b2e' },
-		{ name: 'Santo Cristo', color: '#d1f400' }
-	];
+	// Blue-led, CVD-validated categorical set (dataviz skill: validate_palette.js,
+	// all-pairs, light mode) — top 4 barangays get a distinct hue each, the rest
+	// fold into a neutral "Other" slice so the donut never exceeds ~5 segments.
+	const LOCATION_PALETTE = ['#2a78d6', '#1baf7a', '#4a3aa7', '#eda100'];
+	const LOCATION_OTHER_COLOR = '#94a3b8';
+
+	function buildLocationRows(rawRows) {
+		const ranked = rawRows
+			.map((row) => ({ name: row.name, count: Number(row.count || 0) }))
+			.sort((a, b) => b.count - a.count);
+		const top = ranked.slice(0, LOCATION_PALETTE.length).map((row, index) => ({
+			...row,
+			color: LOCATION_PALETTE[index]
+		}));
+		const otherCount = ranked.slice(LOCATION_PALETTE.length).reduce((sum, row) => sum + row.count, 0);
+		if (otherCount > 0) {
+			top.push({ name: 'Other', count: otherCount, color: LOCATION_OTHER_COLOR });
+		}
+		return top;
+	}
+
+	let locationLegendRows = buildLocationRows([
+		{ name: 'Sabang', count: 12 },
+		{ name: 'Tiong', count: 9 },
+		{ name: 'Tarcan', count: 7 },
+		{ name: 'Poblacion', count: 6 },
+		{ name: 'San Rafael', count: 5 },
+		{ name: 'Tibag', count: 4 },
+		{ name: 'San Jose', count: 3 },
+		{ name: 'Matang Tubig', count: 2 },
+		{ name: 'Santo Nino', count: 1 },
+		{ name: 'Santo Cristo', count: 1 }
+	]);
 
 	let dashboardStats = {
 		kpis: {
@@ -346,12 +367,7 @@
 		}
 
 		if (Array.isArray(stats.locations)) {
-			const palette = ['#ff3b30', '#ff8a00', '#d1f400', '#14b8a6', '#2e92ff', '#a855f7', '#22c55e', '#f43f5e'];
-			locationLegendRows = stats.locations.map((row, index) => ({
-				name: row.name,
-				count: Number(row.count || 0),
-				color: palette[index % palette.length]
-			}));
+			locationLegendRows = buildLocationRows(stats.locations);
 		}
 	}
 
@@ -1052,14 +1068,15 @@
 		const symptomsChartCtx = document.getElementById('symptomsChart');
 		if (!consultationChartCtx || !inquiryTypeChartCtx || !locationPieChartCtx || !symptomsChartCtx) return;
 
-		const gridColor = 'rgba(154, 196, 244, 0.14)';
-		const tickColor = 'rgba(201, 223, 250, 0.8)';
+		const gridColor = 'rgba(15, 36, 64, 0.06)';
+		const tickColor = '#6d7f99';
+		const legendColor = '#334155';
 		const consultationGradient = consultationChartCtx.getContext('2d').createLinearGradient(0, 0, 0, 230);
-		consultationGradient.addColorStop(0, 'rgba(94, 191, 255, 0.45)');
-		consultationGradient.addColorStop(1, 'rgba(94, 191, 255, 0.02)');
+		consultationGradient.addColorStop(0, 'rgba(28, 92, 171, 0.28)');
+		consultationGradient.addColorStop(1, 'rgba(28, 92, 171, 0.02)');
 		const inquiryGradient = consultationChartCtx.getContext('2d').createLinearGradient(0, 0, 0, 230);
-		inquiryGradient.addColorStop(0, 'rgba(58, 237, 113, 0.45)');
-		inquiryGradient.addColorStop(1, 'rgba(58, 237, 113, 0.02)');
+		inquiryGradient.addColorStop(0, 'rgba(59, 130, 246, 0.28)');
+		inquiryGradient.addColorStop(1, 'rgba(59, 130, 246, 0.02)');
 
 		state.consultationChart = new Chart(consultationChartCtx, {
 			type: 'line',
@@ -1069,9 +1086,10 @@
 					{
 						label: 'Consultation',
 						data: consultationSeries,
-						borderColor: '#8ad3ff',
-						pointBackgroundColor: '#8ad3ff',
+						borderColor: '#1c5cab',
+						pointBackgroundColor: '#1c5cab',
 						pointRadius: 2,
+						borderWidth: 2,
 						tension: 0.35,
 						fill: true,
 						backgroundColor: consultationGradient
@@ -1079,9 +1097,10 @@
 					{
 						label: 'Inquiry',
 						data: inquirySeries,
-						borderColor: '#31e17a',
-						pointBackgroundColor: '#31e17a',
+						borderColor: '#3B82F6',
+						pointBackgroundColor: '#3B82F6',
 						pointRadius: 2,
+						borderWidth: 2,
 						tension: 0.35,
 						fill: true,
 						backgroundColor: inquiryGradient
@@ -1095,10 +1114,11 @@
 						display: true,
 						position: 'bottom',
 						labels: {
-							color: tickColor,
+							color: legendColor,
 							boxWidth: 14,
 							boxHeight: 6,
-							padding: 16
+							padding: 16,
+							font: { weight: 600 }
 						}
 					}
 				},
@@ -1131,7 +1151,7 @@
 			data: {
 				labels: inquiryDistribution.labels,
 				datasets: [
-					{ label: 'Uses', data: inquiryDistribution.values, backgroundColor: '#19b344', borderRadius: 6 }
+					{ label: 'Uses', data: inquiryDistribution.values, backgroundColor: '#176a9d', borderRadius: 6, maxBarThickness: 42 }
 				]
 			},
 			options: {
@@ -1141,10 +1161,11 @@
 						display: true,
 						position: 'bottom',
 						labels: {
-							color: tickColor,
+							color: legendColor,
 							boxWidth: 12,
 							boxHeight: 12,
-							padding: 16
+							padding: 16,
+							font: { weight: 600 }
 						}
 					}
 				},
@@ -1180,8 +1201,8 @@
 						label: 'Cases',
 						data: symptomsByPetType.all.values,
 						borderRadius: 6,
-						backgroundColor: '#22c55e',
-						borderColor: '#67e8a0',
+						backgroundColor: '#176a9d',
+						borderColor: '#0d3f7a',
 						borderWidth: 1,
 						barPercentage: 0.62
 					}
@@ -1208,7 +1229,7 @@
 							color: tickColor,
 							font: { size: 9 }
 						},
-						grid: { color: 'rgba(154, 196, 244, 0.06)' }
+						grid: { display: false }
 					}
 				}
 			}
@@ -1222,7 +1243,7 @@
 					{
 						data: getLocationChartValues(),
 						backgroundColor: getLocationChartColors(),
-						borderColor: '#0f1f3a',
+						borderColor: '#ffffff',
 						borderWidth: 2,
 						hoverOffset: 8
 					}

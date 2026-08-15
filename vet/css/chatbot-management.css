@@ -245,12 +245,17 @@ body {
 }
 
 .chart-panel {
-    background: #072754;
-    border-radius: 20px;
-    padding: 16px;
-    border: 1px solid rgba(153, 190, 236, 0.16);
-    box-shadow: 0 12px 30px rgba(8, 24, 46, 0.18);
-    color: #dbeaff;
+    background: var(--chatbot-card);
+    border-radius: 18px;
+    padding: 18px 20px;
+    border: 1px solid #E8EEF6;
+    box-shadow: 0 2px 10px rgba(12, 30, 54, 0.05);
+    color: var(--chatbot-ink);
+    transition: box-shadow 0.18s;
+}
+
+.chart-panel:hover {
+    box-shadow: 0 6px 20px rgba(12, 30, 54, 0.10);
 }
 
 .chart-panel-wide {
@@ -266,9 +271,10 @@ body {
 }
 
 .panel-head h2 {
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 800;
-    color: #d9e8fa;
+    color: var(--chatbot-ink);
+    letter-spacing: -0.1px;
 }
 
 .panel-link {
@@ -279,13 +285,14 @@ body {
 }
 
 .panel-select {
-    border: 1px solid rgba(168, 186, 211, 0.7);
-    background: rgba(255, 255, 255, 0.08);
-    color: #e6f0fc;
-    border-radius: 12px;
-    padding: 10px 12px;
+    border: 1px solid rgba(154, 170, 198, 0.55);
+    background: #ffffff;
+    color: var(--chatbot-ink);
+    border-radius: 10px;
+    padding: 8px 12px;
     font: inherit;
     font-size: 12px;
+    font-weight: 600;
     outline: none;
 }
 
@@ -342,7 +349,7 @@ body {
     gap: 8px;
     font-size: 12px;
     font-weight: 700;
-    color: #eaf3ff;
+    color: var(--chatbot-ink);
 }
 
 .legend-dot {
@@ -1426,12 +1433,11 @@ body {
    ═══════════════════════════════════════════ */
 
 /* 1 ── Fix dropdown option text visibility
-        Native <option> inherits the select color which is white on
-        dark panels → browser renders white text on its own light popup.
-        Force a readable background/color pair for both contexts.       */
+        Native <option> inherits the select color — force a readable
+        background/color pair so the popup list matches the light select. */
 .panel-select option {
-    background: #0e2d52;
-    color: #dbeafe;
+    background: #ffffff;
+    color: var(--chatbot-ink);
 }
 
 .light-select,
