@@ -173,6 +173,18 @@ function mapTicket($row)
     ];
 }
 
+/**
+ * Single ticket lookup by id. Bound rather than interpolated so the query is
+ * safe on its own terms, instead of relying on every call site remembering to
+ * cast $id to int first.
+ */
+function fetchTicketById($pdo, $id)
+{
+    $stmt = $pdo->prepare('SELECT * FROM support_tickets WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => (int) $id]);
+    return $stmt->fetch();
+}
+
 function createTicket($pdo, $data)
 {
     $subject = clean($data['subject'] ?? '');
@@ -204,7 +216,7 @@ function createTicket($pdo, $data)
     ]);
 
     $id = (int) $pdo->lastInsertId();
-    $row = $pdo->query("SELECT * FROM support_tickets WHERE id = $id")->fetch();
+    $row = fetchTicketById($pdo, $id);
 
     notifyStaff(
         $pdo,
@@ -266,7 +278,7 @@ function updateTicketStatus($pdo, $data)
 
     $resolvedByUserId = (int) ($data['resolved_by_user_id'] ?? 0) ?: null;
 
-    $existing = $pdo->query("SELECT * FROM support_tickets WHERE id = $id")->fetch();
+    $existing = fetchTicketById($pdo, $id);
     if (!$existing) {
         respond(404, ['success' => false, 'message' => 'Ticket not found.']);
     }
@@ -289,7 +301,7 @@ function updateTicketStatus($pdo, $data)
         ':id' => $id,
     ]);
 
-    $row = $pdo->query("SELECT * FROM support_tickets WHERE id = $id")->fetch();
+    $row = fetchTicketById($pdo, $id);
 
     // Only fire the moment a ticket actually becomes resolved — not on every
     // "Save Changes" click while it's already sitting in that status (e.g.
@@ -308,7 +320,7 @@ function deleteTicket($pdo, $data)
         respond(422, ['success' => false, 'message' => 'A ticket_id is required.']);
     }
 
-    $row = $pdo->query("SELECT * FROM support_tickets WHERE id = $id")->fetch();
+    $row = fetchTicketById($pdo, $id);
     if (!$row) {
         respond(404, ['success' => false, 'message' => 'Ticket not found.']);
     }

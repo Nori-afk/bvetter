@@ -590,7 +590,7 @@ function notifyOwnerAppointmentRejected($pdo, $appointmentId, $verb)
     sendAppMail($recipientEmail, clean($row['owner_name'] ?? ''), $subject, $body);
 }
 
-function rescheduleAppointment($pdo, $data)
+function rescheduleAppointment($pdo, $data, $session = null)
 {
     $appointmentId = (int) ($data['appointment_id'] ?? $data['id'] ?? 0);
     $date = clean($data['preferred_date'] ?? $data['date'] ?? '');
@@ -623,6 +623,19 @@ function rescheduleAppointment($pdo, $data)
     }
 
     $vetId = (int) ($appointment['veterinarian_id'] ?? 0);
+
+    // A vet may only reschedule the appointments assigned to them; admins may
+    // reschedule any. Unassigned appointments (veterinarian_id NULL) stay open
+    // to any vet, matching how the conflict check below already treats them.
+    if ($session !== null && ($session['role_name'] ?? '') === 'veterinarian') {
+        if ($vetId > 0 && $vetId !== (int) ($session['user_id'] ?? 0)) {
+            respond(403, [
+                'success' => false,
+                'message' => 'You can only reschedule appointments assigned to you.'
+            ]);
+        }
+    }
+
     if ($vetId > 0) {
         $conflict = $pdo->prepare("
             SELECT id FROM appointments
@@ -823,17 +836,18 @@ $action = clean($input['action'] ?? 'list');
 // Owner booking/listing/reviews — and the booking page's get_total /
 // common_cases stats — keep working as before (owner-side identity
 // enforcement is handled separately).
-$staffActions = ['update_status', 'delete', 'add_visit_type', 'remove_visit_type'];
+$staffActions = ['update_status', 'delete', 'add_visit_type', 'remove_visit_type', 'reschedule'];
+$staffSession = null;
 if (in_array($action, $staffActions, true)) {
     require_once __DIR__ . '/../config/auth_guard.php';
-    requireRole($pdo, ['veterinarian', 'admin']);
+    $staffSession = requireRole($pdo, ['veterinarian', 'admin']);
 }
 
 try {
     if ($action === 'list') listAppointments($pdo, $input);
     if ($action === 'create') createAppointment($pdo, $input);
     if ($action === 'update_status') updateAppointmentStatus($pdo, $input);
-    if ($action === 'reschedule') rescheduleAppointment($pdo, $input);
+    if ($action === 'reschedule') rescheduleAppointment($pdo, $input, $staffSession);
     if ($action === 'delete') deleteAppointment($pdo, $input);
     if ($action === 'vets') listVeterinarians($pdo);
     if ($action === 'booked_slots') getBookedSlots($pdo, $input);
