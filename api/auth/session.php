@@ -49,6 +49,8 @@ try {
             respond(200, ['success' => true, 'valid' => true]);
 
         case 'list':
+            sweepIdleSessions($pdo);
+
             $pdo->prepare('UPDATE user_sessions SET last_seen_at = NOW() WHERE id = :id')
                 ->execute([':id' => $session['id']]);
 
@@ -119,6 +121,8 @@ try {
             if ($session['role_name'] !== 'admin') {
                 respond(403, ['success' => false, 'message' => 'Admin access required.']);
             }
+
+            sweepIdleSessions($pdo);
 
             $stmt = $pdo->query('
                 SELECT

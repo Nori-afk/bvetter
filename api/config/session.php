@@ -162,6 +162,26 @@ function recordLoginSession(PDO $pdo, int $userId, string $token): void
 }
 
 /**
+ * Proactively revokes every session idle past SESSION_IDLE_TIMEOUT_MINUTES,
+ * system-wide. findSessionByToken()'s lazy check only catches a stale
+ * session when its own token is looked up again — a session nobody is
+ * polling anymore (tab closed, device put away) would otherwise sit with
+ * revoked_at NULL forever and keep showing as an active login in the
+ * session-list views. Call this right before listing sessions; kept as a
+ * sweep triggered by that read, not a background job, to match the
+ * request-driven style described above.
+ */
+function sweepIdleSessions(PDO $pdo): void
+{
+    $pdo->exec('
+        UPDATE user_sessions
+        SET revoked_at = NOW()
+        WHERE revoked_at IS NULL
+          AND last_seen_at < DATE_SUB(NOW(), INTERVAL ' . SESSION_IDLE_TIMEOUT_MINUTES . ' MINUTE)
+    ');
+}
+
+/**
  * Looks up a session by raw bearer token. Returns null for tokens that were
  * never issued; callers must separately check `revoked_at` — a revoked row
  * is still returned so the caller can tell "unknown" apart from "ended".

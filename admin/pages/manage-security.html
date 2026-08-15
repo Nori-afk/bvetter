@@ -379,6 +379,48 @@
         .sec-session-table tbody tr:last-child td { border-bottom: none; }
         .sec-session-table tbody tr:hover { background: #f8fafd; }
 
+        .sec-session-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .sec-session-showing {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .sec-session-pagination { display: flex; gap: 8px; align-items: center; }
+
+        .sec-page-btn {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 7px 18px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: 'Manrope', sans-serif;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .sec-page-btn:hover:not(:disabled) { background: var(--bg-page); }
+        .sec-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .sec-page-next {
+            color: var(--primary-blue);
+            border-color: var(--primary-blue);
+            background: #f0f6ff;
+        }
+
+        .sec-page-next:hover:not(:disabled) { background: #ddeeff; }
+
         /* Device cell */
         .sec-device-cell { display: flex; align-items: center; gap: 12px; }
 
@@ -723,7 +765,7 @@
                         <tr>
                             <th>User</th>
                             <th>Device / Browser</th>
-                            <th>Location</th>
+                            <th title="Approximate — based on the device's IP address, not GPS. Philippine ISPs often register an IP block to a regional hub city rather than the subscriber's actual city.">Location (Approx.)</th>
                             <th>Last Activity</th>
                             <th>Status</th>
                             <th>Action</th>
@@ -733,6 +775,14 @@
                         <!-- Populated by JS -->
                     </tbody>
                 </table>
+            </div>
+
+            <div class="sec-session-footer">
+                <span class="sec-session-showing" id="session-showing-label">Showing 0 of 0 sessions</span>
+                <div class="sec-session-pagination">
+                    <button class="sec-page-btn" id="session-prev-page" type="button">Previous</button>
+                    <button class="sec-page-btn sec-page-next" id="session-next-page" type="button">Next</button>
+                </div>
             </div>
         </div>
 
@@ -815,6 +865,8 @@
     'use strict';
 
     let activeSessions = [];
+    const SESSION_PAGE_SIZE = 5;
+    let sessionCurrentPage = 1;
 
     function deviceIcon(deviceLabel) {
         const label = (deviceLabel || '').toLowerCase();
@@ -855,14 +907,29 @@
 
     function renderSessions() {
         const tbody = document.getElementById('session-table-body');
+        const showingLabel = document.getElementById('session-showing-label');
+        const prevBtn = document.getElementById('session-prev-page');
+        const nextBtn = document.getElementById('session-next-page');
         if (!tbody) return;
 
         if (!activeSessions.length) {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:36px;color:#8A94A6;font-size:13px;">No active sessions.</td></tr>';
+            if (showingLabel) showingLabel.textContent = 'Showing 0 of 0 sessions';
+            if (prevBtn) prevBtn.disabled = true;
+            if (nextBtn) nextBtn.disabled = true;
             return;
         }
 
-        tbody.innerHTML = activeSessions.map(s => `
+        const totalPages = Math.max(1, Math.ceil(activeSessions.length / SESSION_PAGE_SIZE));
+        sessionCurrentPage = Math.min(sessionCurrentPage, totalPages);
+        const start = (sessionCurrentPage - 1) * SESSION_PAGE_SIZE;
+        const pageSessions = activeSessions.slice(start, start + SESSION_PAGE_SIZE);
+
+        if (showingLabel) {
+            showingLabel.textContent = `Showing ${start + 1}–${Math.min(start + SESSION_PAGE_SIZE, activeSessions.length)} of ${activeSessions.length} sessions`;
+        }
+
+        tbody.innerHTML = pageSessions.map(s => `
             <tr data-id="${s.id}">
                 <td>
                     <span class="sec-device-name">${s.userName || 'Unknown user'}</span>
@@ -893,7 +960,18 @@
                 </td>
             </tr>
         `).join('');
+
+        if (prevBtn) prevBtn.disabled = sessionCurrentPage <= 1;
+        if (nextBtn) nextBtn.disabled = sessionCurrentPage >= totalPages;
     }
+
+    document.getElementById('session-prev-page')?.addEventListener('click', () => {
+        if (sessionCurrentPage > 1) { sessionCurrentPage--; renderSessions(); }
+    });
+    document.getElementById('session-next-page')?.addEventListener('click', () => {
+        const totalPages = Math.max(1, Math.ceil(activeSessions.length / SESSION_PAGE_SIZE));
+        if (sessionCurrentPage < totalPages) { sessionCurrentPage++; renderSessions(); }
+    });
 
     async function endSession(id) {
         if (!confirm('End this session? That device will be signed out.')) return;
