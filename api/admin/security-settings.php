@@ -55,6 +55,11 @@ function settingsPayload(PDO $pdo): array
             'enabled' => $settings['inactivity_lockout_enabled'],
             'days'    => $settings['inactivity_lockout_days'],
         ],
+        'sessionIdle' => [
+            'minutes'    => $settings['session_idle_minutes'],
+            'minMinutes' => SESSION_IDLE_MIN_MINUTES,
+            'maxMinutes' => SESSION_IDLE_MAX_MINUTES,
+        ],
     ];
 }
 
@@ -133,6 +138,31 @@ try {
             'message' => $enabled
                 ? "Accounts inactive for more than {$days} days will now be blocked automatically."
                 : 'Inactivity auto-lockout has been turned off. Accounts already blocked by it stay blocked until manually restored.',
+            'data' => settingsPayload($pdo),
+        ]);
+    }
+
+    if ($action === 'update_session_timeout') {
+        $minutes = (int) ($_POST['minutes'] ?? 0);
+
+        if ($minutes < SESSION_IDLE_MIN_MINUTES || $minutes > SESSION_IDLE_MAX_MINUTES) {
+            respond(422, [
+                'success' => false,
+                'message' => 'Session timeout must be between ' . SESSION_IDLE_MIN_MINUTES
+                    . ' and ' . SESSION_IDLE_MAX_MINUTES . ' minutes.',
+            ]);
+        }
+
+        ensureSecuritySettingsSchema($pdo);
+        $pdo->prepare('UPDATE security_settings SET session_idle_minutes = :minutes WHERE id = 1')
+            ->execute([':minutes' => $minutes]);
+
+        respond(200, [
+            'success' => true,
+            // Applies immediately: every session's remaining time is computed
+            // from last_seen_at against the current setting on each poll, so
+            // signed-in users pick the new window up on their next check.
+            'message' => "Sessions now end after {$minutes} minutes without activity. This takes effect immediately for everyone signed in.",
             'data' => settingsPayload($pdo),
         ]);
     }

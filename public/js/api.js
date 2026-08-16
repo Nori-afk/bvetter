@@ -457,6 +457,18 @@ const api = {
     }).then(r => r.json());
   },
 
+  /** (Admin only) set the minutes of inactivity before a session is ended */
+  updateSessionTimeout: (minutes) => {
+    const body = new FormData();
+    body.append('action', 'update_session_timeout');
+    body.append('minutes', minutes);
+    return fetch(`${API_BASE_REG}/admin/security-settings.php`, {
+      method: 'POST',
+      headers: authHeadersFormData(),
+      body
+    }).then(r => r.json());
+  },
+
   /** (Admin only) email the caller a sample login code (delivery test) */
   sendTestTwoFactorCode: () => {
     const body = new FormData();

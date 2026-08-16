@@ -27,6 +27,7 @@ function ensureSecuritySettingsSchema(PDO $pdo): void
             pw_require_uppercase        TINYINT(1)        NOT NULL DEFAULT 0,
             inactivity_lockout_enabled  TINYINT(1)        NOT NULL DEFAULT 0,
             inactivity_lockout_days     SMALLINT UNSIGNED NOT NULL DEFAULT 90,
+            session_idle_minutes        SMALLINT UNSIGNED NOT NULL DEFAULT 30,
             updated_at                  DATETIME          NOT NULL DEFAULT NOW() ON UPDATE NOW()
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
@@ -41,7 +42,14 @@ function ensureSecuritySettingsSchema(PDO $pdo): void
     if (!$pdo->query("SHOW COLUMNS FROM security_settings LIKE 'inactivity_lockout_days'")->fetch()) {
         $pdo->exec("ALTER TABLE security_settings ADD COLUMN inactivity_lockout_days SMALLINT UNSIGNED NOT NULL DEFAULT 90 AFTER inactivity_lockout_enabled");
     }
+    if (!$pdo->query("SHOW COLUMNS FROM security_settings LIKE 'session_idle_minutes'")->fetch()) {
+        $pdo->exec("ALTER TABLE security_settings ADD COLUMN session_idle_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 30 AFTER inactivity_lockout_days");
+    }
 }
+
+/** Bounds for the admin-set idle window, enforced on read and on write. */
+const SESSION_IDLE_MIN_MINUTES = 5;
+const SESSION_IDLE_MAX_MINUTES = 480;
 
 function getSecuritySettings(PDO $pdo): array
 {
@@ -57,6 +65,10 @@ function getSecuritySettings(PDO $pdo): array
         'pw_require_uppercase'       => (bool) $row['pw_require_uppercase'],
         'inactivity_lockout_enabled' => (bool) $row['inactivity_lockout_enabled'],
         'inactivity_lockout_days'    => (int) $row['inactivity_lockout_days'],
+        'session_idle_minutes'       => max(
+            SESSION_IDLE_MIN_MINUTES,
+            min(SESSION_IDLE_MAX_MINUTES, (int) $row['session_idle_minutes'])
+        ),
         'updated_at'                 => $row['updated_at'],
     ];
 }

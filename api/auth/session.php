@@ -44,15 +44,27 @@ $currentHash  = hash('sha256', $token);
 try {
     switch ($action) {
         case 'check':
-            $pdo->prepare('UPDATE user_sessions SET last_seen_at = NOW() WHERE id = :id')
-                ->execute([':id' => $session['id']]);
-            respond(200, ['success' => true, 'valid' => true]);
+            // 'active' is set by the client only when the user actually
+            // interacted since the previous poll. A bare timer tick must not
+            // renew the session, or an open-but-untouched tab stays alive
+            // forever and the idle timeout never fires.
+            if (($_POST['active'] ?? '') === '1') {
+                touchSessionActivity($pdo, (int) $session['id']);
+            }
+
+            respond(200, [
+                'success'          => true,
+                'valid'            => true,
+                // Lets the client run its own countdown and expire on the
+                // dot, instead of only finding out on the next poll.
+                'secondsRemaining' => sessionSecondsRemaining($pdo, (int) $session['id']),
+                'idleMinutes'      => sessionIdleTimeoutMinutes($pdo),
+            ]);
 
         case 'list':
             sweepIdleSessions($pdo);
 
-            $pdo->prepare('UPDATE user_sessions SET last_seen_at = NOW() WHERE id = :id')
-                ->execute([':id' => $session['id']]);
+            touchSessionActivity($pdo, (int) $session['id']);
 
             $stmt = $pdo->prepare('
                 SELECT id, ip_address, city, country, device_label, last_seen_at, created_at, token_hash,

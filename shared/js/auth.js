@@ -215,8 +215,139 @@ function clearSession() {
     sessionStorage.removeItem('bvetter_user');
 }
 
+/* ── Idle-expiry countdown ──────────────────────────────────────
+   The server owns expiry; this is the visible half. Every poll returns
+   secondsRemaining, and a local 1s tick counts down between polls so
+   the warning appears and the logout happens on time rather than
+   whenever the next poll happens to land. */
+
+const IDLE_WARNING_SECONDS = 120;
+
+let idleDeadline = null;   // epoch ms the session expires at
+let idleTicker = null;
+
+function idleOverlay() {
+    let overlay = document.getElementById('vbIdleOverlay');
+    if (overlay) return overlay;
+
+    const style = document.createElement('style');
+    style.textContent = `
+        #vbIdleOverlay { position:fixed; inset:0; z-index:10000; display:none;
+            align-items:center; justify-content:center; background:rgba(15,23,42,0.55); }
+        #vbIdleOverlay .vb-idle-box { background:#fff; border-radius:16px; padding:28px 32px;
+            text-align:center; max-width:360px; box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:inherit; }
+        #vbIdleOverlay .vb-idle-title { color:#1f2937; font-size:16px; font-weight:800; margin-bottom:8px; }
+        #vbIdleOverlay .vb-idle-msg { color:#4b5563; font-size:14px; font-weight:500; margin-bottom:6px; }
+        #vbIdleOverlay .vb-idle-count { color:#e53e3e; font-size:30px; font-weight:800;
+            font-variant-numeric:tabular-nums; margin-bottom:20px; }
+        #vbIdleOverlay .vb-idle-actions { display:flex; gap:12px; justify-content:center; }
+        #vbIdleOverlay button { border:none; border-radius:8px; padding:10px 20px;
+            font-weight:700; font-size:14px; cursor:pointer; font-family:inherit; }
+        #vbIdleOverlay .vb-idle-stay { background:#00B928; color:#fff; }
+        #vbIdleOverlay .vb-idle-out { background:#eef2f7; color:#1f2937; }
+    `;
+    document.head.appendChild(style);
+
+    overlay = document.createElement('div');
+    overlay.id = 'vbIdleOverlay';
+    overlay.innerHTML = `
+        <div class="vb-idle-box" role="alertdialog" aria-live="assertive">
+            <div class="vb-idle-title">Still there?</div>
+            <div class="vb-idle-msg">You'll be signed out for inactivity in</div>
+            <div class="vb-idle-count"></div>
+            <div class="vb-idle-actions">
+                <button type="button" class="vb-idle-out">Log Out Now</button>
+                <button type="button" class="vb-idle-stay">Stay Signed In</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('.vb-idle-stay').addEventListener('click', () => {
+        hideIdleWarning();
+        markUserActive();
+        verifySessionWithServer();
+    });
+    overlay.querySelector('.vb-idle-out').addEventListener('click', () => endSessionNow(true));
+
+    return overlay;
+}
+
+function showIdleWarning(secondsLeft) {
+    const overlay = idleOverlay();
+    const mins = Math.floor(secondsLeft / 60);
+    const secs = secondsLeft % 60;
+    overlay.querySelector('.vb-idle-count').textContent =
+        `${mins}:${String(secs).padStart(2, '0')}`;
+    overlay.style.display = 'flex';
+}
+
+function hideIdleWarning() {
+    const overlay = document.getElementById('vbIdleOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+/** Clears the session and goes to login. `explicit` skips the server call. */
+async function endSessionNow(tellServer) {
+    if (idleTicker) clearInterval(idleTicker);
+    idleTicker = null;
+    hideIdleWarning();
+
+    const role = getSession()?.role;
+    const token = sessionStorage.getItem('bvetter_token');
+    if (tellServer && token) {
+        try {
+            const body = new FormData();
+            body.append('action', 'logout');
+            await fetch(SESSION_API, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token },
+                body
+            });
+        } catch {
+            // Best-effort — the server expires it on its own anyway.
+        }
+    }
+    clearSession();
+    window.location.replace(loginPageFor(role));
+}
+
+function startIdleTicker() {
+    if (idleTicker) return;
+    idleTicker = setInterval(() => {
+        if (idleDeadline === null) return;
+        const left = Math.round((idleDeadline - Date.now()) / 1000);
+
+        if (left <= 0) {
+            endSessionNow(false);
+        } else if (left <= IDLE_WARNING_SECONDS) {
+            showIdleWarning(left);
+        } else {
+            hideIdleWarning();
+        }
+    }, 1000);
+}
+
+/* ── Real-activity tracking ─────────────────────────────────────
+   Only interaction the user actually performed renews the session.
+   A tab that is merely open must not keep itself alive — that was
+   the bug that stopped the idle timeout ever firing. */
+
+let userActedSinceLastPoll = false;
+
+function markUserActive() {
+    userActedSinceLastPoll = true;
+}
+
+function trackUserActivity() {
+    ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(evt => {
+        window.addEventListener(evt, markUserActive, { passive: true, capture: true });
+    });
+}
+
 /**
- * Asks the server whether this device's session is still valid.
+ * Asks the server whether this device's session is still valid, reporting
+ * whether the user has actually done anything since the last check.
  * Called on every protected page load and polled while the page stays
  * open, so an admin ending a session from Manage Security actually logs
  * the other device out — not just a local-storage flag.
@@ -225,9 +356,13 @@ async function verifySessionWithServer() {
     const token = sessionStorage.getItem('bvetter_token');
     if (!token) return;
 
+    const wasActive = userActedSinceLastPoll;
+    userActedSinceLastPoll = false;
+
     try {
         const body = new FormData();
         body.append('action', 'check');
+        body.append('active', wasActive ? '1' : '0');
         const res = await fetch(SESSION_API, {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + token },
@@ -238,9 +373,15 @@ async function verifySessionWithServer() {
             const role = getSession()?.role;
             clearSession();
             window.location.replace(loginPageFor(role));
+            return;
+        }
+        if (typeof data.secondsRemaining === 'number') {
+            idleDeadline = Date.now() + data.secondsRemaining * 1000;
         }
     } catch {
         // Network hiccup — don't force a logout over a dropped request.
+        // Put the activity flag back so the renewal isn't lost.
+        if (wasActive) userActedSinceLastPoll = true;
     }
 }
 
@@ -248,14 +389,17 @@ let sessionPollingStarted = false;
 function startSessionPolling() {
     if (sessionPollingStarted) return;
     sessionPollingStarted = true;
+    trackUserActivity();
+    startIdleTicker();
     verifySessionWithServer();
     setInterval(verifySessionWithServer, SESSION_CHECK_INTERVAL_MS);
 
     // Background tabs get their setInterval throttled by the browser (can
-    // stretch well past 30s), so a revoked session might not visibly log
-    // the tab out until the timer eventually fires. Re-check immediately
-    // whenever the tab regains focus/visibility so switching back to it
-    // reflects the current state right away instead of needing a refresh.
+    // stretch well past the interval), so a revoked session might not
+    // visibly log the tab out until the timer eventually fires. Re-check
+    // immediately whenever the tab regains focus/visibility so switching
+    // back to it reflects the current state right away instead of needing
+    // a refresh. Regaining focus is not itself treated as activity.
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') verifySessionWithServer();
     });

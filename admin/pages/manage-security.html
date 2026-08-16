@@ -775,6 +775,31 @@
                 <button class="sec-btn-configure" type="button" id="configure-inactivity-btn">Set Lockout Duration</button>
             </div>
 
+            <div class="sec-card">
+                <div class="sec-card-head">
+                    <div class="sec-card-left">
+                        <div class="sec-card-icon">
+                            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#00B928" stroke-width="2">
+                                <rect x="3" y="4" width="18" height="14" rx="2"/>
+                                <path stroke-linecap="round" d="M8 21h8M12 18v3"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v3l2 2"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="sec-card-label">Session Timeout</span>
+                            <span class="sec-card-sub">Sign users out after a period with no activity.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sec-2fa-meta" id="session-timeout-meta">
+                    <strong>Loading&hellip;</strong>
+                    <span></span>
+                </div>
+
+                <button class="sec-btn-configure" type="button" id="configure-session-timeout-btn">Set Timeout</button>
+            </div>
+
         </div>
 
         <div class="sec-session-card">
@@ -898,6 +923,27 @@
             <div class="sec-modal-actions">
                 <button class="sec-btn-secondary" type="button" id="inactivity-modal-close">Cancel</button>
                 <button class="sec-btn-primary" type="button" id="inactivity-save-btn">Save Duration</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="sec-modal-overlay" id="session-timeout-modal">
+        <div class="sec-modal" role="dialog" aria-modal="true" aria-labelledby="session-timeout-modal-title">
+            <div>
+                <div class="sec-modal-title" id="session-timeout-modal-title">Session Timeout</div>
+                <div class="sec-modal-sub">Signed-in users are warned two minutes before the limit and signed out when it is reached. Only real activity &mdash; typing, clicking, scrolling &mdash; counts; a page left open on screen does not keep a session alive. Takes effect immediately for everyone currently signed in.</div>
+            </div>
+
+            <div class="sec-field">
+                <span class="sec-field-label">Sign Out After (Minutes Of Inactivity)</span>
+                <input type="number" id="session-timeout-minutes" min="5" max="480" step="5">
+            </div>
+
+            <div class="sec-modal-status" id="session-timeout-status"></div>
+
+            <div class="sec-modal-actions">
+                <button class="sec-btn-secondary" type="button" id="session-timeout-modal-close">Cancel</button>
+                <button class="sec-btn-primary" type="button" id="session-timeout-save-btn">Save Timeout</button>
             </div>
         </div>
     </div>
@@ -1116,6 +1162,19 @@
                <span>Accounts never get blocked for inactivity, no matter how long they've been idle</span>`;
     }
 
+    function renderSessionTimeoutCard() {
+        const meta = document.getElementById('session-timeout-meta');
+        if (!securitySettings || !meta) return;
+
+        const mins = securitySettings.sessionIdle.minutes;
+        const label = mins % 60 === 0 && mins >= 60
+            ? `${mins / 60} hour${mins === 60 ? '' : 's'}`
+            : `${mins} minute${mins === 1 ? '' : 's'}`;
+
+        meta.innerHTML = `<strong>Sessions end after ${label} of inactivity</strong>
+               <span>Users are warned two minutes before, and signed out automatically &mdash; no refresh needed</span>`;
+    }
+
     async function loadSecuritySettings() {
         const result = await api.getSecuritySettings().catch(() => ({ success: false }));
         if (!result.success) {
@@ -1127,6 +1186,7 @@
         renderTwoFactorCard();
         renderPolicyCard();
         renderInactivityCard();
+        renderSessionTimeoutCard();
     }
 
     document.getElementById('toggle-2fa')?.addEventListener('change', async function () {
@@ -1206,6 +1266,50 @@
         inactivityModal.classList.remove('open');
     });
 
+    /* ── Session Timeout modal ── */
+    const sessionTimeoutModal = document.getElementById('session-timeout-modal');
+
+    document.getElementById('configure-session-timeout-btn')?.addEventListener('click', () => {
+        if (!securitySettings) return;
+        const idle = securitySettings.sessionIdle;
+        const input = document.getElementById('session-timeout-minutes');
+        input.value = idle.minutes;
+        input.min = idle.minMinutes;
+        input.max = idle.maxMinutes;
+        const status = document.getElementById('session-timeout-status');
+        status.className = 'sec-modal-status';
+        status.textContent = '';
+        sessionTimeoutModal.classList.add('open');
+    });
+
+    document.getElementById('session-timeout-modal-close')?.addEventListener('click', () => sessionTimeoutModal.classList.remove('open'));
+
+    document.getElementById('session-timeout-save-btn')?.addEventListener('click', async function () {
+        const status  = document.getElementById('session-timeout-status');
+        const idle    = securitySettings.sessionIdle;
+        const minutes = parseInt(document.getElementById('session-timeout-minutes').value, 10);
+
+        if (!Number.isInteger(minutes) || minutes < idle.minMinutes || minutes > idle.maxMinutes) {
+            status.className = 'sec-modal-status error';
+            status.textContent = `Timeout must be between ${idle.minMinutes} and ${idle.maxMinutes} minutes.`;
+            return;
+        }
+
+        this.disabled = true;
+        const result = await api.updateSessionTimeout(minutes).catch(() => ({ success: false }));
+        this.disabled = false;
+
+        if (!result.success) {
+            status.className = 'sec-modal-status error';
+            status.textContent = result.message || 'Could not save the session timeout.';
+            return;
+        }
+
+        securitySettings = result.data;
+        renderSessionTimeoutCard();
+        sessionTimeoutModal.classList.remove('open');
+    });
+
     /* ── 2FA config modal ── */
     const twofaModal = document.getElementById('twofa-modal');
 
@@ -1283,7 +1387,7 @@
     });
 
     // Click outside a modal closes it
-    [twofaModal, policyModal, inactivityModal].forEach(overlay => {
+    [twofaModal, policyModal, inactivityModal, sessionTimeoutModal].forEach(overlay => {
         overlay?.addEventListener('click', (event) => {
             if (event.target === overlay) overlay.classList.remove('open');
         });
@@ -1291,6 +1395,17 @@
 
     loadSessions();
     loadSecuritySettings();
+
+    /* Keep the session table live. It used to load once, so a new sign-in or
+       a session that had since gone idle only appeared after a manual page
+       refresh. Skipped while the tab is hidden to avoid pointless polling,
+       and re-run on focus so switching back to this tab shows current state. */
+    setInterval(() => {
+        if (document.visibilityState === 'visible') loadSessions();
+    }, 15000);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') loadSessions();
+    });
     </script>
 </body>
 </html>

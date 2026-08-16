@@ -51,5 +51,12 @@ function requireRole(PDO $pdo, array $allowedRoles): array
         exit;
     }
 
+    // A successful authenticated API call is genuine user-driven activity, so
+    // it renews the idle window. This is the reliable half of the signal: the
+    // browser's interaction tracking can miss things, a real request can't.
+    // The keep-alive poll deliberately does NOT come through here — it hits
+    // api/auth/session.php directly, so it can't renew a session on its own.
+    touchSessionActivity($pdo, (int) $session['id']);
+
     return $session;
 }

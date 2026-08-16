@@ -8,18 +8,39 @@
  * by shared/js/auth.js polling api/auth/session.php?action=check on every
  * protected page.
  *
- * Idle sessions are auto-ended the same way (see SESSION_IDLE_TIMEOUT_MINUTES
- * below): expiry is checked lazily, on the next findSessionByToken() lookup
- * for that token, rather than by a background job — consistent with the
- * request-driven style of the rest of this codebase. Because that check runs
- * on every authenticated request, it's enforced everywhere a token is
- * validated (requireRole() guards, session.php actions), not just on the
- * poll.
+ * Idle sessions are auto-ended the same way: expiry is checked lazily, on the
+ * next findSessionByToken() lookup for that token, rather than by a background
+ * job — consistent with the request-driven style of the rest of this codebase.
+ * Because that check runs on every authenticated request, it's enforced
+ * everywhere a token is validated (requireRole() guards, session.php actions),
+ * not just on the poll.
+ *
+ * IMPORTANT — what counts as activity. last_seen_at is only advanced by a
+ * request the user actually caused. The 'check' poll from shared/js/auth.js
+ * runs on a timer whether or not anyone is at the keyboard, so it advances
+ * last_seen_at ONLY when the client reports real interaction since its last
+ * ping. Before that distinction existed the poll renewed the session ~360
+ * times an hour and the idle timeout could never fire while a tab stayed
+ * open — it appeared to work only because closing the tab stopped the poll,
+ * so the expiry surfaced on the next page load. That is what made the
+ * timeout look like it needed a refresh.
  */
 
-/** Minutes of inactivity (no authenticated request touching last_seen_at)
- *  before a session is treated as expired and revoked. */
-const SESSION_IDLE_TIMEOUT_MINUTES = 30;
+require_once __DIR__ . '/security_settings.php';
+
+/**
+ * Minutes of inactivity before a session is treated as expired and revoked.
+ * Admin-set in Manage Security; falls back to the previous hardcoded 30 if
+ * the settings row can't be read for any reason.
+ */
+function sessionIdleTimeoutMinutes(PDO $pdo): int
+{
+    try {
+        return getSecuritySettings($pdo)['session_idle_minutes'];
+    } catch (Throwable $e) {
+        return 30;
+    }
+}
 
 function ensureSessionSchema(PDO $pdo): void
 {
@@ -162,7 +183,7 @@ function recordLoginSession(PDO $pdo, int $userId, string $token): void
 }
 
 /**
- * Proactively revokes every session idle past SESSION_IDLE_TIMEOUT_MINUTES,
+ * Proactively revokes every session idle past the configured window,
  * system-wide. findSessionByToken()'s lazy check only catches a stale
  * session when its own token is looked up again — a session nobody is
  * polling anymore (tab closed, device put away) would otherwise sit with
@@ -173,12 +194,47 @@ function recordLoginSession(PDO $pdo, int $userId, string $token): void
  */
 function sweepIdleSessions(PDO $pdo): void
 {
-    $pdo->exec('
+    $stmt = $pdo->prepare('
         UPDATE user_sessions
         SET revoked_at = NOW()
         WHERE revoked_at IS NULL
-          AND last_seen_at < DATE_SUB(NOW(), INTERVAL ' . SESSION_IDLE_TIMEOUT_MINUTES . ' MINUTE)
+          AND last_seen_at < DATE_SUB(NOW(), INTERVAL :minutes MINUTE)
     ');
+    $stmt->execute([':minutes' => sessionIdleTimeoutMinutes($pdo)]);
+}
+
+/**
+ * Marks a session as actively used, right now. Called only for requests a
+ * user actually caused — never by the bare keep-alive poll.
+ */
+function touchSessionActivity(PDO $pdo, int $sessionId): void
+{
+    $pdo->prepare('UPDATE user_sessions SET last_seen_at = NOW() WHERE id = :id')
+        ->execute([':id' => $sessionId]);
+}
+
+/**
+ * Seconds left before this session expires from inactivity; 0 once past.
+ *
+ * Computed entirely in SQL so both sides of the subtraction come from the
+ * same clock. Doing it in PHP would compare strtotime() of a MySQL DATETIME
+ * against PHP's time(), which silently drifts by hours whenever PHP and
+ * MySQL disagree about the timezone — a mismatch this deployment has already
+ * hit once (see the epoch-seconds workaround in the session list).
+ */
+function sessionSecondsRemaining(PDO $pdo, int $sessionId): int
+{
+    $stmt = $pdo->prepare('
+        SELECT GREATEST(0, TIMESTAMPDIFF(
+            SECOND, NOW(), DATE_ADD(last_seen_at, INTERVAL :minutes MINUTE)
+        ))
+        FROM user_sessions WHERE id = :id
+    ');
+    $stmt->execute([
+        ':minutes' => sessionIdleTimeoutMinutes($pdo),
+        ':id'      => $sessionId,
+    ]);
+    return (int) $stmt->fetchColumn();
 }
 
 /**
@@ -186,11 +242,10 @@ function sweepIdleSessions(PDO $pdo): void
  * never issued; callers must separately check `revoked_at` — a revoked row
  * is still returned so the caller can tell "unknown" apart from "ended".
  *
- * A session idle past SESSION_IDLE_TIMEOUT_MINUTES (judged from last_seen_at,
- * which every "check" poll and this function's own callers keep fresh while
- * the session is actively used) is revoked here, lazily, before being
- * returned — so it comes back indistinguishable from an explicitly-ended
- * session to every existing caller.
+ * A session idle past the configured window (judged from last_seen_at, which
+ * user-driven requests keep fresh while the session is actually in use) is
+ * revoked here, lazily, before being returned — so it comes back
+ * indistinguishable from an explicitly-ended session to every existing caller.
  */
 function findSessionByToken(PDO $pdo, string $token): ?array
 {
@@ -208,10 +263,23 @@ function findSessionByToken(PDO $pdo, string $token): ?array
     $row = $stmt->fetch();
 
     if ($row && $row['revoked_at'] === null) {
-        $idleCutoff = strtotime($row['last_seen_at']) + SESSION_IDLE_TIMEOUT_MINUTES * 60;
-        if (time() > $idleCutoff) {
-            $pdo->prepare('UPDATE user_sessions SET revoked_at = NOW() WHERE id = :id')
-                ->execute([':id' => $row['id']]);
+        // Expiry decided by MySQL against its own NOW(), for the same
+        // clock-consistency reason as sessionSecondsRemaining(). The UPDATE
+        // is the test: it only matches if the row is genuinely past the
+        // window, so no separate read is needed.
+        $expire = $pdo->prepare('
+            UPDATE user_sessions
+            SET revoked_at = NOW()
+            WHERE id = :id
+              AND revoked_at IS NULL
+              AND last_seen_at < DATE_SUB(NOW(), INTERVAL :minutes MINUTE)
+        ');
+        $expire->execute([
+            ':id'      => $row['id'],
+            ':minutes' => sessionIdleTimeoutMinutes($pdo),
+        ]);
+
+        if ($expire->rowCount() > 0) {
             $row['revoked_at'] = date('Y-m-d H:i:s');
         }
     }
