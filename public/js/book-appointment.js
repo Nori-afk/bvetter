@@ -581,6 +581,42 @@ async function submitReview(appointmentId, rating, comment) {
     await vbAlert('Failed to submit review.');
   }
 }
+/**
+ * Owner's half of a reschedule. The clinic's proposed time isn't applied until
+ * this runs, and declining leaves the original booking exactly as it was.
+ */
+async function respondToReschedule(appointmentId, decision) {
+  const confirmText = decision === 'accept'
+    ? 'Accept the new date and time for this appointment?'
+    : 'Decline the new time? Your original appointment date will stay as it is.';
+
+  if (!(await vbConfirm(confirmText))) return;
+
+  try {
+    const res = await fetch('/api/appointments/appointment.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'respond_reschedule',
+        appointment_id: appointmentId,
+        decision: decision
+      })
+    });
+
+    const json = await res.json();
+
+    if (json.success) {
+      await vbAlert(json.message);
+      loadAppointmentHistory();
+    } else {
+      await vbAlert(json.message || 'Could not save your response.');
+    }
+  } catch (err) {
+    console.error(err);
+    await vbAlert('Could not save your response — check your connection.');
+  }
+}
+
 async function replaceContent(){
    try {
     const res = await fetch('/api/appointments/appointment.php', {
@@ -712,14 +748,18 @@ async function loadAppointmentHistory(options = {}) {
     histList.innerHTML = '';
 
     json.data.forEach(appt => {
+      const awaitingResponse = appt.status === 'reschedule_pending';
+
       const rowClass = appt.status === 'completed'
         ? 'appt-row appt-completed'
-        : 'appt-row appt-pending';
+        : awaitingResponse
+          ? 'appt-row appt-reschedule'
+          : 'appt-row appt-pending';
 
       const statusBadge = `
         <span class="status-badge s-${appt.status}">
           <span class="status-dot"></span>
-          ${capitalize(appt.status)}
+          ${awaitingResponse ? 'New time proposed' : capitalize(appt.status)}
         </span>
       `;
 
@@ -753,6 +793,18 @@ async function loadAppointmentHistory(options = {}) {
         `;
       }
 
+      // The clinic proposed a new time and it isn't applied until the owner
+      // answers, so this row needs an explicit accept/decline.
+      else if (awaitingResponse) {
+        reviewSection = `
+          ${statusBadge}
+          <div class="reschedule-actions">
+            <button class="btn-reschedule-accept" onclick="respondToReschedule(${appt.id}, 'accept')">Accept</button>
+            <button class="btn-reschedule-decline" onclick="respondToReschedule(${appt.id}, 'decline')">Decline</button>
+          </div>
+        `;
+      }
+
       // pending / others
       else {
         reviewSection = statusBadge;
@@ -778,10 +830,18 @@ async function loadAppointmentHistory(options = {}) {
 
           <div class="appt-col">
             <div class="appt-col-label">DATE</div>
-            <div class="appt-date-val">
+            <div class="appt-date-val${awaitingResponse ? ' appt-date-superseded' : ''}">
               ${formatDate(appt.preferred_date)}
             </div>
-            <div class="appt-time-val">${appt.time_slot}</div>
+            <div class="appt-time-val${awaitingResponse ? ' appt-date-superseded' : ''}">${appt.time_slot}</div>
+            ${awaitingResponse ? `
+              <div class="appt-proposed">
+                <div class="appt-col-label">PROPOSED</div>
+                <div class="appt-date-val">${formatDate(appt.proposed_date)}</div>
+                <div class="appt-time-val">${appt.proposed_time_slot || ''}</div>
+                ${appt.reschedule_reason ? `<div class="appt-proposed-reason">${escapeHtml(appt.reschedule_reason)}</div>` : ''}
+              </div>
+            ` : ''}
           </div>
 
           <div class="appt-actions">

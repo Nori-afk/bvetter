@@ -1448,6 +1448,8 @@ body {
 .appt-pending   { border-left-color: #FBBF24; }
 .appt-completed { border-left-color: #10B981; }
 .appt-cancelled { border-left-color: #F87171; }
+/* Waiting on the owner to accept or decline a time the clinic proposed. */
+.appt-reschedule { border-left-color: #6366F1; }
 
 .appt-col-label {
   font-size: 9px;
@@ -1509,6 +1511,68 @@ body {
   color: #991B1B;
   border: 1px solid #FECACA;
 }
+
+.s-reschedule_pending {
+  background: #EEF2FF;
+  color: #3730A3;
+  border: 1px solid #C7D2FE;
+}
+
+/* ── Proposed reschedule ──
+   The original date is struck through rather than replaced, so the owner can
+   see exactly what they'd be giving up before they accept. */
+.appt-date-superseded {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.appt-proposed {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #C7D2FE;
+}
+
+.appt-proposed .appt-col-label { color: #4338CA; }
+
+.appt-proposed-reason {
+  margin-top: 4px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.reschedule-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-reschedule-accept,
+.btn-reschedule-decline {
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'Manrope', sans-serif;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.btn-reschedule-accept {
+  background: #059669;
+  border: none;
+  color: #fff;
+}
+
+.btn-reschedule-accept:hover { background: #047857; }
+
+.btn-reschedule-decline {
+  background: #fff;
+  border: 1px solid #D1D5DB;
+  color: #374151;
+}
+
+.btn-reschedule-decline:hover { background: #F3F4F6; }
 
 /* ── Rate & Review button — navy, matches Figma ── */
 .btn-rate-review {

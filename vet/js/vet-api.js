@@ -149,13 +149,14 @@ async function updateAppointmentStatus(id, status) {
     }
 }
 
-/** PATCH /api/vet/appointments/:id/reschedule */
-async function rescheduleAppointment(id, preferredDate, timeSlot) {
+/** Propose a new time. Takes effect only once the pet owner accepts it. */
+async function rescheduleAppointment(id, preferredDate, timeSlot, reason = '') {
     const formData = new FormData();
     formData.append('action', 'reschedule');
     formData.append('appointment_id', id);
     formData.append('preferred_date', preferredDate);
     formData.append('time_slot', timeSlot);
+    if (reason) formData.append('reason', reason);
 
     try {
         const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {

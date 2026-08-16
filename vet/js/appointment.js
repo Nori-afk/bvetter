@@ -11,7 +11,7 @@
 	{ id: 10, datetime: '2026-04-25T16:00:00', patient: 'Rocky', owner: 'Monica Reyes', service: 'Ear Infection Follow-up', status: 'pending', type: 'Follow-up' }
 ];
 
-const VALID_STATUSES = new Set(['pending', 'confirmed', 'completed', 'canceled', 'cancelled', 'rejected']);
+const VALID_STATUSES = new Set(['pending', 'confirmed', 'completed', 'canceled', 'cancelled', 'rejected', 'reschedule_pending']);
 const RESCHEDULE_SLOTS = [
 	{ label: 'Morning', value: '08:00', display: '8:00 AM' },
 	{ label: 'Morning', value: '09:00', display: '9:00 AM' },
@@ -204,9 +204,17 @@ function statusClass(status) {
 	return 'status-pending';
 }
 
+// A proposed reschedule reads as its own state rather than 'pending', so staff
+// can tell "waiting on the owner" apart from "waiting on us".
+function statusLabel(status) {
+	if (status === 'reschedule_pending') return 'Awaiting owner';
+	return String(status || '').replace(/_/g, ' ');
+}
+
 function actionTitle(status) {
 	if (status === 'completed') return 'Completed';
 	if (status === 'canceled' || status === 'cancelled' || status === 'rejected') return 'Canceled';
+	if (status === 'reschedule_pending') return 'Awaiting owner';
 	return 'Open';
 }
 
@@ -286,7 +294,7 @@ function renderTable() {
 					</td>
 					<td>${item.owner}</td>
 					<td>${item.service}</td>
-					<td><span class="status-pill ${statusClass(item.status)}">${item.status}</span></td>
+					<td><span class="status-pill ${statusClass(item.status)}">${statusLabel(item.status)}</span></td>
 					<td>
 						<div class="action-buttons">
 							<button type="button" title="View" data-action="view" data-id="${item.id}"><img src="/vet/images/eye.png" alt="View"></button>
@@ -832,18 +840,19 @@ async function applyReschedule() {
 	if (window.VetAPI?.rescheduleAppointment) {
 		const result = await window.VetAPI.rescheduleAppointment(selected.id, state.selectedDate, state.selectedSlot);
 		if (!result.ok) {
-			await vbAlert(result.error || 'Failed to reschedule appointment.');
+			await vbAlert(result.error || 'Failed to propose a new time.');
 			return;
 		}
 	}
 
-	const nextDate = new Date(`${state.selectedDate}T00:00:00`);
-	const [hours, minutes] = state.selectedSlot.split(':').map(Number);
-	nextDate.setHours(hours, minutes, 0, 0);
-	selected.datetime = toLocalDateTimeString(nextDate);
-	selected.status = 'confirmed';
+	// The new time isn't applied until the owner accepts it, so the row keeps
+	// its original date and moves to the awaiting-owner state instead.
+	selected.status = 'reschedule_pending';
+	selected.proposed_date = state.selectedDate;
+	selected.proposed_time_slot = state.selectedSlot;
 	closeModal();
 	refreshUI();
+	await vbAlert('The pet owner has been asked to confirm the new time. Their original booking stands until they accept.');
 }
 
 function applyComplete() {
