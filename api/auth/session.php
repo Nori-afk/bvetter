@@ -205,9 +205,9 @@ try {
             respond(400, ['success' => false, 'message' => 'Unknown action.']);
     }
 } catch (PDOException $e) {
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     respond(500, [
         'success' => false,
         'message' => 'Session request failed.',
-        'error'   => $e->getMessage(),
     ]);
 }

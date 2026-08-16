@@ -172,5 +172,6 @@ try {
     if ($action === 'delete') deleteEvent($pdo, $input);
     respond(400, ['success' => false, 'message' => 'Unknown mass vaccination action.']);
 } catch (PDOException $e) {
-    respond(500, ['success' => false, 'message' => 'Mass vaccination request failed.', 'error' => $e->getMessage()]);
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
+    respond(500, ['success' => false, 'message' => 'Mass vaccination request failed.']);
 }

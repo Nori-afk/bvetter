@@ -425,12 +425,12 @@ try {
         default           => respond(400, ['success' => false, 'message' => 'Unknown action.']),
     };
 } catch (PDOException $e) {
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     if (isset($pdo) && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
     respond(500, [
         'success' => false,
         'message' => 'Server error. Please try again.',
-        'error'   => $e->getMessage(),
     ]);
-}
+}

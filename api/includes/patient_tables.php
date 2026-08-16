@@ -100,6 +100,7 @@ function setupPatientTables($pdo)
                 WHERE pvr.barangay_at_visit IS NULL
             ");
         } catch (Throwable $e) {
+            error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
             // owner_profiles/barangays may not exist yet on a fresh install;
             // the columns are in place either way and new visits fill them.
         }

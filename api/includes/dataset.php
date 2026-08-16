@@ -311,6 +311,7 @@ function bv_table_exists($pdo, $table)
         $stmt->execute([':table_name' => $table]);
         return (bool) $stmt->fetchColumn();
     } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return false;
     }
 }
@@ -322,6 +323,7 @@ function bv_column_exists($pdo, $table, $column)
         $stmt->execute([':column_name' => $column]);
         return (bool) $stmt->fetchColumn();
     } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return false;
     }
 }

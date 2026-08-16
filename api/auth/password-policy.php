@@ -28,6 +28,7 @@ try {
         ],
     ]);
 } catch (PDOException $e) {
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Could not load password policy.']);
 }

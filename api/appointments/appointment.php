@@ -1285,14 +1285,14 @@ try {
         'message' => 'Unknown appointment action.'
     ]);
 } catch (PDOException $e) {
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
 
     respond(500, [
         'success' => false,
-        'message' => 'Appointment request failed.',
-        'error' => $e->getMessage()
+        'message' => 'Appointment request failed.'
     ]);
 }
 

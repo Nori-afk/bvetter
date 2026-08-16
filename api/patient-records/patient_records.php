@@ -351,6 +351,7 @@ function deriveDiseaseCategory($pdo, $diagnosis)
         $stmt->execute([':name' => $diagnosis]);
         $bucket = $stmt->fetchColumn();
     } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return 'General/Other';
     }
 
@@ -458,6 +459,7 @@ function listDiseases($pdo)
             ORDER BY name ASC
         ")->fetchAll();
     } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         $rows = [];
     }
 
@@ -488,6 +490,7 @@ function visitSnapshot($pdo, $petId, $ownerId)
         $stmt->execute([':pet_id' => $petId, ':owner_id' => $ownerId]);
         $row = $stmt->fetch();
     } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return ['barangay' => null, 'species' => null];
     }
 
@@ -774,10 +777,10 @@ try {
 
     respond(400, ['success' => false, 'message' => 'Unknown patient records action.']);
 } catch (PDOException $e) {
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     if ($pdo->inTransaction()) $pdo->rollBack();
     respond(500, [
         'success' => false,
         'message' => 'Patient records request failed.',
-        'error' => $e->getMessage(),
     ]);
 }

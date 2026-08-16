@@ -316,6 +316,7 @@ function db_disease_barangay_counts($pdo, string $selected, string $dateType = '
         }
         return $counts;
     } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return [];
     }
 }

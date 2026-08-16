@@ -115,9 +115,9 @@ try {
         'message' => 'Unknown notifications action.'
     ]);
 } catch (PDOException $e) {
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     respond(500, [
         'success' => false,
-        'message' => 'Notifications request failed.',
-        'error' => $e->getMessage()
+        'message' => 'Notifications request failed.'
     ]);
 }

@@ -22,6 +22,7 @@ try {
         ]
     );
 } catch (PDOException $e) {
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     http_response_code(500);
     header('Content-Type: application/json');
     echo json_encode([

@@ -1553,10 +1553,10 @@ try {
 
     respond(400, ['success' => false, 'message' => 'Unknown lost and found action.']);
 } catch (PDOException $e) {
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     if ($pdo->inTransaction()) $pdo->rollBack();
     respond(500, [
         'success' => false,
-        'message' => 'Lost and found request failed.',
-        'error' => $e->getMessage()
+        'message' => 'Lost and found request failed.'
     ]);
 }

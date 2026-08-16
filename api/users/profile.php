@@ -50,6 +50,7 @@ function setupProfileTables($pdo)
                 ADD COLUMN quiet_hours_end TIME NOT NULL DEFAULT '07:00:00'
         ");
     } catch (PDOException $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         // Columns already exist — nothing to do.
     }
 
@@ -95,6 +96,7 @@ function profileStats($pdo, $userId, $roleName)
             }
         }
     } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return $stats;
     }
 
@@ -332,5 +334,6 @@ try {
 
     respond(400, ['success' => false, 'message' => 'Unknown profile action.']);
 } catch (PDOException $e) {
-    respond(500, ['success' => false, 'message' => 'Profile request failed.', 'error' => $e->getMessage()]);
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
+    respond(500, ['success' => false, 'message' => 'Profile request failed.']);
 }

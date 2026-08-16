@@ -248,13 +248,13 @@ try {
         'proof_path' => $relativePath
     ]);
 } catch (PDOException $e) {
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
 
     respond(500, [
         'success' => false,
-        'message' => 'Registration failed.',
-        'error' => $e->getMessage()
+        'message' => 'Registration failed.'
     ]);
 }

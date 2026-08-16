@@ -215,6 +215,7 @@ function db_patient_rows($pdo){
      try {
         $rows = $pdo->query($sql)->fetchAll();
     } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return [];
     }
 
@@ -302,6 +303,7 @@ function db_consultation_rows($pdo)
             ORDER BY pvr.visit_date DESC, pvr.id DESC
         ")->fetchAll();
     } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return [];
     }
 
@@ -437,6 +439,7 @@ function db_disease_rows($pdo)
             GROUP BY yr, mo, barangay, pvr.disease_category
         ")->fetchAll();
     } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return [];
     }
 
@@ -521,6 +524,7 @@ function db_vaccination_rows($pdo)
             ORDER BY event_date DESC
         ")->fetchAll();
     } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return [];
     }
 
@@ -593,6 +597,7 @@ function lost_found_rows($pdo)
             ORDER BY lfr.created_at DESC
         ")->fetchAll();
     } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return [];
     }
 

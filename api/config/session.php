@@ -38,6 +38,7 @@ function sessionIdleTimeoutMinutes(PDO $pdo): int
     try {
         return getSecuritySettings($pdo)['session_idle_minutes'];
     } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return 30;
     }
 }

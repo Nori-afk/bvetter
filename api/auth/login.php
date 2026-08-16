@@ -33,10 +33,10 @@ try {
     http_response_code($statusCode);
     echo json_encode($payload);
 } catch (PDOException $e) {
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Database query failed',
-        'error' => $e->getMessage()
+        'message' => 'Database query failed'
     ]);
 }

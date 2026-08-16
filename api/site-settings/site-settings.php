@@ -306,11 +306,11 @@ function saveSettings($pdo, $data)
         getSettings($pdo);
 
     } catch (PDOException $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
 
         respond(500, [
             'success' => false,
-            'message' => 'Could not save site settings.',
-            'error' => $e->getMessage()
+            'message' => 'Could not save site settings.'
         ]);
     }
 }
@@ -343,10 +343,10 @@ try {
     ]);
 
 } catch (PDOException $e) {
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
 
     respond(500, [
         'success' => false,
-        'message' => 'Site settings request failed.',
-        'error' => $e->getMessage()
+        'message' => 'Site settings request failed.'
     ]);
 }

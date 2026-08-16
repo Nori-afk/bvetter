@@ -247,5 +247,6 @@ try {
 
     respond(400, ['success' => false, 'message' => 'Unknown pets action.']);
 } catch (PDOException $e) {
-    respond(500, ['success' => false, 'message' => 'My pets request failed.', 'error' => $e->getMessage()]);
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
+    respond(500, ['success' => false, 'message' => 'My pets request failed.']);
 }

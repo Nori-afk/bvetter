@@ -807,9 +807,9 @@ try {
 
     respond(400, ['success' => false, 'message' => 'Unknown chatbot action.']);
 } catch (PDOException $e) {
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     respond(500, [
         'success' => false,
         'message' => 'Chatbot request failed.',
-        'error' => $e->getMessage(),
     ]);
 }

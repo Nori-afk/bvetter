@@ -590,6 +590,7 @@ try {
         'message' => 'Unknown action.'
     ]);
 } catch (PDOException $e) {
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
@@ -597,14 +598,12 @@ try {
     if ($e->getCode() === '23000') {
         respond(409, [
             'success' => false,
-            'message' => 'This account cannot be deleted because it is connected to existing records. Set it to inactive or blocked instead.',
-            'error' => $e->getMessage()
+            'message' => 'This account cannot be deleted because it is connected to existing records. Set it to inactive or blocked instead.'
         ]);
     }
 
     respond(500, [
         'success' => false,
-        'message' => 'Account management request failed.',
-        'error' => $e->getMessage()
+        'message' => 'Account management request failed.'
     ]);
 }

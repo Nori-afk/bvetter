@@ -88,6 +88,7 @@ function setupCspTables($pdo)
                 ->execute([':name' => 'Castration & Spay']);
         }
     } catch (PDOException $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         // visit_types may not exist yet in older schemas — CSP registration itself doesn't depend on it.
     }
 }
@@ -841,6 +842,7 @@ try {
 
     respond(400, ['success' => false, 'message' => 'Unknown castration & spay program action.']);
 } catch (PDOException $e) {
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     if ($pdo->inTransaction()) $pdo->rollBack();
-    respond(500, ['success' => false, 'message' => 'Castration & Spay program request failed.', 'error' => $e->getMessage()]);
+    respond(500, ['success' => false, 'message' => 'Castration & Spay program request failed.']);
 }

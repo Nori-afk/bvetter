@@ -306,11 +306,11 @@ function saveAnnouncement($pdo, $data)
         ]);
 
     } catch (PDOException $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
 
         respond(500, [
             'success' => false,
-            'message' => 'Database error.',
-            'error' => $e->getMessage()
+            'message' => 'Database error.'
         ]);
     }
 }
@@ -377,10 +377,10 @@ try {
     ]);
 
 } catch (PDOException $e) {
+    error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
 
     respond(500, [
         'success' => false,
-        'message' => 'Announcement request failed.',
-        'error' => $e->getMessage()
+        'message' => 'Announcement request failed.'
     ]);
 }
