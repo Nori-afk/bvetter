@@ -1154,6 +1154,15 @@ function safeHtml(value) {
         .replace(/'/g, '&#039;');
 }
 
+// Slots are stored as 24-hour 'HH:MM'; the timeline reads better as '3:00 PM'.
+function displaySlot(slot) {
+    const value = String(slot ?? '').trim();
+    const match = value.match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return value;
+    const hour = Number(match[1]);
+    return `${hour % 12 || 12}:${match[2]} ${hour >= 12 ? 'PM' : 'AM'}`;
+}
+
 function toDateKey(value) {
     if (!value) return '';
     const date = new Date(value);
@@ -1253,7 +1262,7 @@ function renderTodayTimeline(appointments) {
             <div class="timeline-item">
                 <div class="timeline-marker ${statusClass}"><span class="marker-dot ${statusClass === 'pending' ? 'pending' : ''}"></span></div>
                 <div class="timeline-event ${statusClass}">
-                    <p class="event-time">${safeHtml(item.time_slot || 'TBD')}</p>
+                    <p class="event-time">${safeHtml(displaySlot(item.time_slot) || 'TBD')}</p>
                     <h4 class="event-title">${safeHtml(item.service || item.type || 'Appointment')}: ${safeHtml(item.patient || item.pet?.name || 'Patient')}</h4>
                     <p class="event-location">${safeHtml(item.veterinarian || 'Unassigned vet')}</p>
                 </div>

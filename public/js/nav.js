@@ -141,6 +141,15 @@ function notifStatusFromTitle(title) {
   return 'neutral';
 }
 
+// Slots are stored as 24-hour 'HH:MM'; notifications read them as '3:00 PM'.
+function notifSlot(slot) {
+  const value = String(slot ?? '').trim();
+  const match = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return value;
+  const hour = Number(match[1]);
+  return `${hour % 12 || 12}:${match[2]} ${hour >= 12 ? 'PM' : 'AM'}`;
+}
+
 function formatNotifDate(value) {
   if (!value) return '';
   const date = new Date(value);
@@ -228,8 +237,10 @@ async function buildOwnerNotifications() {
         const rawTime = appt.created_at || appt.preferred_date;
         notifications.push({
           id,
-          title: appt.status === 'pending' ? 'Appointment Awaiting Confirmation' : 'Upcoming Appointment',
-          detail: `${appt.pet?.name || appt.patient || 'Your pet'} — ${formatNotifDate(appt.preferred_date)}${appt.time_slot ? ` at ${appt.time_slot}` : ''}`,
+          title: appt.status === 'pending' ? 'Appointment Awaiting Confirmation'
+               : appt.status === 'reschedule_pending' ? 'New Appointment Time Proposed'
+               : 'Upcoming Appointment',
+          detail: `${appt.pet?.name || appt.patient || 'Your pet'} — ${formatNotifDate(appt.preferred_date)}${appt.time_slot ? ` at ${notifSlot(appt.time_slot)}` : ''}`,
           time: formatNotifDate(rawTime) || 'Just now',
           sortTime: Date.parse(rawTime) || 0,
           read: read.has(id)

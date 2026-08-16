@@ -205,10 +205,26 @@ function statusClass(status) {
 }
 
 // A proposed reschedule reads as its own state rather than 'pending', so staff
-// can tell "waiting on the owner" apart from "waiting on us".
+// can tell "waiting on the owner" apart from "waiting on us". Underscores never
+// reach the screen -- a raw enum like 'reschedule_pending' is not a label.
 function statusLabel(status) {
 	if (status === 'reschedule_pending') return 'Awaiting owner';
-	return String(status || '').replace(/_/g, ' ');
+	const text = String(status || '').replace(/_/g, ' ');
+	return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+// Accepts '3:00 PM' or '15:00' and returns canonical 'HH:MM', so slot
+// comparisons never depend on which shape a row happens to be stored in.
+function canonicalSlot(value) {
+	const text = String(value ?? '').trim();
+	const twelve = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+	if (twelve) {
+		let hour = Number(twelve[1]) % 12;
+		if (twelve[3].toUpperCase() === 'PM') hour += 12;
+		return `${String(hour).padStart(2, '0')}:${twelve[2]}`;
+	}
+	const twentyFour = text.match(/^(\d{1,2}):(\d{2})$/);
+	return twentyFour ? `${twentyFour[1].padStart(2, '0')}:${twentyFour[2]}` : text;
 }
 
 function actionTitle(status) {
@@ -403,7 +419,7 @@ function detailsModalTemplate(appointment) {
 				<div class="appt-header-name">${appointment.patient}</div>
 				<div class="appt-header-meta">${appointment.service} &middot; ${dt.date} at ${dt.time}</div>
 			</div>
-			<span class="appt-header-badge appt-badge-${statusSlug}">${appointment.status}</span>
+			<span class="appt-header-badge appt-badge-${statusSlug}">${statusLabel(appointment.status)}</span>
 		</div>
 
 		<div class="appt-modal-body">
@@ -771,9 +787,13 @@ async function loadRescheduleBookedSlots() {
 		preferred_date: state.selectedDate,
 		exclude_id: selected.id
 	});
-	const bookedDisplay = result.ok ? (result.data || []) : [];
+	// Booked slots come back as canonical 'HH:MM'. This used to compare against
+	// slot.display ('3:00 PM'), so anything stored in 24-hour form never matched
+	// and its button stayed clickable. Normalising both sides keeps it correct
+	// even if an old 12-hour row survives somewhere.
+	const booked = (result.ok ? (result.data || []) : []).map(canonicalSlot);
 	state.rescheduleBookedSlots = RESCHEDULE_SLOTS
-		.filter((slot) => bookedDisplay.includes(slot.display))
+		.filter((slot) => booked.includes(canonicalSlot(slot.value)))
 		.map((slot) => slot.value);
 
 	// Selected date may have moved on again before this resolved — ignore stale responses.

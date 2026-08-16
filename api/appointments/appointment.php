@@ -70,6 +70,31 @@ function clean($value)
     return trim((string) $value);
 }
 
+/**
+ * Time slots have been written in two shapes -- '3:00 PM' from the booking
+ * form and '15:00' from the vet's reschedule picker -- and they were compared
+ * as plain strings, so a 12-hour row was invisible to a 24-hour conflict check
+ * and its slot stayed selectable. Everything is stored as 24-hour 'HH:MM' now
+ * and formatted for display; this accepts either shape and returns canonical.
+ */
+function canonicalTimeSlot($value)
+{
+    $value = clean($value);
+    if ($value === '') return '';
+
+    if (preg_match('/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i', $value, $m)) {
+        $hour = (int) $m[1] % 12;
+        if (strtoupper($m[3]) === 'PM') $hour += 12;
+        return sprintf('%02d:%02d', $hour, (int) $m[2]);
+    }
+
+    if (preg_match('/^(\d{1,2}):(\d{2})$/', $value, $m)) {
+        return sprintf('%02d:%02d', (int) $m[1], (int) $m[2]);
+    }
+
+    return $value;
+}
+
 function normalizeSex($value)
 {
     $value = strtolower(clean($value));
@@ -480,7 +505,7 @@ function createAppointment($pdo, $data)
 {
     $appointmentType = clean($data['appointment_type'] ?? $data['visit_type'] ?? '');
     $preferredDate = clean($data['preferred_date'] ?? $data['date'] ?? '');
-    $timeSlot = clean($data['time_slot'] ?? $data['time'] ?? '');
+    $timeSlot = canonicalTimeSlot($data['time_slot'] ?? $data['time'] ?? '');
     $description = clean($data['description'] ?? '');
     $notes = clean($data['notes'] ?? '');
     $veterinarianId = (int) ($data['veterinarian_id'] ?? 0);
@@ -816,7 +841,7 @@ function rescheduleAppointment($pdo, $data, $session = null)
 {
     $appointmentId = (int) ($data['appointment_id'] ?? $data['id'] ?? 0);
     $date = clean($data['preferred_date'] ?? $data['date'] ?? '');
-    $timeSlot = clean($data['time_slot'] ?? '');
+    $timeSlot = canonicalTimeSlot($data['time_slot'] ?? '');
 
     if ($appointmentId <= 0) {
         respond(422, ['success' => false, 'message' => 'Invalid appointment id.']);
@@ -1085,8 +1110,12 @@ function getBookedSlots($pdo, $data)
         respond(422, ['success' => false, 'message' => 'preferred_date is required.']);
     }
 
-    $excludeClause = $excludeId > 0 ? ' AND id <> :exclude_id' : '';
+    // Prepares are not emulated, so a named placeholder cannot appear twice in
+    // one statement. The UNION branch below therefore needs its own copies of
+    // every parameter rather than reusing the ones above.
     $params = [':date' => $date];
+
+    $excludeClause = $excludeId > 0 ? ' AND id <> :exclude_id' : '';
     if ($excludeId > 0) $params[':exclude_id'] = $excludeId;
 
     // If a vet is specified, only block slots for that vet.
@@ -1101,16 +1130,21 @@ function getBookedSlots($pdo, $data)
     // aren't present, so slot lookups keep working either way.
     $proposedUnion = '';
     if (ensureRescheduleSchema($pdo)) {
+        $excludeClause2 = $excludeId > 0 ? ' AND id <> :exclude_id2' : '';
+        $vetClause2 = $vetId > 0 ? ' AND (veterinarian_id = :vet_id2 OR veterinarian_id IS NULL)' : '';
+        if ($excludeId > 0) $params[':exclude_id2'] = $excludeId;
+        if ($vetId > 0) $params[':vet_id2'] = $vetId;
+        $params[':date2'] = $date;
+
         $proposedUnion = "
             UNION
             SELECT proposed_time_slot AS time_slot FROM appointments
             WHERE proposed_date = :date2
               AND status = 'reschedule_pending'
               AND proposed_time_slot IS NOT NULL
-              {$vetClause}
-              {$excludeClause}
+              {$vetClause2}
+              {$excludeClause2}
         ";
-        $params[':date2'] = $date;
     }
 
     $stmt = $pdo->prepare("

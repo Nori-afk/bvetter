@@ -447,7 +447,7 @@ async function loadRecentHistory(options = {}) {
       else {
         reviewBtn = `
           <button class="btn-rate" disabled>
-            ${capitalize(appt.status)}
+            ${statusText(appt.status)}
           </button>
         `;
       }
@@ -535,7 +535,7 @@ async function loadCspStatus() {
     if (reg.status === 'scheduled') {
       rows.push(['Status', 'Scheduled']);
       rows.push(['Program Date', reg.program_date ? formatDate(reg.program_date) : 'To Be Announced']);
-      rows.push(['Time', reg.time_slot || 'TBA']);
+      rows.push(['Time', formatTimeSlot(reg.time_slot) || 'TBA']);
       rows.push(['Venue', reg.venue || 'TBA']);
       rows.push(['Queue Number', reg.queue_number ?? '—']);
     } else {
@@ -759,7 +759,7 @@ async function loadAppointmentHistory(options = {}) {
       const statusBadge = `
         <span class="status-badge s-${appt.status}">
           <span class="status-dot"></span>
-          ${awaitingResponse ? 'New time proposed' : capitalize(appt.status)}
+          ${statusText(appt.status)}
         </span>
       `;
 
@@ -833,12 +833,12 @@ async function loadAppointmentHistory(options = {}) {
             <div class="appt-date-val${awaitingResponse ? ' appt-date-superseded' : ''}">
               ${formatDate(appt.preferred_date)}
             </div>
-            <div class="appt-time-val${awaitingResponse ? ' appt-date-superseded' : ''}">${appt.time_slot}</div>
+            <div class="appt-time-val${awaitingResponse ? ' appt-date-superseded' : ''}">${formatTimeSlot(appt.time_slot)}</div>
             ${awaitingResponse ? `
               <div class="appt-proposed">
                 <div class="appt-col-label">PROPOSED</div>
                 <div class="appt-date-val">${formatDate(appt.proposed_date)}</div>
-                <div class="appt-time-val">${appt.proposed_time_slot || ''}</div>
+                <div class="appt-time-val">${formatTimeSlot(appt.proposed_time_slot)}</div>
                 ${appt.reschedule_reason ? `<div class="appt-proposed-reason">${escapeHtml(appt.reschedule_reason)}</div>` : ''}
               </div>
             ` : ''}
@@ -1777,6 +1777,24 @@ function escapeHtml(value) {
 function escapeAttr(value) {
   return escapeHtml(value).replace(/`/g, '&#96;');
 }
+// Slots are stored as 24-hour 'HH:MM'; owners read them as '3:00 PM'.
+function formatTimeSlot(slot) {
+  const value = String(slot ?? '').trim();
+  const match = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return value;
+  const hour = Number(match[1]);
+  const suffix = hour >= 12 ? 'PM' : 'AM';
+  return `${hour % 12 || 12}:${match[2]} ${suffix}`;
+}
+
+// Status values are database enums; never show one to an owner raw, or
+// 'reschedule_pending' leaks through underscore and all.
+function statusText(status) {
+  const value = String(status ?? '').trim();
+  if (value === 'reschedule_pending') return 'New time proposed';
+  return capitalize(value.replace(/_/g, ' '));
+}
+
 function capitalize(text) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
