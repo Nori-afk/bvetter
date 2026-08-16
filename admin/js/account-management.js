@@ -309,7 +309,7 @@ function wireAddModal() {
         else {
             const pwError = window.PasswordPolicy
                 ? PasswordPolicy.validate(pw)
-                : (pw.length < 8 ? 'Minimum 8 characters.' : null);
+                : (pw.length < 12 ? 'Minimum 12 characters.' : null);
             if (pwError) err('add-acc-password', pwError);
         }
 

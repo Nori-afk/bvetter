@@ -594,8 +594,15 @@ function wireAddAccountModal() {
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
                     markError('add-acc-email',    'Enter a valid email address.');
         if (!pw)    markError('add-acc-password', 'Password is required.');
-        else if (pw.length < 8)
-                    markError('add-acc-password', 'Password must be at least 8 characters.');
+        else {
+            // Defers to the live policy when it loaded; the length fallback
+            // matches the server-side floor so this can't pass something the
+            // API will reject.
+            const pwError = window.PasswordPolicy
+                ? PasswordPolicy.validate(pw)
+                : (pw.length < 12 ? 'Password must be at least 12 characters.' : null);
+            if (pwError) markError('add-acc-password', pwError);
+        }
 
         const isVet = roleSelect?.selectedOptions[0]?.dataset.frontendRole === 'vet';
         if (isVet) {

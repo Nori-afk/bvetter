@@ -68,7 +68,7 @@ if (clean(isset($_POST['accepted_terms']) ? $_POST['accepted_terms'] : '') === '
     ]);
 }
 
-$policyError = passwordPolicyError($pdo, $password);
+$policyError = passwordPolicyError($pdo, $password, ['name' => $fullName, 'email' => $email]);
 if ($policyError !== null) {
     respond(422, [
         'success' => false,

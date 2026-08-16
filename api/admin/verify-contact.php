@@ -356,11 +356,6 @@ function resetPassword(PDO $pdo): never
         respond(422, ['success' => false, 'message' => 'Token and new password are required.']);
     }
 
-    $policyError = passwordPolicyError($pdo, $password);
-    if ($policyError !== null) {
-        respond(422, ['success' => false, 'message' => $policyError]);
-    }
-
     if ($password !== $confirm) {
         respond(422, ['success' => false, 'message' => 'Passwords do not match.']);
     }
@@ -384,6 +379,20 @@ function resetPassword(PDO $pdo): never
 
     if (new DateTime() > new DateTime($row['expires_at'])) {
         respond(422, ['success' => false, 'message' => 'Reset link has expired. Please request a new one.']);
+    }
+
+    // Checked after the token resolves, so the account's own name and email
+    // are known and can be rejected as password material.
+    $owner = $pdo->prepare('SELECT full_name, email FROM users WHERE id = :id LIMIT 1');
+    $owner->execute([':id' => $row['user_id']]);
+    $ownerRow = $owner->fetch() ?: [];
+
+    $policyError = passwordPolicyError($pdo, $password, [
+        'name'  => $ownerRow['full_name'] ?? '',
+        'email' => $ownerRow['email'] ?? '',
+    ]);
+    if ($policyError !== null) {
+        respond(422, ['success' => false, 'message' => $policyError]);
     }
 
     $pdo->beginTransaction();

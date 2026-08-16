@@ -245,7 +245,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		const confirmPassword = pwForm.elements.confirmPassword.value;
 
 		if (!currentPassword) return setPwMessage("Enter your current password.", "error");
-		if (newPassword.length < 8) return setPwMessage("New password must be at least 8 characters.", "error");
+		if (newPassword.length < 12) return setPwMessage("New password must be at least 12 characters.", "error");
 		if (newPassword !== confirmPassword) return setPwMessage("New password and confirmation do not match.", "error");
 
 		const submitBtn = pwForm.querySelector('button[type="submit"]');
@@ -253,6 +253,8 @@ document.addEventListener("DOMContentLoaded", () => {
 		try {
 			await profileRequest("password", { currentPassword, newPassword });
 			closePasswordModal();
+			// Clears any forced-upgrade hold, so navigation is free again.
+			window.VBetterAuth?.clearPasswordUpgrade?.();
 			setMessage("Password updated.", "success");
 		} catch (error) {
 			setPwMessage(error.message, "error");

@@ -23,6 +23,7 @@ try {
             'requireSpecial'   => $settings['pw_require_special'],
             'requireNumber'    => $settings['pw_require_number'],
             'requireUppercase' => $settings['pw_require_uppercase'],
+            'requireLowercase' => $settings['pw_require_lowercase'],
             'description'      => passwordPolicyDescription($settings),
         ],
     ]);

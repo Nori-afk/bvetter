@@ -48,6 +48,11 @@ function settingsPayload(PDO $pdo): array
             'requireSpecial'   => $settings['pw_require_special'],
             'requireNumber'    => $settings['pw_require_number'],
             'requireUppercase' => $settings['pw_require_uppercase'],
+            'requireLowercase' => $settings['pw_require_lowercase'],
+            // Surfaced so the UI can show the locked controls and explain why.
+            'floorMinLength'   => PW_FLOOR_MIN_LENGTH,
+            'maxLength'        => PW_MAX_LENGTH,
+            'classesLocked'    => true,
         ],
         'policyDescription'   => passwordPolicyDescription($settings),
         'twoFactorLastUsedEpoch' => $lastUsed ? (int) $lastUsed : null,
@@ -88,24 +93,27 @@ try {
 
     if ($action === 'update_policy') {
         $minLength = (int) ($_POST['min_length'] ?? 0);
-        if ($minLength < 6 || $minLength > 64) {
-            respond(422, ['success' => false, 'message' => 'Minimum length must be between 6 and 64 characters.']);
+
+        // The floor is the point: the policy can be strengthened from here,
+        // not weakened. getSecuritySettings() clamps on read as well, so a
+        // value written straight into the table can't get underneath it either.
+        if ($minLength < PW_FLOOR_MIN_LENGTH || $minLength > PW_MAX_LENGTH) {
+            respond(422, [
+                'success' => false,
+                'message' => 'Minimum length must be between ' . PW_FLOOR_MIN_LENGTH
+                    . ' and ' . PW_MAX_LENGTH . ' characters.',
+            ]);
         }
 
         ensureSecuritySettingsSchema($pdo);
         $pdo->prepare('
             UPDATE security_settings
             SET pw_min_length = :min_length,
-                pw_require_special = :special,
-                pw_require_number = :number,
-                pw_require_uppercase = :uppercase
+                pw_require_special = 1,
+                pw_require_number = 1,
+                pw_require_uppercase = 1
             WHERE id = 1
-        ')->execute([
-            ':min_length' => $minLength,
-            ':special'    => ($_POST['require_special'] ?? '') === '1' ? 1 : 0,
-            ':number'     => ($_POST['require_number'] ?? '') === '1' ? 1 : 0,
-            ':uppercase'  => ($_POST['require_uppercase'] ?? '') === '1' ? 1 : 0,
-        ]);
+        ')->execute([':min_length' => $minLength]);
 
         respond(200, [
             'success' => true,

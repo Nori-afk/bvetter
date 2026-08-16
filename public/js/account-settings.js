@@ -106,7 +106,7 @@
       if (!cur || !next || !conf) { showToast('Fill in all password fields.', 'error'); return; }
       const pwError = window.PasswordPolicy
         ? PasswordPolicy.validate(next)
-        : (next.length < 8 ? 'New password must be at least 8 characters.' : null);
+        : (next.length < 12 ? 'New password must be at least 12 characters.' : null);
       if (pwError)                { showToast(pwError, 'error'); return; }
       if (next !== conf)          { showToast('Passwords do not match.', 'error'); return; }
 
@@ -122,6 +122,8 @@
       }
 
       pwModal.classList.remove('open');
+      // Clears any forced-upgrade hold, so navigation is free again.
+      window.VBetterAuth?.clearPasswordUpgrade?.();
       showToast('Password updated successfully.', 'success');
       ['inputCurrentPw', 'inputNewPw', 'inputConfirmPw'].forEach(id => {
         const el = document.getElementById(id);

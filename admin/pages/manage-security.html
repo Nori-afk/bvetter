@@ -874,27 +874,35 @@
         <div class="sec-modal" role="dialog" aria-modal="true" aria-labelledby="policy-modal-title">
             <div>
                 <div class="sec-modal-title" id="policy-modal-title">Edit Password Policy</div>
-                <div class="sec-modal-sub">Applies whenever a password is next set (registration, reset, account creation, password change). Existing passwords are unaffected.</div>
+                <div class="sec-modal-sub">Applies whenever a password is next set (registration, reset, account creation, password change). Existing passwords keep working, but anyone signing in with one that falls short of this policy is asked to update it before continuing.</div>
             </div>
 
             <div class="sec-field">
                 <span class="sec-field-label">Minimum Length</span>
-                <input type="number" id="policy-min-length" min="6" max="64" step="1">
+                <input type="number" id="policy-min-length" min="12" max="64" step="1">
             </div>
 
             <div>
                 <div class="sec-checkbox-row">
                     <label for="policy-special">Require Special Character</label>
-                    <input type="checkbox" id="policy-special">
+                    <input type="checkbox" id="policy-special" checked disabled>
                 </div>
                 <div class="sec-checkbox-row">
                     <label for="policy-number">Require Number</label>
-                    <input type="checkbox" id="policy-number">
+                    <input type="checkbox" id="policy-number" checked disabled>
                 </div>
                 <div class="sec-checkbox-row">
                     <label for="policy-uppercase">Require Uppercase Letter</label>
-                    <input type="checkbox" id="policy-uppercase">
+                    <input type="checkbox" id="policy-uppercase" checked disabled>
                 </div>
+                <div class="sec-checkbox-row">
+                    <label for="policy-lowercase">Require Lowercase Letter</label>
+                    <input type="checkbox" id="policy-lowercase" checked disabled>
+                </div>
+            </div>
+
+            <div class="sec-modal-sub" style="margin-top:-4px;">
+                The four character requirements and the 12-character minimum are the enforced floor &mdash; they can be raised here but not switched off. Passwords are also rejected if they are a common word in disguise (Password123!, W3lcome!) or contain the account holder's own name or email.
             </div>
 
             <div class="sec-modal-status" id="policy-status"></div>
@@ -1344,10 +1352,16 @@
     document.getElementById('edit-policy-btn')?.addEventListener('click', () => {
         if (!securitySettings) return;
         const p = securitySettings.policy;
-        document.getElementById('policy-min-length').value = p.minLength;
-        document.getElementById('policy-special').checked = p.requireSpecial;
-        document.getElementById('policy-number').checked = p.requireNumber;
-        document.getElementById('policy-uppercase').checked = p.requireUppercase;
+        const lengthInput = document.getElementById('policy-min-length');
+        lengthInput.value = p.minLength;
+        lengthInput.min = p.floorMinLength;
+        lengthInput.max = p.maxLength;
+        // Character requirements are the enforced floor, so they render on
+        // and locked; the server ignores them on save regardless.
+        ['policy-special', 'policy-number', 'policy-uppercase', 'policy-lowercase'].forEach(id => {
+            const box = document.getElementById(id);
+            if (box) { box.checked = true; box.disabled = true; }
+        });
         const status = document.getElementById('policy-status');
         status.className = 'sec-modal-status';
         status.textContent = '';
@@ -1358,20 +1372,21 @@
 
     document.getElementById('policy-save-btn')?.addEventListener('click', async function () {
         const status = document.getElementById('policy-status');
+        const p = securitySettings.policy;
         const minLength = parseInt(document.getElementById('policy-min-length').value, 10);
 
-        if (!Number.isInteger(minLength) || minLength < 6 || minLength > 64) {
+        if (!Number.isInteger(minLength) || minLength < p.floorMinLength || minLength > p.maxLength) {
             status.className = 'sec-modal-status error';
-            status.textContent = 'Minimum length must be between 6 and 64.';
+            status.textContent = `Minimum length must be between ${p.floorMinLength} and ${p.maxLength}.`;
             return;
         }
 
         this.disabled = true;
         const result = await api.updatePasswordPolicy({
             minLength,
-            requireSpecial: document.getElementById('policy-special').checked,
-            requireNumber: document.getElementById('policy-number').checked,
-            requireUppercase: document.getElementById('policy-uppercase').checked,
+            requireSpecial: true,
+            requireNumber: true,
+            requireUppercase: true,
         }).catch(() => ({ success: false }));
         this.disabled = false;
 

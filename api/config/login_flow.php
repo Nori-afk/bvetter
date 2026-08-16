@@ -195,6 +195,19 @@ function attemptLogin(PDO $pdo, string $email, string $password, string $otpCode
         $frontendRole = 'vet';
     }
 
+    // The password policy only governs passwords as they are SET, so every
+    // account created before the policy was tightened keeps whatever it had
+    // — including the staff logins that can see every patient record. This
+    // is the one moment the plaintext is available to check it against the
+    // current rules, so check it here and flag the account for an upgrade.
+    // Advisory: the session is real and usable, and the frontend routes the
+    // user to change their password rather than the server blocking them,
+    // so a policy change can never lock anyone out of their own account.
+    $mustChangePassword = passwordPolicyError($pdo, $password, [
+        'name'  => $user['full_name'],
+        'email' => $user['email'],
+    ]) !== null;
+
     return [200, [
         'success' => true,
         'message' => 'Login successful',
@@ -207,7 +220,8 @@ function attemptLogin(PDO $pdo, string $email, string $password, string $otpCode
             'role' => $frontendRole,
             'db_role' => $user['role_name'],
             'pfp' => $user['profile_photo'],
-            'token' => $token
+            'token' => $token,
+            'mustChangePassword' => $mustChangePassword
         ]
     ]];
 }

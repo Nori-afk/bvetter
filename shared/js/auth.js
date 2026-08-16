@@ -459,6 +459,16 @@ function requireAuth(allowedRoles = []) {
 
     startSessionPolling();
 
+    // Held on the change-password page until the upgrade is done. Compared
+    // by pathname so the ?mustchange=1 query doesn't cause a redirect loop.
+    if (passwordUpgradePending()) {
+        const target = passwordPageFor(session.role);
+        if (window.location.pathname !== new URL(target, window.location.href).pathname) {
+            window.location.replace(target + '?mustchange=1');
+            return;
+        }
+    }
+
     // Admin can access any protected page (except owner-only public pages)
     if (session.role === 'admin') return;
 
@@ -466,6 +476,45 @@ function requireAuth(allowedRoles = []) {
         const route = ROLE_ROUTES[session.role] || LOGIN_PAGE;
         window.location.replace(withBase(route));
     }
+}
+
+/* ── Forced password upgrade ─────────────────────────────────────
+   Set when the server reports at login that the password just used no
+   longer meets the policy — i.e. an account created before the rules
+   were tightened. The user gets a real, working session; they are just
+   routed to change their password before anything else, and held there
+   until they do.
+
+   Deliberately advisory rather than server-enforced: blocking the API
+   would risk locking staff out of their own accounts if a policy change
+   ever went wrong, and the person being asked already knows the
+   password, so there is no attacker to keep out here. */
+
+const PW_UPGRADE_KEY = 'vbetter_pw_upgrade';
+
+const PASSWORD_PAGES = {
+    vet:   '/vet/html/profile.html',
+    admin: '/admin/pages/profile.html',
+    owner: '/public/pages/account-settings.html'
+};
+
+function passwordPageFor(role) {
+    return withBase(PASSWORD_PAGES[role] || PASSWORD_PAGES.owner);
+}
+
+/** Flags the session and sends the user to change their password. */
+function requirePasswordUpgrade(role) {
+    sessionStorage.setItem(PW_UPGRADE_KEY, '1');
+    window.location.href = passwordPageFor(role) + '?mustchange=1';
+}
+
+function passwordUpgradePending() {
+    return sessionStorage.getItem(PW_UPGRADE_KEY) === '1';
+}
+
+/** Called by the change-password forms once the new password is accepted. */
+function clearPasswordUpgrade() {
+    sessionStorage.removeItem(PW_UPGRADE_KEY);
 }
 
 function redirectToDashboard(role) {
@@ -485,9 +534,15 @@ function autoRoute() {
 
 /* ── Exports ────────────────────────────────────────────────── */
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { getCurrentUser, requireAuth, logout, redirectToDashboard, autoRoute, getSession };
+    module.exports = {
+        getCurrentUser, requireAuth, logout, redirectToDashboard, autoRoute, getSession,
+        requirePasswordUpgrade, passwordUpgradePending, clearPasswordUpgrade
+    };
 } else {
-    window.VBetterAuth = { getCurrentUser, requireAuth, logout, redirectToDashboard, autoRoute, getSession };
+    window.VBetterAuth = {
+        getCurrentUser, requireAuth, logout, redirectToDashboard, autoRoute, getSession,
+        requirePasswordUpgrade, passwordUpgradePending, clearPasswordUpgrade
+    };
 }
 
 /**
@@ -500,4 +555,19 @@ if (typeof module !== 'undefined' && module.exports) {
  */
 if (typeof window !== 'undefined' && getSession()) {
     startSessionPolling();
+}
+
+/* Explain the forced redirect when a user lands here from login with an
+   out-of-policy password, so the change-password page doesn't just appear
+   for no visible reason. */
+if (typeof window !== 'undefined'
+    && passwordUpgradePending()
+    && window.location.search.indexOf('mustchange=1') !== -1) {
+    window.addEventListener('DOMContentLoaded', () => {
+        vbAlert(
+            'Your password no longer meets the clinic security policy.\n\n'
+            + 'Please set a new one now to continue.',
+            'Set New Password'
+        );
+    });
 }

@@ -51,6 +51,19 @@ function ensureSecuritySettingsSchema(PDO $pdo): void
 const SESSION_IDLE_MIN_MINUTES = 5;
 const SESSION_IDLE_MAX_MINUTES = 480;
 
+/**
+ * Password policy floor. An admin can make the policy stricter than this,
+ * never weaker — so "registration requires a strong password" stays true
+ * regardless of what anyone toggles later.
+ *
+ * Applied on READ rather than on write, so it also governs rows written
+ * before the floor existed (this table shipped with a default of 8 and
+ * every character requirement switched off, which allowed literally
+ * "password" as a valid choice at signup).
+ */
+const PW_FLOOR_MIN_LENGTH = 12;
+const PW_MAX_LENGTH       = 64;
+
 function getSecuritySettings(PDO $pdo): array
 {
     ensureSecuritySettingsSchema($pdo);
@@ -59,10 +72,13 @@ function getSecuritySettings(PDO $pdo): array
 
     return [
         'two_factor_enabled'         => (bool) $row['two_factor_enabled'],
-        'pw_min_length'              => (int) $row['pw_min_length'],
-        'pw_require_special'         => (bool) $row['pw_require_special'],
-        'pw_require_number'          => (bool) $row['pw_require_number'],
-        'pw_require_uppercase'       => (bool) $row['pw_require_uppercase'],
+        // Floor applied here: an admin may raise the minimum, never lower it,
+        // and the four character classes are always required.
+        'pw_min_length'              => max(PW_FLOOR_MIN_LENGTH, (int) $row['pw_min_length']),
+        'pw_require_special'         => true,
+        'pw_require_number'          => true,
+        'pw_require_uppercase'       => true,
+        'pw_require_lowercase'       => true,
         'inactivity_lockout_enabled' => (bool) $row['inactivity_lockout_enabled'],
         'inactivity_lockout_days'    => (int) $row['inactivity_lockout_days'],
         'session_idle_minutes'       => max(
@@ -74,10 +90,75 @@ function getSecuritySettings(PDO $pdo): array
 }
 
 /**
- * Validates $password against the stored policy. Returns null when it
- * passes, otherwise a user-facing message listing what's missing.
+ * Reduces a password to the word an attacker would recognise, so the
+ * blocklist can be a short list of base words instead of an endless list of
+ * decorated variants.
+ *
+ *   Password123!  ->  password        P@ssw0rd!   ->  password
+ *   Welcome2025!  ->  welcome         B@liwag123  ->  baliwag
+ *
+ * Trailing/leading digits and punctuation go first, then the usual character
+ * substitutions are undone, then anything left that isn't a letter is dropped.
  */
-function passwordPolicyError(PDO $pdo, string $password): ?string
+function passwordBaseWord(string $password): string
+{
+    $s = strtolower($password);
+    $s = preg_replace('/^[^a-z0-9]+|[^a-z]+$/', '', $s);
+    $s = strtr($s, [
+        '@' => 'a', '4' => 'a', '3' => 'e', '1' => 'i', '!' => 'i',
+        '|' => 'i', '0' => 'o', '$' => 's', '5' => 's', '7' => 't', '+' => 't',
+    ]);
+    return preg_replace('/[^a-z]/', '', $s);
+}
+
+/** True when the password is a known-common word in disguise. */
+function isCommonPassword(string $password): bool
+{
+    static $blocklist = null;
+    if ($blocklist === null) {
+        $blocklist = array_flip(require __DIR__ . '/common_passwords.php');
+    }
+
+    $base = passwordBaseWord($password);
+    return $base !== '' && isset($blocklist[$base]);
+}
+
+/**
+ * True when the password is built out of the user's own name or email —
+ * the first thing anyone who knows them would try.
+ */
+function passwordContainsIdentity(string $password, array $identity): bool
+{
+    $haystack = strtolower($password);
+    $parts = [];
+
+    foreach (preg_split('/\s+/', (string) ($identity['name'] ?? '')) as $word) {
+        $parts[] = $word;
+    }
+    $email = (string) ($identity['email'] ?? '');
+    if ($email !== '') {
+        $parts[] = substr($email, 0, strpos($email . '@', '@'));
+    }
+
+    foreach ($parts as $part) {
+        $part = strtolower(preg_replace('/[^a-z0-9]/i', '', $part));
+        // Short fragments would produce false rejections ("Li", "de").
+        if (strlen($part) >= 4 && strpos($haystack, $part) !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Validates $password against the active policy. Returns null when it
+ * passes, otherwise a user-facing message listing what's missing.
+ *
+ * $identity is optional { name, email } for the account the password is
+ * being set on; when supplied, passwords built from the user's own name or
+ * email address are rejected.
+ */
+function passwordPolicyError(PDO $pdo, string $password, array $identity = []): ?string
 {
     $settings = getSecuritySettings($pdo);
     $failures = [];
@@ -85,33 +166,47 @@ function passwordPolicyError(PDO $pdo, string $password): ?string
     if (strlen($password) < $settings['pw_min_length']) {
         $failures[] = 'be at least ' . $settings['pw_min_length'] . ' characters';
     }
-    if ($settings['pw_require_special'] && !preg_match('/[^a-zA-Z0-9]/', $password)) {
-        $failures[] = 'include a special character';
+    if ($settings['pw_require_uppercase'] && !preg_match('/[A-Z]/', $password)) {
+        $failures[] = 'include an uppercase letter';
+    }
+    if ($settings['pw_require_lowercase'] && !preg_match('/[a-z]/', $password)) {
+        $failures[] = 'include a lowercase letter';
     }
     if ($settings['pw_require_number'] && !preg_match('/[0-9]/', $password)) {
         $failures[] = 'include a number';
     }
-    if ($settings['pw_require_uppercase'] && !preg_match('/[A-Z]/', $password)) {
-        $failures[] = 'include an uppercase letter';
+    if ($settings['pw_require_special'] && !preg_match('/[^a-zA-Z0-9]/', $password)) {
+        $failures[] = 'include a special character';
     }
 
-    if (!$failures) {
-        return null;
+    if ($failures) {
+        $last = array_pop($failures);
+        $list = $failures ? implode(', ', $failures) . ' and ' . $last : $last;
+        return 'Password must ' . $list . '.';
     }
 
-    $last = array_pop($failures);
-    $list = $failures ? implode(', ', $failures) . ' and ' . $last : $last;
-    return 'Password must ' . $list . '.';
+    // Checked after the composition rules so the message is specific: these
+    // two are the ones that catch an otherwise "valid" Password123!.
+    if (isCommonPassword($password)) {
+        return 'That password is too easy to guess. Avoid common words like "password" or "welcome", even with numbers or symbols added.';
+    }
+    if ($identity && passwordContainsIdentity($password, $identity)) {
+        return 'Your password must not contain your own name or email address.';
+    }
+
+    return null;
 }
 
 /**
  * Short human-readable summary of the active policy, for form hints.
- * e.g. "At least 8 characters, with a number and a special character."
+ * e.g. "At least 12 characters, with an uppercase letter, a lowercase
+ * letter, a number and a special character."
  */
 function passwordPolicyDescription(array $settings): string
 {
     $extras = [];
     if ($settings['pw_require_uppercase']) $extras[] = 'an uppercase letter';
+    if ($settings['pw_require_lowercase']) $extras[] = 'a lowercase letter';
     if ($settings['pw_require_number'])    $extras[] = 'a number';
     if ($settings['pw_require_special'])   $extras[] = 'a special character';
 

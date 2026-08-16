@@ -155,7 +155,7 @@ function validateStep1() {
     }
     const pwError = window.PasswordPolicy
         ? PasswordPolicy.validate(pw1 || '')
-        : (!pw1 || pw1.length < 8 ? 'Password must be at least 8 characters.' : null);
+        : (!pw1 || pw1.length < 12 ? 'Password must be at least 12 characters.' : null);
     if (pwError) {
         showStepError(pwError); return false;
     }
@@ -501,7 +501,7 @@ async function submitRegistration() {
     }
     const submitPwError = window.PasswordPolicy
         ? PasswordPolicy.validate(password)
-        : (password.length < 8 ? 'Password must be at least 8 characters.' : null);
+        : (password.length < 12 ? 'Password must be at least 12 characters.' : null);
     if (submitPwError) {
         await vbAlert(submitPwError);
         return;

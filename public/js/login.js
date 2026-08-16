@@ -35,6 +35,15 @@ function completeLogin(result) {
   sessionStorage.setItem('vbetter_session', JSON.stringify(result.data));
   sessionStorage.setItem('bvetter_user', JSON.stringify(result.data));
   sessionStorage.setItem('bvetter_token', result.data.token || '');
+
+  // The server checked the password just supplied against the current policy
+  // and found it wanting — an account that predates the tightened rules.
+  // Send them to change it instead of the dashboard.
+  if (result.data.mustChangePassword) {
+    VBetterAuth.requirePasswordUpgrade(result.data.role);
+    return;
+  }
+
   VBetterAuth.redirectToDashboard(result.data.role);
 }
 

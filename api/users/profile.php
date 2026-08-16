@@ -282,7 +282,14 @@ function changePassword($pdo, $data)
         respond(422, ['success' => false, 'message' => 'Current password and a new password are required.']);
     }
 
-    $policyError = passwordPolicyError($pdo, $next);
+    $owner = $pdo->prepare('SELECT full_name, email FROM users WHERE id = :id LIMIT 1');
+    $owner->execute([':id' => $userId]);
+    $ownerRow = $owner->fetch() ?: [];
+
+    $policyError = passwordPolicyError($pdo, $next, [
+        'name'  => $ownerRow['full_name'] ?? '',
+        'email' => $ownerRow['email'] ?? '',
+    ]);
     if ($policyError !== null) {
         respond(422, ['success' => false, 'message' => $policyError]);
     }
