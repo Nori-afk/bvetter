@@ -535,7 +535,7 @@ function renderOverview() {
     document.getElementById('predictionBanner').innerHTML = `
         <div class="prediction">
             <span>Predicted</span>
-            <img src="/vet/images/shares.svg" alt="">
+            <img src="../../vet/images/shares.svg" alt="">
         </div>
         <strong>${pred.total}</strong>
         <span>${pred.label}</span>

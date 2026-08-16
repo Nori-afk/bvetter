@@ -24,22 +24,62 @@ const ROLE_ROUTES = {
 const LOGIN_PAGE = '/public/pages/login.html';
 const ADMIN_LOGIN_PAGE = '/admin/pages/ops-3bab26d632.html';
 const SESSION_API = '/api/auth/session.php';
-const SESSION_CHECK_INTERVAL_MS = 30000;
+const SESSION_CHECK_INTERVAL_MS = 10000;
+
+/* ── App base path ──────────────────────────────────────────────
+   Every path in this file, and in api.js / vet-api.js, is written
+   root-absolute ('/api/...'). That only resolves when the app IS the
+   document root. Served from a subfolder — XAMPP's
+   /final-VBETTER/bvetter/, or reached over a LAN IP — every one of
+   them 404s, which took the whole backend and all session
+   enforcement with it.
+
+   Derive the prefix from where this script itself was loaded from,
+   so it is correct wherever the app is mounted, and empty (a no-op)
+   when the app really is at the root. */
+const APP_BASE = (function () {
+    const script = document.currentScript
+        || Array.prototype.slice.call(document.scripts)
+              .find(s => s.src && /\/shared\/js\/auth\.js/.test(s.src));
+    if (script && script.src) {
+        return new URL(script.src, location.href).pathname
+            .replace(/\/shared\/js\/auth\.js.*$/, '');
+    }
+    return location.pathname.replace(/\/(public|admin|vet|shared)\/.*$/, '');
+})();
+
+/** Prefixes a root-absolute app path with the base. No-op at the root. */
+function withBase(path) {
+    if (!APP_BASE || typeof path !== 'string') return path;
+    if (path.charAt(0) !== '/' || path.charAt(1) === '/') return path;
+    if (path.indexOf(APP_BASE + '/') === 0) return path;
+    return APP_BASE + path;
+}
 
 /** Which login page a given (possibly stale/unknown) role should land on. */
 function loginPageFor(role) {
-    return role === 'admin' ? ADMIN_LOGIN_PAGE : LOGIN_PAGE;
+    return withBase(role === 'admin' ? ADMIN_LOGIN_PAGE : LOGIN_PAGE);
 }
 
-/* ── Bearer token injection ─────────────────────────────────────
-   Server-side role guards (api/config/auth_guard.php) identify the
-   caller by Authorization header. Not every fetch() call site sets
-   it, so fill it in for any same-origin /api/ request that doesn't
-   already have one. Call sites that do set it are left untouched. */
+/* ── fetch() wrapper ────────────────────────────────────────────
+   Two jobs, both applied to every same-origin request:
+
+   1. Rebase root-absolute paths onto APP_BASE. Doing it here fixes
+      all 51+ '/api/...' call sites in api.js, plus the direct
+      fetch('/api/...') calls scattered through the page scripts,
+      without editing any of them.
+
+   2. Attach the bearer token. Server-side role guards
+      (api/config/auth_guard.php) identify the caller by the
+      Authorization header and not every call site sets it. Call
+      sites that do set it are left untouched. */
 (function () {
     const nativeFetch = window.fetch.bind(window);
     window.fetch = function (input, init) {
         try {
+            if (typeof input === 'string') {
+                input = withBase(input);
+            }
             const url = typeof input === 'string' ? input : (input && input.url) || '';
             const sameOriginApi = url.indexOf('/api/') !== -1 && !/^https?:\/\//i.test(url);
             const token = sessionStorage.getItem('bvetter_token');
@@ -269,7 +309,7 @@ function requireAuth(allowedRoles = []) {
         // visitor straight to the hidden admin login rather than the public
         // one, which no longer accepts admin credentials at all.
         const isAdminOnlyPage = allowedRoles.length === 1 && allowedRoles[0] === 'admin';
-        window.location.replace(isAdminOnlyPage ? ADMIN_LOGIN_PAGE : LOGIN_PAGE);
+        window.location.replace(withBase(isAdminOnlyPage ? ADMIN_LOGIN_PAGE : LOGIN_PAGE));
         return;
     }
 
@@ -280,13 +320,13 @@ function requireAuth(allowedRoles = []) {
 
     if (allowedRoles.length && !allowedRoles.includes(session.role)) {
         const route = ROLE_ROUTES[session.role] || LOGIN_PAGE;
-        window.location.replace(route);
+        window.location.replace(withBase(route));
     }
 }
 
 function redirectToDashboard(role) {
     const route = ROLE_ROUTES[role] || LOGIN_PAGE;
-    window.location.href = route;
+    window.location.href = withBase(route);
 }
 
 /** Root index.html auto-router */
@@ -295,7 +335,7 @@ function autoRoute() {
     if (session && session.role) {
         redirectToDashboard(session.role);
     } else {
-        window.location.replace(LOGIN_PAGE);
+        window.location.replace(withBase(LOGIN_PAGE));
     }
 }
 

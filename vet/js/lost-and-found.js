@@ -1,7 +1,7 @@
 ﻿'use strict';
 
 const LF_ENDPOINT = '/api/lost-found/lost_and_found.php';
-const FALLBACK_IMAGE = '/public/images/img/upload-pet.png';
+const FALLBACK_IMAGE = '../../public/images/img/upload-pet.png';
 const PET_TYPES = ['Dog', 'Cat'];
 
 const lfData = {
@@ -949,7 +949,7 @@ function buildDetailModal(report, mode = 'view') {
                     data-map-zoom="14">
                 </div>
                 <div class="details-location-info">
-                    <img src="/public/images/icons/icon-location.svg" alt="" class="details-loc-icon">
+                    <img src="../../public/images/icons/icon-location.svg" alt="" class="details-loc-icon">
                     <div>
                         <span class="details-date">${dateValue}${timeValue ? ` &middot; ${timeValue}` : ''}</span>
                         <span class="details-location-text">${escapeHtml(report.barangay || '')}, Baliwag</span>
@@ -1296,7 +1296,7 @@ function buildSightingModal(sighting) {
 						data-map-zoom="14">
 					</div>
 					<div class="details-location-info">
-						<img src="/public/images/icons/icon-location.svg" alt="" class="details-loc-icon">
+						<img src="../../public/images/icons/icon-location.svg" alt="" class="details-loc-icon">
 						<div>
 							<span class="details-date">${escapeHtml(sighting.dateLost || '')}</span>
 							<span class="details-location-text">${escapeHtml(sighting.barangay || '')}, Baliwag</span>
@@ -1355,7 +1355,7 @@ function buildUploadModal() {
 			<div class="modal-header">
 				<div class="modal-header-left">
 					<div class="modal-header-icon">
-						<img src="/public/images/icons/report-paw.svg" alt="" class="modal-header-icon-img">
+						<img src="../../public/images/icons/report-paw.svg" alt="" class="modal-header-icon-img">
 					</div>
 					<div>
 						<h2 class="modal-title" id="lfModalTitle">Report Lost Pet</h2>
@@ -1365,10 +1365,10 @@ function buildUploadModal() {
 				<div class="modal-header-right">
 					<div class="report-type-toggle" role="group" aria-label="Report type">
 						<button type="button" class="type-toggle-btn active" data-type="lost">
-							<img src="/public/images/icons/report-paw.svg" alt="" class="type-toggle-icon">Lost
+							<img src="../../public/images/icons/report-paw.svg" alt="" class="type-toggle-icon">Lost
 						</button>
 						<button type="button" class="type-toggle-btn" data-type="found">
-							<img src="/public/images/icons/report-paw.svg" alt="" class="type-toggle-icon">Found
+							<img src="../../public/images/icons/report-paw.svg" alt="" class="type-toggle-icon">Found
 						</button>
 					</div>
 				</div>
@@ -1381,7 +1381,7 @@ function buildUploadModal() {
 					<div class="modal-section-label">Pet Identification Photo</div>
 					<label class="upload-box" for="uploadPhotoInput">
 						<div id="uploadPhotoPreviewText">
-							<img src="/public/images/icons/report-upload.svg" alt="" class="upload-cam-icon">
+							<img src="../../public/images/icons/report-upload.svg" alt="" class="upload-cam-icon">
 							<span class="upload-text">Upload Clear Portrait</span>
 							<span class="upload-hint">High-res JPG or PNG preferred</span>
 						</div>
@@ -1403,7 +1403,7 @@ function buildUploadModal() {
 							<label>Type</label>
 							<div class="select-wrap">
 								<select name="species" class="form-select">${speciesOpts}</select>
-								<img src="/public/images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img">
+								<img src="../../public/images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img">
 							</div>
 						</div>
 						<div class="form-group">
@@ -1430,7 +1430,7 @@ function buildUploadModal() {
 									<option>Medium (10-25kg)</option>
 									<option>Large (25kg+)</option>
 								</select>
-								<img src="/public/images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img">
+								<img src="../../public/images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img">
 							</div>
 						</div>
 					</div>
@@ -1456,7 +1456,7 @@ function buildUploadModal() {
 							<label>Barangay Last Seen</label>
 							<div class="select-wrap">
 								<select name="barangay" id="uploadBarangay" class="form-select">${barangayOpts}</select>
-								<img src="/public/images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img">
+								<img src="../../public/images/icons/icon-dropwdown.svg" alt="" class="sel-arrow-img">
 							</div>
 						</div>
 					</div>
@@ -1488,7 +1488,7 @@ function buildUploadModal() {
 					<button type="button" class="vlf-cancel" data-modal-action="close">Cancel</button>
 					<button type="submit" class="vlf-submit" id="submitReportBtn">
 						<span id="submitReportBtnText">Submit Lost Pet Report</span>
-						<img src="/public/images/icons/report-submit.svg" alt="" class="btn-icon-img">
+						<img src="../../public/images/icons/report-submit.svg" alt="" class="btn-icon-img">
 					</button>
 				</div>
 			</footer>

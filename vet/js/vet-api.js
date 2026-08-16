@@ -37,7 +37,7 @@ async function apiFetch(endpoint, options = {}) {
         if (response.status === 401) {
             // Token expired → log out
             sessionStorage.removeItem('vbetter_session');
-            window.location.href = '/public/pages/login.html';
+            window.location.href = '../../public/pages/login.html';
             return { ok: false, error: 'Unauthorised' };
         }
 

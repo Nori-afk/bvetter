@@ -313,8 +313,8 @@ function renderTable() {
 					<td><span class="status-pill ${statusClass(item.status)}">${statusLabel(item.status)}</span></td>
 					<td>
 						<div class="action-buttons">
-							<button type="button" title="View" data-action="view" data-id="${item.id}"><img src="/vet/images/eye.png" alt="View"></button>
-							<button type="button" title="Delete" data-action="delete" data-id="${item.id}"><img src="/vet/images/trash.png" alt="Delete"></button>
+							<button type="button" title="View" data-action="view" data-id="${item.id}"><img src="../../vet/images/eye.png" alt="View"></button>
+							<button type="button" title="Delete" data-action="delete" data-id="${item.id}"><img src="../../vet/images/trash.png" alt="Delete"></button>
 						</div>
 					</td>
 				</tr>

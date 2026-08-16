@@ -251,7 +251,7 @@
 						</div>
 						<div class="sched-right">
 							<span class="sched-badge ${bc}">${bl}</span>
-							${isActive ? `<a href="/vet/html/appointment.html" class="sched-arrow" title="Open appointment">&#8250;</a>` : ""}
+							${isActive ? `<a href="../../vet/html/appointment.html" class="sched-arrow" title="Open appointment">&#8250;</a>` : ""}
 						</div>
 					</div>
 				`;

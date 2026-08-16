@@ -17,17 +17,17 @@
 
     /* ── Absolute routes — work from ANY page in ANY folder ─── */
     const ROUTES = {
-        'appointment management': '/vet/html/appointment.html',
-        'patient records':        '/vet/html/patient-records.html',
-        'report':                 '/vet/html/report.html',
-        'disease analytics':      '/vet/html/disease-analytics.html',
-        'lost and found':         '/vet/html/lost-and-found.html',
-        'chatbot management':     '/vet/html/chatbot-management.html',
-        'mass vaccination':       '/vet/html/mass-vaccination.html',
-        'support tickets':        '/vet/html/support-tickets.html',
+        'appointment management': '../../vet/html/appointment.html',
+        'patient records':        '../../vet/html/patient-records.html',
+        'report':                 '../../vet/html/report.html',
+        'disease analytics':      '../../vet/html/disease-analytics.html',
+        'lost and found':         '../../vet/html/lost-and-found.html',
+        'chatbot management':     '../../vet/html/chatbot-management.html',
+        'mass vaccination':       '../../vet/html/mass-vaccination.html',
+        'support tickets':        '../../vet/html/support-tickets.html',
         // Admin-only — absolute paths
-        'account management':     '/admin/pages/account-management.html',
-        'website management':     '/admin/pages/website-management.html', // input here the directory of the Website management.
+        'account management':     '../../admin/pages/account-management.html',
+        'website management':     '../../admin/pages/website-management.html', // input here the directory of the Website management.
     };
 
     const ACTIVE_ICON_CAPABLE = new Set([
@@ -98,7 +98,7 @@
         wrap.className = 'sidebar-mobile-actions';
         wrap.innerHTML =
             '<button type="button" class="sidebar-mobile-notif-btn" id="sidebar-mobile-notif-btn" aria-label="Notifications">' +
-            '<img src="/public/images/icons/icon-bell.svg" class="sidebar-mobile-notif-icon" alt="">' +
+            '<img src="../../public/images/icons/icon-bell.svg" class="sidebar-mobile-notif-icon" alt="">' +
             '<span class="sidebar-mobile-notif-dot"></span>' +
             '</button>' +
             avatarMarkup(session, 'sidebar-mobile-avatar', 'sidebar-mobile-avatar--initials', 'sidebar-mobile-avatar-btn');
@@ -209,7 +209,7 @@
         '</div>' +
         '</article>' +
         '<button type="button" class="nav-item logout-item" id="sidebar-logout-btn" title="Log Out">' +
-        '<img src="/shared/images/sidebar/logout.svg" class="nav-icon" alt="Log Out">' +
+        '<img src="../../shared/images/sidebar/logout.svg" class="nav-icon" alt="Log Out">' +
         '<span class="nav-label">Log Out</span>' +
         '</button>';
 
@@ -217,8 +217,8 @@
     if (card) {
         card.addEventListener('click', function () {
             const dest = role === 'admin'
-                ? '/admin/pages/profile.html'
-                : '/vet/html/profile.html';
+                ? '../../admin/pages/profile.html'
+                : '../../vet/html/profile.html';
             if (!window.location.pathname.toLowerCase().endsWith('profile.html')) {
                 window.location.href = dest;
             }
@@ -236,7 +236,7 @@
             // Fallback: some pages don't load auth.js yet — clear the
             // session directly so logout still works everywhere.
             sessionStorage.removeItem('vbetter_session');
-            window.location.href = '/public/pages/login.html';
+            window.location.href = '../../public/pages/login.html';
         });
     }
 }
@@ -250,8 +250,8 @@
 
         // Dashboard route depends on role — admin gets admin dashboard
         ROUTES['dashboard'] = (role === 'admin')
-            ? '/admin/pages/index.html'
-            : '/vet/html/index.html';
+            ? '../../admin/pages/index.html'
+            : '../../vet/html/index.html';
 
         navItems.forEach(function (item) {
             if (item.style.display === 'none') return;
@@ -262,7 +262,15 @@
 
             if (route) item.setAttribute('href', route);
 
-            const isActive = Boolean(route) && currentPath === route.toLowerCase();
+            // Resolve the route against the current URL before comparing:
+            // currentPath is an absolute pathname while ROUTES are relative,
+            // so a direct string match never succeeds. (It also never matched
+            // when the app was served from a subfolder, back when the routes
+            // were root-absolute — the highlight was silently dead there.)
+            const routePath = route
+                ? new URL(route, window.location.href).pathname.toLowerCase()
+                : '';
+            const isActive = Boolean(route) && currentPath === routePath;
             item.classList.toggle('active', isActive);
             swapIcon(item, isActive);
 
