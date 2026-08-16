@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../config/input_validation.php';
 require_once __DIR__ . '/../config/mailer.php';
 require_once __DIR__ . '/../config/notifications.php';
 require_once __DIR__ . '/../config/veterinarian_profile.php';
@@ -186,6 +187,15 @@ function findOrCreateOwner($pdo, $data)
     $barangayId = (int) ($data['owner_barangay_id'] ?? 0);
     $address = clean($data['owner_address'] ?? '');
 
+    $fieldError = firstIdentityFieldError([
+        [$fullName, 'Owner name', 150, 2],
+        [$phone,    'Contact number', 30, 0],
+        [$address,  'Address', 255, 0],
+    ]);
+    if ($fieldError !== null) {
+        respond(422, ['success' => false, 'message' => $fieldError]);
+    }
+
     // Every field the booking form marks with an asterisk is required here
     // too. Previously barangay and address were silently optional -- a missing
     // barangay skipped the owner_profiles insert entirely and a blank address
@@ -257,6 +267,15 @@ function findOrCreatePet($pdo, $ownerId, $data)
 
     $petName = clean($data['pet_name'] ?? '');
     $species = clean($data['species'] ?? $data['pet_type'] ?? '');
+
+    $petFieldError = firstIdentityFieldError([
+        [$petName, 'Pet name', 120, 0],
+        [$species, 'Species', 60, 0],
+        [clean($data['breed'] ?? ''), 'Breed', 80, 0],
+    ]);
+    if ($petFieldError !== null) {
+        respond(422, ['success' => false, 'message' => $petFieldError]);
+    }
     $breed   = clean($data['breed'] ?? $data['pet_breed'] ?? '');
     $age     = clean($data['age'] ?? $data['pet_age'] ?? '');
     $sex     = clean($data['sex'] ?? $data['pet_sex'] ?? '');

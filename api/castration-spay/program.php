@@ -9,6 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../config/input_validation.php';
 require_once __DIR__ . '/../config/mailer.php';
 require_once __DIR__ . '/../config/notifications.php';
 
@@ -109,6 +110,15 @@ function findOrCreateOwner($pdo, $data)
     $phone = clean($data['owner_contact'] ?? '');
     $barangayId = (int) ($data['owner_barangay_id'] ?? 0);
     $address = clean($data['owner_address'] ?? '');
+
+    $fieldError = firstIdentityFieldError([
+        [$fullName, 'Owner name', 150, 2],
+        [$phone,    'Contact number', 30, 0],
+        [$address,  'Address', 255, 0],
+    ]);
+    if ($fieldError !== null) {
+        respond(422, ['success' => false, 'message' => $fieldError]);
+    }
 
     // Mirrors findOrCreateOwner() in api/appointments/appointment.php -- the
     // castration/spay flow reuses steps 1-2 of the same booking form, so the

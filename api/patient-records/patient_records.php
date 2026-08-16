@@ -4,6 +4,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../includes/patient_tables.php';
+require_once __DIR__ . '/../config/input_validation.php';
 require_once __DIR__ . '/../config/auth_guard.php';
 
 requireRole($pdo, ['veterinarian', 'admin']);
@@ -596,9 +597,31 @@ function finalizePetVisit($pdo, $petId, $ownerId, $data)
     insertVisit($pdo, $petId, $ownerId, $data);
 }
 
+/**
+ * Identity-type fields on a patient record. Clinical free text (diagnosis,
+ * notes, medications) is deliberately not here — a vet legitimately writes
+ * "temp > 39C" — and is made safe on output instead.
+ */
+function validatePatientIdentityFields($data): void
+{
+    $error = firstIdentityFieldError([
+        [clean($data['petName']   ?? ''), 'Pet name', 120, 0],
+        [clean($data['species']   ?? ''), 'Species', 60, 0],
+        [clean($data['breed']     ?? ''), 'Breed', 80, 0],
+        [clean($data['ownerName'] ?? $data['owner_name'] ?? ''), 'Owner name', 150, 0],
+        [clean($data['attendingVet']  ?? ''), 'Attending vet', 150, 0],
+        [clean($data['vaccineBrand']  ?? ''), 'Vaccine brand', 120, 0],
+        [clean($data['colorMarkings'] ?? ''), 'Colour and markings', 200, 0],
+    ]);
+    if ($error !== null) {
+        respond(422, ['success' => false, 'message' => $error]);
+    }
+}
+
 function saveRecord($pdo, $data)
 {
     validateVisitDates($data);
+    validatePatientIdentityFields($data);
 
     $petId = (int) ($data['id'] ?? $data['pet_id'] ?? 0);
     $isNewPet = $petId <= 0;
@@ -624,9 +647,17 @@ function saveRecord($pdo, $data)
 function saveBatch($pdo, $data)
 {
     validateVisitDates($data);
+    validatePatientIdentityFields($data);
 
     $pets = $data['pets'] ?? [];
     if (!is_array($pets)) $pets = [];
+
+    // Each pet in the batch carries its own name/species/breed.
+    foreach ($pets as $petData) {
+        if (is_array($petData)) {
+            validatePatientIdentityFields(array_merge($data, $petData));
+        }
+    }
 
     $pdo->beginTransaction();
 

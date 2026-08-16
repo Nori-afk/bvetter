@@ -17,6 +17,7 @@ require_once __DIR__ . '/../config/login_security.php';
 require_once __DIR__ . '/../config/auth_guard.php';
 require_once __DIR__ . '/../config/security_settings.php';
 require_once __DIR__ . '/../config/veterinarian_profile.php';
+require_once __DIR__ . '/../config/input_validation.php';
 
 requireRole($pdo, ['admin']);
 ensureLoginSecuritySchema($pdo);
@@ -245,6 +246,15 @@ function createUser($pdo)
             'success' => false,
             'message' => 'Please enter a valid email address.'
         ]);
+    }
+
+    $fieldError = firstIdentityFieldError([
+        [$fullName,    'Full name', 150, 2],
+        [$email,       'Email address', 190, 5],
+        [$phoneNumber, 'Phone number', 30, 0],
+    ]);
+    if ($fieldError !== null) {
+        respond(422, ['success' => false, 'message' => $fieldError]);
     }
 
     $policyError = passwordPolicyError($pdo, $password, ['name' => $fullName, 'email' => $email]);

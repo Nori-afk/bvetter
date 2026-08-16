@@ -5,6 +5,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/security_settings.php';
 require_once __DIR__ . '/../config/two_factor.php';
+require_once __DIR__ . '/../config/input_validation.php';
 
 function respond($statusCode, $payload)
 {
@@ -175,6 +176,17 @@ function updateProfile($pdo, $data)
     $bio = clean($data['bio'] ?? '');
     if ($fullName === '' || $email === '') {
         respond(422, ['success' => false, 'message' => 'Full name and email are required.']);
+    }
+
+    $fieldError = firstIdentityFieldError([
+        [$fullName,       'Full name', 150, 2],
+        [$email,          'Email address', 190, 5],
+        [$phone,          'Phone number', 30, 0],
+        [$education,      'Education', 200, 0],
+        [$specialization, 'Specialization', 200, 0],
+    ]);
+    if ($fieldError !== null) {
+        respond(422, ['success' => false, 'message' => $fieldError]);
     }
 
     $stmt = $pdo->prepare('SELECT id FROM users WHERE email = :email AND id <> :id LIMIT 1');

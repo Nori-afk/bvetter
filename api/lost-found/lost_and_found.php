@@ -13,6 +13,7 @@ if ($method !== 'POST') {
 }
 
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../config/input_validation.php';
 require_once __DIR__ . '/../config/mailer.php';
 require_once __DIR__ . '/../config/notifications.php';
 require_once __DIR__ . '/matching.php';
@@ -596,6 +597,18 @@ function createReport($pdo, $data)
     $contactName = nullableClean($data['contact_name'] ?? $data['uploader'] ?? $data['owner_name'] ?? '') ?: ($accountContact['name'] ?? null);
     $contactPhone = nullableClean($data['contact_phone'] ?? $data['contact'] ?? $data['phone'] ?? '') ?: ($accountContact['phone'] ?? null);
     $contactEmail = nullableClean($data['contact_email'] ?? $data['email'] ?? '') ?: ($accountContact['email'] ?? null);
+
+    $lfFieldError = firstIdentityFieldError([
+        [(string) $petName,     'Pet name', 120, 0],
+        [(string) $species,     'Species', 60, 0],
+        [(string) $breed,       'Breed', 80, 0],
+        [(string) $contactName, 'Contact name', 150, 0],
+        [(string) $contactPhone,'Contact number', 30, 0],
+        [(string) $contactEmail,'Contact email', 190, 0],
+    ]);
+    if ($lfFieldError !== null) {
+        respond(422, ['success' => false, 'message' => $lfFieldError]);
+    }
 
     if (!$species || !$breed) {
         respond(422, ['success' => false, 'message' => 'Species and breed are required.']);

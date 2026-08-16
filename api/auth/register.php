@@ -16,6 +16,7 @@ if ($requestMethod !== 'POST') {
 // IMPORTANT TO KASI ITO UNG CONNECTIO NA GINAWA NATEN
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/security_settings.php';
+require_once __DIR__ . '/../config/input_validation.php';
 
 function respond($statusCode, $payload)
 {
@@ -48,6 +49,18 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         'success' => false,
         'message' => 'Please enter a valid email address.'
     ]);
+}
+
+// Server-side, so it also applies to a direct POST that skips the form. A
+// full name containing markup is how a stored-XSS payload reaches the staff
+// screens that list registered users.
+$fieldError = firstIdentityFieldError([
+    [$fullName, 'Full name', 150, 2],
+    [$email,    'Email address', 190, 5],
+    [$barangay, 'Barangay', 120, 0],
+]);
+if ($fieldError !== null) {
+    respond(422, ['success' => false, 'message' => $fieldError]);
 }
 
 // Mirrors isValidPHPhone() in public/js/signup.js. The server previously only
