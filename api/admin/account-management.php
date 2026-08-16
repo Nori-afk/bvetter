@@ -465,6 +465,13 @@ function deleteUser($pdo)
         ]);
     }
 
+    // Guarantees patient_visit_records has the de-identification columns and a
+    // nullable pet_id before we rely on them below. Deliberately called BEFORE
+    // beginTransaction(): it runs DDL, and DDL forces an implicit commit in
+    // MySQL, which would silently end the transaction we are about to open.
+    require_once __DIR__ . '/../includes/patient_tables.php';
+    setupPatientTables($pdo);
+
     $pdo->beginTransaction();
 
     $clearReviewedDocs = $pdo->prepare('
@@ -487,6 +494,28 @@ function deleteUser($pdo)
         ':reviewer_id' => $userId,
         ':pet_owner_id' => $userId,
     ]);
+
+    // De-identify rather than destroy: disease surveillance
+    // (api/reports/reports.php, api/analytics/arima_service.py) needs the
+    // barangay, species and diagnosis of past visits, but none of it needs to
+    // know whose animal it was. Snapshot whatever is still resolvable, then cut
+    // the personal links so the row survives the pet delete below as an
+    // anonymous case instead of a record pointing at rows that no longer exist.
+    //
+    // Previously this step did not exist: DELETE FROM pets left visit records
+    // dangling, and every report's INNER JOIN pets then dropped them silently.
+    $deidentifyVisits = $pdo->prepare('
+        UPDATE patient_visit_records pvr
+        INNER JOIN pets ON pets.id = pvr.pet_id
+        LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id
+        LEFT JOIN barangays b ON b.id = op.barangay_id
+        SET pvr.barangay_at_visit = COALESCE(pvr.barangay_at_visit, NULLIF(b.name, \'\'), NULLIF(op.complete_address, \'\')),
+            pvr.species_at_visit  = COALESCE(pvr.species_at_visit, NULLIF(pets.species, \'\')),
+            pvr.pet_id            = NULL,
+            pvr.owner_id          = NULL
+        WHERE pets.owner_id = :user_id
+    ');
+    $deidentifyVisits->execute([':user_id' => $userId]);
 
     $deletePets = $pdo->prepare('DELETE FROM pets WHERE owner_id = :user_id');
     $deletePets->execute([':user_id' => $userId]);

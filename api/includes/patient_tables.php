@@ -69,6 +69,52 @@ function setupPatientTables($pdo)
         $pdo->exec("ALTER TABLE patient_visit_records ADD COLUMN patient_status_at_visit VARCHAR(60) NULL AFTER disease_category");
     }
 
+    // Barangay and species as of THIS visit, for exactly the same reason as
+    // patient_status_at_visit above. Both are otherwise derived by joining
+    // pets -> owner_profiles -> barangays, which makes every historical visit
+    // answer to the owner's CURRENT profile: edit an owner's barangay and all
+    // of their past visits silently move with it, rewriting the surveillance
+    // history the Disease Incidence Report is built from.
+    //
+    // They also let a visit outlive its pet. deleteUserAccount() in
+    // api/admin/account-management.php de-identifies visits by clearing pet_id
+    // rather than destroying the clinical record; these two columns are what
+    // keeps such a row usable for disease surveillance afterwards.
+    $barangayAtVisitCheck = $pdo->query("SHOW COLUMNS FROM patient_visit_records LIKE 'barangay_at_visit'")->fetch();
+    if (!$barangayAtVisitCheck) {
+        $pdo->exec("ALTER TABLE patient_visit_records ADD COLUMN barangay_at_visit VARCHAR(120) NULL AFTER patient_status_at_visit");
+        $pdo->exec("ALTER TABLE patient_visit_records ADD COLUMN species_at_visit VARCHAR(60) NULL AFTER barangay_at_visit");
+
+        // One-time backfill for visits saved before these columns existed.
+        // Only rows whose pet still exists can be recovered; rows already
+        // orphaned by an earlier hard delete have no barangay left to find
+        // and stay NULL, which the reports render as 'Unspecified'.
+        try {
+            $pdo->exec("
+                UPDATE patient_visit_records pvr
+                INNER JOIN pets ON pets.id = pvr.pet_id
+                LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id
+                LEFT JOIN barangays b ON b.id = op.barangay_id
+                SET pvr.barangay_at_visit = COALESCE(NULLIF(b.name, ''), NULLIF(op.complete_address, '')),
+                    pvr.species_at_visit  = NULLIF(pets.species, '')
+                WHERE pvr.barangay_at_visit IS NULL
+            ");
+        } catch (Throwable $e) {
+            // owner_profiles/barangays may not exist yet on a fresh install;
+            // the columns are in place either way and new visits fill them.
+        }
+    }
+
+    // pet_id/owner_id must accept NULL so a visit can be de-identified -- pet
+    // and account erased, clinical record retained -- instead of being left
+    // pointing at a row that no longer exists.
+    foreach (['pet_id', 'owner_id'] as $nullableColumn) {
+        $columnInfo = $pdo->query("SHOW COLUMNS FROM patient_visit_records LIKE '{$nullableColumn}'")->fetch();
+        if ($columnInfo && strtoupper((string) ($columnInfo['Null'] ?? '')) === 'NO') {
+            $pdo->exec("ALTER TABLE patient_visit_records MODIFY COLUMN {$nullableColumn} INT NULL");
+        }
+    }
+
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS patient_vaccination_records (
             id INT AUTO_INCREMENT PRIMARY KEY,

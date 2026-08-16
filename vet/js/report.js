@@ -42,42 +42,53 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ── KPI config ──────────────────────────────────────────────────────
+    // {period} is filled from metrics.periodLabel — the newest month present in
+    // the FILTERED data, which is not the current calendar month. With a frozen
+    // 2023-2025 dataset sitting beside live records, "This Month" was reliably
+    // wrong: it labelled whichever month happened to be newest, so three tiles
+    // could describe a handful of recent records on top of a 900-row table.
     var KPI_CONFIG = {
         all_patient: {
-            left:   'Total Patients This Month',
+            left:   'Total Patients — {period}',
             center: 'Most Common Disease',
             right:  'Most Active Barangay'
         },
         consultation_summary: {
-            left:   'Total Consultations This Month',
+            left:   'Total Consultations — {period}',
             center: 'Most Common Diagnosis',
             right:  'Most Active Barangay'
         },
         disease_incidence: {
-            left:   'Total Cases This Month',
+            left:   'Total Cases — {period}',
             center: 'Dominant Disease Group',
-            right:  'Highest Risk Barangay'
+            // Not "Highest Risk": the ranking is by case count, and Case Volume
+            // Level is a band on that same count (see risk_class_from_volume in
+            // api/reports/reports.php).
+            right:  'Highest Case Volume Barangay'
         },
         mass_vaccination: {
-            left:   'Total Vaccinated This Month',
+            left:   'Total Vaccinated — {period}',
             center: 'Dogs vs Cats Ratio',
-            right:  'Clients Served This Month'
+            right:  'Clients Served — {period}'
         },
         lost_found: {
-            left:   'Total Reports This Month',
+            left:   'Total Reports — {period}',
             center: 'Most Reported Species',
             right:  'Resolution Rate'
         }
     };
 
-    function changeKPI(category) {
+    function applyPeriod(text, periodLabel) {
+        return String(text || '').replace(/\{period\}/g, periodLabel || 'This Month');
+    }
+
+    function changeKPI(category, periodLabel) {
         var config = KPI_CONFIG[category] || KPI_CONFIG['all_patient'];
-        var leftTitle   = document.getElementById('title-left');
-        var centerTitle = document.getElementById('title-center');
-        var rightTitle  = document.getElementById('title-right');
-        if (leftTitle)   leftTitle.textContent   = config.left;
-        if (centerTitle) centerTitle.textContent = config.center;
-        if (rightTitle)  rightTitle.textContent  = config.right;
+        var titles = { left: 'title-left', center: 'title-center', right: 'title-right' };
+        Object.keys(titles).forEach(function (slot) {
+            var el = document.getElementById(titles[slot]);
+            if (el) el.textContent = applyPeriod(config[slot], periodLabel);
+        });
     }
 
     function setSubset(elementId, kpi) {
@@ -216,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         state.columns = columns;
 
-        changeKPI(category);
+        changeKPI(category, metrics.periodLabel);
         renderHeaders(columns);
         renderRows(columns, rows);
         renderMetrics(metrics);

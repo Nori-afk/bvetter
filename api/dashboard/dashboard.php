@@ -266,9 +266,12 @@ function db_disease_barangay_counts($pdo, string $selected, string $dateType = '
     $barangayJoin = bv_table_exists($pdo, 'owner_profiles') && bv_table_exists($pdo, 'barangays')
         ? 'LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id LEFT JOIN barangays b ON b.id = op.barangay_id'
         : '';
-    $barangayExpr = $barangayJoin
-        ? "COALESCE(NULLIF(b.name, ''), NULLIF(op.complete_address, ''), 'Unspecified')"
-        : "'Unspecified'";
+    // The visit's own barangay_at_visit wins over the owner's current profile:
+    // it is what was true when the case was recorded, and it is the only
+    // barangay left on a de-identified visit (see deleteUserAccount in
+    // api/admin/account-management.php).
+    $liveBarangay = $barangayJoin ? "NULLIF(b.name, ''), NULLIF(op.complete_address, ''), " : '';
+    $barangayExpr = "COALESCE(NULLIF(patient_visit_records.barangay_at_visit, ''), {$liveBarangay}'Unspecified')";
 
     // $year pins the window to a specific dataset year (e.g. the latest Excel
     // year) instead of today's real calendar year -- without it, merging live
@@ -298,7 +301,7 @@ function db_disease_barangay_counts($pdo, string $selected, string $dateType = '
         $stmt = $pdo->prepare("
             SELECT {$barangayExpr} AS barangay, COUNT(*) AS cases
             FROM patient_visit_records
-            INNER JOIN pets ON pets.id = patient_visit_records.pet_id
+            LEFT JOIN pets ON pets.id = patient_visit_records.pet_id
             {$barangayJoin}
             WHERE " . implode(' AND ', $where) . "
             GROUP BY barangay

@@ -463,16 +463,50 @@ function listDiseases($pdo)
     respond(200, ['success' => true, 'data' => $rows]);
 }
 
+/**
+ * Barangay and species as they stand at the moment a visit is saved.
+ *
+ * Written onto the visit row itself (see setupPatientTables) so the Disease
+ * Incidence Report attributes a case to where the animal actually was, rather
+ * than to wherever its owner's profile happens to point today -- and so the
+ * case still counts after the pet or the owner's account is deleted.
+ */
+function visitSnapshot($pdo, $petId, $ownerId)
+{
+    try {
+        $stmt = $pdo->prepare("
+            SELECT
+                COALESCE(NULLIF(b.name, ''), NULLIF(op.complete_address, '')) AS barangay,
+                NULLIF(pets.species, '') AS species
+            FROM pets
+            LEFT JOIN owner_profiles op ON op.user_id = COALESCE(pets.owner_id, :owner_id)
+            LEFT JOIN barangays b ON b.id = op.barangay_id
+            WHERE pets.id = :pet_id
+            LIMIT 1
+        ");
+        $stmt->execute([':pet_id' => $petId, ':owner_id' => $ownerId]);
+        $row = $stmt->fetch();
+    } catch (Throwable $e) {
+        return ['barangay' => null, 'species' => null];
+    }
+
+    return [
+        'barangay' => $row && clean($row['barangay'] ?? '') !== '' ? $row['barangay'] : null,
+        'species'  => $row && clean($row['species'] ?? '')  !== '' ? $row['species']  : null,
+    ];
+}
+
 function insertVisit($pdo, $petId, $ownerId, $data)
 {
     $stmt = $pdo->prepare("
         INSERT INTO patient_visit_records
-            (pet_id, owner_id, visit_title, visit_date, follow_up_date, symptoms, diagnosis, treatment, medications_json, category, disease_category, patient_status_at_visit, attending_vet, vaccination_status, vaccine_brand)
+            (pet_id, owner_id, visit_title, visit_date, follow_up_date, symptoms, diagnosis, treatment, medications_json, category, disease_category, patient_status_at_visit, barangay_at_visit, species_at_visit, attending_vet, vaccination_status, vaccine_brand)
         VALUES
-            (:pet_id, :owner_id, :visit_title, :visit_date, :follow_up_date, :symptoms, :diagnosis, :treatment, :medications_json, :category, :disease_category, :patient_status_at_visit, :attending_vet, :vaccination_status, :vaccine_brand)
+            (:pet_id, :owner_id, :visit_title, :visit_date, :follow_up_date, :symptoms, :diagnosis, :treatment, :medications_json, :category, :disease_category, :patient_status_at_visit, :barangay_at_visit, :species_at_visit, :attending_vet, :vaccination_status, :vaccine_brand)
     ");
     $visitDate = clean($data['visitDate'] ?? '');
     $followUpDate = clean($data['followUpDate'] ?? '');
+    $snapshot = visitSnapshot($pdo, $petId, $ownerId);
     $stmt->execute([
         ':pet_id' => $petId,
         ':owner_id' => $ownerId,
@@ -486,6 +520,8 @@ function insertVisit($pdo, $petId, $ownerId, $data)
         ':category' => clean($data['category'] ?? 'Routine Checkup'),
         ':disease_category' => deriveDiseaseCategory($pdo, $data['diagnosis'] ?? ''),
         ':patient_status_at_visit' => clean($data['status'] ?? 'Active Patient'),
+        ':barangay_at_visit' => $snapshot['barangay'],
+        ':species_at_visit' => $snapshot['species'],
         ':attending_vet' => clean($data['attendingVet'] ?? ''),
         ':vaccination_status' => clean($data['vaccinationStatus'] ?? ''),
         ':vaccine_brand' => clean($data['vaccineBrand'] ?? ''),

@@ -641,11 +641,12 @@ def load_db_disease_monthly(after_year: int, after_month: int) -> pd.DataFrame:
                 SELECT
                     YEAR(pvr.visit_date)  AS year,
                     MONTH(pvr.visit_date) AS month_no,
-                    COALESCE(NULLIF(b.name, ''), NULLIF(op.complete_address, ''), 'Unspecified') AS barangay,
+                    COALESCE(NULLIF(pvr.barangay_at_visit, ''), NULLIF(b.name, ''),
+                             NULLIF(op.complete_address, ''), 'Unspecified') AS barangay,
                     pvr.disease_category  AS disease_category,
                     COUNT(*) AS cases
                 FROM patient_visit_records pvr
-                INNER JOIN pets ON pets.id = pvr.pet_id
+                LEFT JOIN pets ON pets.id = pvr.pet_id
                 LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id
                 LEFT JOIN barangays b ON b.id = op.barangay_id
                 WHERE pvr.visit_date IS NOT NULL
@@ -1096,8 +1097,9 @@ def get_all_disease_models():
         # Plain-language version shown in the vet-facing insight panel --
         # no model names or stats jargon.
         "risk_note_short": (
-            "Risk level is predicted by a trained Random Forest model from each "
-            "barangay's recent case history, seasonality, and disease mix."
+            "Case volume level is predicted by a trained Random Forest model from "
+            "each barangay's recent case history, seasonality, and disease mix. "
+            "It measures how many cases to expect, not how severe they are."
         ),
     }
     print(f"All-Disease model ready — Classifier accuracy {accuracy_val}%, "
@@ -1277,10 +1279,11 @@ def load_db_consult_rows(after_year: int, after_month: int) -> pd.DataFrame:
                 SELECT
                     YEAR(pvr.visit_date)  AS year,
                     MONTH(pvr.visit_date) AS month_no,
-                    COALESCE(NULLIF(b.name, ''), NULLIF(op.complete_address, ''), 'Unspecified') AS barangay,
+                    COALESCE(NULLIF(pvr.barangay_at_visit, ''), NULLIF(b.name, ''),
+                             NULLIF(op.complete_address, ''), 'Unspecified') AS barangay,
                     pvr.diagnosis AS diagnosis
                 FROM patient_visit_records pvr
-                INNER JOIN pets ON pets.id = pvr.pet_id
+                LEFT JOIN pets ON pets.id = pvr.pet_id
                 LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id
                 LEFT JOIN barangays b ON b.id = op.barangay_id
                 WHERE pvr.visit_date IS NOT NULL
@@ -1676,7 +1679,7 @@ def predict_disease_specific(
         recommendation = (
             f"{barangay} — {disease_name}: {current_cases:.0f} cases this period "
             f"({_friendly_model_label(fc_result['model_type'])}: {future_cases:.0f} next month, trend: {fc_result['trend']}). "
-            f"Risk: {future_risk}."
+            f"Case volume level: {future_risk}."
         )
 
         results.append({
@@ -1754,7 +1757,7 @@ def _build_disease_protocol_steps(barangay, disease, current, future, fc, curren
         ]
     return [
         {"level":"red",   "title":"No Immediate Action Required",
-         "detail":f"{model} predicts {future:.0f} {disease} — LOW risk. Trend: {trend}."},
+         "detail":f"{model} predicts {future:.0f} {disease} — LOW case volume. Trend: {trend}."},
         {"level":"blue",  "title":"Routine: Monthly Reporting",
          "detail":f"Maintain standard cadence. Current: {current:.0f} in {barangay}."},
         {"level":"green", "title":"Preventive: Quarterly Campaign",
@@ -1802,8 +1805,8 @@ def _build_all_disease_protocol(barangay, pred, avg_cases, models):
     fused  = pred["fused_predicted"]
     current= pred["current_cases"]
     proba_str = ", ".join([f"{k}: {round(v*100)}%" for k, v in pred["rf_future_proba"].items()])
-    an = ("The forecast trend and risk level agree." if pred["model_agreement"]
-          else f"Note: the case trend is '{trend}' while risk is classified as {pred['rf_future_risk']}.")
+    an = ("The forecast trend and case volume level agree." if pred["model_agreement"]
+          else f"Note: the case trend is '{trend}' while case volume is classified as {pred['rf_future_risk']}.")
     fc = pred["arima_forecast"]
     if risk == "high":
         tier = "critical"
@@ -1811,10 +1814,10 @@ def _build_all_disease_protocol(barangay, pred, avg_cases, models):
             {"level":"red",  "title":"Immediate: Field Deployment",
              "detail":f"The forecast predicts {fused:.0f} next month ({conf}% confidence, trend: {trend}). Deploy to {barangay}. {an}"},
             {"level":"blue", "title":"Within 24 hrs: Regulatory Reporting",
-             "detail":f"Escalate to MHO. Risk — {proba_str}. Likely range: {pred['arima_lower_ci'][0]:.0f}\u2013{pred['arima_upper_ci'][0]:.0f} cases."},
+             "detail":f"Escalate to MHO. Case volume outlook — {proba_str}. Likely range: {pred['arima_lower_ci'][0]:.0f}\u2013{pred['arima_upper_ci'][0]:.0f} cases."},
             {"level":"green","title":"Preventive: Targeted Sanitation",
              "detail":f"Focus on {barangay}. Current: {current:.0f} vs avg {avg_cases:.1f}."},
-            {"level":"gray", "title":"Monitoring: Weekly Review", "detail":f"Track until risk reclassifies. Forecast: {fc}."},
+            {"level":"gray", "title":"Monitoring: Weekly Review", "detail":f"Track until case volume reclassifies. Forecast: {fc}."},
         ]
     elif risk in ["medium","moderate"]:
         tier = "monitor"
@@ -1822,15 +1825,15 @@ def _build_all_disease_protocol(barangay, pred, avg_cases, models):
             {"level":"red",  "title":"Priority: Cluster Validation",
              "detail":f"The forecast predicts {fused:.0f} next month. Confirm clusters in {barangay}. {an}"},
             {"level":"blue", "title":"Within 72 hrs: Vet Coordination",
-             "detail":f"Risk: {proba_str}. Likely range: {pred['arima_lower_ci'][0]:.0f}\u2013{pred['arima_upper_ci'][0]:.0f} cases."},
+             "detail":f"Case volume outlook: {proba_str}. Likely range: {pred['arima_lower_ci'][0]:.0f}\u2013{pred['arima_upper_ci'][0]:.0f} cases."},
             {"level":"green","title":"Preventive: Community Briefing", "detail":f"Broadcast for {barangay}. {conf}% confidence."},
-            {"level":"gray", "title":"Monitoring: Bi-Weekly Review", "detail":f"Escalate if risk reclassifies. Predicted: {fused:.0f}."},
+            {"level":"gray", "title":"Monitoring: Bi-Weekly Review", "detail":f"Escalate if case volume reclassifies. Predicted: {fused:.0f}."},
         ]
     else:
         tier = "stable"
         steps = [
             {"level":"red",  "title":"No Immediate Action Required",
-             "detail":f"LOW risk ({conf}% confidence, trend: {trend}). {an}"},
+             "detail":f"LOW case volume ({conf}% confidence, trend: {trend}). {an}"},
             {"level":"blue", "title":"Routine: Monthly Reporting", "detail":f"Maintain cadence. Predicted: {fused:.0f}."},
             {"level":"green","title":"Preventive: Quarterly Campaign", "detail":f"Include {barangay} in next campaign."},
             {"level":"gray", "title":"Monitoring: Standard Surveillance",
@@ -1900,7 +1903,7 @@ def disease_predict():
                 "fused_predicted": pred["fused_predicted"],
                 "model_agreement": pred["model_agreement"], "tier": tier,
                 "recommendation": (
-                    f"{barangay} — Risk: {pred['rf_future_risk']} "
+                    f"{barangay} — Case volume: {pred['rf_future_risk']} "
                     f"({pred['rf_confidence']}% confidence), trend: {pred['arima_trend']}, "
                     f"predicts {pred['predicted_cases']:.0f} "
                     f"({'annual' if period == 'year' else 'next-month'}) cases."

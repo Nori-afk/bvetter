@@ -160,12 +160,17 @@ async function diseaseRiskRequest(barangays, currentCasesByBarangay, disease, pe
 // vets already look for it instead of a third, disconnected list:
 //   - Vaccination Drive -> Mass Vaccination's events (api/mass-vaccination/events.php)
 //   - Community Announcement -> the Announcements feature (api/announcements/announcements.php)
-const createEventContext = { barangay: '', disease: '', riskClassification: '' };
+// forecastCases replaces the risk label that used to go into the public
+// advisory. "Risk level: Grade 2 — Low Risk" reads to a pet owner as an
+// official severity grade, but it is a band on case VOLUME and the "Grade N"
+// scale is invented (there are three tiers and they start at 2). A case count
+// is unambiguous, needs no legend, and is the model's actual output.
+const createEventContext = { barangay: '', disease: '', forecastCases: null };
 
-function openCreateEventModal(barangay, disease, riskClassification) {
-    createEventContext.barangay           = barangay || '';
-    createEventContext.disease            = disease || '';
-    createEventContext.riskClassification = riskClassification || '';
+function openCreateEventModal(barangay, disease, forecastCases) {
+    createEventContext.barangay      = barangay || '';
+    createEventContext.disease       = disease || '';
+    createEventContext.forecastCases = Number.isFinite(Number(forecastCases)) ? Math.round(Number(forecastCases)) : null;
 
     const ctxEl = document.getElementById('createEventContext');
     if (ctxEl) ctxEl.textContent = `${createEventContext.barangay} — ${createEventContext.disease}`;
@@ -201,7 +206,7 @@ function toggleVaccineField() {
 async function submitCreateEvent() {
     const btn   = document.getElementById('confirmCreateEventBtn');
     const type  = document.querySelector('input[name="eventType"]:checked')?.value || 'vaccination';
-    const { barangay, disease, riskClassification } = createEventContext;
+    const { barangay, disease, forecastCases } = createEventContext;
     const today = new Date().toISOString().slice(0, 10);
 
     if (btn) { btn.disabled = true; btn.dataset.originalText = btn.textContent; btn.textContent = 'Creating…'; }
@@ -218,7 +223,9 @@ async function submitCreateEvent() {
         } else {
             const title = `Disease Response: ${disease} in ${barangay}`;
             const description = `Community advisory for ${disease} cases in ${barangay}.` +
-                (riskClassification ? ` Risk level: ${riskClassification}.` : '') +
+                (forecastCases !== null
+                    ? ` Forecast: about ${forecastCases} case${forecastCases === 1 ? '' : 's'} next month.`
+                    : '') +
                 ' Please observe preventive measures and report symptoms in pets to your barangay vet team.';
             const eventDate = document.getElementById('eventAnnouncementDate')?.value || today;
             const res = await fetch('/api/announcements/announcements.php', {
@@ -327,14 +334,14 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
             const thr = rf.risk_thresholds || {};
             protocolDesc = (
                 `Our ${friendlyModelLabel(modelType)} predicts ${arimaForecast[0] ?? '?'} cases next month. ` +
-                `Risk level: ${rf.risk_class || 'N/A'} ` +
+                `Case volume level: ${rf.risk_class || 'N/A'} ` +
                 `(Low: under ${thr.low_max ?? '?'} · Medium: up to ${thr.med_max ?? '?'}). ` +
                 `${rf.eval_note || ''}`
             );
         } else {
             protocolDesc = (
                 `Our Advanced Forecast predicts ${arimaForecast[0] ?? '?'} cases next month. ` +
-                `Risk level: ${rf.risk_class || 'N/A'} (${rf.confidence || 0}% confidence). ` +
+                `Case volume level: ${rf.risk_class || 'N/A'} (${rf.confidence || 0}% confidence). ` +
                 (rf.model_mae != null
                     ? `Predictions here are usually within ${rf.model_mae} cases of the actual count.`
                     : '')
@@ -377,9 +384,12 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
             seasonal_order: rf.seasonal_order || null,
             trend:          rf.arima_trend    || 'stable',
             protocol: {
-                classification: rf.tier === 'critical' ? 'Grade 4 — High Risk'
-                               : rf.tier === 'monitor'  ? 'Grade 3 — Medium Risk'
-                               :                          'Grade 2 — Low Risk',
+                // The action the tier calls for, not an invented severity grade.
+                // "Grade 4/3/2" implied a calibrated four-level public-health
+                // scale; there are only three tiers and they never reach 1.
+                classification: rf.tier === 'critical' ? 'Immediate Response'
+                               : rf.tier === 'monitor'  ? 'Monitor'
+                               :                          'Routine',
                 title:       (isRuleBased ? 'Response Plan: ' : 'Advanced Response Plan: ') + rf.barangay,
                 description: protocolDesc,
                 steps:       rf.steps || [],
@@ -421,7 +431,7 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
     const firstRf    = rfData[0] || {};
 
     diseaseAnalyticsData.kpis[2] = {
-        label: 'High Risk Barangays',
+        label: 'High Case Volume Barangays',
         value: String(critical),
         trend: `${critical} critical · ${monitor} monitoring`,
     };
@@ -439,7 +449,7 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
         value: avgMae != null ? `Usually within ${Math.round(avgMae * 10) / 10} cases` : 'N/A',
         trend: avgMae != null
             ? `of the actual count · checked across ${maeValues.length} barangay${maeValues.length === 1 ? '' : 's'}`
-            : 'Automatic risk check',
+            : 'Automatic case volume check',
     };
 }
 
@@ -719,7 +729,7 @@ function renderInsightPanel() {
         modelBadgeHtml = `
             <div class="ip-model-row">
                 <span class="ip-model-badge">Advanced Forecast</span>
-                <span class="ip-model-text">${insight.rf_risk_class || 'N/A'} Risk · ${insight.rf_confidence ?? 'N/A'}% confidence</span>
+                <span class="ip-model-text">${insight.rf_risk_class || 'N/A'} case volume · ${insight.rf_confidence ?? 'N/A'}% confidence</span>
             </div>
         `;
     }
@@ -762,7 +772,7 @@ function renderInsightPanel() {
     `;
 
     document.getElementById('createEventBtn').addEventListener('click', () => {
-        openCreateEventModal(insight.barangay, insight.disease, protocol.classification);
+        openCreateEventModal(insight.barangay, insight.disease, Array.isArray(insight.forecast) ? insight.forecast[0] : null);
     });
     document.getElementById('backOverviewBtn2').addEventListener('click', () => switchPanel('overviewPanel'));
 }
@@ -890,7 +900,7 @@ function showHotspotAction(hotspot) {
     );
 
     let steps = [], protocolTitle = 'Barangay Response Protocol: ' + hotspot.barangay;
-    let protocolDesc = '', classification = 'Risk: ' + hotspot.risk.toUpperCase(), modelBadge = '';
+    let protocolDesc = '', classification = 'Case volume: ' + hotspot.risk.toUpperCase(), modelBadge = '';
 
     if (insight?.protocol) {
         steps          = insight.protocol.steps    || [];
@@ -902,8 +912,8 @@ function showHotspotAction(hotspot) {
             const t = insight.risk_thresholds || {};
             modelBadge = `
                 <div class="rule-based-note">
-                    ⚠ Rule-Based Risk —
-                    ${insight.rf_risk_class || 'N/A'} risk
+                    ⚠ Rule-Based Case Volume —
+                    ${insight.rf_risk_class || 'N/A'} case volume
                     ${insight.pred_source?.includes('fallback')
                         ? '<span class="source-badge fallback">Estimate</span>'
                         : `<span class="source-badge model">${friendlyModelLabel(insight.model_type)}</span>`}
@@ -912,7 +922,7 @@ function showHotspotAction(hotspot) {
         } else {
             modelBadge = `
                 <div class="rf-badge">
-                    Advanced Forecast — ${insight.rf_risk_class || 'N/A'} Risk ·
+                    Advanced Forecast — ${insight.rf_risk_class || 'N/A'} Case Volume ·
                     ${insight.rf_confidence ?? 'N/A'}% confidence
                 </div>`;
         }
@@ -925,7 +935,7 @@ function showHotspotAction(hotspot) {
             { level: 'green', title: 'Preventive: Education Drive',
               detail: `Distribute prevention materials to ${hotspot.barangay}.` },
             { level: 'gray',  title: 'Monitoring: Weekly Review',
-              detail: 'Track cases weekly until risk normalizes.' },
+              detail: 'Track cases weekly until case volume normalizes.' },
         ];
         modelBadge = `
             <div class="rf-badge" style="background:#fff7ed;border-color:#fed7aa;color:#c2410c;">
@@ -957,7 +967,7 @@ function showHotspotAction(hotspot) {
         </section>
     `;
     document.getElementById('createMapEventBtn').addEventListener('click', () => {
-        openCreateEventModal(hotspot.barangay, hotspot.disease, classification);
+        openCreateEventModal(hotspot.barangay, hotspot.disease, insight?.forecast?.[0] ?? hotspot.predicted ?? null);
     });
     document.getElementById('backToMapOverviewBtn').addEventListener('click', () => {
         state.mapActionMode = false;

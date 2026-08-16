@@ -55,15 +55,22 @@ function report_columns($category)
             ['key' => 'riskLevel', 'label' => 'Risk Level'],
             ['key' => 'cases', 'label' => 'Cases'],
         ],
+        // 'Case Volume Level', not 'Risk Class': the value is a band on monthly
+        // case COUNT, not a clinical severity rating. See risk_class_from_volume().
+        // 'Source' distinguishes municipality-wide dataset rows (10-30 cases per
+        // barangay-month) from this clinic's own records (typically 1-2) -- the
+        // two sit in one table at very different scales, and without the column
+        // there is no way to tell which scale a given row is on.
         'disease_incidence' => [
             ['key' => 'date', 'label' => 'Month'],
             ['key' => 'barangay', 'label' => 'Barangay'],
+            ['key' => 'source', 'label' => 'Source'],
             ['key' => 'skinRelatedCases', 'label' => 'Skin'],
             ['key' => 'parasiticCases', 'label' => 'Parasitic'],
             ['key' => 'respiratoryCases', 'label' => 'Respiratory'],
             ['key' => 'gastrointestinalCases', 'label' => 'Gastrointestinal'],
             ['key' => 'totalCases', 'label' => 'Total Cases'],
-            ['key' => 'riskClass', 'label' => 'Risk Class'],
+            ['key' => 'riskClass', 'label' => 'Case Volume Level'],
         ],
         'mass_vaccination' => [
             ['key' => 'date', 'label' => 'Date'],
@@ -256,7 +263,10 @@ function db_consultation_rows($pdo)
     $barangayJoin = bv_table_exists($pdo, 'owner_profiles') && bv_table_exists($pdo, 'barangays')
         ? 'LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id LEFT JOIN barangays b ON b.id = op.barangay_id'
         : '';
-    $barangayExpr = $barangayJoin ? "COALESCE(NULLIF(b.name, ''), NULLIF(op.complete_address, ''), 'N/A')" : "'N/A'";
+    // See db_disease_rows(): the visit's own snapshot is preferred over the
+    // owner's current profile, and is all that remains after de-identification.
+    $liveBarangay = $barangayJoin ? "NULLIF(b.name, ''), NULLIF(op.complete_address, ''), " : '';
+    $barangayExpr = "COALESCE(NULLIF(pvr.barangay_at_visit, ''), {$liveBarangay}'N/A')";
 
     $profileJoin = bv_table_exists($pdo, 'patient_record_profiles')
         ? 'LEFT JOIN patient_record_profiles prp ON prp.pet_id = pets.id'
@@ -280,11 +290,11 @@ function db_consultation_rows($pdo)
                 pvr.disease_category,
                 pvr.patient_status_at_visit,
                 " . ($diseaseJoin ? 'd.display_category' : "NULL") . " AS display_category,
-                pets.species,
+                COALESCE(NULLIF(pvr.species_at_visit, ''), pets.species) AS species,
                 {$barangayExpr} AS barangay,
                 " . ($profileJoin ? 'prp.source' : "''") . " AS source
             FROM patient_visit_records pvr
-            INNER JOIN pets ON pets.id = pvr.pet_id
+            LEFT JOIN pets ON pets.id = pvr.pet_id
             {$barangayJoin}
             {$profileJoin}
             {$diseaseJoin}
@@ -348,12 +358,17 @@ function excel_disease_rows()
             'totalCases' => (int) ($row['total_cases'] ?? 0),
             'dominantCaseGroup' => $row['dominant_case_group'] ?? '',
             'riskClass' => $row['risk_class'] ?? '',
+            'source' => 'Dataset',
         ];
     }, $sourceRows);
 }
 
 /**
- * Risk Class for a barangay-month, on the same scale the historical labels use.
+ * Case Volume Level for a barangay-month, on the same scale the historical
+ * labels use. Displayed as 'Case Volume Level', not 'Risk Class': the value is
+ * a band on monthly case COUNT and carries no clinical severity meaning. The
+ * array key stays `riskClass` so the JSON contract with the frontend and the
+ * Excel column name both keep working -- only the label changed.
  *
  * Barangay_Disease_Monthly.risk_class is, in the source data, a case-VOLUME
  * band rather than a clinical-severity rating -- its three classes separate
@@ -390,9 +405,23 @@ function db_disease_rows($pdo)
     $barangayJoin = bv_table_exists($pdo, 'owner_profiles') && bv_table_exists($pdo, 'barangays')
         ? 'LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id LEFT JOIN barangays b ON b.id = op.barangay_id'
         : '';
-    $barangayExpr = $barangayJoin ? "COALESCE(NULLIF(b.name, ''), NULLIF(op.complete_address, ''), 'Unspecified')" : "'Unspecified'";
+
+    // barangay_at_visit wins over the owner's current profile: it is what was
+    // true when the case was recorded, and it is the only barangay left once a
+    // visit has been de-identified (see deleteUserAccount in
+    // api/admin/account-management.php). The live joins stay as a fallback for
+    // rows saved before that column existed.
+    $liveBarangay = $barangayJoin ? "NULLIF(b.name, ''), NULLIF(op.complete_address, ''), " : '';
+    $barangayExpr = "COALESCE(NULLIF(pvr.barangay_at_visit, ''), {$liveBarangay}'Unspecified')";
 
     try {
+        // LEFT JOIN, not INNER: a de-identified visit has no pet row, and
+        // dropping it here would delete a real case from disease surveillance
+        // purely because the owner closed their account.
+        //
+        // The diagnosis filter matches db_consultation_rows() so both reports
+        // count the same visits -- without it a record saved with an empty
+        // diagnosis counts as a disease case here but not there.
         $rows = $pdo->query("
             SELECT
                 YEAR(pvr.visit_date) AS yr,
@@ -401,9 +430,10 @@ function db_disease_rows($pdo)
                 pvr.disease_category,
                 COUNT(*) AS cases
             FROM patient_visit_records pvr
-            INNER JOIN pets ON pets.id = pvr.pet_id
+            LEFT JOIN pets ON pets.id = pvr.pet_id
             {$barangayJoin}
             WHERE pvr.visit_date IS NOT NULL
+              AND pvr.diagnosis IS NOT NULL AND pvr.diagnosis != ''
             GROUP BY yr, mo, barangay, pvr.disease_category
         ")->fetchAll();
     } catch (Throwable $e) {
@@ -423,6 +453,7 @@ function db_disease_rows($pdo)
                 'respiratoryCases' => 0,
                 'gastrointestinalCases' => 0,
                 'totalCases' => 0,
+                'source' => 'Clinic',
             ];
         }
         $cases = (int) $row['cases'];
@@ -454,7 +485,28 @@ function db_disease_rows($pdo)
 function disease_rows($pdo = null)
 {
     $dbRows = $pdo ? db_disease_rows($pdo) : [];
-    return array_merge($dbRows, excel_disease_rows());
+    $excelRows = excel_disease_rows();
+
+    // The Excel sheet is a municipality-wide monthly aggregate; the DB rows are
+    // this clinic's own visits. For any month the sheet already covers, the
+    // sheet's figure is the authoritative one, and a DB row for that month
+    // would surface as a second, far smaller row for the same barangay-month --
+    // double-counting in every total. Keep only DB months strictly after the
+    // sheet's last covered month, the same splice point
+    // load_db_disease_monthly() uses in api/analytics/arima_service.py.
+    $latestExcelMonth = '';
+    foreach ($excelRows as $row) {
+        $month = substr((string) ($row['date'] ?? ''), 0, 7);
+        if ($month > $latestExcelMonth) $latestExcelMonth = $month;
+    }
+    if ($latestExcelMonth !== '') {
+        $dbRows = array_values(array_filter(
+            $dbRows,
+            fn($row) => substr((string) ($row['date'] ?? ''), 0, 7) > $latestExcelMonth
+        ));
+    }
+
+    return array_merge($dbRows, $excelRows);
 }
 
 function db_vaccination_rows($pdo)
@@ -589,14 +641,19 @@ function report_metrics($pdo, $filteredRows, $category)
 
     // ── All Patient & Consultation Summary ──────────────────────────────
     if (in_array($category, ['all_patient', 'consultation_summary'])) {
+        // Same fix as the disease_incidence branch below: anchor on the rows the
+        // user is actually looking at ($filteredRows), while still reading the
+        // comparison month from the unfiltered set so the delta survives a
+        // filter that excludes it.
         $allRows = $category === 'consultation_summary'
             ? consultation_rows($pdo)
             : (db_patient_rows($pdo) ?: dataset_patient_rows());
+        $scoped  = $filteredRows ?: $allRows;
 
-        $now       = latest_month_in($allRows, fn($r) => bv_row_date($r));
+        $now       = latest_month_in($scoped, fn($r) => bv_row_date($r));
         $lastMonth = prev_month($now);
 
-        $thisMonth = array_values(array_filter($allRows, fn($r) => str_starts_with((string)bv_row_date($r), $now)));
+        $thisMonth = array_values(array_filter($scoped,  fn($r) => str_starts_with((string)bv_row_date($r), $now)));
         $lastMo    = array_values(array_filter($allRows, fn($r) => str_starts_with((string)bv_row_date($r), $lastMonth)));
 
         $thisCount = count($thisMonth);
@@ -623,6 +680,8 @@ function report_metrics($pdo, $filteredRows, $category)
         $diseaseShare  = $totalDiagnosed > 0 ? round(($diseaseCount / $totalDiagnosed) * 100) : 0;
 
         return [
+            'period'      => $now,
+            'periodLabel' => $now ? date('M Y', strtotime($now . '-01')) : '',
             'left' => [
                 'value'  => $thisCount,
                 'subset' => $diff !== null
@@ -649,12 +708,20 @@ function report_metrics($pdo, $filteredRows, $category)
 
     // ── Disease Incidence ───────────────────────────────────────────────
     if ($category === 'disease_incidence') {
+        // Anchor on what the user is actually looking at. $filteredRows honours
+        // the date filter; $allRows does not. This branch used to ignore
+        // $filteredRows entirely and refetch everything, so narrowing the date
+        // range changed the table underneath while these three tiles stayed put.
+        //
+        // The comparison month is still read from $allRows, so "vs <prev month>"
+        // keeps working even when the filter excludes that month.
         $allRows = disease_rows($pdo);
+        $scoped  = $filteredRows ?: $allRows;
 
-        $now       = latest_month_in($allRows, fn($r) => $r['date'] ?? '');
+        $now       = latest_month_in($scoped, fn($r) => $r['date'] ?? '');
         $lastMonth = prev_month($now);
 
-        $thisMonth = array_values(array_filter($allRows, fn($r) => str_starts_with((string)($r['date'] ?? ''), $now)));
+        $thisMonth = array_values(array_filter($scoped,  fn($r) => str_starts_with((string)($r['date'] ?? ''), $now)));
         $lastMo    = array_values(array_filter($allRows, fn($r) => str_starts_with((string)($r['date'] ?? ''), $lastMonth)));
 
         $totalThis = array_sum(array_column($thisMonth, 'totalCases'));
@@ -681,9 +748,16 @@ function report_metrics($pdo, $filteredRows, $category)
         arsort($barangayCases);
         $topBarangay      = array_key_first($barangayCases) ?: 'N/A';
         $topBarangayCount = $barangayCases[$topBarangay] ?? 0;
-        $highRiskCount    = count(array_filter($thisMonth, fn($r) => strtolower($r['riskClass'] ?? '') === 'high'));
+        $highVolumeCount  = count(array_filter($thisMonth, fn($r) => strtolower($r['riskClass'] ?? '') === 'high'));
 
         return [
+            // Named so the frontend can title the tiles with the month they
+            // actually describe. Without it the tiles read "This Month" while
+            // showing whatever the newest month in the data happens to be --
+            // which, with a frozen dataset plus live records, is neither the
+            // current month nor representative of the table below.
+            'period'      => $now,
+            'periodLabel' => $now ? date('M Y', strtotime($now . '-01')) : '',
             'left' => [
                 'value'  => $totalThis,
                 'subset' => $diff !== null
@@ -693,13 +767,13 @@ function report_metrics($pdo, $filteredRows, $category)
             ],
             'center' => [
                 'value'  => $dominantGroup,
-                'subset' => "{$dominantGroupCount} cases · " . count($groupTotals) . " groups tracked",
+                'subset' => bv_pluralize($dominantGroupCount, 'case') . ' · ' . count($groupTotals) . " groups tracked",
                 'trend'  => 'neutral',
             ],
             'right' => [
                 'value'  => $topBarangay,
-                'subset' => "{$topBarangayCount} cases · {$highRiskCount} high-risk area(s)",
-                'trend'  => $highRiskCount > 0 ? 'down' : 'neutral',
+                'subset' => bv_pluralize($topBarangayCount, 'case') . " · " . bv_pluralize($highVolumeCount, 'high-volume area'),
+                'trend'  => $highVolumeCount > 0 ? 'down' : 'neutral',
             ],
         ];
     }
@@ -1008,7 +1082,16 @@ function pdf_export($columns, $rows, $category, $title, $input = [])
     ];
     $categoryLabel  = $categoryLabels[$category] ?? ucwords(str_replace('_',' ',$category));
     $dateGenerated  = date('F j, Y');
-    $coveragePeriod = 'January - December ' . date('Y');
+
+    // Derived from the rows actually being printed. This was hardcoded to
+    // 'January - December <current year>' regardless of the date filter, so an
+    // exported single-month report still claimed a full year of coverage --
+    // on a page that ends in the City Veterinarian's signature block.
+    $printedDates = array_values(array_filter(array_map(fn($r) => bv_row_date($r), $rows)));
+    sort($printedDates);
+    $coveragePeriod = $printedDates
+        ? date('F Y', strtotime($printedDates[0])) . ' - ' . date('F Y', strtotime((string) end($printedDates)))
+        : 'No records in selected range';
     $generatedBy    = bv_clean($input['generated_by'] ?? 'Baliuag City Veterinary Office');
 
     // ── Logo ─────────────────────────────────────────────────────────
@@ -1064,7 +1147,7 @@ function pdf_export($columns, $rows, $category, $title, $input = [])
         $bc = count(array_unique(array_column($rows,'barangay')));
         $summaryRows = '
             <tr><td>Total Cases</td><td class="sv">'.$tc.'</td></tr>
-            <tr><td>High Risk Areas</td><td class="sv">'.$hr.'</td></tr>
+            <tr><td>High Volume Barangay-Months</td><td class="sv">'.$hr.'</td></tr>
             <tr><td>Barangays Covered</td><td class="sv">'.$bc.'</td></tr>';
     } elseif ($category === 'lost_found') {
         $res = count(array_filter($rows, fn($r) => strtolower($r['status']??'') === 'resolved'));

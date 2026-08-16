@@ -265,6 +265,16 @@ function bv_first_non_empty($row, $keys, $fallback = '')
     return $fallback;
 }
 
+/**
+ * "1 case" / "2 cases" -- KPI subsets are user-facing sentences, and a hard
+ * "{$n} cases" reads as broken software the first time $n is 1.
+ */
+function bv_pluralize($count, $singular, $plural = null)
+{
+    $count = (int) $count;
+    return $count . ' ' . ($count === 1 ? $singular : ($plural ?? $singular . 's'));
+}
+
 function bv_count_by($rows, $key)
 {
     $counts = [];
