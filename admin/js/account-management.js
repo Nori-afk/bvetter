@@ -122,10 +122,16 @@ function renderTable() {
     }
 
     tbody.innerHTML = pageUsers.map(u => {
+        // u.name, u.email and u.avatar all come from user-controlled
+        // registration data and land in an administrator's browser, so they
+        // are escaped before being interpolated. Note the alt attribute too:
+        // an unescaped value there breaks out of the attribute just as
+        // easily as one in element text.
+        const esc = window.vbEscapeHtml;
         const initials = u.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
         const avatarEl = u.avatar
-            ? `<img class="am-avatar" src="${u.avatar}" alt="${u.name}">`
-            : `<div class="am-avatar-placeholder">${initials}</div>`;
+            ? `<img class="am-avatar" src="${esc(u.avatar)}" alt="${esc(u.name)}">`
+            : `<div class="am-avatar-placeholder">${esc(initials)}</div>`;
 
         const roleCss = roleClass(u.roleLabel || u.role);
 
@@ -160,12 +166,12 @@ function renderTable() {
                     <div class="am-user-cell">
                         ${avatarEl}
                         <div>
-                            <span class="am-user-name">${u.name}</span>
-                            <span class="am-user-email">${u.email}</span>
+                            <span class="am-user-name">${esc(u.name)}</span>
+                            <span class="am-user-email">${esc(u.email)}</span>
                         </div>
                     </div>
                 </td>
-                <td><span class="am-role-badge ${roleCss}">${u.roleLabel || capitalize(u.role)}</span></td>
+                <td><span class="am-role-badge ${roleCss}">${esc(u.roleLabel || capitalize(u.role))}</span></td>
                 <td>${statusEl}</td>
                 <td>${formatDate(u.created)}</td>
                 <td><div class="am-actions-cell">${actionsEl}</div></td>

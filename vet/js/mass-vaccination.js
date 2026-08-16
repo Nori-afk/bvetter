@@ -317,7 +317,7 @@
 
         select.innerHTML = '<option value="">Select Barangay…</option>'
             + Array.from(barangays).sort().map(b =>
-                `<option value="${b}">${b}</option>`
+                `<option value="${window.vbEscapeHtml(b)}">${window.vbEscapeHtml(b)}</option>`
             ).join('');
     };
 

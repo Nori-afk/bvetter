@@ -1028,22 +1028,28 @@
             showingLabel.textContent = `Showing ${start + 1}–${Math.min(start + SESSION_PAGE_SIZE, activeSessions.length)} of ${activeSessions.length} sessions`;
         }
 
+        // Every value below originates from a user (the display name and
+        // email come from registration; the device label and IP from the
+        // request that created the session), and this table renders them
+        // into an ADMINISTRATOR's browser — so an unescaped name here is a
+        // path from the public signup form to admin account takeover.
+        const esc = window.vbEscapeHtml;
         tbody.innerHTML = pageSessions.map(s => `
             <tr data-id="${s.id}">
                 <td>
-                    <span class="sec-device-name">${s.userName || 'Unknown user'}</span>
-                    <span class="sec-device-sub">${ROLE_LABELS[s.userRole] || s.userRole || ''} &bull; ${s.userEmail || ''}</span>
+                    <span class="sec-device-name">${esc(s.userName || 'Unknown user')}</span>
+                    <span class="sec-device-sub">${esc(ROLE_LABELS[s.userRole] || s.userRole || '')} &bull; ${esc(s.userEmail || '')}</span>
                 </td>
                 <td>
                     <div class="sec-device-cell">
                         <div class="sec-device-icon">${deviceIcon(s.device)}</div>
                         <div>
-                            <span class="sec-device-name">${s.device}</span>
-                            <span class="sec-device-sub">${s.ip || ''}</span>
+                            <span class="sec-device-name">${esc(s.device)}</span>
+                            <span class="sec-device-sub">${esc(s.ip || '')}</span>
                         </div>
                     </div>
                 </td>
-                <td style="font-size:13px;font-weight:600;color:var(--text-secondary);">${s.location}</td>
+                <td style="font-size:13px;font-weight:600;color:var(--text-secondary);">${esc(s.location)}</td>
                 <td style="font-size:13px;color:var(--text-tertiary);font-weight:500;">${timeAgo(s.lastActivityEpoch)}</td>
                 <td>
                     <span class="sec-session-status ${s.isCurrent ? 'current' : 'standby'}">

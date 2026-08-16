@@ -7,6 +7,7 @@ error_reporting(E_ALL);
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../config/input_validation.php';
 
 function respond($statusCode, $payload)
 {
@@ -120,7 +121,7 @@ function formatAnnouncement($row)
     return [
         'id' => (int)$row['id'],
         'title' => $row['title'],
-        'description' => $row['description'],
+        'description' => apiSafeText($row['description']),
         'category' => $row['category'],
         'date' => $row['event_date'],
         'location' => $row['location'],

@@ -85,17 +85,23 @@ function firstIdentityFieldError(array $fields): ?string
 }
 
 /**
- * Encodes a user-supplied string for safe inclusion in an API response.
+ * Neutralises markup in a free-text value on its way out of the API, so a
+ * render site that forgets to escape still cannot be made to execute
+ * anything. This is the output-side counterpart to identityFieldError():
+ * fields that legitimately contain "temp > 39C" can't reject angle
+ * brackets, so they get defanged here instead.
  *
- * Used for the free-text fields that can't reject angle brackets. Encoding
- * here rather than trusting each render site means a page that forgets to
- * escape still can't be made to execute anything: the value arrives as
- * &lt;script&gt; and displays as literal text.
+ * ANGLE BRACKETS ONLY — deliberately not htmlspecialchars().
  *
- * Anything passed through here must be rendered with textContent or inserted
- * as HTML — never both, or the user sees &amp;lt;.
+ * A full htmlspecialchars() would also encode quotes and ampersands, and
+ * the browser then escapes the result a second time at the render site,
+ * so the user sees O&#039;Brien instead of O'Brien. Encoding only < and >
+ * avoids that entirely: no legitimate value contains them, so legitimate
+ * data passes through byte-for-byte and renders correctly. Only an actual
+ * injection attempt is altered, and a double-escaped payload looks ugly
+ * but is inert — which is the right trade.
  */
 function apiSafeText(?string $value): string
 {
-    return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    return str_replace(['<', '>'], ['&lt;', '&gt;'], (string) $value);
 }

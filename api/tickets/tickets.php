@@ -13,6 +13,7 @@ if ($method !== 'POST') {
 }
 
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../config/input_validation.php';
 require_once __DIR__ . '/../config/notifications.php';
 
 function respond($statusCode, $payload)
@@ -161,8 +162,8 @@ function mapTicket($row)
         'reporterRole' => $row['reporter_role'],
         'reporterName' => $row['reporter_name'],
         'reporterEmail' => $row['reporter_email'],
-        'subject' => $row['subject'],
-        'description' => $row['description'],
+        'subject' => apiSafeText($row['subject']),
+        'description' => apiSafeText($row['description']),
         'attachmentUrl' => $row['attachment_path'],
         'attachmentType' => $row['attachment_type'],
         'status' => $row['status'],

@@ -13,6 +13,11 @@
 'use strict';
 
 /* ── Default state ──────────────────────────────────────────── */
+// Analytics labels are server-computed but include barangay and disease
+// names that originate in editable data, so they are escaped like any
+// other user-sourced value before reaching innerHTML.
+const esc = (v) => window.vbEscapeHtml(v);
+
 let diseaseAnalyticsData = {
     filters: ['All Diseases'],
     selectedDisease: 'All Diseases',
@@ -514,9 +519,9 @@ function renderOverview() {
     document.getElementById('kpiCards').innerHTML = diseaseAnalyticsData.kpis
         .map((kpi, i) => `
             <article class="kpi-card" style="animation-delay:${i * 60}ms">
-                <h5>${kpi.label}</h5>
-                <strong>${kpi.value}</strong>
-                <small>${kpi.trend}</small>
+                <h5>${esc(kpi.label)}</h5>
+                <strong>${esc(kpi.value)}</strong>
+                <small>${esc(kpi.trend)}</small>
             </article>
         `).join('');
     document.querySelectorAll('#kpiCards .kpi-card strong').forEach(el => countUp(el));
@@ -526,7 +531,7 @@ function renderOverview() {
             const isUsed = (s.status || '').toLowerCase().includes('used') &&
                            !(s.status || '').toLowerCase().includes('not used');
             return `<li>
-                <div class="source-info"><strong>${s.name}</strong><span>${s.status}</span></div>
+                <div class="source-info"><strong>${esc(s.name)}</strong><span>${esc(s.status)}</span></div>
                 <span class="source-status ${isUsed ? 'active' : 'inactive'}"></span>
             </li>`;
         }).join('');

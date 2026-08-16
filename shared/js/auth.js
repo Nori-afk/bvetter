@@ -98,6 +98,30 @@ function loginPageFor(role) {
     };
 })();
 
+/* ── HTML escaping ──────────────────────────────────────────────
+   Canonical escaper, available on every page because this file is.
+   Ten near-identical private copies of this already existed across the
+   page scripts, and the screens that were missing one were exactly the
+   ones that mattered: the admin session table and the account list,
+   which render other people's names into an administrator's browser.
+
+   Use this on ANY value that originated from a user before putting it
+   in innerHTML. The server also strips angle brackets from free text on
+   the way out (apiSafeText) and rejects them outright in name-type
+   fields, so this is the third of three layers, not the only one. */
+function vbEscapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+if (typeof window !== 'undefined') {
+    window.vbEscapeHtml = vbEscapeHtml;
+}
+
 /* ── Session helpers ────────────────────────────────────────── */
 function getSession() {
     try {

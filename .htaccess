@@ -37,4 +37,23 @@ ServerSignature Off
     Header always set X-Frame-Options "SAMEORIGIN"
     Header always set X-XSS-Protection "1; mode=block"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Content Security Policy — the blanket backstop for anything that gets
+    # past input validation and output escaping.
+    #
+    # HONEST LIMIT: script-src has to keep 'unsafe-inline' because the pages
+    # carry ~201 inline onclick-style handlers and 26 inline <script> blocks.
+    # That means this policy DOES block an injected <script src="//evil/x.js">
+    # and any attempt to exfiltrate to another host (connect-src 'self'), but
+    # it does NOT block an injected inline onerror=. Removing 'unsafe-inline'
+    # requires converting those 201 handlers to addEventListener first; until
+    # then the real protection against inline injection is the input
+    # rejection in api/config/input_validation.php and the escaping at the
+    # render sites, not this header.
+    #
+    # The host allowlist is exactly what the pages load today: three script
+    # CDNs (jsdelivr, cdnjs, unpkg), Google Fonts for CSS and font files, and
+    # via.placeholder.com for images. Adding a library from anywhere else
+    # means adding it here too, or it will silently fail to load.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://via.placeholder.com; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; object-src 'none'"
 </IfModule>
