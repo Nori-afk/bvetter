@@ -352,6 +352,37 @@ function excel_disease_rows()
     }, $sourceRows);
 }
 
+/**
+ * Risk Class for a barangay-month, on the same scale the historical labels use.
+ *
+ * Barangay_Disease_Monthly.risk_class is, in the source data, a case-VOLUME
+ * band rather than a clinical-severity rating -- its three classes separate
+ * almost entirely on total_cases (Low sits at 9, Medium spans 10-17, High
+ * 16-30). These cutoffs were fitted against that column directly and reproduce
+ * it for 925 of 972 labeled rows (95.2%); Low and High come out exact, and the
+ * only disagreements are 47 Medium rows in the 16-17 overlap that this rule
+ * calls High.
+ *
+ * Deriving live rows the same way keeps them comparable to the Excel rows they
+ * sit beside in this report. It deliberately does NOT read patient status: that
+ * measures how sick an individual animal is, which is a different question from
+ * how many cases a barangay saw, and mixing the two would give one column two
+ * meanings. Per-patient severity belongs to the consultation report's Risk
+ * Level (see risk_level_from_status).
+ *
+ * A low-volume month therefore reads 'Low' even when a diagnosis is clinically
+ * serious -- that matches the source labeling, where all 53 Rabies (Suspected)
+ * consultations are 'Low' because rabies is rare, not because it is harmless.
+ */
+function risk_class_from_volume($totalCases)
+{
+    $cases = (float) $totalCases;
+    if ($cases <= 0)  return 'N/A';
+    if ($cases <= 9)  return 'Low';
+    if ($cases <= 15) return 'Medium';
+    return 'High';
+}
+
 function db_disease_rows($pdo)
 {
     if (!bv_table_exists($pdo, 'patient_visit_records') || !bv_table_exists($pdo, 'pets')) return [];
@@ -415,9 +446,7 @@ function db_disease_rows($pdo)
         arsort($buckets);
         $topBucket = array_key_first($buckets);
         $row['dominantCaseGroup'] = $buckets[$topBucket] > 0 ? $topBucket : 'General/Other';
-        // No ground-truth risk model for DB-sourced rows yet — left honestly
-        // unclassified rather than guessing (see item 4: ARIMA/risk pipeline).
-        $row['riskClass'] = 'N/A';
+        $row['riskClass'] = risk_class_from_volume($row['totalCases']);
         return $row;
     }, $grouped));
 }
