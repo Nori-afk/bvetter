@@ -1,8 +1,19 @@
 Options -Indexes
 ServerSignature Off
 
-# Deny access to sensitive files
-<FilesMatch "(\.env|\.git|composer\.phar|composer-setup\.php|bvetter\.sql|reset-links\.log)">
+# Deny access to sensitive files.
+#
+# Named individually rather than by extension where it matters: manifest.json
+# must stay reachable or the PWA install breaks, so composer.json/lock are
+# listed by name instead of blocking *.json wholesale.
+#
+# .py is blocked because Apache serves Python as plain text, not as a program —
+# api/analytics/arima_service.py was readable in full, including the
+# root/root database credential fallback it uses when the env vars are unset.
+#
+# *.md covers README / TECHNICAL_MANUAL / STUDY_GUIDE, which between them
+# describe the directory layout, the endpoint table and the database setup.
+<FilesMatch "(\.env|\.git|composer\.(phar|json|lock)|composer-setup\.php|bvetter\.sql|reset-links\.log|phpunit\.xml|phpunit\.result\.cache|\.mcp\.json|\.md$|\.py$|\.sql$|\.log$)">
     Order allow,deny
     Deny from all
 </FilesMatch>
