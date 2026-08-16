@@ -104,32 +104,43 @@ function getRoleId($pdo, $roleName)
  */
 function ensureRescheduleSchema($pdo)
 {
-    static $checked = false;
-    if ($checked) return;
-    $checked = true;
+    static $ready = null;
+    if ($ready !== null) return $ready;
 
-    if (!$pdo->query("SHOW COLUMNS FROM appointments LIKE 'proposed_date'")->fetch()) {
-        $pdo->exec("
-            ALTER TABLE appointments
-                ADD COLUMN proposed_date DATE NULL AFTER time_slot,
-                ADD COLUMN proposed_time_slot VARCHAR(50) NULL AFTER proposed_date,
-                ADD COLUMN reschedule_reason VARCHAR(255) NULL AFTER proposed_time_slot,
-                ADD COLUMN reschedule_requested_by INT NULL AFTER reschedule_reason,
-                ADD COLUMN reschedule_requested_at DATETIME NULL AFTER reschedule_requested_by,
-                ADD COLUMN reschedule_prev_status VARCHAR(20) NULL AFTER reschedule_requested_at
-        ");
+    // The migration is attempted rather than assumed: on hosting where the
+    // database user has no ALTER privilege this must not take the whole
+    // appointments API down with it, so a failure degrades to "handshake
+    // unavailable" and booking/listing carry on. database/migrations/ has the
+    // same statements to run by hand if that happens.
+    try {
+        if (!$pdo->query("SHOW COLUMNS FROM appointments LIKE 'proposed_date'")->fetch()) {
+            $pdo->exec("
+                ALTER TABLE appointments
+                    ADD COLUMN proposed_date DATE NULL AFTER time_slot,
+                    ADD COLUMN proposed_time_slot VARCHAR(50) NULL AFTER proposed_date,
+                    ADD COLUMN reschedule_reason VARCHAR(255) NULL AFTER proposed_time_slot,
+                    ADD COLUMN reschedule_requested_by INT NULL AFTER reschedule_reason,
+                    ADD COLUMN reschedule_requested_at DATETIME NULL AFTER reschedule_requested_by,
+                    ADD COLUMN reschedule_prev_status VARCHAR(20) NULL AFTER reschedule_requested_at
+            ");
+        }
+
+        // Widen the status enum for the awaiting-owner state.
+        $status = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'status'")->fetch();
+        if ($status && strpos($status['Type'], 'reschedule_pending') === false) {
+            $pdo->exec("
+                ALTER TABLE appointments
+                MODIFY COLUMN status
+                ENUM('pending','confirmed','completed','cancelled','rejected','reschedule_pending')
+                DEFAULT 'pending'
+            ");
+        }
+    } catch (PDOException $e) {
+        error_log('bvetter: reschedule schema migration failed: ' . $e->getMessage());
+        return $ready = false;
     }
 
-    // Widen the status enum for the awaiting-owner state.
-    $status = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'status'")->fetch();
-    if ($status && strpos($status['Type'], 'reschedule_pending') === false) {
-        $pdo->exec("
-            ALTER TABLE appointments
-            MODIFY COLUMN status
-            ENUM('pending','confirmed','completed','cancelled','rejected','reschedule_pending')
-            DEFAULT 'pending'
-        ");
-    }
+    return $ready = true;
 }
 
 function findOrCreateOwner($pdo, $data)
@@ -319,9 +330,13 @@ function listAppointments($pdo, $data)
         appointments.preferred_date,
         appointments.time_slot,
         appointments.status,
-        appointments.proposed_date,
-        appointments.proposed_time_slot,
-        appointments.reschedule_reason,
+        ' . (ensureRescheduleSchema($pdo)
+                ? 'appointments.proposed_date,
+                   appointments.proposed_time_slot,
+                   appointments.reschedule_reason,'
+                : 'NULL AS proposed_date,
+                   NULL AS proposed_time_slot,
+                   NULL AS reschedule_reason,') . '
         appointments.description,
         appointments.notes,
         appointments.created_at,
@@ -761,29 +776,37 @@ function slotConflictExists($pdo, $vetId, $date, $timeSlot, $excludeId)
 {
     $vetClause = $vetId > 0 ? 'AND (veterinarian_id = :vet_id OR veterinarian_id IS NULL)' : '';
 
+    $params = [
+        ':id'   => $excludeId,
+        ':date' => $date,
+        ':slot' => $timeSlot,
+    ];
+
+    // Without the handshake columns there are no held slots to consider, and
+    // referencing them would break booking outright.
+    $heldClause = '';
+    if (ensureRescheduleSchema($pdo)) {
+        $heldClause = "OR (proposed_date = :date2 AND proposed_time_slot = :slot2
+                           AND status = 'reschedule_pending')";
+        $params[':date2'] = $date;
+        $params[':slot2'] = $timeSlot;
+    }
+
+    if ($vetId > 0) {
+        $params[':vet_id'] = $vetId;
+    }
+
     $stmt = $pdo->prepare("
         SELECT id FROM appointments
         WHERE id <> :id
           AND (
                 (preferred_date = :date AND time_slot = :slot
                  AND status IN ('confirmed', 'completed', 'reschedule_pending'))
-             OR (proposed_date = :date2 AND proposed_time_slot = :slot2
-                 AND status = 'reschedule_pending')
+                {$heldClause}
               )
           {$vetClause}
         LIMIT 1
     ");
-
-    $params = [
-        ':id'    => $excludeId,
-        ':date'  => $date,
-        ':slot'  => $timeSlot,
-        ':date2' => $date,
-        ':slot2' => $timeSlot,
-    ];
-    if ($vetId > 0) {
-        $params[':vet_id'] = $vetId;
-    }
 
     $stmt->execute($params);
     return (bool) $stmt->fetchColumn();
@@ -1063,17 +1086,32 @@ function getBookedSlots($pdo, $data)
     }
 
     $excludeClause = $excludeId > 0 ? ' AND id <> :exclude_id' : '';
-    $params = [':date' => $date, ':date2' => $date];
+    $params = [':date' => $date];
     if ($excludeId > 0) $params[':exclude_id'] = $excludeId;
 
-    // Both halves of a pending reschedule are reported as booked: the original
-    // slot is still held in case the owner declines, and the proposed one is
-    // held in case they accept.
     // If a vet is specified, only block slots for that vet.
     // If no vet assigned (NULL), those appointments block ALL vets
     // since the clinic hasn't assigned them yet.
     $vetClause = $vetId > 0 ? ' AND (veterinarian_id = :vet_id OR veterinarian_id IS NULL)' : '';
     if ($vetId > 0) $params[':vet_id'] = $vetId;
+
+    // Both halves of a pending reschedule are reported as booked: the original
+    // slot is still held in case the owner declines, and the proposed one is
+    // held in case they accept. Skipped entirely when the handshake columns
+    // aren't present, so slot lookups keep working either way.
+    $proposedUnion = '';
+    if (ensureRescheduleSchema($pdo)) {
+        $proposedUnion = "
+            UNION
+            SELECT proposed_time_slot AS time_slot FROM appointments
+            WHERE proposed_date = :date2
+              AND status = 'reschedule_pending'
+              AND proposed_time_slot IS NOT NULL
+              {$vetClause}
+              {$excludeClause}
+        ";
+        $params[':date2'] = $date;
+    }
 
     $stmt = $pdo->prepare("
         SELECT time_slot FROM appointments
@@ -1081,13 +1119,7 @@ function getBookedSlots($pdo, $data)
           AND status IN ('confirmed', 'completed', 'reschedule_pending')
           {$vetClause}
           {$excludeClause}
-        UNION
-        SELECT proposed_time_slot AS time_slot FROM appointments
-        WHERE proposed_date = :date2
-          AND status = 'reschedule_pending'
-          AND proposed_time_slot IS NOT NULL
-          {$vetClause}
-          {$excludeClause}
+        {$proposedUnion}
     ");
     $stmt->execute($params);
 
@@ -1163,9 +1195,20 @@ if ($action === 'respond_reschedule') {
     $ownerSession = requireRole($pdo, ['pet_owner']);
 }
 
-// The reschedule handshake needs its columns present before any action reads
-// or writes them.
-ensureRescheduleSchema($pdo);
+// Resolve the schema once, up front. MySQL implicitly commits on DDL, so
+// attempting the migration inside bookAppointment's transaction would silently
+// end it and break the rollback -- running it here means every later call just
+// reads the cached result.
+$rescheduleSchemaReady = ensureRescheduleSchema($pdo);
+
+// The handshake can't run without its columns. Everything else on this
+// endpoint works regardless, so only these two actions are blocked.
+if (in_array($action, ['reschedule', 'respond_reschedule'], true) && !$rescheduleSchemaReady) {
+    respond(503, [
+        'success' => false,
+        'message' => 'Rescheduling is temporarily unavailable. Please contact the clinic directly.'
+    ]);
+}
 
 try {
     if ($action === 'list') listAppointments($pdo, $input);
