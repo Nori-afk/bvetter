@@ -285,6 +285,14 @@ function todayIso() {
 // rather than rejecting a genuinely old animal.
 const MAX_PET_AGE_YEARS = 30;
 
+// Nothing is scheduled more than a year out, so anything past this is a
+// mistyped year rather than a real plan.
+function oneYearAheadIso() {
+	const d = new Date();
+	d.setFullYear(d.getFullYear() + 1);
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function earliestPetDobIso() {
 	const d = new Date();
 	d.setFullYear(d.getFullYear() - MAX_PET_AGE_YEARS);
@@ -1133,7 +1141,7 @@ function renderAdd(record) {
 						</div>
 						<div class="field">
 							<label class="field-label" for="follow-up-date">FOLLOW-UP DATE</label>
-							<input class="form-input" id="follow-up-date" name="followUpDate" type="date" min="${todayIso()}" value="${escapeHtml(data.followUpDate)}">
+							<input class="form-input" id="follow-up-date" name="followUpDate" type="date" min="${todayIso()}" max="${oneYearAheadIso()}" value="${escapeHtml(data.followUpDate)}">
 							<span class="field-error" id="follow-up-date-error"></span>
 						</div>
 						<div class="field">

@@ -64,6 +64,10 @@ function isWeekendIso(dateIso) {
 // server-side in bookAppointment() — the input attribute is only UX.
 const BOOKING_HORIZON_MONTHS = 3;
 
+// Oldest plausible pet, used as the floor for vaccination history. Matches
+// MAX_PET_AGE_YEARS in vet/js/patient-records.js.
+const MAX_PET_AGE_YEARS = 30;
+
 function bookingHorizonDate() {
   const horizon = new Date();
   horizon.setHours(0, 0, 0, 0);
@@ -76,8 +80,19 @@ function buildCalendar(year, month) {
   const apptDate = document.getElementById("apptDate");
   apptDate.min = today_input;
   apptDate.max = toLocalIsoDate(bookingHorizonDate());
-  // petVaccDate intentionally has no min/max — owners can log a past
-  // vaccination date or one scheduled for the future.
+
+  // petVaccDate still spans past and future — owners log a vaccination already
+  // given or one already scheduled — but not by decades. The floor matches the
+  // oldest plausible pet, the ceiling a year out.
+  const vaccDate = document.getElementById("petVaccDate");
+  if (vaccDate) {
+    const floor = new Date();
+    floor.setFullYear(floor.getFullYear() - MAX_PET_AGE_YEARS);
+    const ceiling = new Date();
+    ceiling.setFullYear(ceiling.getFullYear() + 1);
+    vaccDate.min = toLocalIsoDate(floor);
+    vaccDate.max = toLocalIsoDate(ceiling);
+  }
 
   calYear = year;
   calMonth = month;

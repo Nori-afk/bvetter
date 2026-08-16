@@ -1285,6 +1285,10 @@
 
     const openModal  = () => {
         dateInput.min = todayIso();
+        // No event is planned more than a year out — past this is a typo.
+        const horizon = new Date();
+        horizon.setFullYear(horizon.getFullYear() + 1);
+        dateInput.max = horizon.toISOString().slice(0, 10);
         rebuildVaccineOptions();
         document.getElementById('create-event-modal').classList.remove('hidden');
     };

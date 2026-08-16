@@ -728,7 +728,7 @@ function openAnnouncementEditorModal({ mode, item }) {
                 </div>
                 <div class="dash-field-wrap">
                     <label class="dash-field-label" for="announcement-date">Date</label>
-                    <input id="announcement-date" class="dash-input" type="date" value="${escapeHtml(localState.date)}">
+                    <input id="announcement-date" class="dash-input" type="date" min="${announcementDateFloor(localState.date)}" max="${oneYearAheadIso()}" value="${escapeHtml(localState.date)}">
                 </div>
             </div>
             <div class="dash-field-wrap">
@@ -1152,6 +1152,21 @@ function safeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+// Nothing is announced more than a year out, so past this is a mistyped year.
+function oneYearAheadIso() {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().slice(0, 10);
+}
+
+// An announcement can't be scheduled into the past, but editing an older one
+// must keep its own date reachable or the record can't be saved.
+function announcementDateFloor(current) {
+    const today = new Date().toISOString().slice(0, 10);
+    const value = String(current ?? '').trim();
+    return value && value < today ? value : today;
 }
 
 // Slots are stored as 24-hour 'HH:MM'; the timeline reads better as '3:00 PM'.
