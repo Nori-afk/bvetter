@@ -85,6 +85,107 @@ function setupPatientTables($pdo)
             INDEX idx_pvacc_visit (visit_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+
+    setupDiseaseCatalog($pdo);
+}
+
+/**
+ * Maps Consult_Diagnosis_3Y's ten-value disease_category vocabulary onto the
+ * four bucket columns the risk model actually consumes.
+ *
+ * The RandomForestClassifier's features include skin_ratio / para_ratio /
+ * resp_ratio / gastro_ratio (FEATURE_COLS in api/analytics/arima_service.py),
+ * which are built from exactly four bucket columns -- but the Excel sheet
+ * describes cases with ten richer categories. This collapses one onto the
+ * other by each category's dominant clinical sense.
+ *
+ * This mapping is deliberately NOT validated against Barangay_Disease_Monthly:
+ * the two sheets are independent datasets whose totals don't reconcile (their
+ * per-barangay-month counts differ ~3-4x), so there is no ground truth to
+ * check it against. Categories with no matching bucket stay 'General/Other',
+ * which counts toward total_cases without landing in a bucket -- exactly how
+ * unrecognised categories already behaved, so this adds no new behaviour.
+ */
+function diseaseBucketForCategory($displayCategory)
+{
+    switch (trim((string) $displayCategory)) {
+        case 'Skin / external parasite':     return 'Skin';
+        case 'Gastrointestinal / parasitic': return 'Gastrointestinal';
+        case 'Respiratory':                  return 'Respiratory';
+        case 'Vector-borne / parasitic':     return 'Parasitic';
+        default:                             return 'General/Other';
+    }
+}
+
+/**
+ * Canonical diagnosis list, seeded once from the Excel's Consult_Diagnosis_3Y
+ * sheet so the vet form, the reports and the forecasting pipeline all agree on
+ * one vocabulary.
+ *
+ * Why this exists: live visits only reach the per-disease forecast if their
+ * diagnosis text matches the historical series (load_db_consult_rows() in
+ * api/analytics/arima_service.py matches on that text), so free-text entries
+ * like 'nag susuka' were invisible to prediction. Holding the list in the DB
+ * rather than hardcoding it also gives insertVisit() a server-side
+ * diagnosis -> category lookup, so the category is derived rather than typed:
+ * diagnosis determines it uniquely (all 42 diagnoses map to exactly one
+ * category in the source sheet, verified), which is why the form no longer
+ * asks for it.
+ */
+function setupDiseaseCatalog($pdo)
+{
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS diseases (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(160) NOT NULL UNIQUE,
+            display_category VARCHAR(60) NOT NULL DEFAULT 'Other',
+            bucket_category VARCHAR(40) NOT NULL DEFAULT 'General/Other',
+            animal_groups VARCHAR(120) NOT NULL DEFAULT '',
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_diseases_active (is_active)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+
+    // Seeded only while empty. Parsing the 4,986-row sheet is far too costly to
+    // repeat on every patient-records request, and re-seeding would also undo
+    // any disease the clinic later edits or deactivates through the table.
+    if ((int) $pdo->query("SELECT COUNT(*) FROM diseases")->fetchColumn() > 0) return;
+
+    require_once __DIR__ . '/dataset.php';
+    $rows = bv_sheet_rows('Consult_Diagnosis_3Y');
+    if (!$rows) return;
+
+    $catalog = [];
+    foreach ($rows as $row) {
+        $name = trim((string) ($row['diagnosis'] ?? ''));
+        if ($name === '') continue;
+        if (!isset($catalog[$name])) {
+            $catalog[$name] = [
+                'display_category' => trim((string) ($row['disease_category'] ?? 'Other')),
+                'animal_groups'    => [],
+            ];
+        }
+        $group = trim((string) ($row['animal_group'] ?? ''));
+        if ($group !== '') $catalog[$name]['animal_groups'][$group] = true;
+    }
+    if (!$catalog) return;
+
+    $insert = $pdo->prepare("
+        INSERT INTO diseases (name, display_category, bucket_category, animal_groups)
+        VALUES (:name, :display_category, :bucket_category, :animal_groups)
+        ON DUPLICATE KEY UPDATE name = name
+    ");
+    foreach ($catalog as $name => $meta) {
+        $groups = array_keys($meta['animal_groups']);
+        sort($groups);
+        $insert->execute([
+            ':name'             => $name,
+            ':display_category' => $meta['display_category'] !== '' ? $meta['display_category'] : 'Other',
+            ':bucket_category'  => diseaseBucketForCategory($meta['display_category']),
+            ':animal_groups'    => implode(', ', $groups),
+        ]);
+    }
 }
 
 function ensurePatientRecordFromAppointment($pdo, $appointmentId)

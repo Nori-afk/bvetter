@@ -262,6 +262,15 @@ function db_consultation_rows($pdo)
         ? 'LEFT JOIN patient_record_profiles prp ON prp.pet_id = pets.id'
         : '';
 
+    // pvr.disease_category holds the four-bucket value the risk model needs,
+    // but this table sits alongside Excel rows that show the richer ten-value
+    // category (e.g. 'Zoonotic / reportable'). Joining the catalog lets both
+    // sources display the same vocabulary instead of live rows flattening a
+    // rabies case to 'General/Other' next to an Excel row calling it zoonotic.
+    $diseaseJoin = bv_table_exists($pdo, 'diseases')
+        ? 'LEFT JOIN diseases d ON d.name = pvr.diagnosis'
+        : '';
+
     try {
         $rows = $pdo->query("
             SELECT
@@ -270,6 +279,7 @@ function db_consultation_rows($pdo)
                 pvr.diagnosis,
                 pvr.disease_category,
                 pvr.patient_status_at_visit,
+                " . ($diseaseJoin ? 'd.display_category' : "NULL") . " AS display_category,
                 pets.species,
                 {$barangayExpr} AS barangay,
                 " . ($profileJoin ? 'prp.source' : "''") . " AS source
@@ -277,6 +287,7 @@ function db_consultation_rows($pdo)
             INNER JOIN pets ON pets.id = pvr.pet_id
             {$barangayJoin}
             {$profileJoin}
+            {$diseaseJoin}
             WHERE pvr.diagnosis IS NOT NULL AND pvr.diagnosis != ''
             ORDER BY pvr.visit_date DESC, pvr.id DESC
         ")->fetchAll();
@@ -291,7 +302,7 @@ function db_consultation_rows($pdo)
             'barangay' => $row['barangay'] ?: 'N/A',
             'animalGroup' => $row['species'] ?: 'N/A',
             'diagnosis' => $row['diagnosis'] ?: '',
-            'diseaseCategory' => $row['disease_category'] ?: 'General/Other',
+            'diseaseCategory' => $row['display_category'] ?: ($row['disease_category'] ?: 'General/Other'),
             'riskLevel' => risk_level_from_status($row['patient_status_at_visit']),
             'cases' => 1,
             'source' => $row['source'] ?: '',

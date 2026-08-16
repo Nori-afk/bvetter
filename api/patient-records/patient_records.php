@@ -331,6 +331,47 @@ function validateVisitDates($data)
     }
 }
 
+/**
+ * Looks the disease category up from the diagnosis rather than trusting the
+ * client to send one. Every diagnosis in the catalog maps to exactly one
+ * category, so asking the vet to pick it separately was redundant and let the
+ * two disagree -- a "Rabies (Suspected)" visit could be filed as General/Other.
+ * Anything not in the catalog (the form's "Other / Not Listed" free text) has
+ * no known category and falls back to 'General/Other', which counts toward
+ * total_cases without landing in a model bucket.
+ */
+function deriveDiseaseCategory($pdo, $diagnosis)
+{
+    $diagnosis = clean($diagnosis);
+    if ($diagnosis === '') return 'General/Other';
+
+    try {
+        $stmt = $pdo->prepare('SELECT bucket_category FROM diseases WHERE name = :name LIMIT 1');
+        $stmt->execute([':name' => $diagnosis]);
+        $bucket = $stmt->fetchColumn();
+    } catch (Throwable $e) {
+        return 'General/Other';
+    }
+
+    return $bucket !== false && $bucket !== null ? (string) $bucket : 'General/Other';
+}
+
+function listDiseases($pdo)
+{
+    try {
+        $rows = $pdo->query("
+            SELECT name, display_category, bucket_category, animal_groups
+            FROM diseases
+            WHERE is_active = 1
+            ORDER BY name ASC
+        ")->fetchAll();
+    } catch (Throwable $e) {
+        $rows = [];
+    }
+
+    respond(200, ['success' => true, 'data' => $rows]);
+}
+
 function insertVisit($pdo, $petId, $ownerId, $data)
 {
     $stmt = $pdo->prepare("
@@ -352,7 +393,7 @@ function insertVisit($pdo, $petId, $ownerId, $data)
         ':treatment' => clean($data['treatment'] ?? ''),
         ':medications_json' => medicationsJson($data),
         ':category' => clean($data['category'] ?? 'Routine Checkup'),
-        ':disease_category' => clean($data['diseaseCategory'] ?? 'General/Other'),
+        ':disease_category' => deriveDiseaseCategory($pdo, $data['diagnosis'] ?? ''),
         ':patient_status_at_visit' => clean($data['status'] ?? 'Active Patient'),
         ':attending_vet' => clean($data['attendingVet'] ?? ''),
         ':vaccination_status' => clean($data['vaccinationStatus'] ?? ''),
@@ -565,6 +606,7 @@ try {
     setupPatientTables($pdo);
 
     if ($action === 'list') listRecords($pdo);
+    if ($action === 'diseases') listDiseases($pdo);
     if ($action === 'save') saveRecord($pdo, $input);
     if ($action === 'save_batch') saveBatch($pdo, $input);
     if ($action === 'update') updateRecord($pdo, $input);

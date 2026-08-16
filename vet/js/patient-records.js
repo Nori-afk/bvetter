@@ -1,6 +1,10 @@
 ﻿const STORAGE_KEY = 'vbetter.patient-records';
 
-const DIAGNOSIS_OPTIONS = [
+// Seeded from the `diseases` table at load (see loadDiagnosisOptions below).
+// The literal list stays as an offline fallback so the form still works if the
+// catalog request fails -- it matches the seed source exactly, so a vet picking
+// from either copy produces a diagnosis the forecasting pipeline recognises.
+let DIAGNOSIS_OPTIONS = [
 	'Avian Influenza', 'Canine Distemper', 'Coccidiosis', 'Dental Disease', 'Ear Infection',
 	'Ear Mites', 'Ehrlichiosis', 'Enterotoxemia', 'Feline Immunodeficiency Virus (FIV)',
 	'Feline Leukemia Virus (FeLV)', 'Feline Lower Urinary Tract Disease', 'Feline Panleukopenia',
@@ -13,6 +17,20 @@ const DIAGNOSIS_OPTIONS = [
 	'Skin Infection', 'Upper Respiratory Infection', 'Urinary Tract Infection'
 ];
 const DIAGNOSIS_OTHER = 'Other / Not Listed';
+
+// Replaces the fallback list with the live catalog so a disease added to the
+// `diseases` table shows up here without a code change. Failures are non-fatal:
+// the literal list above already covers every seeded disease.
+async function loadDiagnosisOptions() {
+	try {
+		const res = await fetch('/api/patient-records/patient_records.php?action=diseases', { cache: 'no-store' });
+		const result = await res.json();
+		const names = (result?.data || []).map((row) => row.name).filter(Boolean);
+		if (names.length) DIAGNOSIS_OPTIONS = names;
+	} catch (err) {
+		console.warn('Disease catalog unavailable, using built-in list.', err);
+	}
+}
 
 function vaccineTypeOptionsHtml(selected) {
 	const types = window.VaccineTypes?.getAll ? window.VaccineTypes.getAll() : ['Anti-Rabies'];
@@ -1176,12 +1194,6 @@ function renderAdd(record) {
 							</select>
 						</div>
 						<div class="field">
-							<label class="field-label" for="disease-category">DISEASE CATEGORY</label>
-							<select class="form-input" id="disease-category" name="diseaseCategory">
-								${['General/Other', 'Skin', 'Parasitic', 'Respiratory', 'Gastrointestinal', 'Zoonotic'].map((item) => `<option ${data.diseaseCategory === item ? 'selected' : ''}>${item}</option>`).join('')}
-							</select>
-						</div>
-						<div class="field">
 							<label class="field-label" for="vaccination-status">VACCINATION STATUS</label>
 							<select class="form-input" id="vaccination-status" name="vaccinationStatus">
 								${['Up to date', 'Pending', 'Pending booster', 'Overdue', 'Completed'].map((item) => `<option ${data.vaccinationStatus === item ? 'selected' : ''}>${item}</option>`).join('')}
@@ -1506,7 +1518,9 @@ function getFormData(form) {
 		treatment: String(formData.get('treatment') || '').trim(),
 		medications,
 		category: String(formData.get('category') || '').trim(),
-		diseaseCategory: String(formData.get('diseaseCategory') || '').trim(),
+		// diseaseCategory is intentionally not sent: the server derives it from
+		// the diagnosis (deriveDiseaseCategory in api/patient-records/patient_records.php)
+		// so the two can never disagree.
 		attendingVet: String(formData.get('attendingVet') || '').trim(),
 		vaccinationStatus: String(formData.get('vaccinationStatus') || '').trim(),
 		vaccineBrand: String(formData.get('vaccineBrand') || '').trim(),
@@ -1887,7 +1901,7 @@ function bindGlobalEvents() {
 async function bootstrap() {
 	routeFromUrl();
 	app.innerHTML = '<section class="records-shell"><div class="empty-state">Loading patient records...</div></section>';
-	await loadRecords();
+	await Promise.all([loadRecords(), loadDiagnosisOptions()]);
 	render();
 	bindGlobalEvents();
 }
