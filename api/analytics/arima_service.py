@@ -680,7 +680,159 @@ def load_db_disease_monthly(after_year: int, after_month: int) -> pd.DataFrame:
     }).rename(columns={"cases": "total_cases"})
     grouped["risk_class"] = np.nan
     grouped["is_db_sourced"] = True
+    # Genuinely-encoded activity, unlike the rows _fill_declared_coverage
+    # synthesizes -- only these are eligible to become training data.
+    grouped["is_zero_filled"] = False
     return grouped
+
+
+def load_coverage_cutoff() -> tuple:
+    """
+    The month the encoder has declared patient-visit entry complete through,
+    as (year, month), or None if nothing has been declared.
+
+    This is the only thing that can tell an empty barangay-month apart from an
+    un-encoded one. Without it both trust gates below must assume the worst and
+    distrust everything after the first missing month; with it, months at or
+    before the cutoff are known-complete, so a gap there is a genuine zero.
+    Anything after the cutoff stays distrusted -- it may be half-entered.
+    """
+    try:
+        conn = db_connect()
+    except Exception as e:
+        print(f"[DB] coverage lookup failed, assuming none declared: {e}")
+        return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT complete_through_year AS y, complete_through_month AS m "
+                        "FROM disease_data_coverage WHERE id = 1")
+            row = cur.fetchone()
+    except Exception as e:
+        print(f"[DB] coverage lookup failed, assuming none declared: {e}")
+        return None
+    finally:
+        conn.close()
+
+    if not row or row.get("y") in (None, 0) or row.get("m") in (None, 0):
+        return None
+    return (int(row["y"]), int(row["m"]))
+
+
+def _months_between(start: tuple, end: tuple):
+    """Yields (year, month) from start to end inclusive."""
+    y, m = start
+    while (y, m) <= end:
+        yield (y, m)
+        m += 1
+        if m > 12:
+            m, y = 1, y + 1
+
+
+def _fill_declared_coverage(df: pd.DataFrame, after: tuple, cutoff: tuple) -> pd.DataFrame:
+    """
+    Materialises zero-case rows for barangay-months that fall inside the
+    declared-complete window but produced no visits.
+
+    load_db_disease_monthly() builds its rows with a GROUP BY over actual
+    visits, so a barangay with no consultations that month yields no row at
+    all. The Excel history has no such holes (every barangay appears in every
+    month), so the trust gates read a hole as "logging hasn't caught up" and
+    stop there. Inside the declared window that reading is wrong -- the hole
+    means zero cases -- and filling it keeps each barangay's run unbroken so
+    its later live months stay usable.
+
+    Only barangays that already have Excel history are filled: a barangay with
+    no history has no lag features to compute anyway.
+    """
+    if cutoff is None:
+        return df
+
+    known = df.loc[~df["is_db_sourced"], "barangay"].dropna().unique()
+    if len(known) == 0:
+        return df
+
+    start = (after[0], after[1] + 1) if after[1] < 12 else (after[0] + 1, 1)
+    if start > cutoff:
+        return df
+
+    present = set(map(tuple, df.loc[df["is_db_sourced"], ["barangay", "year", "month_no"]]
+                      .itertuples(index=False, name=None)))
+    filler = []
+    for barangay in known:
+        for (yr, mo) in _months_between(start, cutoff):
+            if (barangay, yr, mo) in present:
+                continue
+            filler.append({
+                "barangay": barangay, "year": yr, "month_no": mo,
+                "skin_related_cases": 0, "parasitic_cases": 0,
+                "respiratory_cases": 0, "gastrointestinal_cases": 0,
+                "total_cases": 0, "risk_class": np.nan, "is_db_sourced": True,
+                # Synthesized for series continuity, NOT evidence of anything.
+                # _label_live_rows must never label these: they would all band
+                # as "Low" and, at 185-to-4 against real rows, would teach the
+                # classifier that every recent month is Low.
+                "is_zero_filled": True,
+            })
+
+    if not filler:
+        return df
+    print(f"[coverage] filled {len(filler)} zero-case barangay-months "
+          f"within declared coverage through {cutoff[0]}-{cutoff[1]:02d}")
+    return pd.concat([df, pd.DataFrame(filler)], ignore_index=True, sort=False)
+
+
+def risk_class_from_volume(total_cases: float):
+    """
+    The risk band a barangay-month's case count falls in.
+
+    Mirrors risk_class_from_volume() in api/reports/reports.php -- if one moves,
+    move the other. The cutoffs were fitted directly against
+    Barangay_Disease_Monthly.risk_class and reproduce it for 925 of 972 labelled
+    rows (95.16%), exact on Low and High.
+
+    This works because risk_class in the source data is a DEFINITION rather than
+    an observation: nobody recorded that a barangay "was" high risk, the band was
+    computed from volume. Applying the same rule to live months is therefore
+    consistent with the historical labelling, not invented ground truth.
+    """
+    if total_cases <= 0:
+        return None
+    if total_cases <= 9:
+        return "Low"
+    if total_cases <= 15:
+        return "Medium"
+    return "High"
+
+
+def _label_live_rows(df: pd.DataFrame, cutoff: tuple) -> pd.DataFrame:
+    """
+    Gives genuinely-encoded live barangay-months a risk_class so they can join
+    the classifier's training set, which otherwise sees only 2023-2025 Excel
+    rows and has never encountered the low-volume regime live data sits in
+    (Excel spans 9-30 cases/month; live months run 1-7).
+
+    Two exclusions, both load-bearing:
+      - zero-filled rows (see _fill_declared_coverage) are never labelled; they
+        are placeholders, and labelling them would flood the scarce "Low" class
+        with rows carrying no information.
+      - months past the declared cutoff are never labelled, since a partly
+        encoded month would band far lower than it truly was.
+    """
+    if cutoff is None or df.empty:
+        return df
+
+    month_idx  = df["year"].astype(int) * 12 + df["month_no"].astype(int)
+    within     = month_idx <= (cutoff[0] * 12 + cutoff[1])
+    eligible   = (df["is_db_sourced"].astype(bool)
+                  & ~df["is_zero_filled"].astype(bool)
+                  & df["risk_class"].isna()
+                  & within)
+    if not eligible.any():
+        return df
+
+    df.loc[eligible, "risk_class"] = df.loc[eligible, "total_cases"].map(risk_class_from_volume)
+    print(f"[coverage] labelled {int(eligible.sum())} live barangay-month(s) for classifier training")
+    return df
 
 
 def load_all_disease_dataframe() -> pd.DataFrame:
@@ -690,11 +842,17 @@ def load_all_disease_dataframe() -> pd.DataFrame:
     df["month_no"]    = pd.to_numeric(df["month_no"], errors="coerce").fillna(1).astype(int)
     df["total_cases"] = pd.to_numeric(df["total_cases"], errors="coerce").fillna(0)
     df["is_db_sourced"] = False
+    df["is_zero_filled"] = False
 
     after_year, after_month = _latest_period(df)
     db_df = load_db_disease_monthly(after_year, after_month)
     if not db_df.empty:
         df = pd.concat([df, db_df], ignore_index=True, sort=False)
+
+    coverage_cutoff = load_coverage_cutoff()
+    df = _fill_declared_coverage(df, (after_year, after_month), coverage_cutoff)
+    df["is_zero_filled"] = df["is_zero_filled"].fillna(False).astype(bool)
+    df = _label_live_rows(df, coverage_cutoff)
 
     df = df.sort_values(["barangay", "year", "month_no"]).reset_index(drop=True)
     grp = df.groupby("barangay")["total_cases"]
@@ -714,7 +872,7 @@ def load_all_disease_dataframe() -> pd.DataFrame:
     return df.dropna(subset=["lag_1", "lag_2", "lag_3", "rolling_mean_3"])
 
 
-def _arima_safe_frame(df: pd.DataFrame) -> pd.DataFrame:
+def _arima_safe_frame(df: pd.DataFrame, cutoff: tuple = None) -> pd.DataFrame:
     """
     ARIMA/SARIMA forecasts are dominated by whatever sits at the tail of the
     series, so a single sparse or incompletely-logged live month there can
@@ -732,6 +890,12 @@ def _arima_safe_frame(df: pd.DataFrame) -> pd.DataFrame:
     month for that barangay -- any gap means logging coverage isn't
     complete enough yet, so ARIMA falls back to Excel-only for that
     barangay until the gap closes.
+
+    When a coverage cutoff has been declared (see load_coverage_cutoff), every
+    month at or before it is known to be fully encoded, so the run-check is
+    unnecessary within that window -- _fill_declared_coverage has already
+    materialised any empty months as real zeros. Months past the cutoff are
+    still gated, because they may only be partly entered.
     """
     keep_mask = ~df["is_db_sourced"]
     for barangay, bdf in df[df["is_db_sourced"]].groupby("barangay"):
@@ -741,8 +905,14 @@ def _arima_safe_frame(df: pd.DataFrame) -> pd.DataFrame:
             expected_month += 1
             if expected_month > 12:
                 expected_month, expected_year = 1, expected_year + 1
+            within_declared = cutoff is not None and (int(row["year"]), int(row["month_no"])) <= cutoff
             if int(row["year"]) == expected_year and int(row["month_no"]) == expected_month:
                 keep_mask.loc[row_idx] = True
+            elif within_declared:
+                # Declared complete, so this is a real gap in cases rather than
+                # in coverage; keep it and resync the expected cursor to it.
+                keep_mask.loc[row_idx] = True
+                expected_year, expected_month = int(row["year"]), int(row["month_no"])
             else:
                 break
     return df[keep_mask]
@@ -798,26 +968,35 @@ def get_all_disease_models():
     print("Training All-Disease Hybrid (ARIMA + RandomForestClassifier)…")
     df     = load_all_disease_dataframe()
     n_db_rows = int(df.get("is_db_sourced", pd.Series(dtype=bool)).sum())
-    arima_df = _arima_safe_frame(df)
+    arima_df = _arima_safe_frame(df, load_coverage_cutoff())
     n_arima_db_rows = int(arima_df.get("is_db_sourced", pd.Series(dtype=bool)).sum())
     arima_series = _build_arima_series_for_df(arima_df)
     arima_acc    = _arima_pooled_accuracy(arima_series)
 
-    # Classifier trains only on rows with a real risk_class label -- that's
-    # every Excel-sourced row, but never a live DB-continuation row (see
-    # load_db_disease_monthly()'s docstring: no risk_class exists yet for
-    # live patient_visit_records data).
+    # Rows carrying a risk_class: every Excel row, plus any genuinely-encoded
+    # live month inside the declared coverage window that _label_live_rows
+    # banded (never a zero-filled placeholder -- see that function).
     df_cls = df[df["risk_class"].notna()].reset_index(drop=True)
     X_cls  = df_cls[FEATURE_COLS].values
     le     = LabelEncoder()
     y_cls  = le.fit_transform(df_cls["risk_class"].astype(str))
 
+    # The held-out set is drawn from Excel rows ONLY. Their labels ship with the
+    # source data; live labels are derived by applying risk_class_from_volume.
+    # Scoring against derived labels would collapse the reported accuracy into
+    # "can the forest reproduce a threshold function", so live rows are allowed
+    # to train but never to be graded on.
+    is_excel  = ~df_cls["is_db_sourced"].to_numpy(dtype=bool)
+    excel_idx = np.flatnonzero(is_excel)
+    live_idx  = np.flatnonzero(~is_excel)
+    n_live_labeled = int(live_idx.size)
+
     # Stratified (not chronological) split: the "Low" class is only ~6 of
     # ~891 rows, all early in sort order -- a chronological split would make
     # it invisible during evaluation.
-    cls_idx = np.arange(len(df_cls))
-    train_idx, test_idx = train_test_split(
-        cls_idx, test_size=0.2, random_state=42, stratify=y_cls)
+    train_excel, test_idx = train_test_split(
+        excel_idx, test_size=0.2, random_state=42, stratify=y_cls[excel_idx])
+    train_idx = np.concatenate([train_excel, live_idx]) if live_idx.size else train_excel
 
     # SMOTE on the training fold only (never the held-out test set), to
     # address that same scarcity. k_neighbors is capped below the smallest
@@ -901,9 +1080,15 @@ def get_all_disease_models():
             f"class has only ~6 of {len(df_cls)} rows. Held-out accuracy: {accuracy_val}%. "
             f"Live rows from patient_visit_records ({n_db_rows} beyond the Excel "
             f"snapshot's latest month, {n_arima_db_rows} of those trusted into the "
-            "ARIMA/SARIMA series -- see _arima_safe_frame) have no risk_class label "
-            "yet, so they aren't part of the classifier's training set; they still "
-            "feed ARIMA. Reported MAE/RMSE/MAPE below are ARIMA's own pooled 3-month "
+            "ARIMA/SARIMA series -- see _arima_safe_frame) carry no risk_class in the "
+            f"source data; {n_live_labeled} of them fall inside the encoder-declared "
+            "coverage window and are banded by risk_class_from_volume() so they can "
+            "train the classifier, which otherwise never sees the low-volume regime "
+            "live data occupies (Excel spans 9-30 cases/month, live months 1-7). "
+            "Zero-filled placeholder months are excluded from that labelling, and the "
+            "held-out test set is drawn from Excel rows only, so the accuracy above is "
+            "measured against labels that ship with the source data rather than ones "
+            "this service derived. Reported MAE/RMSE/MAPE below are ARIMA's own pooled 3-month "
             "holdout accuracy across barangays -- the RandomForestRegressor that used "
             "to report this number never produced a live forecast (ARIMA/SARIMA "
             "already did, for both month and year views) and has been removed."
@@ -1121,7 +1306,7 @@ def load_db_consult_rows(after_year: int, after_month: int) -> pd.DataFrame:
     return raw[cols]
 
 
-def _trusted_db_cutoff(raw: pd.DataFrame) -> dict:
+def _trusted_db_cutoff(raw: pd.DataFrame, declared: tuple = None) -> dict:
     """
     Same rationale as _arima_safe_frame (see that docstring), adapted to
     this sheet's one-row-per-visit shape instead of one-row-per-month:
@@ -1130,6 +1315,12 @@ def _trusted_db_cutoff(raw: pd.DataFrame) -> dict:
     last month. A barangay whose first live month already has a gap after
     Excel gets no entry -- none of its DB rows are trusted for forecasting
     until logging catches up.
+
+    A declared coverage cutoff (see load_coverage_cutoff) overrides the
+    run-check up to that month: entry is finished there, so a barangay with no
+    consultations in some month is genuinely quiet rather than un-encoded.
+    Unlike the all-disease path this sheet has nothing to zero-fill -- a month
+    with no visits simply has no rows -- so the cutoff is applied directly.
     """
     cutoffs = {}
     excel_only = raw[~raw["is_db_sourced"]]
@@ -1144,6 +1335,9 @@ def _trusted_db_cutoff(raw: pd.DataFrame) -> dict:
                 expected_month, expected_year = 1, expected_year + 1
             if (yr, mo) == (expected_year, expected_month):
                 last_trusted = (expected_year, expected_month)
+            elif declared is not None and (yr, mo) <= declared:
+                last_trusted = (yr, mo)
+                expected_year, expected_month = yr, mo
             else:
                 break
         if last_trusted:
@@ -1175,7 +1369,7 @@ def _load_consult_diagnosis_raw() -> pd.DataFrame:
         # Drop DB-sourced rows that aren't part of a trusted contiguous run
         # (see _trusted_db_cutoff) -- same tail-cliff risk as the all-disease
         # pipeline, just at per-visit granularity instead of monthly totals.
-        cutoffs = _trusted_db_cutoff(raw)
+        cutoffs = _trusted_db_cutoff(raw, load_coverage_cutoff())
         def _is_trusted(r):
             if not r["is_db_sourced"]:
                 return True

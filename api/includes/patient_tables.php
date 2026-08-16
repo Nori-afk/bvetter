@@ -87,6 +87,40 @@ function setupPatientTables($pdo)
     ");
 
     setupDiseaseCatalog($pdo);
+    setupDiseaseDataCoverage($pdo);
+}
+
+/**
+ * Records how far the encoder has finished entering patient visits.
+ *
+ * The forecasting pipeline cannot otherwise tell "this barangay had no cases
+ * in February" apart from "February isn't encoded yet", so it conservatively
+ * distrusts every live month after the first gap (_arima_safe_frame and
+ * _trusted_db_cutoff in api/analytics/arima_service.py). The Excel history it
+ * was built on is fully dense -- 27 barangays x 36 months, a row for every
+ * combination -- but live consultation data never will be, because a quiet
+ * barangay simply produces no row that month.
+ *
+ * Declaring a cutoff turns that ambiguity into a fact: at or before this
+ * month, a missing barangay-month genuinely means zero cases, so the pipeline
+ * can fill it and trust the run. Months after it stay distrusted, since they
+ * may be only partly entered.
+ *
+ * Deliberately starts NULL: until someone declares a month complete, behaviour
+ * is exactly what it was before this table existed.
+ */
+function setupDiseaseDataCoverage($pdo)
+{
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS disease_data_coverage (
+            id TINYINT NOT NULL PRIMARY KEY,
+            complete_through_year INT NULL,
+            complete_through_month TINYINT NULL,
+            updated_by VARCHAR(160) NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $pdo->exec("INSERT IGNORE INTO disease_data_coverage (id, complete_through_year, complete_through_month) VALUES (1, NULL, NULL)");
 }
 
 /**

@@ -356,6 +356,97 @@ function deriveDiseaseCategory($pdo, $diagnosis)
     return $bucket !== false && $bucket !== null ? (string) $bucket : 'General/Other';
 }
 
+function getCoverage($pdo)
+{
+    $row = $pdo->query("SELECT complete_through_year, complete_through_month, updated_by, updated_at
+                        FROM disease_data_coverage WHERE id = 1")->fetch();
+    respond(200, [
+        'success' => true,
+        'data' => [
+            'year'      => $row && $row['complete_through_year'] !== null ? (int) $row['complete_through_year'] : null,
+            'month'     => $row && $row['complete_through_month'] !== null ? (int) $row['complete_through_month'] : null,
+            'updatedBy' => $row['updated_by'] ?? null,
+            'updatedAt' => $row['updated_at'] ?? null,
+        ],
+    ]);
+}
+
+/**
+ * Declares patient-visit encoding complete through a given month, which is what
+ * lets the forecasting pipeline treat an empty barangay-month as a real zero
+ * instead of un-entered data. See setupDiseaseDataCoverage() for why.
+ *
+ * Refuses future months: a month that hasn't finished can't have been fully
+ * encoded, and declaring one would hand the forecaster a partial month as if it
+ * were complete -- the exact failure the trust gate exists to prevent.
+ */
+function setCoverage($pdo, $data)
+{
+    $year  = (int) ($data['year'] ?? 0);
+    $month = (int) ($data['month'] ?? 0);
+
+    // Clearing the declaration restores the pre-declaration behaviour.
+    if ($year === 0 && $month === 0) {
+        $pdo->prepare("UPDATE disease_data_coverage
+                       SET complete_through_year = NULL, complete_through_month = NULL, updated_by = :by
+                       WHERE id = 1")->execute([':by' => clean($data['updatedBy'] ?? '')]);
+        respond(200, ['success' => true, 'message' => 'Coverage declaration cleared.']);
+    }
+
+    if ($month < 1 || $month > 12 || $year < 2000 || $year > 2100) {
+        respond(422, ['success' => false, 'message' => 'Invalid coverage month.']);
+    }
+    if (($year * 12 + $month) > ((int) date('Y') * 12 + (int) date('n'))) {
+        respond(422, ['success' => false, 'message' => 'Cannot declare a future month complete.']);
+    }
+
+    $pdo->prepare("UPDATE disease_data_coverage
+                   SET complete_through_year = :y, complete_through_month = :m, updated_by = :by
+                   WHERE id = 1")
+        ->execute([':y' => $year, ':m' => $month, ':by' => clean($data['updatedBy'] ?? '')]);
+
+    // Declaring a month complete makes the forecaster read every empty
+    // barangay-month in it as a real zero. If entry isn't actually finished,
+    // that hands ARIMA a fabricated collapse to zero -- the precise failure
+    // the trust gate was written to catch. Report the density back so a
+    // premature declaration is visible immediately instead of surfacing later
+    // as a mysteriously crashed forecast.
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM patient_visit_records
+                           WHERE visit_date IS NOT NULL
+                             AND (YEAR(visit_date) * 12 + MONTH(visit_date)) <= :end");
+    $stmt->execute([':end' => $year * 12 + $month]);
+    $visits = (int) $stmt->fetchColumn();
+    $months = max(1, count_declared_months($pdo, $year, $month));
+
+    $payload = [
+        'success' => true,
+        'message' => sprintf('Patient records declared complete through %04d-%02d.', $year, $month),
+        'visitsInWindow' => $visits,
+        'monthsDeclared' => $months,
+    ];
+    if ($visits < $months) {
+        $payload['warning'] = sprintf(
+            'Only %d visit(s) recorded across %d declared month(s). If encoding is not actually finished, '
+            . 'the forecast will read those empty months as a genuine drop to zero cases.',
+            $visits, $months
+        );
+    }
+    respond(200, $payload);
+}
+
+/**
+ * Months between the historical snapshot's end and the declared cutoff -- i.e.
+ * how many months this declaration is vouching for. Anchored on the earliest
+ * live visit when one predates the snapshot, so the count never goes negative.
+ */
+function count_declared_months($pdo, $year, $month)
+{
+    $first = $pdo->query("SELECT MIN(visit_date) FROM patient_visit_records WHERE visit_date IS NOT NULL")->fetchColumn();
+    if (!$first) return 0;
+    $startIdx = ((int) date('Y', strtotime($first))) * 12 + (int) date('n', strtotime($first));
+    return max(0, ($year * 12 + $month) - $startIdx + 1);
+}
+
 function listDiseases($pdo)
 {
     try {
@@ -607,6 +698,8 @@ try {
 
     if ($action === 'list') listRecords($pdo);
     if ($action === 'diseases') listDiseases($pdo);
+    if ($action === 'coverage_get') getCoverage($pdo);
+    if ($action === 'coverage_set') setCoverage($pdo, $input);
     if ($action === 'save') saveRecord($pdo, $input);
     if ($action === 'save_batch') saveBatch($pdo, $input);
     if ($action === 'update') updateRecord($pdo, $input);
