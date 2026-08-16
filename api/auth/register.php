@@ -50,6 +50,24 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     ]);
 }
 
+// Mirrors isValidPHPhone() in public/js/signup.js. The server previously only
+// checked the number was non-empty, so any string got through a direct POST.
+if (!preg_match('/^(?:\+63|63|0)9\d{9}$/', preg_replace('/[\s-]/', '', $phoneNumber))) {
+    respond(422, [
+        'success' => false,
+        'message' => 'Please enter a valid Philippine mobile number (e.g. 09171234567).'
+    ]);
+}
+
+// The Terms of Service checkbox was only ever enforced in the browser, so a
+// direct POST could create an account that never agreed to them.
+if (clean(isset($_POST['accepted_terms']) ? $_POST['accepted_terms'] : '') === '') {
+    respond(422, [
+        'success' => false,
+        'message' => 'You must agree to the Terms of Service to create an account.'
+    ]);
+}
+
 $policyError = passwordPolicyError($pdo, $password);
 if ($policyError !== null) {
     respond(422, [

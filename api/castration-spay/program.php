@@ -110,8 +110,29 @@ function findOrCreateOwner($pdo, $data)
     $barangayId = (int) ($data['owner_barangay_id'] ?? 0);
     $address = clean($data['owner_address'] ?? '');
 
-    if ($fullName === '' || $email === '' || $phone === '') {
-        respond(422, ['success' => false, 'message' => 'Owner name, email, and contact number are required.']);
+    // Mirrors findOrCreateOwner() in api/appointments/appointment.php -- the
+    // castration/spay flow reuses steps 1-2 of the same booking form, so the
+    // same asterisked fields are required.
+    $missing = [];
+    if ($fullName === '')   $missing[] = 'full name';
+    if ($email === '')      $missing[] = 'email address';
+    if ($phone === '')      $missing[] = 'contact number';
+    if ($barangayId <= 0)   $missing[] = 'barangay';
+    if ($address === '')    $missing[] = 'complete address';
+
+    if ($missing) {
+        respond(422, [
+            'success' => false,
+            'message' => 'Please provide your ' . implode(', ', $missing) . '.'
+        ]);
+    }
+
+    // Confirm the barangay exists before inserting. Without this the profile
+    // insert trips a foreign-key constraint and surfaces as a 500.
+    $brgyCheck = $pdo->prepare('SELECT id FROM barangays WHERE id = :id LIMIT 1');
+    $brgyCheck->execute([':id' => $barangayId]);
+    if (!$brgyCheck->fetch()) {
+        respond(422, ['success' => false, 'message' => 'Please select a valid barangay.']);
     }
 
     $roleStmt = $pdo->prepare('SELECT id FROM roles WHERE name = :name LIMIT 1');
@@ -138,18 +159,16 @@ function findOrCreateOwner($pdo, $data)
 
     $ownerId = (int) $pdo->lastInsertId();
 
-    if ($barangayId > 0) {
-        $insertProfile = $pdo->prepare('
-            INSERT INTO owner_profiles (user_id, barangay_id, complete_address, verification_status, verified_at)
-            VALUES (:user_id, :barangay_id, :complete_address, :verification_status, NOW())
-        ');
-        $insertProfile->execute([
-            ':user_id' => $ownerId,
-            ':barangay_id' => $barangayId,
-            ':complete_address' => $address !== '' ? $address : 'N/A',
-            ':verification_status' => 'approved',
-        ]);
-    }
+    $insertProfile = $pdo->prepare('
+        INSERT INTO owner_profiles (user_id, barangay_id, complete_address, verification_status, verified_at)
+        VALUES (:user_id, :barangay_id, :complete_address, :verification_status, NOW())
+    ');
+    $insertProfile->execute([
+        ':user_id' => $ownerId,
+        ':barangay_id' => $barangayId,
+        ':complete_address' => $address,
+        ':verification_status' => 'approved',
+    ]);
 
     return $ownerId;
 }
@@ -161,9 +180,22 @@ function findOrCreatePet($pdo, $ownerId, $data)
 
     $petName = clean($data['pet_name'] ?? '');
     $species = clean($data['species'] ?? $data['pet_type'] ?? '');
+    $breed   = clean($data['breed'] ?? $data['pet_breed'] ?? '');
+    $age     = clean($data['age'] ?? $data['pet_age'] ?? '');
+    $sex     = clean($data['sex'] ?? $data['pet_sex'] ?? '');
 
-    if ($petName === '' || $species === '') {
-        respond(422, ['success' => false, 'message' => 'Pet name and pet type are required.']);
+    $missing = [];
+    if ($petName === '') $missing[] = 'name';
+    if ($species === '') $missing[] = 'type';
+    if ($breed === '')   $missing[] = 'breed';
+    if ($age === '')     $missing[] = 'age';
+    if ($sex === '')     $missing[] = 'sex';
+
+    if ($missing) {
+        respond(422, [
+            'success' => false,
+            'message' => "Please provide your pet's " . implode(', ', $missing) . '.'
+        ]);
     }
 
     $stmt = $pdo->prepare('SELECT id FROM pets WHERE owner_id = :owner_id AND pet_name = :pet_name LIMIT 1');
@@ -183,9 +215,9 @@ function findOrCreatePet($pdo, $ownerId, $data)
         ':owner_id' => $ownerId,
         ':pet_name' => $petName,
         ':species' => $species,
-        ':breed' => clean($data['breed'] ?? $data['pet_breed'] ?? ''),
-        ':sex' => normalizeSex($data['sex'] ?? $data['pet_sex'] ?? 'male'),
-        ':age' => clean($data['age'] ?? $data['pet_age'] ?? ''),
+        ':breed' => $breed,
+        ':sex' => normalizeSex($sex),
+        ':age' => $age,
         ':weight' => clean($data['weight'] ?? ''),
         ':size' => clean($data['size'] ?? ''),
         ':color_markings' => clean($data['color_markings'] ?? ''),

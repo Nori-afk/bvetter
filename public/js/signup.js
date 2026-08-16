@@ -529,6 +529,7 @@ async function submitRegistration() {
     formData.append('password',       password);
     formData.append('phone_number',   document.getElementById('phone')?.value || '');
     formData.append('barangay_id',    document.getElementById('rv_barangay_id')?.value || '');
+    formData.append('accepted_terms', document.getElementById('reg_terms')?.checked ? '1' : '');
     formData.append('proof_document', proofInput.files[0]);
 
     try {

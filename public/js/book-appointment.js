@@ -1456,6 +1456,17 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
 
   async function submitAppointment() {
     if (isBookingSubmit) return;
+
+    // Re-check every step before submitting. The per-step checks only run on
+    // the Next buttons, so a restored draft (which jumps straight back to the
+    // review step) could otherwise reach Confirm without ever being validated.
+    for (const step of [1, 2, 3]) {
+      if (!validateStep(step)) {
+        goStep(step);
+        return;
+      }
+    }
+
     isBookingSubmit = true;
 
     const confirmBtn = document.getElementById('s4Confirm');
@@ -1500,7 +1511,10 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     };
 
     if (isCspMode()) {
-      const required = ['owner_name','owner_contact','owner_email','pet_name','pet_type'];
+      const required = [
+        'owner_name', 'owner_contact', 'owner_email', 'owner_barangay_id', 'owner_address',
+        'pet_name', 'pet_type', 'pet_breed', 'pet_age', 'pet_sex'
+      ];
       if (required.some(k => !payload[k])) {
         hideBookingOverlay();
         await vbAlert('Please complete all required fields.');

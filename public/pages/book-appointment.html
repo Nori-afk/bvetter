@@ -296,21 +296,21 @@
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label">Full Name *</label>
-            <input type="text" class="form-input" placeholder="Enter your full name" id="ownerName"/>
+            <input type="text" class="form-input" placeholder="Enter your full name" id="ownerName" required/>
           </div>
           <div class="form-group">
             <label class="form-label">Contact Number *</label>
-            <input type="tel" class="form-input" placeholder="Enter your contact number" id="ownerContact"/>
+            <input type="tel" class="form-input" placeholder="Enter your contact number" id="ownerContact" required/>
           </div>
           <div class="form-group">
             <label class="form-label">Email Address *</label>
-            <input type="email" class="form-input" placeholder="Enter your email address" id="ownerEmail"/>
+            <input type="email" class="form-input" placeholder="Enter your email address" id="ownerEmail" required/>
             <span class="field-hint">For appointment confirmation</span>
           </div>
           <div class="form-group">
             <label class="form-label">Barangay *</label>
             <div class="select-wrap">
-              <select class="form-select" id="ownerBarangay">
+              <select class="form-select" id="ownerBarangay" required>
                 <option value="">Select your barangay</option>
                 <option>Bagong Nayon</option><option>Burol</option><option>Calasag</option>
                 <option>Camalig</option><option>Canalate</option><option>Caniogan</option>
@@ -325,7 +325,7 @@
           </div>
           <div class="form-group full">
             <label class="form-label">Complete Address *</label>
-            <input type="text" class="form-input" placeholder="House No., Street, Purok / Subdivision" id="ownerAddress"/>
+            <input type="text" class="form-input" placeholder="House No., Street, Purok / Subdivision" id="ownerAddress" required/>
           </div>
         </div>
         <div class="step-nav">
@@ -345,12 +345,12 @@
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label">Pet Name *</label>
-            <input type="text" class="form-input" placeholder="e.g. Depa" id="petName"/>
+            <input type="text" class="form-input" placeholder="e.g. Depa" id="petName" required/>
           </div>
           <div class="form-group">
             <label class="form-label">Pet Type *</label>
             <div class="select-wrap">
-              <select class="form-select" id="petType">
+              <select class="form-select" id="petType" required>
                 <option>Dog</option><option>Cat</option>
               </select>
               <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
@@ -358,12 +358,12 @@
           </div>
           <div class="form-group">
             <label class="form-label">Breed *</label>
-            <input type="text" class="form-input" placeholder="e.g. Golden Retriever" id="petBreed"/>
+            <input type="text" class="form-input" placeholder="e.g. Golden Retriever" id="petBreed" required/>
           </div>
           <div class="form-group">
             <label class="form-label">Age *</label>
             <div class="field-row">
-              <input type="number" min="0" step="1" class="form-input" placeholder="e.g. 2" id="petAgeValue"/>
+              <input type="number" min="0" step="1" class="form-input" placeholder="e.g. 2" id="petAgeValue" required/>
               <select class="form-input" id="petAgeUnit">
                 <option>Years</option>
                 <option>Months</option>
@@ -373,7 +373,7 @@
           <div class="form-group">
             <label class="form-label">Sex *</label>
             <div class="select-wrap">
-              <select class="form-select" id="petSex">
+              <select class="form-select" id="petSex" required>
                 <option>Male</option><option>Female</option>
               </select>
               <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
@@ -406,7 +406,7 @@
           <div class="form-group">
             <label class="form-label">Type of Visit *</label>
             <div class="select-wrap">
-              <select class="form-select" id="visitType">
+              <select class="form-select" id="visitType" required>
                 <option>Consultation</option><option>Anti-Rabies</option>
                 <option>Deworming</option>
               </select>
