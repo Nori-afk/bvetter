@@ -1,37 +1,5 @@
-<!-- =============================================
-     BVetter — SHARED COMPONENTS REFERENCE
-     File: public/components/_shared-components.html
-
-     REFERENCE ONLY — not served directly.
-     Copy navbar/footer blocks into each page.
-
-     PATHS assume file is in: public/pages/[page].html
-       CSS:      ../css/
-       JS:       ../js/
-       auth.js:  ../../shared/js/auth.js
-       Images:   ../images/
-
-     SCRIPT ORDER (bottom of every protected page):
-       <script src="../../shared/js/auth.js?v=20260805-auth"></script>
-       <script> guardPage([ROLES.PET_OWNER]); </script>
-       <script src="../js/nav.js"></script>
-       <script src="../js/api.js"></script>
-       <script src="../js/[page-name].js"></script>
-
-     For login/signup/forgot (no navbar, no guard):
-       <script src="../js/api.js"></script>
-       <script src="../js/[page-name].js"></script>
-
-     WHEN BACKEND READY — replace copy-paste with:
-       PHP:       <?php include '../components/navbar.php'; ?>
-       Jinja2:    {% include 'navbar.html' %}
-       Blade:     @include('components.navbar')
-     ============================================= -->
 
 
-<!-- ══ NAVBAR — copy to every authenticated page ══
-     Set class="active" on the correct nav link.
-     logout() comes from shared/js/auth.js.         -->
 <nav class="navbar">
   <div class="nav-left">
     <img src="../images/logos/logo-color.png" alt="Baliwag City Vet" class="nav-logo"/>
@@ -48,7 +16,7 @@
     </button>
     <div class="nav-user-pill" onclick="toggleUserMenu()">
       <div class="nav-user-info">
-        <span class="nav-user-name">Mark Depa</span><!-- TODO backend: populate from getCurrentUser().name -->
+        <span class="nav-user-name">Mark Depa</span>
         <span class="nav-user-role">Pet Owner</span>
       </div>
       <img src="../images/img/account-avatar.png" alt="User" class="nav-user-avatar"/>
@@ -72,7 +40,6 @@
 </nav>
 
 
-<!-- ══ FOOTER — copy before </body> on every page ══ -->
 <footer class="footer">
   <img src="../images/img/paw-print.svg" alt="" class="footer-paw"/>
   <div class="footer-grid">

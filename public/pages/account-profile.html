@@ -1,15 +1,4 @@
 <!DOCTYPE html>
-<!--
-  Page:    account-profile.html
-  Feature: User account profile / dashboard
-  CSS:     variables.css → components.css → account-profile.css
-  JS:      nav.js → api.js → account-profile.js
-
-  TODO backend:
-  - Replace hardcoded "Mark Depa" with api.getProfile().name
-  - Replace stat numbers with api.getProfile() data
-  - Replace activity list with api.getMyActivity()
--->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -25,15 +14,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-  <!-- 1. Design tokens (ALWAYS first) -->
   <link rel="stylesheet" href="../css/variables.css"/>
-  <!-- 2. Shared components -->
   <link rel="stylesheet" href="../css/components.css"/>
   <link rel="stylesheet" href="../css/account-profile.css"/>
 </head>
 <body>
 
-<!-- ── NAVBAR ──────────────────────────────── -->
 <nav class="navbar">
   <div class="nav-left">
     <img src="../images/logos/logo-color.png" alt="Baliwag City Vet" class="nav-logo"/>
@@ -82,7 +68,6 @@
 
   <div class="hero-wrapper">
 
-    <!-- ── HERO BANNER ──────────────────────── -->
     <div class="profile-hero">
       <div class="profile-hero-inner">
         <div class="profile-hero-left">
@@ -100,10 +85,8 @@
       </div>
     </div>
 
-    <!-- ── PAGE BODY ─────────────────────────── -->
     <div class="page-body">
 
-      <!-- ── STATS ROW ──────────────────────── -->
       <div class="stats-row">
         <div class="stat-item">
           <div class="stat-accent red"></div>
@@ -139,7 +122,6 @@
         </div>
       </div>
 
-      <!-- ── MY PETS ─────────────────────────── -->
       <div class="pets-section">
         <div class="section-heading pets-section-heading">
           <div class="section-title">My Pets</div>
@@ -153,10 +135,8 @@
         </div>
       </div>
 
-      <!-- ── MAIN CONTENT ───────────────────── -->
       <div class="content-layout">
 
-        <!-- Left: Recent Activity -->
         <div class="activity-col">
          <div class="section-heading">
           <div class="section-title">Recent Activity</div>
@@ -169,7 +149,6 @@
           <div class="activity-pagination" id="activityPagination"></div>
         </div>
 
-        <!-- Right: Quick Actions -->
         <div class="actions-col">
           <div class="section-title mb-actions">Quick Actions</div>
           <div class="quick-actions-list">
@@ -222,12 +201,11 @@
         </div>
 
       </div>
-    </div><!-- /page-body -->
+    </div>
 
-  </div><!-- /hero-wrapper -->
+  </div>
 
 </main>
-  <!-- ══ SCRIPTS — auth.js MUST be first ══ -->
   <script src="../../shared/js/auth.js?v=20260805-auth"></script>
   <script>
     /* Route guard — redirects wrong role to their home */

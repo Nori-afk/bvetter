@@ -888,7 +888,6 @@ function buildMatchCard(match, index, report) {
 	return `
 		<div class="lf-match-card ${cls}" data-match-id="${escapeHtml(String(match.id))}">
 
-			<!-- Score row -->
 			<div class="lf-match-top">
 				<span class="lf-match-label">Potential Match ${index + 1}</span>
 				<div class="lf-match-score-wrap">
@@ -899,10 +898,8 @@ function buildMatchCard(match, index, report) {
 				</div>
 			</div>
 
-			<!-- Pet pair -->
 			<div class="lf-match-pets">
 
-				<!-- Owner's report (the report the user clicked) -->
 				<div class="lf-match-pet-card owner">
 					${expandableImg(ownerPet.image, ownerPet.name || ownerFallbackName, 'lf-match-pet-img', true)}
 					<div class="lf-match-pet-info">
@@ -916,7 +913,6 @@ function buildMatchCard(match, index, report) {
 					</div>
 				</div>
 
-				<!-- VS connector -->
 				<div class="lf-match-vs">
 					<div class="lf-match-vs-line"></div>
 					<div class="lf-match-vs-icon">
@@ -929,7 +925,6 @@ function buildMatchCard(match, index, report) {
 					<div class="lf-match-vs-line"></div>
 				</div>
 
-				<!-- Counterpart candidate report -->
 				<div class="lf-match-pet-card admin">
 					${expandableImg(otherPet.image, otherPet.name || 'Pet', 'lf-match-pet-img', true)}
 					<div class="lf-match-pet-info">
@@ -945,10 +940,8 @@ function buildMatchCard(match, index, report) {
 
 			</div>
 
-			<!-- Similarity reason chips -->
 			${simTagsHtml ? `<div class="lf-match-similarity-tags">${simTagsHtml}</div>` : ''}
 
-			<!-- Actions -->
 			<div class="lf-match-actions${isResolved ? ' resolved' : ''}">${actionsHtml}</div>
 
 		</div>

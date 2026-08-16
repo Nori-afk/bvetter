@@ -10,12 +10,6 @@
    - populateReview()     — fill step 4 review from form inputs
    - updateVetProfile(v)  — update profile card with vet data
    - buildCalendar(y, m)  — render dynamic calendar grid
-
-   TODO backend:
-   - populateReview / goStep(5): replace with
-     api.bookAppointment(data)
-   - pageHistory: replace static rows with
-     api.getAppointments()  
    ============================================= */
 
 /* ── Calendar state ──────────────────────────── */

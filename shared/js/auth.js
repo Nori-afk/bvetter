@@ -7,8 +7,6 @@
  *   'vet'   → /vet/html/index.html
  *   'admin' → /admin/pages/index.html
  *   'owner' → /public/pages/landing.html
- *
- * [BACKEND] markers = replace with real fetch() calls later.
  * ─────────────────────────────────────────────────────────────
  */
 
@@ -24,8 +22,6 @@ const ROLE_ROUTES = {
 };
 
 const LOGIN_PAGE = '/public/pages/login.html';
-// Not linked from any public page — admin accounts authenticate here only.
-// Keep in sync with the file at admin/pages/ and with api/auth/admin-login.php.
 const ADMIN_LOGIN_PAGE = '/admin/pages/ops-3bab26d632.html';
 const SESSION_API = '/api/auth/session.php';
 const SESSION_CHECK_INTERVAL_MS = 30000;
@@ -288,43 +284,6 @@ function requireAuth(allowedRoles = []) {
     }
 }
 
-/**
- * Login attempt.
- * [BACKEND] Replace mock with:
- *   const res = await fetch('/api/auth/login', { method:'POST', ... });
- *   const data = await res.json(); // { userId, role, name, token }
- */
-async function login(email, password) {
-    /* ── MOCK (remove when backend is ready) ── */
-    // const MOCK_USERS = [
-    //     { email: 'vet@vbetter.ph',   password: 'vet123',   userId: 'U-001', role: 'vet',   name: 'Dr. Kizea Bien Igaya', avatarUrl: '' },
-    //     { email: 'admin@vbetter.ph', password: 'admin123', userId: 'U-002', role: 'admin', name: 'Admin User',           avatarUrl: '' },
-    //     { email: 'owner@vbetter.ph', password: 'owner123', userId: 'U-003', role: 'owner', name: 'Pet Owner',            avatarUrl: '' },
-    //     // login.js test credentials
-    //     { email: 'vet@test.com',     password: 'vet123',   userId: 'U-001', role: 'vet',   name: 'Dr. Aris V.',          avatarUrl: '' },
-    //     { email: 'admin@test.com',   password: 'admin123', userId: 'U-002', role: 'admin', name: 'Admin User',           avatarUrl: '' },
-    //     { email: 'owner@test.com',   password: 'owner123', userId: 'U-003', role: 'owner', name: 'Mark Depa',            avatarUrl: '' },
-    // ];
-
-    const match = MOCK_USERS.find(
-        u => u.email === email.trim().toLowerCase() && u.password === password
-    );
-
-    if (!match) return { ok: false, error: 'Invalid email or password.' };
-
-    const session = {
-        userId:    match.userId,
-        role:      match.role,
-        name:      match.name,
-        avatarUrl: match.avatarUrl,
-        token:     `mock-token-${Date.now()}` // [BACKEND] real JWT
-    };
-
-    setSession(session);
-    return { ok: true, session };
-    /* ── END MOCK ── */
-}
-
 function redirectToDashboard(role) {
     const route = ROLE_ROUTES[role] || LOGIN_PAGE;
     window.location.href = route;
@@ -342,9 +301,9 @@ function autoRoute() {
 
 /* ── Exports ────────────────────────────────────────────────── */
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { getCurrentUser, requireAuth, login, logout, redirectToDashboard, autoRoute, getSession };
+    module.exports = { getCurrentUser, requireAuth, logout, redirectToDashboard, autoRoute, getSession };
 } else {
-    window.VBetterAuth = { getCurrentUser, requireAuth, login, logout, redirectToDashboard, autoRoute, getSession };
+    window.VBetterAuth = { getCurrentUser, requireAuth, logout, redirectToDashboard, autoRoute, getSession };
 }
 
 /**

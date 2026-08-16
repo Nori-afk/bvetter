@@ -9,12 +9,6 @@
    HOW TO USE in any page JS:
      const data = await api.getReports({ status: 'lost' });
 
-   HOW TO SWAP TO REAL BACKEND:
-     1. Change API_BASE to your production URL
-     2. On login success, save token:
-        sessionStorage.setItem('bvetter_token', response.token)
-     3. All other calls auto-attach the token via authHeaders()
-
    Functions:
    - authHeaders()          — builds Authorization header from token
    - api.login()            — POST /auth/login

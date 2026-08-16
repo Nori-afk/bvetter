@@ -17,8 +17,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="/shared/css/sidebar.css">
     <link rel="stylesheet" href="/vet/css/report.css">
-    <!-- <script src="/shared/js/sidebar.js" defer></script>
-    <script src="/vet/js/report.js" defer></script> -->
 </head>
 
 <body>
@@ -64,7 +62,6 @@
                     <img src="/shared/images/sidebar/support-tickets.svg" class="nav-icon" alt="Support Tickets">
                     <span class="nav-label">Support Tickets</span>
                 </a>
-                <!-- ADMIN-ONLY section: sidebar.js hides these for vet role -->
                 <div class="nav-section-label" data-roles="admin">Administration</div>
                 <a href="/admin/pages/account-management.html" class="nav-item" title="Account Management" data-roles="admin">
                     <img src="/shared/images/sidebar/acc-management.svg" class="nav-icon" alt="Account Management">
@@ -88,7 +85,6 @@
                         </div>
                     </header>
 
-                    <!-- KPI cards -->
                     <section class="metric-grid" aria-label="Report summary metrics">
     <article class="metric-card">
         <div class="metric-head">
@@ -122,7 +118,6 @@
     </article>
 </section>
 
-                    <!-- Toolbar -->
                     <section class="toolbar" aria-label="Report controls">
                         <div class="toolbar-group">
                             <div class="filter-wrap">
@@ -186,7 +181,6 @@
                         </div>
                     </section>
 
-                    <!-- Table -->
                     <section class="report-table-card" aria-label="Patient report table">
                         <div class="table-wrap">
                             <table class="report-table">
@@ -213,7 +207,6 @@
                 </section>
             </div>
 
-            <!-- Export modal -->
             <div class="modal-overlay" id="export-modal-overlay" hidden>
                 <section class="export-modal" role="dialog" aria-modal="true" aria-labelledby="export-modal-title">
                     <button type="button" class="modal-close" id="export-close" aria-label="Close export modal">

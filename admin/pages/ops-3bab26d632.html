@@ -1,10 +1,4 @@
 <!DOCTYPE html>
-<!--
-  Admin-only login. Deliberately NOT linked from any public page or nav —
-  see shared/js/auth.js (ADMIN_LOGIN_PAGE) and api/auth/admin-login.php.
-  The public login page (public/pages/login.html) rejects admin credentials
-  outright, so this is the only door admin accounts can use.
--->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -34,7 +28,6 @@
     <div class="right-panel">
       <div class="form-container">
         <img src="../../public/images/logos/logo-color.png" alt="Baliwag City Veterinary Services" class="right-logo"/>
-        <!-- STEP 1: credentials -->
         <div id="credsStep">
           <h2>Admin Sign In</h2>
           <p class="subtitle">Enter your administrator credentials.</p>
@@ -65,7 +58,6 @@
           </button>
         </div>
 
-        <!-- STEP 2: email verification code (2FA) -->
         <div id="otpStep" style="display:none;">
           <h2>Check Your Email</h2>
           <p class="subtitle" id="otpSubtitle">We sent a 6-digit verification code to your email. Enter it below to finish signing in.</p>
@@ -92,7 +84,6 @@
     </div>
   </div>
 
-  <!-- ══ NOTICE MODAL — replaces browser alert() ══ -->
   <div class="modal-overlay" id="noticeModal" onclick="closeModalOutside(event,'noticeModal')">
     <div class="modal-box narrow notice-box" role="alertdialog" aria-modal="true" aria-labelledby="noticeMessage">
       <div class="notice-icon" id="noticeIcon">
@@ -107,7 +98,6 @@
     </div>
   </div>
 
-  <!-- ══ SCRIPTS — unauthenticated page ══ -->
   <script src="../../shared/js/auth.js"></script>
   <script src="../../public/js/api.js"></script>
   <script src="../js/admin-login.js"></script>

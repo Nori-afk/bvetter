@@ -1,14 +1,4 @@
 <!DOCTYPE html>
-<!--
-  Page:    login.html
-  Feature: User authentication
-  CSS:     variables.css → login.css
-  JS:      login.js
-
-  TODO backend:
-  - handleLogin(): replace mock with api.login(email, password)
-  - Save response.token to sessionStorage on success
--->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -24,14 +14,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-  <!-- 1. Design tokens -->
   <link rel="stylesheet" href="../css/variables.css"/>
-  <!-- 2. Page-specific (login has no navbar so no components.css needed) -->
   <link rel="stylesheet" href="../css/login.css"/>
 </head>
 <body>
   <div class="page-wrapper">
-    <!-- Left: green background panel -->
     <div class="left-panel">
       <img src="../images/logos/logo-white.png" alt="Baliwag City Veterinary Services" class="left-logo"/>
       <img src="../images/backgrounds/green-bg.png" alt="" class="bg-image"/>
@@ -43,11 +30,9 @@
       <div class="cross-deco cross-2">+</div>
     </div>
 
-    <!-- Right: login form -->
     <div class="right-panel">
       <div class="form-container">
         <img src="../images/logos/logo-color.png" alt="Baliwag City Veterinary Services" class="right-logo"/>
-        <!-- STEP 1: credentials -->
         <div id="credsStep">
           <h2>Welcome Back!</h2>
           <p class="subtitle">Enter your credentials to access your account.</p>
@@ -80,7 +65,6 @@
           <p class="signup-text">Don't Have An Account?  <a href="create-account.html" class="signup-link">Sign up</a></p>
         </div>
 
-        <!-- STEP 2: email verification code (staff accounts with 2FA) -->
         <div id="otpStep" style="display:none;">
           <h2>Check Your Email</h2>
           <p class="subtitle" id="otpSubtitle">We sent a 6-digit verification code to your email. Enter it below to finish signing in.</p>
@@ -107,7 +91,6 @@
     </div>
   </div>
 
-  <!-- ══ NOTICE MODAL — replaces browser alert() ══ -->
   <div class="modal-overlay" id="noticeModal" onclick="closeModalOutside(event,'noticeModal')">
     <div class="modal-box narrow notice-box" role="alertdialog" aria-modal="true" aria-labelledby="noticeMessage">
       <div class="notice-icon" id="noticeIcon">
@@ -122,8 +105,7 @@
     </div>
   </div>
 
-  <!-- ══ SCRIPTS — unauthenticated page ══ -->
-<script src="../../shared/js/auth.js?v=20260805-auth"></script>  <!-- ← ADD THIS -->
+<script src="../../shared/js/auth.js?v=20260805-auth"></script>
 <script src="../js/api.js?v=20260805-2fa"></script>
 <script src="../js/login.js?v=20260805-2fa"></script>
 </body>

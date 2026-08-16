@@ -63,7 +63,6 @@
                     <img src="/shared/images/sidebar/support-tickets.svg" class="nav-icon" alt="Support Tickets">
                     <span class="nav-label">Support Tickets</span>
                 </a>
-                <!-- ADMIN-ONLY section: sidebar.js hides these for vet role -->
                 <div class="nav-section-label" data-roles="admin">Administration</div>
                 <a href="/admin/pages/account-management.html" class="nav-item" title="Account Management" data-roles="admin">
                     <img src="/shared/images/sidebar/acc-management.svg" class="nav-icon" alt="Account Management">
@@ -80,10 +79,8 @@
         <main class="right-side">
 
 
-            <!-- records.js renders the full UI into this div -->
             <div id="records-app" class="records-app"></div>
 
-            <!-- Records modal -->
             <div class="modal-overlay" id="records-modal-overlay" hidden>
                 <section class="modal-shell" id="records-modal-shell" role="dialog" aria-modal="true"
                     aria-labelledby="records-modal-title">
@@ -95,8 +92,8 @@
         </main>
     </div>
 
-    <script src="/shared/js/auth.js?v=20260805-auth"></script> 
-     <script>VBetterAuth.requireAuth(['vet']);</script> 
+    <script src="/shared/js/auth.js?v=20260805-auth"></script>
+     <script>VBetterAuth.requireAuth(['vet']);</script>
     <script src="/shared/js/sidebar.js"></script>
     <script src="/shared/js/vaccine-types.js"></script>
     <script src="/vet/js/patient-records.js"></script>

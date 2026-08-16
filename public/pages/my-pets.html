@@ -1,15 +1,4 @@
 <!DOCTYPE html>
-<!--
-  Page:    my-pets.html
-  Feature: My Pets — pet grid + slide-in health detail panel
-  CSS:     variables.css → components.css → my-pets.css
-  JS:      nav.js → api.js → my-pets.js
-
-  Data:    api.getMyPets() / api.getMyPet(petId) → api/pets/my_pets.php
-           Pets are matched to this account via pets.owner_id, set when a
-           vet's patient record or an appointment booking used this
-           owner's exact account email.
--->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -25,15 +14,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-    <!-- 1. Design tokens (ALWAYS first) -->
   <link rel="stylesheet" href="../css/variables.css"/>
-  <!-- 2. Shared components -->
   <link rel="stylesheet" href="../css/components.css"/>
   <link rel="stylesheet" href="../css/my-pets.css"/>
 </head>
 <body>
 
-  <!-- ══════════ NAVBAR ══════════ -->
   <nav class="navbar">
     <div class="nav-left">
       <img src="../images/logos/logo-color.png" alt="Baliwag City Vet" class="nav-logo"/>
@@ -78,7 +64,6 @@
     </div>
   </nav>
 
-  <!-- ══════════ HERO ══════════ -->
   <div class="mp-hero-wrap">
     <section class="mp-hero">
       <div class="mp-hero-left">
@@ -95,7 +80,6 @@
     </section>
   </div>
 
-  <!-- ══════════ PET GRID ══════════ -->
   <section class="mp-section">
     <div class="mp-header">
       <h2 class="mp-title">Registered Pets</h2>
@@ -107,10 +91,6 @@
     </div>
   </section>
 
-  <!-- ══════════════════════════════════════════════
-       DETAIL PANEL — filled dynamically by my-pets.js
-       position:fixed — overlays page, doesn't push/cut hero
-  ══════════════════════════════════════════════ -->
   <div class="mp-detail-overlay" id="mpDetailOverlay" onclick="closePetDetailOutside(event)">
     <div class="mp-detail-panel" role="dialog" aria-modal="true" aria-label="Pet health detail">
       <div class="mp-detail-panel-header">
@@ -125,12 +105,10 @@
         </button>
       </div>
       <div class="mp-detail-body" id="mpDetailBody">
-        <!-- populated by renderPetDetail() in my-pets.js -->
       </div>
     </div>
   </div>
 
-  <!-- ══════════ FOOTER ══════════ -->
   <footer class="footer">
     <img src="../images/img/paw-print.svg" alt="" class="footer-paw"/>
     <div class="footer-grid">

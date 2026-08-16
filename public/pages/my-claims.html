@@ -1,21 +1,4 @@
 <!DOCTYPE html>
-<!--
-  Page:    my-claims.html
-  Feature: My Claims — table list + slide-in detail panel
-  CSS:     variables.css → components.css → lost-found.css → my-claims.css
-  JS:      nav.js → api.js → my-claims.js
-
-  FIX LOG:
-  - Hero/navbar no longer gets cut off when detail panel opens:
-    detail panel is position:fixed so it overlays, body scroll is locked,
-    navbar and hero stay in full view at the top.
-  - Detail panel header is sticky inside the panel's own scroll container.
-
-  TODO backend:
-  - Table rows: api.getClaims() to populate dynamically
-  - Filter: api.getClaims({ status }) on dropdown change
-  - "Mark as Resolved": api.resolveClaim(claimId)
--->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -38,7 +21,6 @@
 </head>
 <body>
 
-  <!-- ══════════ NAVBAR ══════════ -->
   <nav class="navbar">
     <div class="nav-left">
       <img src="../images/logos/logo-color.png" alt="Baliwag City Vet" class="nav-logo"/>
@@ -83,10 +65,6 @@
     </div>
   </nav>
 
-  <!-- ══════════ HERO ══════════
-       Full-width hero — never cut off because the detail
-       panel is position:fixed and overlays, not pushes content.
-  ══════════ -->
   <div class="mc-hero-wrap">
     <section class="mc-hero">
       <div class="mc-hero-left">
@@ -113,7 +91,6 @@
     </section>
   </div>
 
-  <!-- ══════════ STATS ROW ══════════ -->
   <div class="lf-stats-wrap">
     <section class="lf-stats">
       <div class="stat-card white">
@@ -134,7 +111,6 @@
     </section>
   </div>
 
-  <!-- ══════════ FILTER TABS ══════════ -->
   <section class="lf-filters">
     <div class="filter-tabs">
       <button class="tab" onclick="window.location.href='lost-found.html'">All Reports</button>
@@ -143,7 +119,6 @@
       <button class="tab" onclick="window.location.href='lost-found.html?tab=myreports'">My Reports</button>
       <button class="tab active">My Claims</button>
     </div>
-    <!-- Status filter -->
     <div class="mc-filter-right">
       <span class="mc-filter-label">Filter by Status</span>
       <div class="mc-filter-select-wrap">
@@ -160,7 +135,6 @@
     </div>
   </section>
 
-  <!-- ══════════ MY CLAIMS TABLE ══════════ -->
   <section class="mc-section">
     <div class="mc-header">
       <h2 class="mc-title">My Claims</h2>
@@ -178,7 +152,6 @@
           <span>ACTION</span>
         </div>
 
-        <!-- Row 1 — Approved -->
         <div class="mc-table-row" data-status="approved" data-claim="jefferson"
              onclick="openClaimDetail('jefferson')">
           <div class="mc-pet-cell">
@@ -205,7 +178,6 @@
           </span>
         </div>
 
-        <!-- Row 2 — Pending -->
         <div class="mc-table-row" data-status="pending" data-claim="charlie"
              onclick="openClaimDetail('charlie')">
           <div class="mc-pet-cell">
@@ -232,7 +204,7 @@
           </span>
         </div>
 
-      </div><!-- /mc-table -->
+      </div>
 
       <div class="mc-table-footer">
         <span class="mc-showing" id="claimsShowing">Showing 1 to 2 of 2 results</span>
@@ -243,16 +215,11 @@
     </div>
   </section>
 
-  <!-- ══════════════════════════════════════════════
-       DETAIL PANEL — JEFFERSON (Approved)
-       position:fixed — overlays page, does NOT push/cut hero
-  ══════════════════════════════════════════════ -->
   <div class="mc-detail-overlay" id="detailJefferson"
        onclick="closeDetailOutside(event,'detailJefferson')">
     <div class="mc-detail-panel" role="dialog" aria-modal="true"
          aria-label="Claim detail — Jefferson">
 
-      <!-- Sticky header inside panel scroll -->
       <div class="mc-detail-panel-header">
         <div>
           <h2 class="mc-detail-panel-title">Claim Details</h2>
@@ -266,10 +233,8 @@
         </button>
       </div>
 
-      <!-- Scrollable body -->
       <div class="mc-detail-body">
 
-        <!-- Approved banner -->
         <div class="mc-approved-banner">
           <div class="mc-approved-check">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -285,7 +250,6 @@
 
         <div class="mc-detail-cols">
 
-          <!-- Left: Step-by-step instructions -->
           <div class="mc-detail-left">
             <div class="mc-instructions-header">
               <span class="mc-instructions-label">Claim Instructions</span>
@@ -294,7 +258,6 @@
 
             <div class="mc-steps">
 
-              <!-- Step 1 -->
               <div class="mc-step">
                 <div class="mc-step-num">1</div>
                 <div class="mc-step-content">
@@ -302,7 +265,6 @@
                     <a href="#" class="mc-step-link">Contact the uploader</a>
                   </h4>
                   <p class="mc-step-desc">Reach out to introduce yourself and coordinate the return process.</p>
-                  <!-- TODO backend: fill from api.getClaims() uploader contact -->
                   <div class="mc-step-contact-box">
                     <div class="mc-contact-row">
                       <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -352,9 +314,8 @@
                 </div>
               </div>
 
-            </div><!-- /mc-steps -->
+            </div>
 
-            <!-- TODO backend: api.resolveClaim(claimId) -->
             <button class="mc-resolve-btn" onclick="handleResolved('jefferson')">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M3 8l4 4 6-6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -363,7 +324,6 @@
             </button>
           </div>
 
-          <!-- Right: Found pet card -->
           <div class="mc-detail-right">
             <div class="mc-found-pet-card">
               <div class="mc-found-pet-img-wrap">
@@ -404,15 +364,12 @@
             </div>
           </div>
 
-        </div><!-- /mc-detail-cols -->
-      </div><!-- /mc-detail-body -->
-    </div><!-- /mc-detail-panel -->
-  </div><!-- /#detailJefferson -->
+        </div>
+      </div>
+    </div>
+  </div>
 
 
-  <!-- ══════════════════════════════════════════════
-       DETAIL PANEL — CHARLIE (Pending)
-  ══════════════════════════════════════════════ -->
   <div class="mc-detail-overlay" id="detailCharlie"
        onclick="closeDetailOutside(event,'detailCharlie')">
     <div class="mc-detail-panel" role="dialog" aria-modal="true"
@@ -433,7 +390,6 @@
 
       <div class="mc-detail-body">
 
-        <!-- Pending banner -->
         <div class="mc-pending-banner">
           <div class="mc-pending-icon">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -484,7 +440,6 @@
               </div>
             </div>
 
-            <!-- Pending info box -->
             <div class="mc-pending-info-box">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <circle cx="7" cy="7" r="6" stroke="#856404" stroke-width="1.2"/>
@@ -527,10 +482,9 @@
         </div>
       </div>
     </div>
-  </div><!-- /#detailCharlie -->
+  </div>
 
 
-  <!-- ══════════ RESOLVED SUCCESS MODAL ══════════ -->
   <div class="modal-overlay" id="resolvedModal"
        onclick="closeModalOutside(event,'resolvedModal')">
     <div class="modal-box success-modal-box">
@@ -551,7 +505,6 @@
     </div>
   </div>
 
-  <!-- ══════════ FOOTER ══════════ -->
   <footer class="footer">
     <img src="../images/img/paw-print.svg" alt="" class="footer-paw"/>
     <div class="footer-grid">

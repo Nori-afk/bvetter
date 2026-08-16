@@ -1,10 +1,4 @@
 <!DOCTYPE html>
-<!--
-  Page:    privacy-policy.html
-  Feature: Static legal page — Privacy Policy
-  CSS:     variables.css → components.css → legal.css
-  JS:      nav.js (navbar guest/auth toggle only)
--->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -26,7 +20,6 @@
 </head>
 <body>
 
-  <!-- ══════════ NAVBAR ══════════ -->
   <nav class="navbar">
     <div class="nav-left">
       <img src="../images/logos/logo-color.png" alt="Baliwag City Vet" class="nav-logo"/>
@@ -39,13 +32,11 @@
       </ul>
     </div>
 
-    <!-- Guest nav (not logged in) -->
     <div class="nav-right" id="navGuest">
       <a href="login.html" class="btn-register">Register</a>
       <a href="login.html" class="btn-login-nav">Login</a>
     </div>
 
-    <!-- Auth nav (logged in) -->
     <div class="nav-right nav-right-auth" id="navAuth" style="display:none;">
       <button class="nav-notif-btn" id="notification-icon-btn">
         <img src="../images/icons/icon-bell.svg" alt="Notifications" class="nav-notif-icon"/>
@@ -79,7 +70,6 @@
     </div>
   </nav>
 
-  <!-- ══════════ HERO ══════════ -->
   <section class="legal-hero">
     <div class="legal-hero-inner">
       <a href="landing.html" class="legal-back">&#8592; Back to Home</a>
@@ -89,7 +79,6 @@
     </div>
   </section>
 
-  <!-- ══════════ CONTENT ══════════ -->
   <div class="legal-wrap">
     <div class="legal-card">
 
@@ -173,7 +162,6 @@
     </div>
   </div>
 
-  <!-- ══════════ FOOTER ══════════ -->
   <footer class="footer">
     <img src="../images/img/paw-print.svg" alt="" class="footer-paw"/>
     <div class="footer-grid">

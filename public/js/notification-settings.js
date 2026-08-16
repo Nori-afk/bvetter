@@ -67,8 +67,7 @@
     cb.addEventListener('change', saveNotifPrefs);
   });
 
-  /* ── Clear notification history ─────────────
-     TODO backend: DELETE /api/notifications/history */
+  /* ── Clear notification history ───────────── */
   const btnClear = document.querySelector('.btn-clear-all');
   if (btnClear) {
     btnClear.addEventListener('click', () => {

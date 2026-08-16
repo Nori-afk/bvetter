@@ -4,17 +4,12 @@
  * ─────────────────────────────────────────────────────────────
  * Centralises every fetch() call used by the vet-side pages.
  * All functions are async and return { ok, data, error }.
- *
- * BACKEND INTEGRATION
- * Change BASE_URL to your server's base URL when the backend
- * is ready.  Every function already calls the correct endpoint
- * so you only need to flip the URL and remove the mock returns.
  * ─────────────────────────────────────────────────────────────
  */
 
 'use strict';
 
-const BASE_URL = '/api';   // [BACKEND] e.g. 'https://api.vbetter.ph'
+const BASE_URL = '/api';
 const BACKEND_URL = '/api';
 const LOST_FOUND_URL = `${BACKEND_URL}/lost-found/lost_and_found.php`;
 const MASS_VACCINATION_URL = `${BACKEND_URL}/mass-vaccination/events.php`;
@@ -346,27 +341,21 @@ async function deleteAppointment(id) {
 /** GET /api/vet/patients */
 async function getPatients(filters = {}) {
     const params = new URLSearchParams(filters).toString();
-    // [BACKEND] return apiFetch(`/vet/patients?${params}`);
     return { ok: true, data: [] };
 }
 
 /** GET /api/vet/patients/:id */
 async function getPatientById(id) {
-    // [BACKEND] return apiFetch(`/vet/patients/${id}`);
     return { ok: true, data: null };
 }
 
 /** POST /api/vet/patients */
 async function createPatient(payload) {
-    // [BACKEND]
-    // return apiFetch('/vet/patients', { method: 'POST', body: JSON.stringify(payload) });
     return { ok: true, data: { ...payload, id: `P-${Date.now()}` } };
 }
 
 /** PATCH /api/vet/patients/:id */
 async function updatePatient(id, payload) {
-    // [BACKEND]
-    // return apiFetch(`/vet/patients/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
     return { ok: true, data: { id, ...payload } };
 }
 
@@ -458,41 +447,31 @@ async function rejectLostFoundSighting(id, reviewNotes = '') {
 
 /** GET /api/vet/chatbot/inquiry-rules */
 async function getInquiryRules() {
-    // [BACKEND] return apiFetch('/vet/chatbot/inquiry-rules');
     return { ok: true, data: [] };
 }
 
 /** POST /api/vet/chatbot/inquiry-rules */
 async function createInquiryRule(payload) {
-    // [BACKEND]
-    // return apiFetch('/vet/chatbot/inquiry-rules', { method: 'POST', body: JSON.stringify(payload) });
     return { ok: true, data: { ...payload, id: Date.now() } };
 }
 
 /** PATCH /api/vet/chatbot/inquiry-rules/:id */
 async function updateInquiryRule(id, payload) {
-    // [BACKEND]
-    // return apiFetch(`/vet/chatbot/inquiry-rules/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
     return { ok: true, data: { id, ...payload } };
 }
 
 /** DELETE /api/vet/chatbot/inquiry-rules/:id */
 async function deleteInquiryRule(id) {
-    // [BACKEND]
-    // return apiFetch(`/vet/chatbot/inquiry-rules/${id}`, { method: 'DELETE' });
     return { ok: true, data: { deleted: id } };
 }
 
 /** GET /api/vet/chatbot/consultation-rules */
 async function getConsultationRules() {
-    // [BACKEND] return apiFetch('/vet/chatbot/consultation-rules');
     return { ok: true, data: [] };
 }
 
 /** POST /api/vet/chatbot/consultation-rules */
 async function createConsultationRule(payload) {
-    // [BACKEND]
-    // return apiFetch('/vet/chatbot/consultation-rules', { method: 'POST', body: JSON.stringify(payload) });
     return { ok: true, data: { ...payload, id: Date.now() } };
 }
 

@@ -670,14 +670,12 @@
 
     <main class="sec-main">
 
-        <!-- Breadcrumb -->
         <nav class="sec-breadcrumb">
             <a href="account-management.html">Account Management</a>
             <span class="sec-breadcrumb-sep">›</span>
             <span class="sec-breadcrumb-current">Manage Security</span>
         </nav>
 
-        <!-- Page title -->
         <div style="display:flex;align-items:center;gap:12px;">
             <a href="account-management.html" class="sec-page-title-icon" title="Back">
                 <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -687,10 +685,8 @@
             <h1 class="sec-page-title">Security &amp; Access Control</h1>
         </div>
 
-        <!-- TOP ROW: 2FA + Password Policy -->
         <div class="sec-top-row">
 
-            <!-- 2FA Card -->
             <div class="sec-card">
                 <div class="sec-card-header">
                     <div class="sec-card-title-row">
@@ -706,7 +702,6 @@
                         </div>
                     </div>
 
-                    <!-- Toggle -->
                     <label class="sec-toggle" title="Toggle 2FA">
                         <input type="checkbox" id="toggle-2fa">
                         <span class="sec-toggle-track"></span>
@@ -722,7 +717,6 @@
                 <button class="sec-btn-configure" type="button" id="configure-2fa-btn">Configure 2FA Methods</button>
             </div>
 
-            <!-- Password Policy Card -->
             <div class="sec-card">
                 <div class="sec-card-header">
                     <div class="sec-card-title-row">
@@ -751,7 +745,6 @@
                 </div>
             </div>
 
-            <!-- Account Lifespan (Inactivity Lockout) Card -->
             <div class="sec-card">
                 <div class="sec-card-header">
                     <div class="sec-card-title-row">
@@ -767,7 +760,6 @@
                         </div>
                     </div>
 
-                    <!-- Toggle -->
                     <label class="sec-toggle" title="Toggle inactivity auto-lockout">
                         <input type="checkbox" id="toggle-inactivity-lockout" aria-label="Toggle inactivity auto-lockout">
                         <span class="sec-toggle-track"></span>
@@ -785,7 +777,6 @@
 
         </div>
 
-        <!-- SESSION MANAGEMENT -->
         <div class="sec-session-card">
             <div class="sec-session-header">
                 <div>
@@ -808,7 +799,6 @@
                         </tr>
                     </thead>
                     <tbody id="session-table-body">
-                        <!-- Populated by JS -->
                     </tbody>
                 </table>
             </div>
@@ -824,7 +814,6 @@
 
     </main>
 
-    <!-- ══ 2FA CONFIG MODAL ══ -->
     <div class="sec-modal-overlay" id="twofa-modal">
         <div class="sec-modal" role="dialog" aria-modal="true" aria-labelledby="twofa-modal-title">
             <div>
@@ -856,7 +845,6 @@
         </div>
     </div>
 
-    <!-- ══ PASSWORD POLICY MODAL ══ -->
     <div class="sec-modal-overlay" id="policy-modal">
         <div class="sec-modal" role="dialog" aria-modal="true" aria-labelledby="policy-modal-title">
             <div>
@@ -893,7 +881,6 @@
         </div>
     </div>
 
-    <!-- ══ ACCOUNT LIFESPAN MODAL ══ -->
     <div class="sec-modal-overlay" id="inactivity-modal">
         <div class="sec-modal" role="dialog" aria-modal="true" aria-labelledby="inactivity-modal-title">
             <div>

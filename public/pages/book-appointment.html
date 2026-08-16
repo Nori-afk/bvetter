@@ -1,15 +1,4 @@
 <!DOCTYPE html>
-<!--
-  Page:    book-appointment.html
-  Feature: Vet selection + 4-step booking form + history
-  CSS:     variables.css → components.css → book-appointment.css
-  JS:      nav.js → api.js → book-appointment.js
-
-  TODO backend:
-  - s4Confirm: api.bookAppointment(data) then show step 5
-  - pageHistory: api.getAppointments() to populate rows
-  - Vet list sidebar: api.getVets() to populate dynamically
--->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -25,17 +14,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-  <!-- 1. Design tokens (ALWAYS first) -->
   <link rel="stylesheet" href="../css/variables.css"/>
-  <!-- 2. Shared components -->
   <link rel="stylesheet" href="../css/components.css"/>
-  <!-- Page-specific styles -->
-  <!-- 3. Page-specific -->
   <link rel="stylesheet" href="../css/book-appointment.css"/>
 </head>
 <body>
 
-  <!-- ===================== NAVBAR - LOGGED IN ===================== -->
   <nav class="navbar">
     <div class="nav-left">
       <img src="../images/logos/logo-color.png" alt="Baliwag City Vet" class="nav-logo"/>
@@ -80,9 +64,6 @@
   </div>
 </nav>
 
-<!-- ══════════════════════════════════════════
-     PAGE 1 — VET SELECTION
-══════════════════════════════════════════ -->
 <div id="pageVet" class="page active">
 
   <div class="hero-wrap">
@@ -98,13 +79,11 @@
   <div class="vet-wrap">
     <div class="vet-layout">
 
-      <!-- Sidebar -->
       <div class="vet-sidebar" id="vetContainer">
         <div class="sidebar-label">Available Vets</div>
         <div class="sidebar-sub">Select your preferred specialist</div>
       </div>
 
-      <!-- Vet Profile -->
       <div class="vet-profile-card">
         <div class="vet-profile-header">
           <div class="vet-profile-img" id="profile-heads"></div>
@@ -171,7 +150,6 @@
         </div>
       </div>
 
-      <!-- All Reviews Modal -->
       <div class="reviews-modal-overlay" id="reviewsModalOverlay">
         <div class="reviews-modal">
           <div class="reviews-modal-header">
@@ -182,7 +160,6 @@
         </div>
       </div>
 
-      <!-- Calendar -->
       <div class="vet-right-col">
         <div class="vet-calendar-card">
           <div class="cal-title">Calendar</div>
@@ -212,7 +189,6 @@
             <span class="legend-label"><span class="legend-dot av"></span> Available</span>
           </div>
          <div class="time-grid" id="timeGrid">
-  <!-- slots populated dynamically by buildTimeSlots() in book-appointment.js -->
 </div>
 
           <button class="btn-book" id="btnBook">
@@ -224,7 +200,6 @@
 
     </div>
 
-    <!-- History strip -->
     <div class="history-section">
       <div id="cspStatusCard" class="csp-status-card is-hidden"></div>
       <div class="history-header">
@@ -239,13 +214,9 @@
 </div>
 
 
-<!-- ══════════════════════════════════════════
-     PAGE 2 — BOOKING STEPS
-══════════════════════════════════════════ -->
 <div id="pageBooking" class="page">
   <div class="booking-page">
 
-    <!-- Split booking header -->
     <div class="booking-top">
       <div class="booking-top-left">
         <a class="back-pill" id="btnBackToVet">
@@ -287,9 +258,7 @@
       </div>
     </div>
 
-    <!-- Form steps -->
     <div class="booking-form-wrap">
-    <!-- Step 1 -->
     <div id="step1" class="step-content">
       <div class="form-card">
         <div class="form-card-title">Owner Information</div>
@@ -338,7 +307,6 @@
       </div>
     </div>
 
-    <!-- Step 2 -->
     <div id="step2" class="step-content" style="display:none;">
       <div class="form-card">
         <div class="form-card-title">Pet Information</div>
@@ -398,7 +366,6 @@
       </div>
     </div>
 
-    <!-- Step 3 -->
     <div id="step3" class="step-content" style="display:none;">
       <div class="form-card">
         <div class="form-card-title">Appointment Info</div>
@@ -460,7 +427,6 @@
       </div>
     </div>
 
-    <!-- Step 4 -->
     <div id="step4" class="step-content" style="display:none;">
       <div class="form-card wide">
         <div class="form-card-title">Review &amp; Confirm</div>
@@ -497,7 +463,6 @@
       </div>
     </div>
 
-    <!-- Step 5: Success -->
     <div id="step5" class="step-content" style="display:none;">
       <div class="success-card" id="step5Default">
         <div class="success-icon">
@@ -540,9 +505,6 @@
 </div>
 
 
-<!-- ══════════════════════════════════════════
-     PAGE 3 — APPOINTMENT HISTORY
-══════════════════════════════════════════ -->
 <div id="pageHistory" class="page">
 
   <div class="hero-wrap">
@@ -559,7 +521,6 @@
   <div class="hist-body">
     <div class="hist-layout">
 
-      <!-- Main: Appointment list -->
       <div class="hist-main">
         <div class="past-header">
           <div class="past-title">Past Appointments</div>
@@ -581,7 +542,6 @@
           </button>
         </div>
 
-        <!-- APPOINTMENT ROWS — hidden by default, shown when records exist -->
         <div class="appt-list" id="histList" style="display:none;">
 
           <div class="appt-row appt-pending">
@@ -658,10 +618,9 @@
             </div>
           </div>
 
-        </div><!-- /histList -->
+        </div>
       </div>
 
-      <!-- Sidebar: Health stats -->
       <div class="hist-sidebar">
         <div class="health-card">
           <div class="health-label">Care Summary</div>
@@ -687,7 +646,6 @@
 </div>
 
 
-  <!-- ===================== FOOTER ===================== -->
   <footer class="footer">
     <img src="../images/img/paw-print.svg" alt="" class="footer-paw"/>
     <div class="footer-grid">
@@ -718,7 +676,6 @@
     </div>
   </footer>
 
-  <!-- ══════════ RATE & REVIEW MODAL ══════════ -->
   <div class="modal-overlay" id="ratingModal" onclick="if(event.target===this) closeRatingModal()">
     <div class="modal-box rating-modal-box">
       <div class="modal-header">
@@ -752,11 +709,10 @@
     </div>
   </div>
 
-  <!-- SCRIPTS - auth.js must load first -->
    <script src="../../shared/js/auth.js?v=20260805-auth"></script>
   <script>
     VBetterAuth.requireAuth(['owner']);
-  </script> 
+  </script>
   <script src="../js/nav.js?v=20260811-poll"></script>
   <script src="../js/api.js"></script>
   <script src="../js/book-appointment.js?v=20260811-poll"></script>

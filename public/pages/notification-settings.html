@@ -1,14 +1,4 @@
 <!DOCTYPE html>
-<!--
-  Page:    notification-settings.html
-  Feature: Notification preferences
-  CSS:     variables.css → components.css → notification-settings.css
-  JS:      nav.js → api.js → notification-settings.js
-
-  TODO backend:
-  - On load: api.getNotifPrefs() to restore checkbox states
-  - On change: api.updateNotifPrefs(prefs)
--->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -24,9 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-  <!-- 1. Design tokens (ALWAYS first) -->
   <link rel="stylesheet" href="../css/variables.css"/>
-  <!-- 2. Shared components -->
   <link rel="stylesheet" href="../css/components.css"/>
   <link rel="stylesheet" href="../css/notification-settings.css"/>
 </head>
@@ -82,7 +70,6 @@
     <h1 class="page-title">Notification Preferences</h1>
     <p class="page-sub">Manage how you receive updates about your clinic, patients, and community alerts.<br/>Changes are applied instantly across all devices.</p>
 
-    <!-- Communication Channels -->
     <div class="notif-card">
       <div class="notif-card-head">
         <div class="notif-card-title">Communication Channels</div>
@@ -96,7 +83,6 @@
           <div class="th-channel">Website</div>
         </div>
 
-        <!-- Row: Lost/Found Alerts -->
         <div class="table-row">
           <div class="notif-type-cell">
             <div class="notif-type-icon green-icon-bg">
@@ -121,7 +107,6 @@
           </div>
         </div>
 
-        <!-- Row: Appointment Reminders -->
         <div class="table-row">
           <div class="notif-type-cell">
             <div class="notif-type-icon blue-icon-bg">
@@ -146,7 +131,6 @@
           </div>
         </div>
 
-        <!-- Row: Claim Updates -->
         <div class="table-row">
           <div class="notif-type-cell">
             <div class="notif-type-icon teal-icon-bg">
@@ -174,10 +158,8 @@
       </div>
     </div>
 
-    <!-- Bottom row: Recent History + Quiet Hours -->
     <div class="bottom-row">
 
-      <!-- Recent History -->
       <div class="history-card">
         <div class="history-card-head">
           <div class="history-card-title">Recent History</div>
@@ -211,7 +193,6 @@
         </div>
       </div>
 
-      <!-- Quiet Hours -->
       <div class="quiet-card">
         <div class="quiet-card-head">
           <div class="quiet-card-head-left">
@@ -240,7 +221,6 @@
   </div>
 </main>
 
-  <!-- ══ QUIET HOURS SCHEDULE MODAL ══ -->
   <div class="modal-overlay" id="quietHoursModal">
     <div class="modal-box qh-modal-box">
       <div class="modal-box-head">
@@ -323,7 +303,6 @@
 
   <div class="toast" id="toast"></div>
 
-  <!-- ══ SCRIPTS — auth.js MUST be first ══ -->
   <script src="../../shared/js/auth.js?v=20260805-auth"></script>
   <script>
     /* Route guard — redirects wrong role to their home */

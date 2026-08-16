@@ -1,16 +1,4 @@
 ﻿<!DOCTYPE html>
-<!--
-  Page:    account-settings.html
-  Feature: Profile editing, password, 2FA, deactivation
-  CSS:     variables.css → components.css → account-settings.css
-  JS:      nav.js → api.js → account-settings.js
-
-  Backend:
-  - Load profile: api.getProfile() on page load
-  - Save profile: api.updateProfile(data)
-  - Change password: api.changePassword(data)
-  - Toggle 2FA: api.setTwoFactor(enabled)
--->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -26,9 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-  <!-- 1. Design tokens (ALWAYS first) -->
   <link rel="stylesheet" href="../css/variables.css"/>
-  <!-- 2. Shared components -->
   <link rel="stylesheet" href="../css/components.css"/>
   <link rel="stylesheet" href="../css/account-settings.css"/>
 </head>
@@ -84,7 +70,6 @@
     <h1 class="page-title">Account Settings</h1>
     <p class="page-sub">Manage your clinical profile, security preferences, and pet ownership details.</p>
 
-    <!-- Profile Information -->
     <div class="settings-card profile-card">
       <div class="profile-banner">
         <div class="profile-card-header">
@@ -139,7 +124,6 @@
       </div>
     </div>
 
-    <!-- Security Cards -->
     <div class="security-row">
       <div class="settings-card security-card">
         <div class="sec-icon-wrap lock-bg">
@@ -179,7 +163,6 @@
   </div>
 </main>
 
-<!-- Password Modal -->
 <div class="modal-overlay" id="pwModal">
   <div class="modal-box">
     <div class="modal-head">
@@ -216,7 +199,6 @@
   </div>
 </div>
 
-<!-- Deactivate Modal -->
 <div class="modal-overlay" id="deactivateModal">
   <div class="modal-box narrow">
     <div class="modal-icon-wrap danger-wrap">
@@ -232,7 +214,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-  <!-- ══ SCRIPTS — auth.js MUST be first ══ -->
   <script src="../../shared/js/auth.js?v=20260805-auth"></script>
   <script>
     /* Route guard — redirects wrong role to their home */

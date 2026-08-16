@@ -1,14 +1,4 @@
 <!DOCTYPE html>
-<!--
-  Page:    create-account.html
-  Feature: 3-step user registration
-  CSS:     variables.css → signup.css
-  JS:      signup.js (no nav.js — unauthenticated page)
-
-  TODO backend:
-  - Step 3 submit: api.register(data) → get reference number
-  - Upload proof: send as FormData with api.register()
--->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -24,23 +14,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-  <!-- 1. Design tokens (ALWAYS first) -->
   <link rel="stylesheet" href="../css/variables.css"/>
-  <!-- 2. Page-specific (no navbar on auth pages) -->
   <link rel="stylesheet" href="../css/signup.css"/>
 </head>
 <body>
 
   <div class="page-wrapper">
 
-    <!-- LEFT PANEL -->
     <div class="left-panel">
       <div class="form-container">
 
         <img src="../images/logos/logo-color.png" alt="Baliwag City Veterinary Services" class="logo"/>
         <h2>Create An Account</h2>
 
-        <!-- STEPPER -->
         <div class="stepper">
           <div class="step">
             <div class="step-circle active" id="circle-1">1</div>
@@ -58,7 +44,6 @@
           </div>
         </div>
 
-        <!-- STEP 1: Account Details -->
         <div class="form-step active" id="step-1">
 
           <div class="form-group">
@@ -100,8 +85,6 @@
               <input type="tel" id="rv_phone" class="no-icon" maxlength="13" placeholder="09XXXXXXXXX"/>
             </div>
           </div>
-          <!-- <div id="email-verified-badge" class="verified-badge" hidden>✓ Email verified</div> -->
-          <!-- <div id="phone-verified-badge" class="verified-badge" hidden>✓ Phone verified</div> -->
         
 
           <div class="form-group">
@@ -129,7 +112,6 @@
           <p class="alt-link">Already have an account? <a href="login.html">Login</a></p>
         </div>
 
-        <!-- STEP 2: Proof of Residency -->
         <div class="form-step" id="step-2">
 
           <div class="form-group">
@@ -171,7 +153,6 @@
           <p class="alt-link">Already have an account? <a href="login.html">Login</a></p>
         </div>
 
-        <!-- STEP 3: Review -->
         <div class="form-step" id="step-3">
 
           <div class="form-group">
@@ -246,7 +227,6 @@
           </div>
         </div>
 
-        <!-- STEP 4: Success -->
         <div class="form-step" id="step-4">
           <div class="success-card">
             <div class="success-top">
@@ -280,7 +260,6 @@
       </div>
     </div>
 
-    <!-- RIGHT PANEL -->
     <div class="right-panel">
       <img src="../images/logos/logo-white.png" alt="Baliwag City Veterinary Services" class="right-logo"/>
       <img src="../images/backgrounds/green-bg.png" alt="" class="bg-image"/>
@@ -293,14 +272,7 @@
     </div>
 
   </div>
-  <!--
-  ══════════════════════════════════════════════════════
-  Paste this block just before </body> in create-account.html
-  Replace the existing <script> tags at the bottom too.
-  ══════════════════════════════════════════════════════
--->
 
-<!-- ── EMAIL OTP MODAL ── -->
 <div class="otp-overlay" id="modal-otp-email" hidden>
     <div class="otp-card">
         <button class="otp-close" id="otp-email-close-btn" type="button">&times;</button>
@@ -341,7 +313,6 @@
     </div>
 </div>
 
-<!-- ── PHONE OTP MODAL ── -->
 <div class="otp-overlay" id="modal-otp-phone" hidden>
     <div class="otp-card">
         <button class="otp-close" id="otp-phone-close-btn" type="button">&times;</button>
@@ -384,26 +355,7 @@
     </div>
 </div>
 
-<!-- ── VERIFIED BADGES (shown in step 1 after verification) ── -->
-<!-- Paste these two divs inside step-1, after the phone number form-group -->
-<!--
-<div id="email-verified-badge" class="verified-badge" hidden>
-    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#00B928" stroke-width="2.5">
-        <polyline points="20 6 9 17 4 12"/>
-    </svg>
-    Email verified
-</div>
-<div id="phone-verified-badge" class="verified-badge" hidden>
-    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#00B928" stroke-width="2.5">
-        <polyline points="20 6 9 17 4 12"/>
-    </svg>
-    Phone verified
-</div>
--->
 
-<!-- ══════════════════════════════════════════════
-     CSS — paste into signup.css
-══════════════════════════════════════════════ -->
 <style>
 /* OTP overlay */
 .otp-overlay {
@@ -591,7 +543,6 @@
 }
 </style>
 
-<!-- ══ SCRIPTS ══ -->
 <script src="../js/api.js?v=20260805-2fa"></script>
 <script src="../../shared/js/auth.js?v=20260805-2fa"></script>
 <script src="../js/password-policy.js?v=20260805-2fa"></script>

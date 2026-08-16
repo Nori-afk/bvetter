@@ -1,25 +1,6 @@
-﻿<!--
-  ╔══════════════════════════════════════════════════════════════╗
-  ║  BVetter — Shared Sidebar Component                         ║
-  ║  File: shared/components/sidebar.html                       ║
-  ║                                                              ║
-  ║  HOW TO USE                                                  ║
-  ║  1. Copy the <aside class="sidebar"> block into your page.  ║
-  ║  2. Load scripts in this order (bottom of <body>):          ║
-  ║       <script src="/shared/js/auth.js?v=20260805-auth"></script>            ║
-  ║       <script src="/shared/js/sidebar.js"></script>         ║
-  ║  3. sidebar.js reads the session role and auto-hides items  ║
-  ║     marked data-roles="admin" from non-admin users.         ║
-  ║                                                              ║
-  ║  data-roles="vet admin"  → both roles see it                ║
-  ║  data-roles="admin"      → admin only                       ║
-  ║  (no attribute)          → everyone                         ║
-  ╚══════════════════════════════════════════════════════════════╝
--->
-
+﻿
 <aside class="sidebar" role="navigation" aria-label="Main navigation">
 
-    <!-- Logo -->
     <div class="sidebar-header">
         <div class="logo">
             <img src="/shared/images/logo.png" alt="BVetter logo"
@@ -27,10 +8,8 @@
         </div>
     </div>
 
-    <!-- Nav items -->
     <nav class="sidebar-nav">
 
-        <!-- ── VET SECTION (vet + admin both see these) ── -->
         <a class="nav-item" href="#" data-roles="vet admin">
             <img class="nav-icon" src="/shared/images/sidebar/dashboard.svg" alt="">
             <span class="nav-label">Dashboard</span>
@@ -71,7 +50,6 @@
             <span class="nav-label">Mass Vaccination</span>
         </a>
 
-        <!-- ── ADMIN-ONLY SECTION ─────────────────────── -->
         <hr class="nav-section-divider" data-roles="admin">
         <p class="nav-section-label" data-roles="admin">Administration</p>
 
@@ -87,9 +65,7 @@
 
     </nav>
 
-    <!-- Profile card — populated by sidebar.js from session -->
     <div class="sidebar-footer">
-        <!-- sidebar.js injects the profile card here -->
     </div>
 
 </aside>

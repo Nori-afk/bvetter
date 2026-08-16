@@ -429,7 +429,6 @@ function renderPatientInfoTab(record) {
 	return `
 		<div class="detail-panel-grid">
 
-			<!-- KPI tiles -->
 			<div class="kpi-row">
 				<div class="kpi-tile kpi-tile-navy">
 					<div class="kpi-tile-head">
@@ -478,7 +477,6 @@ function renderPatientInfoTab(record) {
 				</div>
 			</div>
 
-			<!-- Physical + Ownership -->
 			<div class="detail-two-column">
 				<article class="detail-info-card pi-card">
 					<div class="pi-card-head">
@@ -542,7 +540,6 @@ function renderPatientInfoTab(record) {
 				</article>
 			</div>
 
-			<!-- Latest Clinical Visit -->
 			<article class="detail-info-card lv-card">
 				<div class="lv-card-head">
 					<div class="lv-head-left">
@@ -1042,7 +1039,6 @@ function renderAdd(record) {
 			</div>
 
 			<form id="record-form" class="form-layout">
-				<!-- Pet Information -->
 				<article class="form-card">
 					<div class="form-card-head">
 						<div class="form-card-icon fci-green">
@@ -1105,7 +1101,6 @@ function renderAdd(record) {
 					`}
 				</article>
 
-				<!-- Owner Information -->
 				<article class="form-card">
 					<div class="form-card-head">
 						<div class="form-card-icon fci-blue">
@@ -1136,7 +1131,6 @@ function renderAdd(record) {
 					</div>
 				</article>
 
-				<!-- Visit Details — full width -->
 				<article class="form-card span-2">
 					<div class="form-card-head">
 						<div class="form-card-icon fci-navy">
@@ -1320,7 +1314,6 @@ function renderEditModal(record) {
 			<div class="em-divider"></div>
 
 			<div class="em-body">
-				<!-- Pet Information -->
 				<div class="em-section">
 					<p class="em-section-label">Pet Information</p>
 					<div class="em-grid">
@@ -1369,7 +1362,6 @@ function renderEditModal(record) {
 					</div>
 				</div>
 
-				<!-- Owner Information -->
 				<div class="em-section">
 					<p class="em-section-label">Owner Information</p>
 					<div class="em-grid">
@@ -1392,7 +1384,6 @@ function renderEditModal(record) {
 					</div>
 				</div>
 
-				<!-- Record Status -->
 				<div class="em-section">
 					<p class="em-section-label">Record Status</p>
 					<div class="em-grid">

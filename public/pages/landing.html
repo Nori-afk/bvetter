@@ -1,16 +1,4 @@
 <!DOCTYPE html>
-<!--
-  Page:    landing.html
-  Feature: Public landing / home page
-  CSS:     variables.css → components.css → landing.css
-  JS:      nav.js → landing.js → chatbot.js
-
-  TODO backend:
-  - Replace sessionStorage nav toggle with server-side session
-  - Replace static event cards with api.getEvents()
-  - Replace static pet cards with api.getReports({ limit: 3 })
-  - Replace hardcoded user name in navAuth with api.getProfile()
--->
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -26,19 +14,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-  <!-- 1. Design tokens (ALWAYS first) -->
   <link rel="stylesheet" href="../css/variables.css"/>
-  <!-- 2. Shared components: navbar + footer -->
   <link rel="stylesheet" href="../css/components.css"/>
-  <!-- 3. Page-specific -->
   <link rel="stylesheet" href="../css/landing.css"/>
 </head>
 <body>
 
-  <!-- ══════════ NAVBAR ══════════
-       Guest nav: shown when not logged in
-       Auth nav:  shown when logged in
-       Toggle handled by landing.js        -->
   <nav class="navbar">
     <div class="nav-left">
       <img src="../images/logos/logo-color.png" alt="Baliwag City Vet" class="nav-logo"/>
@@ -51,13 +32,11 @@
       </ul>
     </div>
 
-    <!-- Guest nav (not logged in) -->
     <div class="nav-right" id="navGuest">
       <a href="login.html" class="btn-register">Register</a>
       <a href="login.html" class="btn-login-nav">Login</a>
     </div>
 
-    <!-- Auth nav (logged in) -->
     <div class="nav-right nav-right-auth" id="navAuth" style="display:none;">
       <button class="nav-notif-btn" id="notification-icon-btn">
         <img src="../images/icons/icon-bell.svg" alt="Notifications" class="nav-notif-icon"/>
@@ -91,7 +70,6 @@
     </div>
   </nav>
 
-  <!-- ══════════ HERO ══════════ -->
   <section class="hero">
     <div class="hero-left">
       <span class="hero-badge">Baliwag Veterinary Clinic</span>
@@ -109,7 +87,6 @@
             <img src="../images/icons/icon-circle-arrow.svg"/>
           </span>
         </a>
-        <!-- <a href="#" class="btn-specialties">Our Specialties</a> -->
       </div>
     </div>
     <div class="hero-right">
@@ -128,7 +105,6 @@
     </div>
   </section>
 
-  <!-- ══════════ STATS ══════════ -->
   <section class="stats">
     <div class="stat-item">
       <span class="stat-label">Number of Visit</span>
@@ -146,9 +122,6 @@
     </div>
   </section>
 
-  <!-- ══════════ ABOUT US ══════════
-       teamImage/about text come from Website Management → site settings;
-       see applySiteSettings() in site-settings.js. -->
   <section class="about-section" id="about">
     <div class="about-img-wrap">
       <img src="" alt="Our team" class="about-team-img" id="aboutTeamImg"/>
@@ -163,8 +136,6 @@
     </div>
   </section>
 
-  <!-- ══════════ UPCOMING HEALTH EVENTS ══════════
-       TODO backend: replace cards with api.getEvents() -->
   <section class="events-section" id="events">
     <div class="events-header">
       <div>
@@ -224,8 +195,6 @@
     </div>
   </section>
 
-  <!-- ══════════ LOST & FOUND PREVIEW ══════════
-       TODO backend: replace cards with api.getReports({ limit: 3 }) -->
   <section class="lostfound-section">
     <div class="lostfound-header">
       <div>
@@ -280,7 +249,6 @@
     </div>
   </section>
 
-  <!-- ══════════ SPECIALISTS ══════════ -->
   <section class="specialists-section">
     <h2>Meet Our Specialists</h2>
     <p class="specialists-sub">The experts behind our clinical precision.</p>
@@ -308,7 +276,6 @@
     </div>
   </section>
 
-  <!-- ══════════ FOOTER ══════════ -->
   <footer class="footer">
     <img src="../images/img/paw-print.svg" alt="" class="footer-paw"/>
     <div class="footer-grid">
