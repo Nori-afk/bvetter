@@ -144,7 +144,10 @@ window.PasswordPolicy = (() => {
     }
 
     const LEVELS = [
-        { label: '', color: '#e5e7eb' },
+        // Score 0 means the password fails a rule outright. It still needs a
+        // label — an empty one next to an empty bar reads as "nothing has
+        // been assessed yet" rather than "this is not acceptable".
+        { label: 'Too weak', color: '#e53e3e' },
         { label: 'Weak', color: '#e53e3e' },
         { label: 'Fair', color: '#f59e0b' },
         { label: 'Strong', color: '#00B928' },
@@ -173,6 +176,12 @@ window.PasswordPolicy = (() => {
     /**
      * Wires a [data-pw-strength="inputId"] element to that password input,
      * rendering the rule checklist and strength bar as the user types.
+     *
+     * Where a form mounts this, it does NOT also need [data-pw-policy-hint]:
+     * the checklist states every rule and reflects an admin-raised minimum
+     * the same way. create-account.html in particular must not have both —
+     * its .hint span is float:right, so the full policy sentence takes the
+     * whole line and collapses the password input beside it.
      */
     function mountStrength(host) {
         const input = document.getElementById(host.getAttribute('data-pw-strength'));
@@ -206,7 +215,9 @@ window.PasswordPolicy = (() => {
 
             const s = score(value);
             const level = LEVELS[s];
-            fill.style.width = (s / 4 * 100) + '%';
+            // A sliver of red at score 0, so the bar reads as "assessed and
+            // rejected" rather than as an untouched empty track.
+            fill.style.width = value ? Math.max(8, s / 4 * 100) + '%' : '0%';
             fill.style.backgroundColor = level.color;
             label.style.color = level.color;
             label.textContent = value ? level.label : '';

@@ -343,7 +343,14 @@ function startIdleTicker() {
         const left = Math.round((idleDeadline - Date.now()) / 1000);
 
         if (left <= 0) {
-            endSessionNow(false);
+            // Tell the server even though it will expire the session on its
+            // own: that expiry is lazy, applied on the next lookup of this
+            // token, so without this call the row sits with revoked_at NULL
+            // and keeps showing as a live login in the Manage Security table
+            // until something happens to touch it. The request itself is
+            // rejected (the token is already past its window) — which is
+            // exactly what triggers the revocation.
+            endSessionNow(true);
         } else if (left <= IDLE_WARNING_SECONDS) {
             showIdleWarning(left);
         } else {
