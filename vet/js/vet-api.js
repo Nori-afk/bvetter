@@ -20,7 +20,7 @@ const NOTIFICATIONS_URL = `${BACKEND_URL}/notifications/notifications.php`;
 /* ── Helpers ─────────────────────────────────────────────── */
 
 function getAuthHeaders() {
-    const session = JSON.parse(sessionStorage.getItem('vbetter_session') || 'null');
+    const session = JSON.parse(localStorage.getItem('vbetter_session') || 'null');
     return {
         'Content-Type': 'application/json',
         ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {})
@@ -35,8 +35,12 @@ async function apiFetch(endpoint, options = {}) {
         });
 
         if (response.status === 401) {
-            // Token expired → log out
-            sessionStorage.removeItem('vbetter_session');
+            // Token expired → log out. All three keys, not just the session:
+            // they outlive the tab now, so a leftover bvetter_token would keep
+            // being sent on the next request after this "logout".
+            localStorage.removeItem('vbetter_session');
+            localStorage.removeItem('bvetter_token');
+            localStorage.removeItem('bvetter_user');
             window.location.href = '../../public/pages/login.html';
             return { ok: false, error: 'Unauthorised' };
         }
@@ -88,7 +92,7 @@ async function getAppointments(filters = {}) {
 
 function sessionValue() {
     try {
-        return JSON.parse(sessionStorage.getItem('vbetter_session') || 'null');
+        return JSON.parse(localStorage.getItem('vbetter_session') || 'null');
     } catch {
         return null;
     }

@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function handleExport() {
-    var session = JSON.parse(sessionStorage.getItem('vbetter_session') || 'null');
+    var session = JSON.parse(localStorage.getItem('vbetter_session') || 'null');
     var userName = (session && session.name) ? session.name : 'Baliuag City Veterinary Office';
     var params = requestParams({ page: 1, page_size: 10000, generated_by: userName });
     var url = window.VetAPI.getReportExportUrl(params, state.exportFormat);

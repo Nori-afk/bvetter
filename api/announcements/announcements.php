@@ -120,11 +120,14 @@ function formatAnnouncement($row)
 
     return [
         'id' => (int)$row['id'],
-        'title' => $row['title'],
+        // Defanged on output as well as validated on input. Rows written before
+        // the input check existed are still in the table, and this is the
+        // payload the public landing page renders.
+        'title' => apiSafeText($row['title']),
         'description' => apiSafeText($row['description']),
-        'category' => $row['category'],
+        'category' => apiSafeText($row['category']),
         'date' => $row['event_date'],
-        'location' => $row['location'],
+        'location' => apiSafeText($row['location']),
         'image' => $row['image_path'],
         'status' => $row['status'],
         'createdByRole' => $row['created_by_role'],
@@ -186,6 +189,35 @@ function saveAnnouncement($pdo, $data)
         respond(422, [
             'success' => false,
             'message' => 'Title and description are required.'
+        ]);
+    }
+
+    /* Announcements are the most public thing in this system: they render on
+       the landing-page carousel for visitors who are not logged in at all
+       (public/js/landing.js). clean() here is only trim(), so before this
+       check a title was stored exactly as typed and the sole thing standing
+       between markup in it and every guest's browser was escapeHtml() on the
+       client -- one render site away from being an XSS.
+
+       Title, category and location are identity-type fields (short labels,
+       no legitimate angle brackets) so they are REJECTED here. Description is
+       free text -- an advisory may legitimately read "temp > 39C" -- so it is
+       defanged on the way out by apiSafeText() in formatAnnouncement()
+       instead, per the split described in api/config/input_validation.php.
+       Length caps match the column widths declared above. */
+    $fieldError = firstIdentityFieldError([
+        [$title,                        'Title',    180, 2],
+        [clean($data['category'] ?? ''), 'Category', 80,  0],
+        [clean($data['location'] ?? ''), 'Location', 180, 0],
+    ]);
+    if ($fieldError !== null) {
+        respond(422, ['success' => false, 'message' => $fieldError]);
+    }
+
+    if (mb_strlen($description) > 5000) {
+        respond(422, [
+            'success' => false,
+            'message' => 'Description must be 5000 characters or fewer.'
         ]);
     }
 

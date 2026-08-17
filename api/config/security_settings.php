@@ -25,9 +25,9 @@ function ensureSecuritySettingsSchema(PDO $pdo): void
             pw_require_special          TINYINT(1)        NOT NULL DEFAULT 0,
             pw_require_number           TINYINT(1)        NOT NULL DEFAULT 0,
             pw_require_uppercase        TINYINT(1)        NOT NULL DEFAULT 0,
-            inactivity_lockout_enabled  TINYINT(1)        NOT NULL DEFAULT 0,
-            inactivity_lockout_days     SMALLINT UNSIGNED NOT NULL DEFAULT 90,
-            session_idle_minutes        SMALLINT UNSIGNED NOT NULL DEFAULT 30,
+            inactivity_lockout_enabled  TINYINT(1)        NOT NULL DEFAULT 1,
+            inactivity_lockout_days     SMALLINT UNSIGNED NOT NULL DEFAULT 365,
+            session_idle_minutes        SMALLINT UNSIGNED NOT NULL DEFAULT 10,
             updated_at                  DATETIME          NOT NULL DEFAULT NOW() ON UPDATE NOW()
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
@@ -43,7 +43,57 @@ function ensureSecuritySettingsSchema(PDO $pdo): void
         $pdo->exec("ALTER TABLE security_settings ADD COLUMN inactivity_lockout_days SMALLINT UNSIGNED NOT NULL DEFAULT 90 AFTER inactivity_lockout_enabled");
     }
     if (!$pdo->query("SHOW COLUMNS FROM security_settings LIKE 'session_idle_minutes'")->fetch()) {
-        $pdo->exec("ALTER TABLE security_settings ADD COLUMN session_idle_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 30 AFTER inactivity_lockout_days");
+        $pdo->exec("ALTER TABLE security_settings ADD COLUMN session_idle_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 10 AFTER inactivity_lockout_days");
+    }
+
+    /* ── One-time retention-policy migration ──────────────────────────
+       The three columns above ship with new defaults (lockout ON at 365
+       days, 10-minute idle window), but a column default only applies to
+       rows created afterwards -- and row id=1 was written by the
+       INSERT IGNORE above on the very first request this install ever
+       served. Without this block, every existing install keeps the old
+       values (lockout OFF, 90 days, 30 minutes) and the published privacy
+       policy would describe a policy that isn't actually in force.
+
+       The absence of retention_defaults_applied is the marker, following
+       the same idiom as the ALTERs above: adding the column is the single
+       moment this runs, so it is naturally idempotent.
+
+       last_login_at is reset in the same breath, and that is the whole
+       reason this is one guarded block rather than a plain UPDATE.
+       maybeBlockForInactivity() judges accounts on the AGE of
+       last_login_at, so switching the lockout on retroactively would block
+       any account that logged in once and went quiet past the window.
+       Accounts that never logged in are already safe (login_security.php
+       returns early on last_login_at IS NULL); this protects the ones that
+       did.
+
+       DELIBERATELY NARROW: only rows that would actually be blocked are
+       touched, not every row with a login. last_login_at is real beta usage
+       data we still want, and a blanket reset would erase when 7 live
+       accounts genuinely last signed in to prevent a problem none of them
+       has -- on this database the oldest login is weeks old, so this WHERE
+       matches nothing. It earns its place on an install whose data is older
+       than the window, where it is the difference between a working system
+       and every account locked out at once. */
+    if (!$pdo->query("SHOW COLUMNS FROM security_settings LIKE 'retention_defaults_applied'")->fetch()) {
+        $pdo->exec("ALTER TABLE security_settings ADD COLUMN retention_defaults_applied TINYINT(1) NOT NULL DEFAULT 0 AFTER session_idle_minutes");
+
+        $pdo->exec("
+            UPDATE security_settings
+            SET inactivity_lockout_enabled = 1,
+                inactivity_lockout_days    = 365,
+                session_idle_minutes       = 10,
+                retention_defaults_applied = 1
+            WHERE id = 1
+        ");
+
+        $pdo->exec("
+            UPDATE users
+            SET last_login_at = NOW()
+            WHERE last_login_at IS NOT NULL
+              AND last_login_at < DATE_SUB(NOW(), INTERVAL 365 DAY)
+        ");
     }
 }
 

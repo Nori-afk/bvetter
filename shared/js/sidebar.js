@@ -4,7 +4,7 @@
  * FIXES:
  *  1. All nav routes are ABSOLUTE so they work from /vet/html/
  *     AND /admin/pages/ — no more "Cannot GET" errors.
- *  2. Profile card is always built from sessionStorage, so the
+ *  2. Profile card is always built from localStorage, so the
  *     real name (Dr. Kizea) always shows — never "Guest".
  *  3. data-roles hides admin-only items from vet users.
  *  4. Dashboard route is role-aware — admin goes to
@@ -143,7 +143,7 @@
             if (window.VBetterAuth && window.VBetterAuth.getSession) {
                 return window.VBetterAuth.getSession();
             }
-            const raw = sessionStorage.getItem('vbetter_session');
+            const raw = localStorage.getItem('vbetter_session');
             console.log(raw)
             return raw ? JSON.parse(raw) : null;
         } catch { return null; }
@@ -234,8 +234,12 @@
                 return;
             }
             // Fallback: some pages don't load auth.js yet — clear the
-            // session directly so logout still works everywhere.
-            sessionStorage.removeItem('vbetter_session');
+            // session directly so logout still works everywhere. All three
+            // keys: they persist across tabs now, so a leftover token would
+            // survive this logout.
+            localStorage.removeItem('vbetter_session');
+            localStorage.removeItem('bvetter_token');
+            localStorage.removeItem('bvetter_user');
             window.location.href = '../../public/pages/login.html';
         });
     }

@@ -15,6 +15,24 @@
 /* ── Constants ─────────────────────────────────────────────── */
 const SESSION_KEY = 'vbetter_session';
 
+/* WHY localStorage AND NOT sessionStorage.
+   sessionStorage is scoped to a single tab, so a second tab — or a
+   middle-clicked link, or reopening after a crash — had no session and
+   bounced the user to the login page mid-task. localStorage is shared
+   across the origin, so one login covers every tab.
+
+   The protection that tab-scoping used to provide is now the idle
+   timeout instead, and a tighter one: sessions expire after
+   security_settings.session_idle_minutes (default 10) of genuine
+   inactivity, enforced server-side against user_sessions.last_seen_at,
+   with a 2-minute visible warning first. So an abandoned session on a
+   shared computer dies on a clock rather than on whether someone
+   happened to close the tab -- which is the more reliable of the two.
+
+   Session identity still lives on the server (user_sessions row keyed by
+   token hash); this only decides where the browser parks its token. */
+const authStore = window.localStorage;
+
 const ROLE_ROUTES = {
     vet:   '/vet/html/index.html',
     admin: '/admin/pages/index.html',
@@ -82,7 +100,7 @@ function loginPageFor(role) {
             }
             const url = typeof input === 'string' ? input : (input && input.url) || '';
             const sameOriginApi = url.indexOf('/api/') !== -1 && !/^https?:\/\//i.test(url);
-            const token = sessionStorage.getItem('bvetter_token');
+            const token = authStore.getItem('bvetter_token');
             if (token && sameOriginApi) {
                 init = init ? { ...init } : {};
                 const headers = new Headers(init.headers || {});
@@ -125,7 +143,7 @@ if (typeof window !== 'undefined') {
 /* ── Session helpers ────────────────────────────────────────── */
 function getSession() {
     try {
-        const raw = sessionStorage.getItem(SESSION_KEY);
+        const raw = authStore.getItem(SESSION_KEY);
         return raw ? JSON.parse(raw) : null;
     } catch { return null; }
 }
@@ -230,13 +248,18 @@ function vbAlert(message, okLabel) {
 }
 
 function setSession(session) {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    authStore.setItem(SESSION_KEY, JSON.stringify(session));
 }
 
 function clearSession() {
-    sessionStorage.removeItem(SESSION_KEY);
-    sessionStorage.removeItem('bvetter_token');
-    sessionStorage.removeItem('bvetter_user');
+    authStore.removeItem(SESSION_KEY);
+    authStore.removeItem('bvetter_token');
+    authStore.removeItem('bvetter_user');
+    // Required now that these live in localStorage. The forced-password-upgrade
+    // flag used to be discarded for free when the tab closed; persisted, a stale
+    // one would follow the browser into the NEXT person's login and route them
+    // to change a password they were never asked about.
+    authStore.removeItem(PW_UPGRADE_KEY);
 }
 
 /* ── Idle-expiry countdown ──────────────────────────────────────
@@ -318,7 +341,7 @@ async function endSessionNow(tellServer) {
     hideIdleWarning();
 
     const role = getSession()?.role;
-    const token = sessionStorage.getItem('bvetter_token');
+    const token = authStore.getItem('bvetter_token');
     if (tellServer && token) {
         try {
             const body = new FormData();
@@ -384,7 +407,7 @@ function trackUserActivity() {
  * the other device out — not just a local-storage flag.
  */
 async function verifySessionWithServer() {
-    const token = sessionStorage.getItem('bvetter_token');
+    const token = authStore.getItem('bvetter_token');
     if (!token) return;
 
     const wasActive = userActedSinceLastPoll;
@@ -450,7 +473,7 @@ async function logout() {
     if (!confirmed) return;
 
     const role = getSession()?.role;
-    const token = sessionStorage.getItem('bvetter_token');
+    const token = authStore.getItem('bvetter_token');
     if (token) {
         try {
             const body = new FormData();
@@ -535,17 +558,17 @@ function passwordPageFor(role) {
 
 /** Flags the session and sends the user to change their password. */
 function requirePasswordUpgrade(role) {
-    sessionStorage.setItem(PW_UPGRADE_KEY, '1');
+    authStore.setItem(PW_UPGRADE_KEY, '1');
     window.location.href = passwordPageFor(role) + '?mustchange=1';
 }
 
 function passwordUpgradePending() {
-    return sessionStorage.getItem(PW_UPGRADE_KEY) === '1';
+    return authStore.getItem(PW_UPGRADE_KEY) === '1';
 }
 
 /** Called by the change-password forms once the new password is accepted. */
 function clearPasswordUpgrade() {
-    sessionStorage.removeItem(PW_UPGRADE_KEY);
+    authStore.removeItem(PW_UPGRADE_KEY);
 }
 
 function redirectToDashboard(role) {

@@ -173,7 +173,7 @@ document.addEventListener('click', (event) => {
 
 function getSession() {
 	try {
-		return JSON.parse(sessionStorage.getItem('vbetter_session') || 'null');
+		return JSON.parse(localStorage.getItem('vbetter_session') || 'null');
 	} catch {
 		return null;
 	}

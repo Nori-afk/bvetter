@@ -7,6 +7,7 @@ error_reporting(E_ALL);
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../config/input_validation.php';
 
 function respond($statusCode, $payload)
 {
@@ -164,10 +165,15 @@ function formatSettings($row, $specialistsCount, $visitsComputed, $ratingCompute
         'logo'          => $row['logo_path'],
         'heroBanner'    => $row['hero_banner_path'],
         'teamImage'     => $row['team_image_path'],
-        'about'         => $row['about_text'],
-        'email'         => $row['contact_email'],
-        'phone'         => $row['contact_phone'],
-        'address'       => $row['address'],
+        /* Every field below renders on the public landing page. about_text is
+           free text (an admin may reasonably write "open 8am > 5pm"), so it is
+           defanged on output rather than rejected on input; the contact fields
+           are short labels and are additionally rejected on write in
+           saveSettings(). */
+        'about'         => apiSafeText($row['about_text']),
+        'email'         => apiSafeText($row['contact_email']),
+        'phone'         => apiSafeText($row['contact_phone']),
+        'address'       => apiSafeText($row['address']),
 
         /* Effective value shown on the public page: admin override wins,
            otherwise the live/cached computed value. */
@@ -257,6 +263,27 @@ function saveUploadedImage($fieldName, $prefix)
 
 function saveSettings($pdo, $data)
 {
+    /* Short-label fields that render on the public landing page get the
+       identity-field rule; about_text does not, because it is a paragraph and
+       "open 8am > 5pm" is a legitimate thing to write there -- it is defanged
+       on output in formatSettings() instead. It still gets a length cap, since
+       unbounded text is a denial-of-service surface. */
+    $fieldError = firstIdentityFieldError([
+        [clean($data['email'] ?? ''),   'Contact email', 190, 0],
+        [clean($data['phone'] ?? ''),   'Contact phone', 40,  0],
+        [clean($data['address'] ?? ''), 'Address',       255, 0],
+    ]);
+    if ($fieldError !== null) {
+        respond(422, ['success' => false, 'message' => $fieldError]);
+    }
+
+    if (mb_strlen(clean($data['about'] ?? '')) > 5000) {
+        respond(422, [
+            'success' => false,
+            'message' => 'About text must be 5000 characters or fewer.'
+        ]);
+    }
+
     $set = [
         'primary_color = :primary_color',
         'about_text = :about_text',

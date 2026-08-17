@@ -51,7 +51,7 @@ const MY_PETS_ENDPOINT = `${API_BASE_REG}/pets/my_pets.php`;
    Reads JWT token saved on login.
    Backend must return { token: '...' } on login. */
 function authHeaders() {
-  const token = sessionStorage.getItem('bvetter_token');
+  const token = localStorage.getItem('bvetter_token');
   return token
     ? { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
     : { 'Content-Type': 'application/json' };
@@ -61,13 +61,13 @@ function authHeaders() {
    Do NOT set Content-Type — browser sets it
    automatically with the correct boundary.       */
 function authHeadersFormData() {
-  const token = sessionStorage.getItem('bvetter_token');
+  const token = localStorage.getItem('bvetter_token');
   return token ? { 'Authorization': 'Bearer ' + token } : {};
 }
 
 function currentSession() {
   try {
-    return JSON.parse(sessionStorage.getItem('vbetter_session') || 'null');
+    return JSON.parse(localStorage.getItem('vbetter_session') || 'null');
   } catch {
     return null;
   }

@@ -1,0 +1,45 @@
+/**
+ * BVetter – Shared field-validation styles  (shared/css/form-validation.css)
+ * ─────────────────────────────────────────────────────────────
+ * Moved out of public/css/book-appointment.css, where these rules used to
+ * live. That made the booking page the only page in the app that could show
+ * an inline field error: any other form that wanted one had to re-declare
+ * the styles or fall back to a popup. Paired with shared/js/form-validation.js
+ * — load both together.
+ *
+ * Applies to any input inside a `.form-group` (public/pages and admin/pages).
+ * vet/html has no `.form-group` wrapper, so vet forms surface server-side
+ * errors through the existing modal instead.
+ */
+
+.field-error-msg {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #d92d20;
+}
+
+/* Two wrapper conventions: `.form-group` in public/pages, `.wm-form-group` in
+   admin/pages. Both are supported by groupOf() in the matching JS. */
+.form-group.has-error .form-input,
+.form-group.has-error .form-select,
+.form-group.has-error .form-textarea,
+.form-group.has-error input,
+.form-group.has-error select,
+.form-group.has-error textarea,
+.wm-form-group.has-error .wm-input,
+.wm-form-group.has-error .wm-textarea,
+.wm-form-group.has-error input,
+.wm-form-group.has-error select,
+.wm-form-group.has-error textarea {
+  border-color: #d92d20;
+}
+
+/* The booking page's time-slot picker is a grid of buttons rather than a
+   single input, so it gets an outline instead of a border colour. */
+.form-group.has-error .slot-grid {
+  outline: 1.5px solid #d92d20;
+  outline-offset: 4px;
+  border-radius: 8px;
+}

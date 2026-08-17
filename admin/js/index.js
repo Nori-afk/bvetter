@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (window.VBetterAuth && window.VBetterAuth.getSession) {
                 session = window.VBetterAuth.getSession();
             } else {
-                const raw = sessionStorage.getItem('vbetter_session');
+                const raw = localStorage.getItem('vbetter_session');
                 session = raw ? JSON.parse(raw) : null;
             }
         } catch { session = null; }

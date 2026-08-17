@@ -62,6 +62,19 @@ async function loadAnnouncements() {
 
 /* ── Save (site settings only — announcements save instantly) ── */
 async function saveConfig() {
+  /* These four all render on the public landing page. The server rejects angle
+     brackets in the three short contact fields and caps the about text
+     (api/site-settings/site-settings.php); checked here first so the admin is
+     told which field is wrong rather than losing the whole save to one toast.
+     Email is validated for format because it is published as a mailto: link. */
+  let ok = true;
+  if (!VBForm.validateNoMarkup('cp-address', 'Address')) ok = false;
+  if (!VBForm.validateMaxLength('cp-address', 255, 'Address must be 255 characters or fewer.')) ok = false;
+  if (!VBForm.validateMaxLength('cp-about', 5000, 'About text must be 5000 characters or fewer.')) ok = false;
+  const cpEmail = (document.getElementById('cp-email')?.value || '').trim();
+  if (cpEmail && !VBForm.validateEmail('cp-email')) ok = false;
+  if (!ok) { VBForm.focusFirstError(); return; }
+
   const formData = new FormData();
   formData.append('primary_color', config.primaryColor);
   formData.append('about', document.getElementById('cp-about').value);
@@ -349,10 +362,27 @@ document.getElementById('btn-add-ann').addEventListener('click', () => {
   openModal('modal-ann');
 });
 
-document.getElementById('ann-modal-save').addEventListener('click', async () => {
-  const title = document.getElementById('ann-title-input').value.trim();
-  if (!title) { document.getElementById('ann-title-input').focus(); return; }
+/* Clearing as the admin types, so a red field doesn't stay red while it's
+   being corrected. */
+VBForm.clearOnInput(['ann-title-input', 'ann-body-input']);
 
+document.getElementById('ann-modal-save').addEventListener('click', async () => {
+  /* Announcements render on the public landing page for logged-out visitors, so
+     the server now rejects angle brackets in the title and requires a
+     description (api/announcements/announcements.php). Mirrored here so the
+     admin sees which field is wrong at the field, instead of a bare toast.
+     Previously this checked only that the title was non-empty and silently
+     focused it -- a blank description got as far as the API and came back as an
+     unexplained failure. */
+  let ok = true;
+  if (!VBForm.validateRequired('ann-title-input', 'Please enter an announcement title.')) ok = false;
+  else if (!VBForm.validateNoMarkup('ann-title-input', 'Title')) ok = false;
+  if (!VBForm.validateRequired('ann-body-input', 'Please enter a description.')) ok = false;
+  if (!VBForm.validateMaxLength('ann-title-input', 180, 'Title must be 180 characters or fewer.')) ok = false;
+  if (!VBForm.validateMaxLength('ann-body-input', 5000, 'Description must be 5000 characters or fewer.')) ok = false;
+  if (!ok) { VBForm.focusFirstError('#modal-ann'); return; }
+
+  const title = document.getElementById('ann-title-input').value.trim();
   const id = parseInt(document.getElementById('ann-edit-index').value, 10);
   const payload = {
     title,

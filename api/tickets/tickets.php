@@ -194,6 +194,21 @@ function createTicket($pdo, $data)
         respond(422, ['success' => false, 'message' => 'Subject and description are required.']);
     }
 
+    /* Length caps only -- no angle-bracket rejection. A ticket is the one place
+       a user is actively describing a problem, and "the page shows <blank>" or
+       "temp reads > 39" are exactly the sorts of thing they will type. Both
+       fields are already defanged on output by apiSafeText() in
+       formatTicket(). What was missing was any bound at all: subject silently
+       overflowed VARCHAR(150) and description was unbounded TEXT, which is a
+       denial-of-service surface by the reasoning in
+       api/config/input_validation.php. */
+    if (mb_strlen($subject) > 150) {
+        respond(422, ['success' => false, 'message' => 'Subject must be 150 characters or fewer.']);
+    }
+    if (mb_strlen($description) > 5000) {
+        respond(422, ['success' => false, 'message' => 'Description must be 5000 characters or fewer.']);
+    }
+
     [$attachmentPath, $attachmentType] = saveTicketAttachment();
     $reporterName = nullableClean($data['reporter_name'] ?? '');
     $reporterRole = normalizeRole($data['reporter_role'] ?? '');

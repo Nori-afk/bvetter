@@ -32,9 +32,9 @@ function closeModalOutside(event, id) {
 let pendingLogin = null;
 
 function completeLogin(result) {
-  sessionStorage.setItem('vbetter_session', JSON.stringify(result.data));
-  sessionStorage.setItem('bvetter_user', JSON.stringify(result.data));
-  sessionStorage.setItem('bvetter_token', result.data.token || '');
+  localStorage.setItem('vbetter_session', JSON.stringify(result.data));
+  localStorage.setItem('bvetter_user', JSON.stringify(result.data));
+  localStorage.setItem('bvetter_token', result.data.token || '');
   VBetterAuth.redirectToDashboard(result.data.role);
 }
 

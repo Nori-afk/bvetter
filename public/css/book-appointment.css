@@ -1033,23 +1033,9 @@ body {
   border-radius: 6px;
 }
 
-.field-error-msg {
-  font-size: 10px;
-  font-weight: 600;
-  color: #d92d20;
-}
-
-.form-group.has-error .form-input,
-.form-group.has-error .form-select,
-.form-group.has-error .form-textarea {
-  border-color: #d92d20;
-}
-
-.form-group.has-error .slot-grid {
-  outline: 1.5px solid #d92d20;
-  outline-offset: 4px;
-  border-radius: 8px;
-}
+/* .field-error-msg and .form-group.has-error now live in
+   shared/css/form-validation.css so every form can use them, not just this
+   page. Loaded from book-appointment.html alongside this file. */
 
 .select-wrap {
   position: relative;

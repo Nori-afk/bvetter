@@ -3,6 +3,7 @@
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../config/input_validation.php';
 
 function respond($statusCode, $payload)
 {
@@ -57,9 +58,11 @@ function formatEvent($row)
         'rawId' => (int) $row['id'],
         'date' => $date,
         'dateLabel' => date('F j, Y', strtotime($date)),
-        'barangay' => $row['barangay'],
-        'vaccine' => $row['vaccine'],
-        'status' => $row['status'],
+        // Defanged on output too — rows predating the input check above are
+        // still in the table, and this payload feeds the public landing page.
+        'barangay' => apiSafeText($row['barangay']),
+        'vaccine' => apiSafeText($row['vaccine']),
+        'status' => apiSafeText($row['status']),
         'totalVaccinated' => $total,
         'breakdown' => [
             'dogs' => (int) $row['dogs_count'],
@@ -87,6 +90,18 @@ function createEvent($pdo, $data)
     $vaccine = clean($data['vaccine'] ?? '');
     if ($date === '' || $barangay === '' || $vaccine === '') {
         respond(422, ['success' => false, 'message' => 'Date, barangay, and vaccine are required.']);
+    }
+
+    /* Both of these render on the public landing page for logged-out visitors
+       (public/js/landing.js builds a card titled "{vaccine} - {barangay}"), so
+       they get the same identity-field treatment as every other short label.
+       Caps match the VARCHAR(120) columns. */
+    $fieldError = firstIdentityFieldError([
+        [$barangay, 'Barangay', 120, 2],
+        [$vaccine,  'Vaccine',  120, 2],
+    ]);
+    if ($fieldError !== null) {
+        respond(422, ['success' => false, 'message' => $fieldError]);
     }
 
     $stmt = $pdo->prepare("

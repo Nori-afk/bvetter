@@ -455,7 +455,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             if (window.VBetterAuth && window.VBetterAuth.getSession) {
                 session = window.VBetterAuth.getSession();
             } else {
-                const raw = sessionStorage.getItem('vbetter_session');
+                const raw = localStorage.getItem('vbetter_session');
                 session = raw ? JSON.parse(raw) : null;
             }
         } catch { session = null; }
@@ -1152,7 +1152,7 @@ function openAnnouncementEditorModal({ mode, item }) {
         try {
             bioSession = (window.VBetterAuth && window.VBetterAuth.getSession)
                 ? window.VBetterAuth.getSession()
-                : JSON.parse(sessionStorage.getItem('vbetter_session') || 'null');
+                : JSON.parse(localStorage.getItem('vbetter_session') || 'null');
         } catch { bioSession = null; }
 
         const userId = bioSession?.userId || bioSession?.id || 0;

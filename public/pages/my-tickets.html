@@ -77,7 +77,10 @@
         <input type="text" id="mt-subject" name="subject" maxlength="150" required placeholder="Short summary of the issue">
 
         <label class="field-label" for="mt-description">Description</label>
-        <textarea id="mt-description" name="description" rows="4" required placeholder="What happened? What did you expect instead?"></textarea>
+        <!-- maxlength matches the 5000-character cap now enforced in
+             api/tickets/tickets.php, so the limit is visible in the field
+             rather than only discovered on submit. -->
+        <textarea id="mt-description" name="description" rows="4" maxlength="5000" required placeholder="What happened? What did you expect instead?"></textarea>
 
         <label class="field-label" for="mt-attachment">Screenshot or Video (optional)</label>
         <input type="file" id="mt-attachment" name="attachment" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime">

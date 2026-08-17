@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
 	const PROFILE_API = "/api/users/profile.php";
 	const SESSION_API = "/api/users/sessions.php";
-	const session = window.VBetterAuth?.getSession?.() || JSON.parse(sessionStorage.getItem("vbetter_session") || "null");
+	const session = window.VBetterAuth?.getSession?.() || JSON.parse(localStorage.getItem("vbetter_session") || "null");
 	const userId = session?.userId || session?.id || 0;
 
 	const profileForm = document.getElementById("profile-form");
@@ -182,7 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
 			const profile = await profileRequest("update", payload);
 			fillProfile(profile);
 			const next = { ...session, name: profile.fullName, email: profile.email, phone: profile.phone };
-			sessionStorage.setItem("vbetter_session", JSON.stringify(next));
+			localStorage.setItem("vbetter_session", JSON.stringify(next));
 			setMessage("Profile saved.", "success");
 		} catch (error) {
 			setMessage(error.message, "error");

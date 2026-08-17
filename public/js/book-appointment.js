@@ -396,8 +396,8 @@ async function loadRecentHistory(options = {}) {
   const silent = options.silent === true;
   try {
     const session = JSON.parse(
-      sessionStorage.getItem('vbetter_session') ||
-      sessionStorage.getItem('bvetter_user') ||
+      localStorage.getItem('vbetter_session') ||
+      localStorage.getItem('bvetter_user') ||
       'null'
     );
 
@@ -526,8 +526,8 @@ async function loadCspStatus() {
 
   try {
     const session = JSON.parse(
-      sessionStorage.getItem('vbetter_session') ||
-      sessionStorage.getItem('bvetter_user') ||
+      localStorage.getItem('vbetter_session') ||
+      localStorage.getItem('bvetter_user') ||
       'null'
     );
     const ownerId = session?.userId || session?.id || '';
@@ -718,8 +718,8 @@ async function loadAppointmentHistory(options = {}) {
   const silent = options.silent === true;
   try {
     const session = JSON.parse(
-      sessionStorage.getItem('vbetter_session') ||
-      sessionStorage.getItem('bvetter_user') ||
+      localStorage.getItem('vbetter_session') ||
+      localStorage.getItem('bvetter_user') ||
       'null'
     );
 
@@ -1225,37 +1225,16 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
   /* ── Per-step inline validation ──────────────
      Marks the missing field(s) instead of blocking
      navigation with a popup/alert.
+
+     The generic helpers now live in shared/js/form-validation.js so the other
+     forms in the app can use them too; these thin wrappers keep the call sites
+     below unchanged. Only the booking-specific rules (weekend, horizon, slot)
+     are still defined here.
   ─────────────────────────────────────────── */
-  function setGroupError(group, message) {
-    if (!group) return;
-    group.classList.add('has-error');
-    let msg = group.querySelector('.field-error-msg');
-    if (!msg) {
-      msg = document.createElement('span');
-      msg.className = 'field-error-msg';
-      group.appendChild(msg);
-    }
-    msg.textContent = message;
-  }
+  const setGroupError   = (group, message) => VBForm.setGroupError(group, message);
+  const clearGroupError = (group)          => VBForm.clearGroupError(group);
 
-  function clearGroupError(group) {
-    if (!group) return;
-    group.classList.remove('has-error');
-    const msg = group.querySelector('.field-error-msg');
-    if (msg) msg.remove();
-  }
-
-  function validateRequiredField(id, message) {
-    const el = document.getElementById(id);
-    if (!el) return true;
-    const group = el.closest('.form-group');
-    if (!(el.value || '').trim()) {
-      setGroupError(group, message);
-      return false;
-    }
-    clearGroupError(group);
-    return true;
-  }
+  const validateRequiredField = (id, message) => VBForm.validateRequired(id, message);
 
   function validateApptDateWeekend() {
     const el = document.getElementById('apptDate');
@@ -1300,16 +1279,25 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
 
     if (n === 1) {
       if (!validateRequiredField('ownerName',     'Please enter your full name.'))        valid = false;
-      if (!validateRequiredField('ownerContact',  'Please enter your contact number.'))    valid = false;
-      if (!validateRequiredField('ownerEmail',    'Please enter your email address.'))     valid = false;
+      // Format, not just presence. These two used to be checked for emptiness
+      // only, on both the client AND the server, so "asdf" and "abcdefg" booked
+      // successfully -- and the email is what the clinic's confirmation mail is
+      // sent to. Same rules as signup (api/auth/register.php), because a guest
+      // booking creates a real account in the same users columns.
+      if (!VBForm.validatePHPhone('ownerContact'))                                        valid = false;
+      if (!VBForm.validateEmail('ownerEmail'))                                            valid = false;
       if (!validateRequiredField('ownerBarangay', 'Please select your barangay.'))         valid = false;
       if (!validateRequiredField('ownerAddress',  'Please enter your complete address.'))  valid = false;
+      if (!VBForm.validateNoMarkup('ownerName', 'Full name'))                             valid = false;
+      if (!VBForm.validateNoMarkup('ownerAddress', 'Address'))                            valid = false;
     } else if (n === 2) {
       if (!validateRequiredField('petName',  "Please enter your pet's name."))    valid = false;
       if (!validateRequiredField('petType',  'Please select a pet type.'))        valid = false;
       if (!validateRequiredField('petBreed', "Please enter your pet's breed."))   valid = false;
       if (!validateRequiredField('petAgeValue', "Please enter your pet's age."))  valid = false;
       if (!validateRequiredField('petSex',   "Please select your pet's sex."))    valid = false;
+      if (!VBForm.validateNoMarkup('petName',  "Pet's name"))                     valid = false;
+      if (!VBForm.validateNoMarkup('petBreed', 'Breed'))                          valid = false;
       // petVaccDate is optional — not validated
     } else if (n === 3) {
       if (!validateRequiredField('visitType', 'Please select the type of visit.')) valid = false;
@@ -1553,8 +1541,8 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
   async function submitAppointmentRequest() {
 const selectedSlot = document.querySelector('.slot-btn.selected');
     const session = JSON.parse(
-      sessionStorage.getItem('vbetter_session') ||
-      sessionStorage.getItem('bvetter_user')    ||
+      localStorage.getItem('vbetter_session') ||
+      localStorage.getItem('bvetter_user')    ||
       'null'
     );
 

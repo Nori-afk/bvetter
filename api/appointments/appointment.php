@@ -37,6 +37,44 @@ function respond($statusCode, $payload)
  * a weekday, and inside the booking horizon. Called before any write so both
  * paths agree on what a valid appointment date is.
  */
+/**
+ * Contact-detail rules for booking, deliberately IDENTICAL to the ones
+ * api/auth/register.php applies at signup.
+ *
+ * Both paths write to the same columns -- findOrCreateOwner() INSERTs into
+ * users.email / users.phone_number for a guest booking -- so a rule enforced
+ * on one path and not the other lets the column hold values the other path
+ * forbids. Until now booking checked only that these fields were non-empty,
+ * so "asdf" and "abcdefg" both produced a real account and a real
+ * appointment, and the address stored in appointments.contact_email is what
+ * appointment_notifications.php later tries to email.
+ *
+ * Mobile-only, matching signup: there is no SMS integration, so the number is
+ * a clinic callback field, but accepting a landline here while signup rejects
+ * one is the inconsistency worth avoiding. An owner with no mobile books by
+ * phoning the clinic, as they do today.
+ */
+function assertValidContactEmail($email)
+{
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        respond(422, [
+            'success' => false,
+            'message' => 'Please enter a valid email address.'
+        ]);
+    }
+}
+
+/** Mirrors isValidPHPhone() in shared/js/form-validation.js. */
+function assertValidPHMobile($phone)
+{
+    if (!preg_match('/^(?:\+63|63|0)9\d{9}$/', preg_replace('/[\s-]/', '', $phone))) {
+        respond(422, [
+            'success' => false,
+            'message' => 'Please enter a valid Philippine mobile number (e.g. 09171234567).'
+        ]);
+    }
+}
+
 function assertSchedulableDate($date, $pastMessage)
 {
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || strtotime($date) === false) {
@@ -213,6 +251,13 @@ function findOrCreateOwner($pdo, $data)
             'message' => 'Please provide your ' . implode(', ', $missing) . '.'
         ]);
     }
+
+    // Format, not just presence -- this path is about to INSERT into
+    // users.email and users.phone_number, the same columns register.php
+    // guards. Runs after the $missing check so an empty field reports as
+    // missing rather than as malformed.
+    assertValidContactEmail($email);
+    assertValidPHMobile($phone);
 
     // Confirm the barangay exists before inserting. Without this the profile
     // insert trips a foreign-key constraint and surfaces as a 500.
@@ -535,6 +580,13 @@ function createAppointment($pdo, $data)
             'message' => 'Appointment type, date, and time slot are required.'
         ]);
     }
+
+    // Checked HERE and not only in findOrCreateOwner(): that function returns
+    // early for a logged-in owner and never looks at owner_email, but the
+    // address typed on the form is still stored as appointments.contact_email
+    // below and used as a mail recipient. Validating only inside
+    // findOrCreateOwner() would leave the logged-in path unguarded.
+    assertValidContactEmail(clean($data['owner_email'] ?? ''));
 
     $typeCheck = $pdo->prepare('SELECT id FROM visit_types WHERE name = :name AND is_active = 1 LIMIT 1');
     $typeCheck->execute([':name' => $appointmentType]);

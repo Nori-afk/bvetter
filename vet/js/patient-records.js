@@ -967,7 +967,7 @@ function renderListPagination(shown, total, page, totalPages) {
 
 function getCurrentVetName() {
 	try {
-		const session = JSON.parse(sessionStorage.getItem('vbetter_session') || 'null');
+		const session = JSON.parse(localStorage.getItem('vbetter_session') || 'null');
 		const name = (session?.fullName || session?.name || '').trim();
 		if (!name) return 'Dr. Kizea Bien Igaya';
 		return name.startsWith('Dr.') ? name : `Dr. ${name}`;

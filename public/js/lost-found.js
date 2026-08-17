@@ -50,7 +50,7 @@ const barangayCoordinates = {
 
 function sessionUser() {
   try {
-    return JSON.parse(sessionStorage.getItem('vbetter_session') || 'null');
+    return JSON.parse(localStorage.getItem('vbetter_session') || 'null');
   } catch {
     return null;
   }
@@ -1656,7 +1656,7 @@ async function toggleSightingAccountInfo() {
   document.getElementById('sightingContactPhone').value = session?.phone || '';
   document.getElementById('sightingContactEmail').value = session?.email || '';
 
-  // sessionStorage can be stale (e.g. session created before the account's
+  // localStorage can be stale (e.g. session created before the account's
   // email was set/changed), so pull the current profile from the server too.
   try {
     const result = await api.getProfile();
@@ -1685,7 +1685,7 @@ async function toggleClaimAccountInfo() {
   document.getElementById('claimPhoneInput').value = session?.phone || '';
   document.getElementById('claimEmailInput').value = session?.email || '';
 
-  // sessionStorage can be stale (e.g. session created before the account's
+  // localStorage can be stale (e.g. session created before the account's
   // email was set/changed), so pull the current profile from the server too.
   try {
     const result = await api.getProfile();
