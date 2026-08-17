@@ -50,6 +50,11 @@ document.addEventListener('DOMContentLoaded', async function () {
         window.VetAPI?.getStaffNotifications ? window.VetAPI.getStaffNotifications() : { ok: false, data: [] }
     ]);
     let dashboardData = dashboardResponse.ok ? dashboardResponse.data : null;
+    // Carried to the charts so a failed load can say what went wrong instead of
+    // quietly rendering invented numbers in place of the real ones.
+    const dashboardError = dashboardResponse.ok
+        ? ''
+        : (dashboardResponse.error || 'The dashboard service did not respond.');
     const appointments = appointmentsResponse.ok && Array.isArray(appointmentsResponse.data) ? appointmentsResponse.data : [];
     const vaccinationEvents = vaccinationEventsResponse.ok && Array.isArray(vaccinationEventsResponse.data) ? vaccinationEventsResponse.data : [];
     const chatbotStats = chatbotStatsResponse.ok ? chatbotStatsResponse.data : {};
@@ -113,32 +118,45 @@ document.addEventListener('DOMContentLoaded', async function () {
         disease: null
     };
 
+    // Declared before the charts are built because the disease chart's forecast
+    // is fetched as soon as it renders, and needs to know which disease was
+    // selected in order to discard its own response if the dropdown has moved
+    // on by the time it arrives.
+    const dashboardFilterState = {
+        patientRange: 'weekly',
+        disease: 'All Diseases'
+    };
+
+    /* A chart whose data didn't load is replaced outright rather than drawn
+       empty — an empty Chart.js canvas looks like a real chart reporting zero,
+       which is a claim about the data we're in no position to make. */
+    function showChartUnavailable(canvasId, reason) {
+        const canvas = document.getElementById(canvasId);
+        const container = canvas ? canvas.closest('.chart-container') : null;
+        if (!canvas || !container) return;
+        canvas.hidden = true;
+        const panel = document.createElement('div');
+        panel.className = 'chart-unavailable';
+        panel.innerHTML = `<strong>Couldn't load this data</strong><span>${safeHtml(reason)}</span>`;
+        container.appendChild(panel);
+    }
+
     const patientVolumeCtx = document.getElementById('patientVolumeChart');
-    if (patientVolumeCtx) {
+    const patientVolumeRows = dashboardData?.patientVolume || [];
+    if (patientVolumeCtx && !patientVolumeRows.length) {
+        // The API returns a continuous run of periods, zero-filled where there
+        // were no visits, so an empty array means the request failed rather
+        // than that the clinic saw nobody.
+        showChartUnavailable('patientVolumeChart', dashboardError || 'No patient volume data was returned.');
+    } else if (patientVolumeCtx) {
         window.dashboardCharts.patientVolume = new Chart(patientVolumeCtx, {
             type: 'line',
             data: {
-                labels: (dashboardData?.patientVolume?.length ? dashboardData.patientVolume : [
-                    { label: 'Jan', value: 120 },
-                    { label: 'Feb', value: 190 },
-                    { label: 'Mar', value: 150 },
-                    { label: 'Apr', value: 221 },
-                    { label: 'May', value: 200 },
-                    { label: 'Jun', value: 290 },
-                    { label: 'Jul', value: 250 }
-                ]).map((item) => item.label),
+                labels: patientVolumeRows.map((item) => item.label),
                 datasets: [
                     {
                         label: 'Patient Volume',
-                        data: (dashboardData?.patientVolume?.length ? dashboardData.patientVolume : [
-                            { value: 120 },
-                            { value: 190 },
-                            { value: 150 },
-                            { value: 221 },
-                            { value: 200 },
-                            { value: 290 },
-                            { value: 250 }
-                        ]).map((item) => item.value),
+                        data: patientVolumeRows.map((item) => item.value),
                         borderColor: '#002A58',
                         backgroundColor: 'rgba(0, 42, 88, 0.07)',
                         borderWidth: 2.5,
@@ -212,25 +230,21 @@ document.addEventListener('DOMContentLoaded', async function () {
     // DISEASE CASES CHART
     // ===========================
     const diseaseCtx = document.getElementById('diseaseChart');
-    if (diseaseCtx) {
+    const diseaseRows = dashboardData?.diseaseCasesByBarangay || [];
+    if (diseaseCtx && !diseaseRows.length) {
+        showChartUnavailable('diseaseChart', dashboardError || 'No disease cases were returned for this period.');
+    } else if (diseaseCtx) {
+        // Only Confirmed Cases is drawn here. The Predicted Cases dataset is
+        // appended later by refreshDiseaseForecast(), once the analytics
+        // service has answered — see the comment on that function.
         window.dashboardCharts.disease = new Chart(diseaseCtx, {
             type: 'line',
             data: {
-                labels: (dashboardData?.diseaseCasesByBarangay?.length ? dashboardData.diseaseCasesByBarangay : [
-                    { barangay: 'Poblacion', actual: 5, predicted: 7 },
-                    { barangay: 'San Jose', actual: 2, predicted: 3 },
-                    { barangay: 'Tangos', actual: 4, predicted: 5 },
-                    { barangay: 'Matangtubig', actual: 10, predicted: 8 }
-                ]).map((item) => item.barangay),
+                labels: diseaseRows.map((item) => item.barangay),
                 datasets: [
                     {
                         label: 'Confirmed Cases',
-                        data: (dashboardData?.diseaseCasesByBarangay?.length ? dashboardData.diseaseCasesByBarangay : [
-                            { actual: 5 },
-                            { actual: 2 },
-                            { actual: 4 },
-                            { actual: 10 }
-                        ]).map((item) => item.actual),
+                        data: diseaseRows.map((item) => item.actual),
                         borderColor: '#DC2626',
                         backgroundColor: 'rgba(220, 38, 38, 0.06)',
                         borderWidth: 2.5,
@@ -239,27 +253,6 @@ document.addEventListener('DOMContentLoaded', async function () {
                         pointStyle: 'circle',
                         pointRadius: 3,
                         pointBackgroundColor: '#DC2626',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointHoverRadius: 5
-                    },
-                    {
-                        label: 'Predicted Cases',
-                        data: (dashboardData?.diseaseCasesByBarangay?.length ? dashboardData.diseaseCasesByBarangay : [
-                            { predicted: 7 },
-                            { predicted: 3 },
-                            { predicted: 5 },
-                            { predicted: 8 }
-                        ]).map((item) => item.predicted),
-                        borderColor: '#F97316',
-                        backgroundColor: 'rgba(249, 115, 22, 0.06)',
-                        borderWidth: 1.5,
-                        borderDash: [5, 3],
-                        fill: true,
-                        tension: 0.45,
-                        pointStyle: 'circle',
-                        pointRadius: 3,
-                        pointBackgroundColor: '#F97316',
                         pointBorderColor: '#ffffff',
                         pointBorderWidth: 2,
                         pointHoverRadius: 5
@@ -319,11 +312,19 @@ document.addEventListener('DOMContentLoaded', async function () {
                 }
             }
         });
+        refreshDiseaseForecast();
     }
 
 
     const vaccinatedCtx = document.getElementById('vaccinatedChart');
-    if (vaccinatedCtx) {
+    const vaccinated = dashboardData?.vaccinated || null;
+    // The fiscal year travels with the figure now. The caption was the literal
+    // string 'Total FY24' while the number inside the ring was the latest
+    // dataset year's, so the label named a year the data never came from.
+    const vaccinatedCaption = vaccinated?.year ? `Total FY${vaccinated.year}` : 'Total';
+    if (vaccinatedCtx && !vaccinated) {
+        showChartUnavailable('vaccinatedChart', dashboardError || 'Vaccination totals were not returned.');
+    } else if (vaccinatedCtx) {
         new Chart(vaccinatedCtx, {
             type: 'doughnut',
             data: {
@@ -331,8 +332,8 @@ document.addEventListener('DOMContentLoaded', async function () {
                 datasets: [
                     {
                         data: [
-                            dashboardData?.vaccinated?.dogs || 60,
-                            dashboardData?.vaccinated?.cats || 40
+                            Number(vaccinated.dogs) || 0,
+                            Number(vaccinated.cats) || 0
                         ],
                         backgroundColor: [
                             '#1B6D24',
@@ -376,13 +377,13 @@ document.addEventListener('DOMContentLoaded', async function () {
                     ctx.textBaseline = 'middle';
                     ctx.textAlign = 'center';
                     ctx.fillStyle = '#002A58';
-                    ctx.fillText(formatNumber(dashboardData?.vaccinated?.total || 8402), centerX, centerY - fontSize * 5);
-                    
+                    ctx.fillText(formatNumber(Number(vaccinated.total) || 0), centerX, centerY - fontSize * 5);
+
                     // Draw label
                     ctx.font = `${fontSize * 12}px Manrope, sans-serif`;
                     ctx.fillStyle = '#737781';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText('Total FY24', centerX, centerY + fontSize * 24);
+                    ctx.fillText(vaccinatedCaption, centerX, centerY + fontSize * 24);
                    
                     
                     ctx.restore();
@@ -392,8 +393,10 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     const vaccinationTrendCtx = document.getElementById('vaccinationTrendChart');
-    if (vaccinationTrendCtx) {
-        const trend = dashboardData?.vaccinationTrend?.length ? dashboardData.vaccinationTrend : [];
+    const trend = dashboardData?.vaccinationTrend || [];
+    if (vaccinationTrendCtx && !trend.length) {
+        showChartUnavailable('vaccinationTrendChart', dashboardError || 'No vaccination history was returned.');
+    } else if (vaccinationTrendCtx) {
         new Chart(vaccinationTrendCtx, {
             type: 'bar',
             data: {
@@ -411,7 +414,23 @@ document.addEventListener('DOMContentLoaded', async function () {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            // Axis labels are bare month names, and a 12-month
+                            // window spans two calendar years — the tooltip is
+                            // where "Jun" gets told apart from "Jun".
+                            title(items) {
+                                const row = trend[items[0]?.dataIndex ?? 0];
+                                if (!row?.period) return items[0]?.label ?? '';
+                                const [year, month] = String(row.period).split('-');
+                                return new Date(Number(year), Number(month) - 1, 1)
+                                    .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                            }
+                        }
+                    }
+                },
                 scales: {
                     y: { beginAtZero: true, ticks: { precision: 0 } }
                 }
@@ -949,10 +968,89 @@ function openAnnouncementEditorModal({ mode, item }) {
     // ===========================
     // TAB AND FILTER FUNCTIONALITY
     // ===========================
-    const dashboardFilterState = {
-        patientRange: 'weekly',
-        disease: 'All Diseases'
-    };
+    // dashboardFilterState is declared above the charts — the forecast fetch
+    // needs it before this point in the file.
+
+    function setForecastNote(text) {
+        const note = document.getElementById('diseaseForecastNote');
+        if (!note) return;
+        note.textContent = text;
+        note.hidden = !text;
+    }
+
+    /* The forecast comes from the Python analytics service, a separate process
+       that may not be running. It is fetched only after the chart has already
+       drawn its confirmed cases, so a slow or dead service delays the orange
+       line and nothing else — the page never waits on it.
+
+       When the service can't be reached the line is left off entirely rather
+       than filled in with the +12% arithmetic fallback the API also returns.
+       Disease Analytics plots the real model for these same barangays; a made-up
+       line here would mean two pages quoting different forecasts for the same
+       place, with nothing on screen to say which one to believe. */
+    async function refreshDiseaseForecast() {
+        const chart = window.dashboardCharts.disease;
+        if (!chart || !window.VetAPI?.getDiseaseRiskPrediction) return;
+
+        const barangays = chart.data.labels.slice();
+        if (!barangays.length) return;
+
+        const actuals = chart.data.datasets[0]?.data || [];
+        const currentCases = {};
+        barangays.forEach((barangay, index) => {
+            currentCases[barangay] = Number(actuals[index]) || 0;
+        });
+
+        const requestedDisease = dashboardFilterState.disease;
+        setForecastNote('Loading forecast…');
+
+        const response = await window.VetAPI.getDiseaseRiskPrediction(
+            barangays, currentCases, requestedDisease, 'year'
+        );
+
+        // The dropdown can move while the service is thinking. Plotting a stale
+        // response would put one disease's forecast against another's actuals.
+        if (requestedDisease !== dashboardFilterState.disease) return;
+        if (window.dashboardCharts.disease !== chart) return;
+
+        const rows = response.ok && Array.isArray(response.data) ? response.data : [];
+        const predictedByBarangay = {};
+        rows.forEach((row) => {
+            const value = Number(row.predicted_cases ?? row.fused_predicted);
+            if (row.barangay && Number.isFinite(value)) {
+                predictedByBarangay[row.barangay] = value;
+            }
+        });
+
+        const existing = chart.data.datasets.findIndex((set) => set.label === 'Predicted Cases');
+        if (existing !== -1) chart.data.datasets.splice(existing, 1);
+
+        if (!Object.keys(predictedByBarangay).length) {
+            chart.update();
+            setForecastNote('Forecast unavailable — the analytics service is not responding. Confirmed cases are unaffected.');
+            return;
+        }
+
+        chart.data.datasets.push({
+            label: 'Predicted Cases',
+            data: chart.data.labels.map((barangay) => predictedByBarangay[barangay] ?? null),
+            borderColor: '#F97316',
+            backgroundColor: 'rgba(249, 115, 22, 0.06)',
+            borderWidth: 1.5,
+            borderDash: [5, 3],
+            fill: true,
+            tension: 0.45,
+            pointStyle: 'circle',
+            pointRadius: 3,
+            pointBackgroundColor: '#F97316',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointHoverRadius: 5,
+            spanGaps: true
+        });
+        chart.update();
+        setForecastNote('');
+    }
 
     function updatePatientVolumeChart(rows = []) {
         if (!window.dashboardCharts.patientVolume || !rows.length) return;
@@ -962,11 +1060,22 @@ function openAnnouncementEditorModal({ mode, item }) {
     }
 
     function updateDiseaseChart(rows = []) {
-        if (!window.dashboardCharts.disease || !rows.length) return;
-        window.dashboardCharts.disease.data.labels = rows.map((item) => item.barangay);
-        window.dashboardCharts.disease.data.datasets[0].data = rows.map((item) => item.actual);
-        window.dashboardCharts.disease.data.datasets[1].data = rows.map((item) => item.predicted);
-        window.dashboardCharts.disease.update();
+        const chart = window.dashboardCharts.disease;
+        if (!chart) return;
+
+        // An empty result used to leave the previous disease's line on screen
+        // under the new disease's name. Clear it and say so instead.
+        chart.data.labels = rows.map((item) => item.barangay);
+        chart.data.datasets[0].data = rows.map((item) => item.actual);
+        const stalePrediction = chart.data.datasets.findIndex((set) => set.label === 'Predicted Cases');
+        if (stalePrediction !== -1) chart.data.datasets.splice(stalePrediction, 1);
+        chart.update();
+
+        if (!rows.length) {
+            setForecastNote(`No cases recorded for ${dashboardFilterState.disease}.`);
+            return;
+        }
+        refreshDiseaseForecast();
     }
 
     async function refreshDashboardCharts() {
@@ -976,7 +1085,10 @@ function openAnnouncementEditorModal({ mode, item }) {
                 disease: dashboardFilterState.disease
             })
             : { ok: false };
-        if (!response.ok) return;
+        if (!response.ok) {
+            setForecastNote('Could not refresh — the dashboard service did not respond.');
+            return;
+        }
         dashboardData = { ...(dashboardData || {}), ...(response.data || {}) };
         updatePatientVolumeChart(dashboardData.patientVolume || []);
         updateDiseaseChart(dashboardData.diseaseCasesByBarangay || []);
@@ -1381,22 +1493,32 @@ function renderChatbotInsights(stats) {
 }
 
 function applyDashboardKpis(data) {
-    if (!data?.kpis) return;
     const values = document.querySelectorAll('.KPI .kpi-value');
+    const progressFill = document.querySelector('.vaccination-progress .progress-fill');
+    const greetValues = document.querySelectorAll('.greet-stat-val');
+
+    // Without data, the markup's own placeholder figures (94%, and friends)
+    // would stand there looking like today's numbers. An em dash says plainly
+    // that nothing loaded.
+    if (!data?.kpis) {
+        values.forEach((element) => { element.textContent = '—'; });
+        greetValues.forEach((element) => { element.textContent = '—'; });
+        if (progressFill) progressFill.style.width = '0%';
+        return;
+    }
+
     if (values[0]) values[0].textContent = formatNumber(data.kpis.totalAppointments || 0);
     if (values[1]) values[1].textContent = formatNumber(data.kpis.pendingActions || 0);
     if (values[2]) values[2].textContent = String(data.kpis.activeLostReports || 0).padStart(2, '0');
     if (values[3]) values[3].textContent = `${data.kpis.vaccinationRate || 0}%`;
 
-    const progress = document.querySelector('.vaccination-progress .progress-fill');
-    if (progress) progress.style.width = `${Math.min(100, data.kpis.vaccinationRate || 0)}%`;
+    if (progressFill) progressFill.style.width = `${Math.min(100, data.kpis.vaccinationRate || 0)}%`;
 
     // Greeting banner stats mirror the KPI cards above — same figures,
     // just surfaced closer to the top of the page.
-    const greetStats = document.querySelectorAll('.greet-stat-val');
-    if (greetStats[0]) greetStats[0].textContent = formatNumber(data.kpis.totalAppointments || 0);
-    if (greetStats[1]) greetStats[1].textContent = formatNumber(data.kpis.pendingActions || 0);
-    if (greetStats[2]) greetStats[2].textContent = `${data.kpis.vaccinationRate || 0}%`;
+    if (greetValues[0]) greetValues[0].textContent = formatNumber(data.kpis.totalAppointments || 0);
+    if (greetValues[1]) greetValues[1].textContent = formatNumber(data.kpis.pendingActions || 0);
+    if (greetValues[2]) greetValues[2].textContent = `${data.kpis.vaccinationRate || 0}%`;
 }
 
 /**

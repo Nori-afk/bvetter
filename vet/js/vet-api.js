@@ -596,16 +596,28 @@ async function submitVaccinationReport(id, payload) {
     }
 }
 
-async function getDiseaseRiskPrediction(barangays, currentCasesByBarangay = {}) {
-    barangays = barangays || [];
+/**
+ * POST dashboard.php?scope=disease_risk_prediction
+ *
+ * `disease` and `period` scope the forecast. Leaving them out makes Python route
+ * to the all-disease model, so a caller filtering by disease must pass them or
+ * it silently gets back a series for the wrong question. They were missing here
+ * originally, and disease-analytics.js compensated by overwriting this function
+ * at load time with its own four-argument copy — that patch is gone and this is
+ * now the only implementation.
+ */
+async function getDiseaseRiskPrediction(barangays, currentCasesByBarangay = {}, disease = '', period = 'year', steps = 3) {
     try {
         const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?scope=disease_risk_prediction`, {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             cache: 'no-store',
             body:    JSON.stringify({
-                barangays: barangays,
-                current_cases_by_barangay: currentCasesByBarangay || {}
+                barangays:                 barangays || [],
+                current_cases_by_barangay: currentCasesByBarangay || {},
+                disease:                   disease || '',
+                period:                    period  || 'year',
+                steps:                     steps
             })
         });
         const result = await response.json();

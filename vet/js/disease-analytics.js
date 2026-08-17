@@ -140,29 +140,10 @@ async function diseaseAnalyticsRequest(disease, period) {
     }
 }
 
-async function diseaseRiskRequest(barangays, currentCasesByBarangay, disease, period) {
-    try {
-        const res = await fetch(
-            '/api/dashboard/dashboard.php?scope=disease_risk_prediction',
-            {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                cache:   'no-store',
-                body: JSON.stringify({
-                    barangays:                 barangays || [],
-                    current_cases_by_barangay: currentCasesByBarangay || {},
-                    disease:                   disease  || '',
-                    period:                    period   || 'year',
-                    steps:                     3,
-                }),
-            }
-        );
-        const result = await res.json();
-        return { ok: result.success, data: result.data || [], error: result.success ? null : result.error };
-    } catch (e) {
-        return { ok: false, data: [], error: e.message };
-    }
-}
+/* diseaseRiskRequest() used to live here as a local copy of VetAPI's
+   getDiseaseRiskPrediction, because the shared one dropped `disease` and
+   `period`. The shared one forwards them now, so the copy and the monkey-patch
+   that installed it over window.VetAPI are both gone. */
 
 // "Create Event" doesn't have its own storage -- it routes into whichever
 // existing module actually owns that kind of event, so it shows up where
@@ -1018,17 +999,6 @@ function showHotspotAction(hotspot) {
         document.getElementById('toggleActionBtn').textContent = 'Action Tab';
         renderHotspotList();
     });
-}
-
-/* ── VetAPI extension ───────────────────────────────────────── */
-if (window.VetAPI) {
-    const _orig = window.VetAPI.getDiseaseRiskPrediction;
-    window.VetAPI.getDiseaseRiskPrediction = async function (barangays, currentCases, disease, period) {
-        if (typeof disease === 'undefined') {
-            return _orig ? _orig(barangays, currentCases) : diseaseRiskRequest(barangays, currentCases, '', 'year');
-        }
-        return diseaseRiskRequest(barangays, currentCases, disease, period);
-    };
 }
 
 /* ── Skeleton loading (shown until the first fetch resolves) ─── */

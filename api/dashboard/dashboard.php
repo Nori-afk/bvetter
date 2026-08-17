@@ -762,6 +762,13 @@ function vet_dashboard($pdo, string $patientRange = 'monthly', string $disease =
     $selected = disease_name_filter($disease);
     [$actualDiseaseCases, $predictedDiseaseCases] = disease_case_series($pdo, $selected, 'year');
 
+    // `predicted` here is the +12% arithmetic fallback from disease_case_series(),
+    // NOT a model output. The vet dashboard no longer plots it: it renders the
+    // actuals immediately and then fetches the real SARIMA/RF forecast from the
+    // analytics service client-side (see vet/js/index.js), hiding the forecast
+    // line entirely when that service is unreachable. The field stays in the
+    // payload for other consumers of this shape — don't wire it back into a
+    // chart, it disagrees with the Disease Analytics page by construction.
     $diseaseByBarangay = [];
     foreach ($actualDiseaseCases as $index => $row) {
         $diseaseByBarangay[] = [
@@ -808,12 +815,33 @@ function vet_dashboard($pdo, string $patientRange = 'monthly', string $disease =
         }
     }
 
-    // Last 6 months of real vaccination totals (historical dataset merged
+    // Last 12 months of real vaccination totals (historical dataset merged
     // with live mass_vaccination_events) — purely historical, no forecast.
-    $vaccinationTrend = array_map(fn($r) => [
-        'label' => $r['month'] !== '' ? substr((string) $r['month'], 0, 3) : date('M', mktime(0, 0, 0, max(1, (int) $r['month_no']), 1)),
-        'value' => (int) $r['total_vaccinated'],
-    ], array_slice(monthly_vaccination_series($pdo), -6));
+    //
+    // Built as a continuous run of calendar months ending at the current month,
+    // filling any month with no records as 0. Slicing the last 6 rows straight
+    // off monthly_vaccination_series() returned the last 6 months that happen
+    // to *have* data, which is a different question: with the Excel snapshot
+    // ending Dec 2025 and live events resuming Jun 2026, it drew Dec adjacent
+    // to Jun as if they were consecutive months, under a card labelled "Last 6
+    // Months". Same problem and same fix as patient_volume_monthly_rows().
+    $vaccinationByPeriod = [];
+    foreach (monthly_vaccination_series($pdo) as $row) {
+        $vaccinationByPeriod[$row['period']] = (int) $row['total_vaccinated'];
+    }
+
+    $vaccinationTrend = [];
+    $trendCursor      = new DateTime('first day of this month');
+    $trendCursor->modify('-11 months');
+    for ($i = 0; $i < 12; $i++) {
+        $trendKey           = $trendCursor->format('Y-m');
+        $vaccinationTrend[] = [
+            'period' => $trendKey,
+            'label'  => $trendCursor->format('M'),
+            'value'  => $vaccinationByPeriod[$trendKey] ?? 0,
+        ];
+        $trendCursor->modify('+1 month');
+    }
 
     return [
         'kpis' => [
@@ -830,6 +858,16 @@ function vet_dashboard($pdo, string $patientRange = 'monthly', string $disease =
             'dogs'  => (int) ($latest['dogs_vaccinated'] ?? 0),
             'cats'  => (int) ($latest['cats_vaccinated'] ?? 0),
             'total' => $totalVaccinated,
+            // The ring's caption was the hardcoded string 'Total FY24' in
+            // vet/js/index.js while the figure inside it was the latest dataset
+            // year's — 2025. The year travels with the number now so the label
+            // can't drift from what it describes.
+            //
+            // This is the frozen municipal baseline (the Dashboard sheet), not
+            // live mass_vaccination_events; logging an event moves the trend
+            // chart beside it, not this. Same baseline/live split the disease
+            // analytics live layer draws above.
+            'year'  => $latestYear,
         ],
         'vaccineDemand'     => $vaccineDemand,
         'vaccinationTrend'  => $vaccinationTrend,
