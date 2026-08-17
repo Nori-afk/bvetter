@@ -1,13 +1,22 @@
 """
-BVetter Analytics Backend — v3.2 (RF-as-classifier realignment applied to v3.1)
+BVetter Analytics Backend — v3.3 (leaked features removed from the classifier)
 =======================================================================
-Changes from v3.1:
+Changes from v3.2:
+  MODEL-3  : The four disease-mix ratio features are removed from
+             FEATURE_COLS. They were current-month category counts over
+             total_cases, and risk_class is a band on total_cases, so the
+             classifier could reconstruct the label from its own inputs --
+             it scored a perfect 100.0% held-out, and those four features
+             alone scored 99.4% against a 67.7% baseline. Held-out accuracy
+             is now 97.2%, and the High threshold lands on the band
+             definition instead of firing early. See FEATURE_COLS.
+Changes from v3.1 (retained):
   MODEL-1  : All-disease risk classification is a RandomForestClassifier again
              (it started as one, was replaced with a rule-based threshold after
              a real bug -- see get_all_disease_models() for the full history).
-             This version includes case-count features in training, which the
-             buggy version deliberately excluded; that's what caused the bug,
-             not the idea of a classifier itself.
+             This version includes past-only case-count features in training,
+             which the buggy version deliberately excluded; that's what caused
+             the bug, not the idea of a classifier itself.
   MODEL-2  : RandomForestRegressor removed entirely, from both the all-disease
              and disease-specific pipelines. It never actually produced a live
              forecast (RF-for-monthly was built, benchmarked poorly, and
@@ -592,11 +601,34 @@ def vaccination_forecast_barangay():
 # training this time, unlike an earlier version of this same classifier)
 # ════════════════════════════════════════════════════════════════════════
 
+# Every feature here describes months BEFORE the one being classified:
+# lag_1/2/3 and the rolling stats are all .shift(1) (see _add_features), and
+# the calendar terms are known in advance.
+#
+# skin_ratio / para_ratio / resp_ratio / gastro_ratio used to be here and were
+# removed. They are computed from the CURRENT month's category counts over
+# total_cases -- and risk_class is defined as a band on total_cases. Four
+# ratios sharing one small-integer denominator encode that denominator, so the
+# classifier could reconstruct the label from its own inputs. Measured: those
+# four features alone scored 99.4% and the full set scored a perfect 100.0%,
+# against a 67.7% majority-class baseline.
+#
+# The damage was not only the inflated score. predict_risk() carries the mix
+# ratios forward unchanged for a future month (next month's mix is unknowable),
+# so 43.7% of the decision weight was one month stale at prediction time --
+# more than lag_1, the one feature the ARIMA forecast actually updates. A
+# barangay coming off a heavy month handed the model a high-volume fingerprint
+# and got flagged High at a forecast of 12-15, where the band definition says
+# High starts at 16. Without them the flip lands on 16 in every barangay
+# measured, instead of varying by whatever last month's mix happened to be.
+#
+# Lagging the ratios by a month instead of dropping them was tried and scored
+# slightly worse than removing them outright (97.1% against 97.7%), so the
+# signal was carrying leaked answer rather than real predictive weight.
 FEATURE_COLS = [
     "lag_1", "lag_2", "lag_3",
     "rolling_mean_3", "rolling_max_3", "rolling_std_3",
     "month_sin", "month_cos", "month_no", "year",
-    "skin_ratio", "para_ratio", "resp_ratio", "gastro_ratio",
 ]
 
 _all_disease_models = {}
@@ -1036,22 +1068,31 @@ def get_all_disease_models():
         {FEATURE_COLS[i]: round(float(v), 4) for i, v in enumerate(rf_cls.feature_importances_)}.items(),
         key=lambda x: x[1], reverse=True))
 
-    # This classifier started as exactly this design (case-count features
-    # included). It was later changed to deliberately EXCLUDE lag/rolling
-    # case-count features, on the theory that seeing them let it trivially
-    # reconstruct risk_class and "inflate" accuracy to 100%. In practice,
-    # risk_class in the source data barely overlaps by case count (Low ~9,
-    # Medium 10-17, High 16-30) -- it IS essentially a threshold on volume,
-    # so hiding volume from the classifier didn't reduce overfitting, it
-    # removed the one signal that defines the label. Real-world result: a
-    # barangay with the highest case count in the whole dataset (Tiaong,
-    # consistently 21-30/month, always "High" in the source data) got
-    # classified "Low/stable" because the model could only see season +
-    # disease-mix, not volume. That version was replaced with a transparent
-    # threshold rule instead of fixing the actual cause. This version keeps
-    # the classifier, restores the case-count features, and keeps the
-    # stratified split + SMOTE (that part of the excluded-features design was
-    # never the problem -- the "Low" class really does only have ~6 rows).
+    # Feature history, because this has been wrong in both directions.
+    #
+    # v1 included the lag/rolling case-count features. v2 removed them, on the
+    # theory that seeing case counts let the model trivially reconstruct
+    # risk_class. That was the wrong cut: risk_class IS a band on volume, so
+    # hiding volume removed the one legitimate signal that defines the label,
+    # and Tiaong -- the highest-volume barangay in the dataset, always "High"
+    # in the source -- came out "Low/stable". v3 restored them.
+    #
+    # v3 still scored a perfect 100.0%, which was the real tell. The leak was
+    # never lag/rolling (those are .shift(1), strictly past). It was the four
+    # disease-mix ratios: current-month category counts over total_cases, and
+    # total_cases is what defines the label. Ablation confirmed it -- the four
+    # ratios ALONE scored 99.4%, against a 67.7% majority baseline.
+    #
+    # v4 (this one) keeps the past-only case-count features and drops the four
+    # ratios; see FEATURE_COLS for the measured effect on prediction
+    # calibration. Held-out accuracy is now 97.2% rather than a perfect score.
+    # The stratified split + SMOTE stay: that part of v2 was never the problem,
+    # the "Low" class really does have only ~6 rows.
+    #
+    # Low remains unlearnable and is reported rather than hidden: with 6 Low
+    # rows in 891, the held-out fold contains 1, and the model misses it
+    # (precision and recall both 0.0). No resampling fixes 6 real examples.
+    # Treat Low as undetected, not as detected-with-low-confidence.
     _all_disease_models = {
         "df": df, "classifier": rf_cls, "label_encoder": le,
         # Trust-gated frame (same rule ARIMA already uses -- see _arima_safe_frame)
@@ -1081,13 +1122,19 @@ def get_all_disease_models():
         "risk_note": (
             f"Risk classification is a RandomForestClassifier trained on "
             f"{len(df_cls)} risk_class-labeled rows from Barangay_Disease_Monthly, "
-            "including case-count features (lag_1/2/3, rolling stats) -- an earlier "
-            "version of this classifier excluded those features and, as a result, "
-            "misclassified Tiaong (the highest-volume barangay in the dataset) as "
-            "Low risk, because volume was the one signal hidden from it. Train/test "
-            "split is stratified by risk_class (not chronological), and SMOTE "
-            "oversampling is applied to the training fold only, because the Low "
+            "using past-only case-count features (lag_1/2/3 and rolling stats, all "
+            "shifted one month) plus calendar terms. An earlier version excluded the "
+            "case-count features entirely and misclassified Tiaong (the highest-volume "
+            "barangay in the dataset) as Low risk, because volume was the one signal "
+            "hidden from it; a later version added current-month disease-mix ratios "
+            "and scored a perfect 100%, which was target leakage -- those ratios are "
+            "category counts over total_cases, and total_cases defines the label. "
+            "Train/test split is stratified by risk_class (not chronological), and "
+            "SMOTE oversampling is applied to the training fold only, because the Low "
             f"class has only ~6 of {len(df_cls)} rows. Held-out accuracy: {accuracy_val}%. "
+            "The Low class is not detected at all (precision and recall both 0.0 on a "
+            "single held-out row) and should be read as undetected rather than as a "
+            "low-confidence detection. "
             f"Live rows from patient_visit_records ({n_db_rows} beyond the Excel "
             f"snapshot's latest month, {n_arima_db_rows} of those trusted into the "
             "ARIMA/SARIMA series -- see _arima_safe_frame) carry no risk_class in the "
@@ -1107,7 +1154,7 @@ def get_all_disease_models():
         # no model names or stats jargon.
         "risk_note_short": (
             "Case volume level is predicted by a trained Random Forest model from "
-            "each barangay's recent case history, seasonality, and disease mix. "
+            "each barangay's recent case history and the time of year. "
             "It measures how many cases to expect, not how severe they are."
         ),
     }
@@ -1190,8 +1237,15 @@ def _hybrid_predict_one_alldisease(
     # Future risk: shift lag_1/2/3, recompute rolling stats using the ARIMA
     # next-month forecast as the new lag_1, and advance the calendar features
     # one month -- the same feature-construction technique this classifier
-    # used historically for a not-yet-observed month. Disease-mix ratios are
-    # carried forward unchanged (unknown for a future month).
+    # used historically for a not-yet-observed month.
+    #
+    # Every feature is now either shifted or calendar-derived, so the whole
+    # row describes a month that has already happened or is known in advance.
+    # This used to also carry four current-month disease-mix ratios forward
+    # unchanged, because next month's mix is unknowable -- which left 43.7% of
+    # the decision weight one month stale, more than lag_1 itself, and pulled
+    # the High threshold down to a forecast of 12-15 when the band definition
+    # starts High at 16. Those features are gone; see FEATURE_COLS.
     fut_feat = cur_feat.copy()
     l1, l2, l3 = (FEATURE_COLS.index(c) for c in ("lag_1", "lag_2", "lag_3"))
     rm, rx, rs = (FEATURE_COLS.index(c) for c in ("rolling_mean_3", "rolling_max_3", "rolling_std_3"))

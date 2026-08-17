@@ -153,13 +153,15 @@ ax2.spines[["top", "right"]].set_visible(False)
 
 fig.text(0.5, -0.1, (
     f"Explanation: trained on {models['trained_on']} risk_class-labeled rows (stratified "
-    "80/20 split, SMOTE-balanced training fold only) including case-count features "
-    "(lag_1/2/3, rolling stats). Accuracy near 100% is expected, not a red flag: "
-    "risk_class in the source data is itself close to a threshold on case volume, so a "
-    "model that can actually see volume should recover it reliably — the earlier version "
-    "of this same classifier scored much worse specifically because it was trained "
-    "*without* being allowed to see volume, which caused it to misclassify Tiaong (the "
-    "highest-volume barangay in the dataset) as Low risk. See risk_note for the full history."
+    "80/20 split, SMOTE-balanced training fold only) using past-only case-count features "
+    "(lag_1/2/3, rolling stats) and calendar terms. High accuracy is expected here because "
+    "risk_class is itself close to a threshold on case volume, and a model that sees prior "
+    "months' volume should recover it — but a PERFECT score would be a red flag, and was: "
+    "an earlier feature set included current-month disease-mix ratios, which encode "
+    "total_cases and therefore the label itself, and scored 100%. The Low class is not "
+    "detected at all: 6 of the labelled rows are Low, leaving 1 in the held-out fold, so "
+    "its precision and recall are 0.0 and should be read as undetected rather than as a "
+    "weak detection. See risk_note for the full history."
 ), ha="center", fontsize=8.5, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
 plt.tight_layout()
@@ -206,10 +208,11 @@ ax.spines[["top", "right"]].set_visible(False)
 fig.text(0.5, -0.05, (
     "Explanation: Feature importance (Mean Decrease in Impurity) measures how much "
     "each input variable reduces uncertainty at split points across all trees. "
-    "Higher = more useful. Case-count features (lag_1, rolling_mean_3, etc.) and "
-    "disease-mix ratios are expected to dominate here, since risk_class is itself "
-    "largely a function of case volume — unlike the earlier excluded-features version "
-    "of this classifier, which could only see season and disease-mix."
+    "Higher = more useful. Case-count features (lag_1, rolling_mean_3, etc.) dominate, "
+    "since risk_class is itself largely a function of case volume. Every feature here "
+    "describes a month already past or known in advance — current-month disease-mix "
+    "ratios were removed because they encoded total_cases, the quantity that defines "
+    "the label."
 ), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
 plt.tight_layout()
