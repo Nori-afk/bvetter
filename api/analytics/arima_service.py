@@ -618,6 +618,14 @@ def load_db_disease_monthly(after_year: int, after_month: int) -> pd.DataFrame:
     sheet's own latest covered period — so a month present in both sources
     is never double-counted.
 
+    Counts only visits whose diagnosis is a term in the `diseases` catalog,
+    matching db_disease_barangay_counts() in api/dashboard/dashboard.php. The
+    vet's "Other / Not Listed" free-text option means the column can hold
+    anything, and without this filter scratch text ('asdadadad') became a case
+    in the forecast series and — once coverage is declared — a labelled row in
+    the classifier's training set. Off-catalog text stays on the patient's
+    record; it just does not aggregate.
+
     DB rows have no risk_class (that's a label from the Excel sheet with no
     live equivalent yet), so they're tagged is_db_sourced=True and excluded
     from the RF risk classifier's training set in get_all_disease_models();
@@ -650,6 +658,7 @@ def load_db_disease_monthly(after_year: int, after_month: int) -> pd.DataFrame:
                 LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id
                 LEFT JOIN barangays b ON b.id = op.barangay_id
                 WHERE pvr.visit_date IS NOT NULL
+                  AND pvr.diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)
                 GROUP BY year, month_no, barangay, disease_category
             """)
             rows = cur.fetchall()
@@ -1259,10 +1268,16 @@ _consult_diagnosis_df = None
 def load_db_consult_rows(after_year: int, after_month: int) -> pd.DataFrame:
     """
     Live continuation of Consult_Diagnosis_3Y from patient_visit_records —
-    one row per visit with a non-empty diagnosis, so _load_disease_specific_df's
-    text match/contains against `diagnosis` works unchanged. Only months after
-    the Excel sheet's own latest covered period are included, so nothing is
-    double-counted.
+    one row per visit whose diagnosis is a term in the `diseases` catalog, so
+    _load_disease_specific_df's match against `diagnosis` works unchanged. Only
+    months after the Excel sheet's own latest covered period are included, so
+    nothing is double-counted.
+
+    The catalog check replaced a bare "diagnosis is not empty" test, which let
+    free-text entered through the diagnosis form's "Other / Not Listed" option
+    into the per-disease series. It matches the rule
+    db_disease_barangay_counts() applies in api/dashboard/dashboard.php, so the
+    dashboard's counts and this pipeline's counts cannot drift apart.
     """
     cols = ["barangay", "year", "month_no", "diagnosis", "cases_reported", "is_db_sourced"]
     empty = pd.DataFrame(columns=cols)
@@ -1287,7 +1302,7 @@ def load_db_consult_rows(after_year: int, after_month: int) -> pd.DataFrame:
                 LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id
                 LEFT JOIN barangays b ON b.id = op.barangay_id
                 WHERE pvr.visit_date IS NOT NULL
-                  AND pvr.diagnosis IS NOT NULL AND pvr.diagnosis != ''
+                  AND pvr.diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)
             """)
             rows = cur.fetchall()
     except Exception as e:

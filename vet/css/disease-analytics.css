@@ -243,6 +243,49 @@ select option { background: #0D2040; color: #fff; }
     gap: 14px;
 }
 
+/* ── Data-layer labels ───────────────────────────────────────────
+   The page reports two layers -- the frozen 2023-2025 snapshot and the
+   clinic's own live records -- and they carry different periods. These
+   labels are what keep a reader from reading one as the other. */
+.layer-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+.live-layer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 14px;
+    padding: 12px 16px;
+    border-left: 3px solid var(--teal);
+}
+
+.live-layer .live-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    flex-basis: 100%;
+}
+
+.live-layer .live-summary {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.live-layer .live-meta {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--muted);
+}
+
 /* ── KPI cards ───────────────────────────────────────────────── */
 .kpi-row {
     display: grid;

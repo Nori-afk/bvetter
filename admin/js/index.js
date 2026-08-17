@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function () {
     wireAddAccountModal();
     wireChartTabs();
     wireNotificationsModal();
+    wireCoverageCard();
 
     document.getElementById('manage-accounts-btn')?.addEventListener('click', function () {
         window.location.href = 'account-management.html';
@@ -742,6 +743,91 @@ function showToast(message, type = 'info') {
 }
 
 /* ── CSS animations ─────────────────────────────────────────── */
+// ===========================
+// DISEASE DATA COVERAGE — admin view/override
+// ===========================
+// The vet declares this from Patient Records as they finish encoding a month;
+// this is the admin's read-and-correct copy. Months at or before the declared
+// one are treated by the forecasting pipeline as fully encoded, which is what
+// lets them join the risk model's training set -- see _label_live_rows() in
+// api/analytics/arima_service.py.
+function wireCoverageCard() {
+    const stateEl  = document.getElementById('coverage-state');
+    const selectEl = document.getElementById('coverage-month');
+    const saveBtn  = document.getElementById('coverage-save');
+    if (!stateEl || !selectEl || !saveBtn) return;
+
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+
+    function coverageBasePath() {
+        const marker = '/admin/pages/';
+        const path = window.location.pathname;
+        return path.includes(marker) ? path.slice(0, path.indexOf(marker)) : '';
+    }
+    const COVERAGE_API = `${coverageBasePath()}/api/patient-records/patient_records.php`;
+
+    async function coverageRequest(action, payload) {
+        const response = await fetch(COVERAGE_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(Object.assign({ action: action }, payload || {}))
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'Coverage request failed.');
+        }
+        return result;
+    }
+
+    // Future months are omitted: an unfinished month cannot have been fully
+    // encoded, and setCoverage() rejects it server-side anyway.
+    function fillOptions(year, month) {
+        const now = new Date();
+        const lastIdx = now.getFullYear() * 12 + now.getMonth();
+        let html = '<option value="0-0">Not declared</option>';
+        for (let idx = lastIdx; idx > lastIdx - 36; idx -= 1) {
+            const optYear = Math.floor(idx / 12);
+            const optMonth = (idx % 12) + 1;
+            const selected = optYear === year && optMonth === month ? ' selected' : '';
+            html += `<option value="${optYear}-${optMonth}"${selected}>${MONTHS[optMonth - 1]} ${optYear}</option>`;
+        }
+        selectEl.innerHTML = html;
+    }
+
+    async function refresh() {
+        try {
+            const result = await coverageRequest('coverage_get');
+            const data = result.data || {};
+            const year = Number(data.year) || 0;
+            const month = Number(data.month) || 0;
+            fillOptions(year, month);
+            stateEl.textContent = year && month
+                ? `Complete through ${MONTHS[month - 1]} ${year}${data.updatedBy ? ` · set by ${data.updatedBy}` : ''}`
+                : 'Not declared — live months are excluded from the risk model.';
+            stateEl.className = year && month ? 'coverage-state is-declared' : 'coverage-state is-undeclared';
+        } catch (error) {
+            stateEl.textContent = 'Coverage status unavailable.';
+            stateEl.className = 'coverage-state';
+        }
+    }
+
+    saveBtn.addEventListener('click', async function () {
+        const parts = String(selectEl.value || '0-0').split('-').map(Number);
+        saveBtn.disabled = true;
+        try {
+            await coverageRequest('coverage_set', { year: parts[0], month: parts[1] });
+            await refresh();
+        } catch (error) {
+            stateEl.textContent = error.message || 'Could not update coverage.';
+        } finally {
+            saveBtn.disabled = false;
+        }
+    });
+
+    refresh();
+}
+
 const style = document.createElement('style');
 style.textContent = `
     @keyframes fadeIn {

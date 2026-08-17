@@ -328,6 +328,49 @@ body {
     padding: 0;
 }
 
+/* ── Coverage declaration ────────────────────────────────────────
+   Declaring entry complete through a month is what lets the analytics
+   pipeline read an empty barangay-month as a real zero instead of
+   un-encoded data, and what allows those months to train the risk model. */
+.coverage-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 18px;
+    margin-top: 14px;
+    padding: 14px 18px;
+    background: var(--bg-white);
+    border: 1px solid #E8EEF6;
+    border-left: 3px solid #94A3B8;
+    border-radius: var(--radius-md);
+}
+
+.coverage-bar.is-declared  { border-left-color: #16A34A; }
+.coverage-bar.is-undeclared { border-left-color: #F59E0B; }
+
+.coverage-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748B;
+}
+
+.coverage-status {
+    margin-top: 3px;
+    font-size: 13px;
+    color: #334155;
+}
+
+.coverage-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.coverage-controls .form-input { min-width: 170px; }
+
 .metric-card {
     background: var(--bg-white);
     padding: 16px 18px;

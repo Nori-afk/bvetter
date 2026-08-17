@@ -657,6 +657,54 @@ html, body {
 
 .btn-view-all-pending:hover { opacity: 0.9; }
 
+/* Disease data coverage card */
+.coverage-state {
+    font-size: 13px;
+    color: var(--text-secondary);
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--background-light);
+    border-left: 3px solid var(--text-tertiary);
+    margin-bottom: 12px;
+}
+
+.coverage-state.is-declared   { border-left-color: #16A34A; }
+.coverage-state.is-undeclared { border-left-color: #F59E0B; }
+
+.coverage-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.coverage-row select {
+    flex: 1;
+    padding: 9px 10px;
+    border: 1px solid var(--border-color, #E2E8F0);
+    border-radius: 8px;
+    font-size: 13px;
+    background: #fff;
+}
+
+.btn-coverage-save {
+    padding: 9px 16px;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary-dark);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-coverage-save:disabled { opacity: 0.6; cursor: default; }
+
+.coverage-hint {
+    margin-top: 10px;
+    font-size: 11.5px;
+    color: var(--text-tertiary);
+}
+
 /* Snapshot card */
 .snapshot-grid {
     display: grid;

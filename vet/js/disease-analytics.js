@@ -24,12 +24,16 @@ let diseaseAnalyticsData = {
     period: 'year',
     periodLabel: 'Full Year',
     isAllDiseases: true,
+    baselineLabel: '',
     kpis: [
-        { label: 'Total Patients This Year', value: '0',   trend: 'Loading…' },
-        { label: 'Most Common Disease',      value: 'N/A', trend: '' },
-        { label: 'Most Active Barangay',     value: 'N/A', trend: '' },
-        { label: 'Auto Alerts',              value: '00',  trend: '' },
+        { label: 'Total Cases',         value: '0',   trend: 'Loading…' },
+        { label: 'Most Common Disease', value: 'N/A', trend: '' },
+        { label: 'Most Active Barangay',value: 'N/A', trend: '' },
+        { label: 'Auto Alerts',         value: '00',  trend: '' },
     ],
+    // Stays null until the API answers, so the strip is hidden rather than
+    // flashing a zero the clinic has not actually recorded.
+    liveLayer: null,
     predictionSummary: { total: 0, label: 'Barangays monitored' },
     sources: [],
     actualCases: [],
@@ -514,8 +518,33 @@ function switchPanel(panelId) {
     }
 }
 
+/* ── Live layer ──────────────────────────────────────────────────
+   The clinic's own 2026+ records, reported separately from the frozen
+   2023-2025 baseline the cards above and the charts below are built on.
+   Hidden entirely if the API predates this field. */
+function renderLiveLayer() {
+    const root = document.getElementById('liveLayer');
+    if (!root) return;
+
+    const live = diseaseAnalyticsData.liveLayer;
+    if (!live) { root.hidden = true; return; }
+
+    const meta = [live.latest, live.note].filter(Boolean).join(' · ');
+    root.innerHTML = `
+        <span class="live-label">${live.label || ''}</span>
+        <span class="live-summary">${live.summary || ''}</span>
+        <span class="live-meta">${meta}</span>
+    `;
+    root.hidden = false;
+}
+
 /* ── Overview render ────────────────────────────────────────── */
 function renderOverview() {
+    const baselineLabel = document.getElementById('baselineLabel');
+    if (baselineLabel) baselineLabel.textContent = diseaseAnalyticsData.baselineLabel || '';
+
+    renderLiveLayer();
+
     document.getElementById('kpiCards').innerHTML = diseaseAnalyticsData.kpis
         .map((kpi, i) => `
             <article class="kpi-card" style="animation-delay:${i * 60}ms">

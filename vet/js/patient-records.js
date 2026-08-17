@@ -223,7 +223,14 @@ const state = {
 	filterStatus: 'all',
 	page: 1,
 	modal: null,
-	pendingDeleteId: null
+	pendingDeleteId: null,
+	// The month the encoder has declared visit entry complete through. Until
+	// one is declared the forecasting pipeline cannot tell a barangay-month
+	// with genuinely no cases apart from one nobody has encoded yet, so it
+	// distrusts every live month -- and none of them can join the risk
+	// model's training set. See _label_live_rows() and load_coverage_cutoff()
+	// in api/analytics/arima_service.py.
+	coverage: null
 };
 
 // Desktop can comfortably show more rows per page than a phone screen.
@@ -253,6 +260,72 @@ async function patientRequest(action, payload = {}) {
 		throw new Error(result.message || 'Patient records request failed.');
 	}
 	return result;
+}
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+	'July', 'August', 'September', 'October', 'November', 'December'];
+
+async function loadCoverage() {
+	try {
+		const result = await patientRequest('coverage_get');
+		state.coverage = result.data || null;
+	} catch (error) {
+		console.warn('Coverage declaration unavailable:', error);
+		state.coverage = null;
+	}
+}
+
+/**
+ * Options run from the earliest month with a visit record up to the current
+ * month. Future months are excluded because a month that has not finished
+ * cannot have been fully encoded -- setCoverage() rejects them server-side
+ * too, and offering one here would only produce an error.
+ */
+function coverageMonthOptions(selectedYear, selectedMonth) {
+	const now = new Date();
+	const lastIdx = now.getFullYear() * 12 + now.getMonth();
+	const years = state.records
+		.flatMap((record) => (record.visits || []).map((visit) => visit.visitDate))
+		.concat(state.records.map((record) => record.lastVisit))
+		.map((date) => Number(String(date || '').slice(0, 4)))
+		.filter((year) => year >= 2000);
+	const firstIdx = years.length ? Math.min(...years) * 12 : lastIdx - 23;
+
+	const options = [];
+	for (let idx = lastIdx; idx >= firstIdx; idx -= 1) {
+		const year = Math.floor(idx / 12);
+		const month = (idx % 12) + 1;
+		const isSelected = year === selectedYear && month === selectedMonth;
+		options.push(`<option value="${year}-${month}" ${isSelected ? 'selected' : ''}>${MONTH_NAMES[month - 1]} ${year}</option>`);
+	}
+	return options.join('');
+}
+
+function renderCoverageBar() {
+	const coverage = state.coverage;
+	const year = coverage && coverage.year ? Number(coverage.year) : null;
+	const month = coverage && coverage.month ? Number(coverage.month) : null;
+	const declared = Boolean(year && month);
+
+	const statusText = declared
+		? `Declared complete through ${MONTH_NAMES[month - 1]} ${year}${coverage.updatedBy ? ` by ${escapeHtml(coverage.updatedBy)}` : ''}`
+		: 'Not declared yet — live months are excluded from the risk model until this is set.';
+
+	return `
+		<section class="coverage-bar ${declared ? 'is-declared' : 'is-undeclared'}">
+			<div class="coverage-copy">
+				<div class="coverage-title">Record entry complete through</div>
+				<p class="coverage-status">${statusText}</p>
+			</div>
+			<div class="coverage-controls">
+				<select class="form-input" id="coverage-month" aria-label="Month records are complete through">
+					${coverageMonthOptions(year, month)}
+				</select>
+				<button type="button" class="btn btn-accent" data-coverage="set">Declare</button>
+				${declared ? '<button type="button" class="btn btn-secondary" data-coverage="clear">Clear</button>' : ''}
+			</div>
+		</section>
+	`;
 }
 
 async function loadRecords() {
@@ -790,6 +863,8 @@ function renderList() {
 					<article class="metric-card"><div class="metric-label">Infectious Cases<span class="metric-badge red">Live</span></div><div class="metric-value">${Number(state.metrics.infectiousCases || 0).toLocaleString()}</div></article>
 					<article class="metric-card"><div class="metric-label">Follow-ups Due <span class="metric-badge green">Due Now</span></div><div class="metric-value">${Number(state.metrics.followUpsDue || alerts).toLocaleString()}</div></article>
 				</div>
+
+				${renderCoverageBar()}
 
 			<section class="records-card">
 				<div class="table-toolbar">
@@ -1837,7 +1912,25 @@ function handleModalAction(action, target) {
 }
 
 function bindGlobalEvents() {
-	app.addEventListener('click', (event) => {
+	app.addEventListener('click', async (event) => {
+		const coverageButton = event.target.closest('[data-coverage]');
+		if (coverageButton) {
+			const clearing = coverageButton.dataset.coverage === 'clear';
+			const select = document.getElementById('coverage-month');
+			const [year, month] = clearing ? [0, 0] : String(select.value || '').split('-').map(Number);
+
+			coverageButton.disabled = true;
+			try {
+				await patientRequest('coverage_set', { year, month });
+				await loadCoverage();
+				render();
+			} catch (error) {
+				coverageButton.disabled = false;
+				window.alert(error.message || 'Could not update the coverage declaration.');
+			}
+			return;
+		}
+
 		const tabButton = event.target.closest('[data-detail-tab]');
 		if (tabButton) {
 			navigate('view', { id: state.selectedId, tab: tabButton.dataset.detailTab }, false);
@@ -1892,7 +1985,7 @@ function bindGlobalEvents() {
 async function bootstrap() {
 	routeFromUrl();
 	app.innerHTML = '<section class="records-shell"><div class="empty-state">Loading patient records...</div></section>';
-	await Promise.all([loadRecords(), loadDiagnosisOptions()]);
+	await Promise.all([loadRecords(), loadDiagnosisOptions(), loadCoverage()]);
 	render();
 	bindGlobalEvents();
 }
