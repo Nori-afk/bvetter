@@ -529,12 +529,22 @@ function renderLiveLayer() {
     const live = diseaseAnalyticsData.liveLayer;
     if (!live) { root.hidden = true; return; }
 
-    const meta = [live.latest, live.note].filter(Boolean).join(' · ');
-    root.innerHTML = `
-        <span class="live-label">${live.label || ''}</span>
-        <span class="live-summary">${live.summary || ''}</span>
-        <span class="live-meta">${meta}</span>
-    `;
+    // Built as text nodes, not interpolated HTML. `summary` carries the
+    // selected disease name, which is whatever the client sent -- the server
+    // only trims and lowercases it (bv_clean/disease_name_filter), so markup
+    // reaches this point intact and innerHTML here would run it.
+    const span = (cls, text) => {
+        const el = document.createElement('span');
+        el.className = cls;
+        el.textContent = text;
+        return el;
+    };
+
+    root.replaceChildren(
+        span('live-label',   live.label   || ''),
+        span('live-summary', live.summary || ''),
+        span('live-meta',    [live.latest, live.note].filter(Boolean).join(' · '))
+    );
     root.hidden = false;
 }
 
