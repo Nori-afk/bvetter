@@ -1358,11 +1358,17 @@ function getCommonCases($pdo, $data)
 
     $cases = [];
     if ($vetName) {
+        // Restricted to the `diseases` catalog, like the counting queries in
+        // api/dashboard/dashboard.php, api/reports/reports.php and
+        // api/analytics/arima_service.py. This list is shown to pet owners on
+        // the booking page, and the diagnosis form's "Other / Not Listed"
+        // option means the column can hold anything a vet typed -- a bare
+        // non-empty test would publish that text verbatim to the public.
         $stmt = $pdo->prepare("
             SELECT diagnosis, COUNT(*) AS total
             FROM patient_visit_records
             WHERE attending_vet = :vetName
-              AND diagnosis IS NOT NULL AND diagnosis <> ''
+              AND diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)
             GROUP BY diagnosis
             ORDER BY total DESC
             LIMIT 4
