@@ -69,7 +69,16 @@ function report_columns($category)
             ['key' => 'parasiticCases', 'label' => 'Parasitic'],
             ['key' => 'respiratoryCases', 'label' => 'Respiratory'],
             ['key' => 'gastrointestinalCases', 'label' => 'Gastrointestinal'],
-            ['key' => 'totalCases', 'label' => 'Total Cases'],
+            // 'Surveillance Tally', not 'Total Cases': this column is
+            // Barangay_Disease_Monthly's barangay-month volume, which is a
+            // separate and larger tally than the diagnosis-level case count
+            // Disease Analytics reports (4,927 against 2,551 for 2025). Both
+            // are correct measures of different things, and carrying one label
+            // across both made them look like the same number disagreeing.
+            // The array key stays `totalCases` so the JSON contract and the
+            // Excel column name keep working -- only the label changed, the
+            // same way riskClass became 'Case Volume Level'.
+            ['key' => 'totalCases', 'label' => 'Surveillance Tally'],
             ['key' => 'riskClass', 'label' => 'Case Volume Level'],
         ],
         'mass_vaccination' => [
@@ -973,7 +982,7 @@ function generate_trend_svg(array $rows, string $category): string
 
     $legendLabel = match($category) {
         'mass_vaccination'  => 'Total Vaccinated',
-        'disease_incidence' => 'Total Cases',
+        'disease_incidence' => 'Surveillance Tally',
         default             => 'Consultations',
     };
 
@@ -1160,7 +1169,7 @@ function pdf_export($columns, $rows, $category, $title, $input = [])
         $hr = count(array_filter($rows, fn($r) => strtolower($r['riskClass']??'') === 'high'));
         $bc = count(array_unique(array_column($rows,'barangay')));
         $summaryRows = '
-            <tr><td>Total Cases</td><td class="sv">'.$tc.'</td></tr>
+            <tr><td>Surveillance Tally</td><td class="sv">'.$tc.'</td></tr>
             <tr><td>High Volume Barangay-Months</td><td class="sv">'.$hr.'</td></tr>
             <tr><td>Barangays Covered</td><td class="sv">'.$bc.'</td></tr>';
     } elseif ($category === 'lost_found') {

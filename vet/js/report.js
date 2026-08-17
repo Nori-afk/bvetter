@@ -59,7 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
             right:  'Most Active Barangay'
         },
         disease_incidence: {
-            left:   'Total Cases — {period}',
+            // Not "Total Cases": this is the barangay-month surveillance
+            // volume from Barangay_Disease_Monthly, a larger and separate
+            // tally from the diagnosis-level count on Disease Analytics.
+            left:   'Surveillance Tally — {period}',
             center: 'Dominant Disease Group',
             // Not "Highest Risk": the ranking is by case count, and Case Volume
             // Level is a band on that same count (see risk_class_from_volume in
