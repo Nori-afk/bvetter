@@ -846,6 +846,47 @@ def risk_class_from_volume(total_cases: float):
     return "High"
 
 
+# A live barangay-month is treated as still being encoded, rather than as a
+# genuinely quiet month, when its case count falls below this share of that
+# barangay's own historical median. Same threshold _vaccination_regime_diagnostics
+# uses to flag a vaccination regime shift, so the workbook has one convention
+# rather than two.
+#
+# The declared coverage cutoff alone cannot catch this. It records that somebody
+# considered a month finished, which is a statement about intent; a barangay that
+# normally runs 26 cases and shows 3 is evidence about fact. Tiaong is the case
+# that matters -- it is the highest-volume barangay in the dataset and the one the
+# historical excluded-features bug misclassified as Low. A part-encoded month
+# banding it Low would reintroduce that failure through a door the regression
+# guard in test_eval.py does not watch, since that guard reads the Excel row.
+MIN_PLAUSIBLE_SHARE_OF_MEDIAN = 0.45
+
+
+def _implausibly_low_live_months(df: pd.DataFrame) -> pd.Series:
+    """
+    Boolean mask over df: live rows whose case count is too far below their own
+    barangay's Excel-era median to be a real month.
+
+    Compared per barangay, never against a global average -- barangays here run
+    from about 11 to 26 cases a month, so one shared floor would either wave
+    through a half-encoded Tiaong or reject a complete Sabang.
+    """
+    if df.empty or "is_db_sourced" not in df:
+        return pd.Series(False, index=df.index)
+
+    excel = df[~df["is_db_sourced"].astype(bool)]
+    if excel.empty:
+        return pd.Series(False, index=df.index)
+
+    medians = excel.groupby("barangay")["total_cases"].median()
+    floor   = df["barangay"].map(medians) * MIN_PLAUSIBLE_SHARE_OF_MEDIAN
+
+    return (df["is_db_sourced"].astype(bool)
+            & ~df.get("is_zero_filled", pd.Series(False, index=df.index)).astype(bool)
+            & floor.notna()
+            & (df["total_cases"] < floor))
+
+
 def _label_live_rows(df: pd.DataFrame, cutoff: tuple) -> pd.DataFrame:
     """
     Gives genuinely-encoded live barangay-months a risk_class so they can join
@@ -853,22 +894,34 @@ def _label_live_rows(df: pd.DataFrame, cutoff: tuple) -> pd.DataFrame:
     rows and has never encountered the low-volume regime live data sits in
     (Excel spans 9-30 cases/month; live months run 1-7).
 
-    Two exclusions, both load-bearing:
+    Three exclusions, all load-bearing:
       - zero-filled rows (see _fill_declared_coverage) are never labelled; they
         are placeholders, and labelling them would flood the scarce "Low" class
         with rows carrying no information.
       - months past the declared cutoff are never labelled, since a partly
         encoded month would band far lower than it truly was.
+      - months declared complete but holding implausibly few cases for their
+        barangay are not labelled either; see MIN_PLAUSIBLE_SHARE_OF_MEDIAN.
+        They stay in df, so the dashboard and reports still show them.
     """
     if cutoff is None or df.empty:
         return df
 
     month_idx  = df["year"].astype(int) * 12 + df["month_no"].astype(int)
     within     = month_idx <= (cutoff[0] * 12 + cutoff[1])
+    too_low    = _implausibly_low_live_months(df)
     eligible   = (df["is_db_sourced"].astype(bool)
                   & ~df["is_zero_filled"].astype(bool)
                   & df["risk_class"].isna()
-                  & within)
+                  & within
+                  & ~too_low)
+
+    held_back = int((too_low & within & df["risk_class"].isna()).sum())
+    if held_back:
+        print(f"[coverage] held back {held_back} live barangay-month(s) from training: "
+              f"fewer than {MIN_PLAUSIBLE_SHARE_OF_MEDIAN:.0%} of that barangay's usual "
+              "monthly cases, so the month reads as still being encoded")
+
     if not eligible.any():
         return df
 
@@ -938,8 +991,16 @@ def _arima_safe_frame(df: pd.DataFrame, cutoff: tuple = None) -> pd.DataFrame:
     unnecessary within that window -- _fill_declared_coverage has already
     materialised any empty months as real zeros. Months past the cutoff are
     still gated, because they may only be partly entered.
+
+    A declaration is a claim about intent, though, not proof of fact, so the
+    volume check applies inside the declared window too. Measured on Tiaong,
+    whose Excel series runs 23-28 a month: appending three live months of 2-5
+    cases moves the 3-month forecast from 23.8/24.8/25.8 to a flat 4.0. That is
+    the tail-domination this gate exists to stop, and a mistaken declaration
+    would otherwise walk straight past it.
     """
     keep_mask = ~df["is_db_sourced"]
+    too_low   = _implausibly_low_live_months(df)
     for barangay, bdf in df[df["is_db_sourced"]].groupby("barangay"):
         excel_bdf = df[(df["barangay"] == barangay) & (~df["is_db_sourced"])]
         expected_year, expected_month = _latest_period(excel_bdf)
@@ -948,6 +1009,15 @@ def _arima_safe_frame(df: pd.DataFrame, cutoff: tuple = None) -> pd.DataFrame:
             if expected_month > 12:
                 expected_month, expected_year = 1, expected_year + 1
             within_declared = cutoff is not None and (int(row["year"]), int(row["month_no"])) <= cutoff
+            if bool(too_low.loc[row_idx]):
+                # Too few cases for this barangay to be a finished month. Stop
+                # here rather than skipping it: everything after a month that is
+                # still being encoded is at least as incomplete.
+                print(f"[coverage] {barangay} {int(row['year'])}-{int(row['month_no']):02d}: "
+                      f"{row['total_cases']:.0f} cases is below "
+                      f"{MIN_PLAUSIBLE_SHARE_OF_MEDIAN:.0%} of its usual monthly total; "
+                      "kept out of the forecast series")
+                break
             if int(row["year"]) == expected_year and int(row["month_no"]) == expected_month:
                 keep_mask.loc[row_idx] = True
             elif within_declared:
