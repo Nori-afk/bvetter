@@ -172,10 +172,14 @@ print(f"  Accuracy: {models['classifier_accuracy']}%")
 for c in classes:
     print(f"    {c:8s}  precision={prec[c]:.3f}  recall={rec[c]:.3f}  f1={f1[c]:.3f}")
 print(_wrap(
-    "INTERPRETATION — Figure 1: off-diagonal cells in the confusion matrix (left) would be "
-    "misclassifications; a clean diagonal plus high precision/recall/F1 across all three "
-    "classes (right), INCLUDING the rare Low class, is the direct evidence that including "
-    "case-count features fixed the historical bug rather than just moving it around."
+    "INTERPRETATION — Figure 1: off-diagonal cells in the confusion matrix (left) are "
+    "misclassifications. High and Medium separate reliably. The Low class does NOT: only 6 "
+    "of the labelled rows are Low, which leaves a single row in the held-out fold, and the "
+    "model misclassifies it — precision and recall are both 0.000. Read that as Low being "
+    "undetected rather than weakly detected; no amount of resampling creates information "
+    "from 6 examples. Accuracy below 100% is the expected and correct outcome here: an "
+    "earlier feature set scored a perfect 100% by reading current-month disease-mix ratios, "
+    "which encode total_cases and therefore the label itself."
 ))
 
 
@@ -224,9 +228,12 @@ for fname, fval in list(importance.items())[:5]:
 
 print(_wrap(
     "INTERPRETATION — Figure 2: features above the 5% line (dashed red) meaningfully "
-    "contribute to predictions. Case-count and disease-mix features dominating is a "
-    "healthy sign for THIS model — it means the classifier can now actually see the "
-    "signal that defines the label, rather than being artificially blinded to it."
+    "contribute to predictions. Past-month case counts leading is the healthy outcome for "
+    "THIS model — the classifier can see the signal that defines the label without being "
+    "handed the label itself. lag_1 leading specifically matters, because lag_1 is the one "
+    "feature the ARIMA forecast replaces when scoring a future month, so the forecast "
+    "actually drives the prediction. Current-month disease-mix ratios used to lead this "
+    "chart; they were removed as target leakage."
 ))
 
 
@@ -730,25 +737,35 @@ _section("ARIMA / Classifier Agreement Rate")
 
 current_by_barangay = arima_df.groupby("barangay")["total_cases"].last().sort_values(ascending=False)
 
-agreements = []
+agreements, falsifiable = [], []
 for barangay in current_by_barangay.index:
     pred = _hybrid_predict_one_alldisease(
         barangay, models, steps=3, current_override=None, period="year",
     )
     agreements.append(bool(pred["model_agreement"]))
+    # A Medium prediction satisfies every branch of the agreement rule, so it
+    # cannot disagree with any trend. Only non-Medium rows can fail the check,
+    # and the rate is uninterpretable without knowing how many those were.
+    falsifiable.append(str(pred["rf_future_risk"]).lower() != "medium")
 
 agreement_rate = (sum(agreements) / len(agreements)) if agreements else None
 if agreement_rate is not None:
     print(f"  Barangays checked: {len(agreements)}  |  Agreement rate: {agreement_rate:.1%}")
+    print(f"  Of those, able to disagree: {sum(falsifiable)}  "
+          f"({len(agreements) - sum(falsifiable)} predicted Medium, which agrees by construction)")
 else:
     print("  No barangays available to check.")
 
 print(_wrap(
     "INTERPRETATION: 'Agreement' checks whether the ARIMA trend direction "
     "(rising/stable/falling) and the classifier's risk level (High/Medium/Low) point the "
-    "same way for a barangay -- two independently-computed signals (a time-series trend "
-    "vs. a trained classifier's prediction) agreeing is a real cross-check, distinct from "
-    "either model's own held-out accuracy number."
+    "same way. Read this number with its denominator, not on its own: the rule counts "
+    "Medium as agreeing with rising, stable AND falling, so a Medium prediction cannot "
+    "fail. With most barangays predicted Medium, a high agreement rate is close to "
+    "guaranteed and is NOT independent corroboration of either model. It is a weak "
+    "sanity check -- it can only catch a flat contradiction such as High risk on a "
+    "falling trend. The real accuracy figures are the classifier's held-out score "
+    "(Figure 1) and ARIMA's own holdout R2/MAE (above); cite those instead."
 ))
 
 top_barangay = current_by_barangay.index[0]
@@ -858,8 +875,9 @@ print(f"""
 ║    Sample series stationary  : {adf_single['is_stationary'] if adf_single else 'N/A'}                        ║
 ║    Stationary across barangays: {sum(1 for r in adf_results if r['is_stationary'])}/{len(adf_results)} tested          ║
 ╠══════════════════════════════════════════════════════════════╣
-║  ARIMA / CLASSIFIER AGREEMENT RATE                            ║
+║  ARIMA / CLASSIFIER AGREEMENT (weak check -- see note)         ║
 ║    Rate                  : {f'{agreement_rate:.1%}' if agreement_rate is not None else 'N/A'}                        ║
+║    Able to disagree       : {sum(falsifiable)} of {len(agreements)}                       ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  REGRESSION GUARD (highest-volume barangay != Low)            ║
 ║    {top_barangay:20s} : {guard_pred['rf_current_risk']:10s} {'PASS' if guard_ok else 'FAIL'}              ║
