@@ -299,7 +299,7 @@ function db_consultation_rows($pdo)
             {$barangayJoin}
             {$profileJoin}
             {$diseaseJoin}
-            WHERE pvr.diagnosis IS NOT NULL AND pvr.diagnosis != ''
+            WHERE pvr.diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)
             ORDER BY pvr.visit_date DESC, pvr.id DESC
         ")->fetchAll();
     } catch (Throwable $e) {
@@ -424,6 +424,15 @@ function db_disease_rows($pdo)
         // The diagnosis filter matches db_consultation_rows() so both reports
         // count the same visits -- without it a record saved with an empty
         // diagnosis counts as a disease case here but not there.
+        //
+        // It checks the `diseases` catalog rather than merely a non-empty
+        // string, matching db_disease_barangay_counts() in
+        // api/dashboard/dashboard.php and the two live-continuation queries in
+        // api/analytics/arima_service.py. The diagnosis form offers an
+        // "Other / Not Listed" free-text option, so the column can hold
+        // anything; a non-empty test let scratch text ('asdadadad') count as a
+        // surveillance case. Off-catalog text stays on the patient's record and
+        // is simply not aggregated.
         $rows = $pdo->query("
             SELECT
                 YEAR(pvr.visit_date) AS yr,
@@ -435,7 +444,7 @@ function db_disease_rows($pdo)
             LEFT JOIN pets ON pets.id = pvr.pet_id
             {$barangayJoin}
             WHERE pvr.visit_date IS NOT NULL
-              AND pvr.diagnosis IS NOT NULL AND pvr.diagnosis != ''
+              AND pvr.diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)
             GROUP BY yr, mo, barangay, pvr.disease_category
         ")->fetchAll();
     } catch (Throwable $e) {
