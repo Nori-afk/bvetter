@@ -41,6 +41,20 @@ function notifyOwnerAppointmentRequested($pdo, $appointmentId)
     $row = $stmt->fetch();
     if (!$row) return;
 
+    $ownerId = (int) $row['owner_id'];
+
+    // In-app row first, and unconditionally — the checks below gate only the
+    // email, which the settings page presents as an email channel.
+    notifyUser(
+        $pdo,
+        $ownerId,
+        'appointment_new',
+        'Appointment Request Received',
+        "We received your request for {$row['preferred_date']} at {$row['time_slot']}. "
+            . "We'll let you know once it's been reviewed.",
+        (int) $appointmentId
+    );
+
     // The booking form always asks for a contact email (even for logged-in
     // owners), specifically so the confirmation goes wherever the user
     // typed rather than their account's login email. Fall back to the
@@ -48,7 +62,6 @@ function notifyOwnerAppointmentRequested($pdo, $appointmentId)
     $recipientEmail = $row['contact_email'] ?: $row['owner_email'];
     if (!$recipientEmail) return;
 
-    $ownerId = (int) $row['owner_id'];
     if (!userWantsNotification($pdo, $ownerId, 'appointment_reminders')) return;
 
     $subject = 'BVetter – We received your appointment request';

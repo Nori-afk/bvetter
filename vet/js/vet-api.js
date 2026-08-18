@@ -664,8 +664,9 @@ async function getVaccinationForecast(steps) {
     }
 }
 
-/* ── Notifications (shared admin/vet feed) ──────────────── */
-/** POST notifications.php { action: 'list' } — feed is derived from the session, not a posted role */
+/* ── Notifications ──────────────────────────────────────── */
+/** POST notifications.php { action: 'list' } — returns the caller's own rows,
+ *  identified from their session rather than a posted role. */
 async function getStaffNotifications() {
     try {
         const response = await fetch(NOTIFICATIONS_URL, {
@@ -700,6 +701,20 @@ async function markAllNotificationsRead() {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({ action: 'mark_all_read' })
+        });
+        const result = await response.json();
+        return { ok: result.success, error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, error: error.message };
+    }
+}
+
+async function dismissNotification(id) {
+    try {
+        const response = await fetch(NOTIFICATIONS_URL, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ action: 'dismiss', id })
         });
         const result = await response.json();
         return { ok: result.success, error: result.success ? null : result.message };
@@ -776,5 +791,6 @@ window.VetAPI = {
     getRFModelInfo,
     getStaffNotifications,
     markNotificationRead,
-    markAllNotificationsRead
+    markAllNotificationsRead,
+    dismissNotification
 };

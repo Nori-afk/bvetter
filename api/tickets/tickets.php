@@ -356,11 +356,27 @@ function deleteTicket($pdo, $data)
  */
 function notifyTicketReporter($pdo, $ticket, $event)
 {
-    $email = nullableClean($ticket['reporter_email'] ?? '');
-    if (!$email) return;
-
     $name = $ticket['reporter_name'] ?: 'there';
     $subject = $ticket['subject'];
+
+    // In-app row first, and independent of the email. A ticket can be filed
+    // without an email address, and that reporter still deserves to see the
+    // outcome in their feed.
+    $reporterId = (int) ($ticket['reporter_id'] ?? 0);
+    if ($reporterId > 0) {
+        notifyUser(
+            $pdo,
+            $reporterId,
+            'ticket_status',
+            $event === 'resolved' ? 'Ticket Resolved' : 'Ticket Closed',
+            "Your ticket {$ticket['ticket_number']} — \"{$subject}\" — was "
+                . ($event === 'resolved' ? 'marked resolved.' : 'closed by our team.'),
+            (int) ($ticket['id'] ?? 0) ?: null
+        );
+    }
+
+    $email = nullableClean($ticket['reporter_email'] ?? '');
+    if (!$email) return;
 
     if ($event === 'resolved') {
         $emailSubject = 'BVetter – Your ticket has been resolved';

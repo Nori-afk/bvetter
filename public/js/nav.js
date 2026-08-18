@@ -11,9 +11,9 @@
 
    Functions:
    - toggleUserMenu()        — opens/closes user dropdown
-   - openNotificationModal() — builds + opens the live notification modal
-   - dismiss-notif click     — removes one notification, persisted per
-                               owner in localStorage so it stays hidden
+   - openNotificationModal() — opens the notification modal, fed by
+                               api/notifications/notifications.php
+   - dismiss-notif click     — soft-deletes one notification server-side
    - toggleMobileNav()       — opens/closes mobile nav-links menu
    NOTE: logout() and loginAs() live in auth.js
    ============================================= */
@@ -100,10 +100,8 @@ document.addEventListener('click', function (e) {
 });
 
 /* =============================================
-   NOTIFICATION BELL — live dropdown modal
-   Pulls the pet owner's own appointments, claims,
-   and lost & found reports to summarize status
-   changes, instead of redirecting to settings.
+   NOTIFICATION BELL — dropdown modal over the
+   owner's own notification rows.
    ============================================= */
 
 function escapeHtmlNav(value) {
@@ -127,10 +125,14 @@ const NOTIF_ICONS = {
   general: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
 };
 
-function notifCategoryFromId(id) {
-  if (id.indexOf('appt-') === 0) return 'appointment';
-  if (id.indexOf('claim-') === 0 || id.indexOf('report-') === 0) return 'lostfound';
-  if (id.indexOf('match-') === 0) return 'match';
+/* Keyed off the row's `type`. This used to parse the synthetic id prefixes
+   ('appt-', 'claim-', 'match-') the browser invented when it built the feed
+   itself; ids are database keys now and carry no meaning. */
+function notifCategoryFromType(type) {
+  if (String(type).indexOf('appointment') === 0) return 'appointment';
+  if (type === 'lost_found_match') return 'match';
+  if (String(type).indexOf('lost_found') === 0) return 'lostfound';
+  if (type === 'csp_registration') return 'vaccination';
   return 'general';
 }
 
@@ -139,15 +141,6 @@ function notifStatusFromTitle(title) {
   if (t.includes('reject') || t.includes('cancel')) return 'negative';
   if (t.includes('confirmed') || t.includes('approve') || t.includes('resolve') || t.includes('upcoming') || t.includes('claimed')) return 'positive';
   return 'neutral';
-}
-
-// Slots are stored as 24-hour 'HH:MM'; notifications read them as '3:00 PM'.
-function notifSlot(slot) {
-  const value = String(slot ?? '').trim();
-  const match = value.match(/^(\d{1,2}):(\d{2})$/);
-  if (!match) return value;
-  const hour = Number(match[1]);
-  return `${hour % 12 || 12}:${match[2]} ${hour >= 12 ? 'PM' : 'AM'}`;
 }
 
 function formatNotifDate(value) {
@@ -175,205 +168,33 @@ function closeNotifModal() {
   }
 }
 
-function getCurrentOwnerId() {
-  const session = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-  return session?.userId || session?.id || 0;
-}
+/* ── Notification feed ────────────────────────────────────────
+   Owner notifications are database rows, fetched from
+   api/notifications/notifications.php like every other role's.
 
-function getDismissedNotifIds(ownerId) {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(`vbetter_dismissed_notifs_${ownerId}`) || '[]'));
-  } catch {
-    return new Set();
-  }
-}
+   They used to be synthesized here on every open: six API calls
+   (appointments, claims, reports, matches, incoming claims) stitched into
+   a list, with read and dismissed state kept in localStorage under
+   `vbetter_read_notifs_<ownerId>`. That made "read" per-browser rather
+   than per-person, lost it whenever storage was cleared, and reset the
+   bell dot whenever the owner id resolved to 0 because the session
+   had not hydrated yet. The rows are written at event time now, so this
+   only has to read them. ── */
 
-function addDismissedNotifId(ownerId, id) {
-  const ids = getDismissedNotifIds(ownerId);
-  ids.add(id);
-  localStorage.setItem(`vbetter_dismissed_notifs_${ownerId}`, JSON.stringify([...ids]));
-}
+async function buildOwnerNotifications(limit) {
+  if (typeof api === 'undefined' || !api.getNotifications) return [];
 
-function getReadNotifIds(ownerId) {
-  try {
-    return new Set(JSON.parse(localStorage.getItem(`vbetter_read_notifs_${ownerId}`) || '[]'));
-  } catch {
-    return new Set();
-  }
-}
+  const result = await api.getNotifications(limit || 30).catch(() => null);
+  if (!result || !result.success) return [];
 
-function addReadNotifId(ownerId, id) {
-  const ids = getReadNotifIds(ownerId);
-  ids.add(id);
-  localStorage.setItem(`vbetter_read_notifs_${ownerId}`, JSON.stringify([...ids]));
-}
-
-function markAllNotifRead(ownerId, ids) {
-  const readIds = getReadNotifIds(ownerId);
-  ids.forEach((id) => readIds.add(id));
-  localStorage.setItem(`vbetter_read_notifs_${ownerId}`, JSON.stringify([...readIds]));
-}
-
-async function buildOwnerNotifications() {
-  const ownerId = getCurrentOwnerId();
-  const dismissed = getDismissedNotifIds(ownerId);
-  const read = getReadNotifIds(ownerId);
-  const notifications = [];
-
-  try {
-    const formData = new FormData();
-    formData.append('action', 'list');
-    formData.append('owner_id', ownerId);
-    const apptRes = await fetch('/api/appointments/appointment.php', {
-      method: 'POST',
-      body: formData
-    }).then((r) => r.json());
-
-    (apptRes?.data || [])
-      .filter((appt) => ['pending', 'confirmed'].includes(appt.status))
-      .slice(0, 3)
-      .forEach((appt) => {
-        const id = `appt-${appt.id}`;
-        const rawTime = appt.created_at || appt.preferred_date;
-        notifications.push({
-          id,
-          title: appt.status === 'pending' ? 'Appointment Awaiting Confirmation'
-               : appt.status === 'reschedule_pending' ? 'New Appointment Time Proposed'
-               : 'Upcoming Appointment',
-          detail: `${appt.pet?.name || appt.patient || 'Your pet'} — ${formatNotifDate(appt.preferred_date)}${appt.time_slot ? ` at ${notifSlot(appt.time_slot)}` : ''}`,
-          time: formatNotifDate(rawTime) || 'Just now',
-          sortTime: Date.parse(rawTime) || 0,
-          read: read.has(id)
-        });
-      });
-  } catch (error) {
-    /* appointment lookup failed — skip silently */
-  }
-
-  try {
-    const claimsRes = await lostFoundRequest('list_claims', {});
-    (claimsRes?.data || [])
-      .filter((claim) => claim.status !== 'pending')
-      .slice(0, 3)
-      .forEach((claim) => {
-        const id = `claim-${claim.id}`;
-        const label = claim.status === 'approved' ? 'Claim Approved' : claim.status === 'rejected' ? 'Claim Rejected' : 'Claim Resolved';
-        const rawTime = claim.reviewed_at || claim.updated_at || claim.created_at;
-        notifications.push({
-          id,
-          title: label,
-          detail: `Your claim for ${claim.pet_name || 'a pet'}${claim.report_case ? ` (${claim.report_case})` : ''} was ${claim.status}.`,
-          time: formatNotifDate(rawTime) || 'Just now',
-          sortTime: Date.parse(rawTime) || 0,
-          read: read.has(id)
-        });
-      });
-  } catch (error) {
-    /* claims lookup failed — skip silently */
-  }
-
-  let myReports = [];
-  try {
-    const reportsRes = await lostFoundRequest('list', { status: 'all', owner_id: ownerId });
-    myReports = reportsRes?.data || [];
-    myReports
-      .filter((report) => ['active', 'rejected', 'resolved'].includes(report.status))
-      .slice(0, 3)
-      .forEach((report) => {
-        const id = `report-${report.id}`;
-        const label = report.status === 'active' ? 'Report Approved' : report.status === 'rejected' ? 'Report Rejected' : 'Report Resolved';
-        const rawTime = report.resolved_at || report.updated_at || report.created_at;
-        notifications.push({
-          id,
-          title: label,
-          detail: `Your ${(report.type || '').toLowerCase()} report for ${report.petName || 'a pet'} is now ${report.status}.`,
-          time: formatNotifDate(rawTime) || 'Just now',
-          sortTime: Date.parse(rawTime) || 0,
-          read: read.has(id)
-        });
-      });
-  } catch (error) {
-    /* report lookup failed — skip silently */
-  }
-
-  try {
-    const myLostReports = myReports.filter((report) => (report.type || '').toLowerCase() === 'lost' && report.status === 'active');
-    const matchResults = await Promise.all(
-      myLostReports.map((report) => lostFoundRequest('matches', { report_id: report.id }).catch(() => null))
-    );
-    matchResults
-      .flatMap((result, idx) => (result?.data || []).map((match) => ({ match, report: myLostReports[idx] })))
-      .filter(({ match }) => match.status === 'suggested')
-      .slice(0, 3)
-      .forEach(({ match, report }) => {
-        const id = `match-${match.id}`;
-        notifications.push({
-          id,
-          title: 'New Potential Match Found',
-          detail: `A possible match (${match.confidence}% confidence) was found for ${report.petName || report.title || 'your lost pet'}.`,
-          time: formatNotifDate(match.createdAt) || 'Just now',
-          sortTime: Date.parse(match.createdAt) || 0,
-          read: read.has(id)
-        });
-      });
-  } catch (error) {
-    /* matches lookup failed — skip silently */
-  }
-
-  try {
-    const incomingClaimsRes = await lostFoundRequest('list_claims', { report_owner_id: ownerId });
-    (incomingClaimsRes?.data || [])
-      .filter((claim) => claim.status === 'pending')
-      .slice(0, 3)
-      .forEach((claim) => {
-        const id = `claim-in-${claim.id}`;
-        notifications.push({
-          id,
-          title: 'New Claim on Your Found Report',
-          detail: `Someone submitted a claim for ${claim.pet_name || 'a pet'}${claim.report_case ? ` (${claim.report_case})` : ''}.`,
-          time: formatNotifDate(claim.created_at) || 'Just now',
-          sortTime: Date.parse(claim.created_at) || 0,
-          read: read.has(id)
-        });
-      });
-    (incomingClaimsRes?.data || [])
-      .filter((claim) => ['approved', 'resolved'].includes(claim.status))
-      .slice(0, 3)
-      .forEach((claim) => {
-        const id = `claim-out-${claim.id}`;
-        const rawTime = claim.reviewed_at || claim.updated_at || claim.created_at;
-        notifications.push({
-          id,
-          title: 'Your Found Pet Was Claimed',
-          detail: `${claim.claimant_name || 'A claimant'} was approved for ${claim.pet_name || 'the pet'}${claim.report_case ? ` (${claim.report_case})` : ''} you posted.`,
-          time: formatNotifDate(rawTime) || 'Just now',
-          sortTime: Date.parse(rawTime) || 0,
-          read: read.has(id)
-        });
-      });
-  } catch (error) {
-    /* incoming claims lookup failed — skip silently */
-  }
-
-  // Each category above is pushed in its own block, so without this sort the
-  // list reads oldest-category-first rather than most-recent-first — a truly
-  // recent notification from a later-pushed category would land past the
-  // visible page and be hidden behind "Show more" instead of at the top.
-  notifications.sort((a, b) => (b.sortTime || 0) - (a.sortTime || 0));
-
-  const visible = notifications.filter((item) => !dismissed.has(item.id));
-
-  if (!visible.length) {
-    visible.push({
-      id: 'empty',
-      title: 'No New Notifications',
-      detail: 'You are all caught up. Check back later for updates.',
-      time: 'Just checked',
-      read: true
-    });
-  }
-
-  return visible;
+  return (result.data || []).map((row) => ({
+    id: row.id,
+    title: row.title,
+    detail: row.message,
+    time: formatNotifDate(row.created_at) || 'Just now',
+    sortTime: Date.parse(row.created_at) || 0,
+    read: row.is_read
+  }));
 }
 
 const NOTIF_PAGE_SIZE = 5;
@@ -412,7 +233,7 @@ function renderNotificationItems(root, items) {
 
     list.innerHTML = visible
       .map((item) => {
-        const category = item.id === 'empty' ? 'general' : notifCategoryFromId(item.id);
+        const category = item.id === 'empty' ? 'general' : notifCategoryFromType(item.type);
         const status = item.id === 'empty' ? 'neutral' : notifStatusFromTitle(item.title);
         return `
         <article class="dash-notification-item ${item.read ? 'read' : 'unread'}" data-notif-id="${escapeHtmlNav(item.id)}">
@@ -437,15 +258,25 @@ function renderNotificationItems(root, items) {
     }
 
     list.querySelectorAll('.dash-notification-item').forEach((element) => {
-      element.addEventListener('click', () => {
+      element.addEventListener('click', async () => {
         const id = element.dataset.notifId;
         if (!id || id === 'empty') return;
-        const entry = items.find((notif) => notif.id === id);
+        // dataset values are strings; row ids are numbers.
+        const entry = items.find((notif) => String(notif.id) === id);
         if (!entry || entry.read) return;
+
         entry.read = true;
-        addReadNotifId(getCurrentOwnerId(), id);
         syncNotifDotFromItems(items);
         draw();
+
+        // Put it back if the server did not accept it, rather than leaving
+        // the item looking read until a refresh contradicts it.
+        const result = await api.markNotificationRead(entry.id).catch(() => null);
+        if (!result || !result.success) {
+          entry.read = false;
+          syncNotifDotFromItems(items);
+          draw();
+        }
       });
     });
   }
@@ -454,11 +285,13 @@ function renderNotificationItems(root, items) {
   draw();
 }
 
-/* ── Notification bell dot — reflects real unread state, not a static
-   always-on marker. Public owner notifications have no backing table, so
-   the count is cached briefly to avoid re-running the full aggregation
-   (6 endpoints) on every page load/navigation. ── */
-const NOTIF_DOT_CACHE_TTL_MS = 60000;
+/* ── Notification bell dot ────────────────────────────────────
+   One indexed COUNT against the caller's own rows. This used to run the
+   full six-endpoint aggregation just to work out whether the dot should
+   show, which is why it needed a sessionStorage cache with a TTL — and
+   why a cache written before the session hydrated could leave the dot
+   wrong for a minute. Neither the cache nor its staleness window is
+   needed now. ── */
 
 function getNotifDotElements() {
   return Array.from(document.querySelectorAll('.nav-notif-dot'));
@@ -469,15 +302,12 @@ function setNotifDotVisible(hasUnread) {
 }
 
 function syncNotifDotFromItems(items) {
-  const unreadCount = items.filter((item) => !item.read && item.id !== 'empty').length;
-  try {
-    sessionStorage.setItem(`vbetter_notif_unread_${getCurrentOwnerId()}`, JSON.stringify({ count: unreadCount, ts: Date.now() }));
-  } catch { /* storage unavailable — dot still reflects current in-memory state */ }
-  setNotifDotVisible(unreadCount > 0);
+  setNotifDotVisible(items.some((item) => !item.read && item.id !== 'empty'));
 }
 
-async function refreshNotifDot(options = {}) {
+async function refreshNotifDot() {
   if (!getNotifDotElements().length) return;
+  if (typeof api === 'undefined' || !api.getUnreadNotificationCount) return;
 
   const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
   if (!user) {
@@ -485,33 +315,19 @@ async function refreshNotifDot(options = {}) {
     return;
   }
 
-  // Polling ticks (options.silent) bypass the cache on purpose — they're
-  // exactly the mechanism that should produce a fresh count instead of
-  // reusing a stale one. Regular page-load calls still respect it, so
-  // navigating between pages within the TTL window doesn't re-run the
-  // full 6-endpoint aggregation for no reason.
-  const cacheKey = `vbetter_notif_unread_${getCurrentOwnerId()}`;
-  if (!options.silent) {
-    try {
-      const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
-      if (cached && (Date.now() - cached.ts) < NOTIF_DOT_CACHE_TTL_MS) {
-        setNotifDotVisible(cached.count > 0);
-        return;
-      }
-    } catch { /* malformed cache — fall through to a fresh fetch */ }
-  }
+  const result = await api.getUnreadNotificationCount().catch(() => null);
+  if (!result || !result.success) return;
 
-  const items = await buildOwnerNotifications();
-  syncNotifDotFromItems(items);
+  setNotifDotVisible(result.unread_count > 0);
 }
 
 document.addEventListener('DOMContentLoaded', refreshNotifDot);
 document.addEventListener('DOMContentLoaded', () => startPolling(refreshNotifDot, 20000));
 
-/* Dismiss a single notification: hide it going forward via localStorage,
-   since notifications are rebuilt live from appointments/claims/reports
-   on every open rather than stored server-side. */
-document.addEventListener('click', function (e) {
+/* Dismiss a single notification. Soft-deleted server-side (dismissed_at) on
+   the caller's own row only — safe now that rows belong to one recipient,
+   where it would once have hidden the notification from everybody. */
+document.addEventListener('click', async function (e) {
   const btn = e.target.closest('[data-action="dismiss-notif"]');
   if (!btn) return;
   e.preventDefault();
@@ -521,14 +337,21 @@ document.addEventListener('click', function (e) {
   if (!item) return;
 
   const id = item.dataset.notifId;
-  if (!id) return;
-  addDismissedNotifId(getCurrentOwnerId(), id);
+  if (!id || id === 'empty') return;
 
-  const idx = currentNotifItems.findIndex((entry) => entry.id === id);
-  if (idx !== -1) currentNotifItems.splice(idx, 1);
+  const idx = currentNotifItems.findIndex((entry) => String(entry.id) === id);
+  if (idx === -1) return;
+  const [removed] = currentNotifItems.splice(idx, 1);
 
   if (redrawNotifList) redrawNotifList();
   syncNotifDotFromItems(currentNotifItems);
+
+  const result = await api.dismissNotification(removed.id).catch(() => null);
+  if (!result || !result.success) {
+    currentNotifItems.splice(idx, 0, removed);
+    if (redrawNotifList) redrawNotifList();
+    syncNotifDotFromItems(currentNotifItems);
+  }
 });
 
 async function openNotificationModal() {
@@ -568,9 +391,13 @@ async function openNotificationModal() {
 
   const markAllBtn = document.getElementById('mark-all-read-btn');
   if (markAllBtn) {
-    markAllBtn.addEventListener('click', () => {
-      const ids = items.filter((item) => item.id !== 'empty').map((item) => item.id);
-      markAllNotifRead(getCurrentOwnerId(), ids);
+    markAllBtn.addEventListener('click', async () => {
+      // Confirm the write landed before showing everything as read. The
+      // admin bell used to do the opposite and hid a write that had been
+      // failing every single time.
+      const result = await api.markAllNotificationsRead().catch(() => null);
+      if (!result || !result.success) return;
+
       items.forEach((item) => { item.read = true; });
       if (redrawNotifList) redrawNotifList();
       syncNotifDotFromItems(items);

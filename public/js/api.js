@@ -922,18 +922,28 @@ forgotPassword: (email) => {
   },
 
   /**
-   * Shared admin/vet notification feed (api/notifications/notifications.php).
+   * Notification feed (api/notifications/notifications.php).
    *
-   * These three were the only wrappers in this file sending no token — the
-   * endpoint had no auth guard and picked the feed from a `role` field in
-   * the body. It now authenticates and derives the feed from the session,
-   * so the role argument is gone rather than sent and ignored.
+   * One feed for every role — the endpoint returns the caller's own rows,
+   * identified from their session. Nothing here says who you are: the
+   * `role` field these wrappers used to post decided which feed you got,
+   * which meant any caller could ask for the admin one.
    */
-  getStaffNotifications: () =>
+  getNotifications: (limit) =>
     fetch(NOTIFICATIONS_ENDPOINT, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ action: 'list' })
+      body: JSON.stringify({ action: 'list', limit })
+    }).then(r => r.json()),
+
+  /* Just the number, for the bell dot — refreshed far more often than the
+     list is opened, and the owner-side dot used to cost six API calls to
+     work this out. */
+  getUnreadNotificationCount: () =>
+    fetch(NOTIFICATIONS_ENDPOINT, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ action: 'unread_count' })
     }).then(r => r.json()),
 
   markNotificationRead: (id) =>
@@ -948,6 +958,13 @@ forgotPassword: (email) => {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({ action: 'mark_all_read' })
+    }).then(r => r.json()),
+
+  dismissNotification: (id) =>
+    fetch(NOTIFICATIONS_ENDPOINT, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ action: 'dismiss', id })
     }).then(r => r.json()),
 
 };

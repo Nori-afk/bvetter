@@ -29,7 +29,7 @@ function getNotifDotElements() {
 }
 
 function syncNotifDot(notificationState) {
-    const unreadCount = notificationState.items.filter((item) => !item.read && item.id !== 'N-empty').length;
+    const unreadCount = notificationState.items.filter((item) => !item.read).length;
     getNotifDotElements().forEach((dot) => { dot.hidden = unreadCount <= 0; });
 }
 
@@ -69,19 +69,22 @@ document.addEventListener('DOMContentLoaded', async function () {
         items: announcementsResponse.ok && Array.isArray(announcementsResponse.data) ? announcementsResponse.data : []
     };
 
+    // Every notification is a database row now. The old feed mixed these with
+    // synthetic "operational" items built from the dashboard KPIs ("N
+    // appointments need review"), which were regenerated unread on every page
+    // load — so marking them read could never stick, and the bell dot came
+    // back after every refresh. Those were rolling counts, not events; the
+    // pending-appointment figure already lives on the KPI card, where it stays
+    // accurate instead of going stale the moment a vet handles one.
     const notificationState = {
-        items: [
-            ...staffNotifications.map((item) => ({
-                id: item.id,
-                title: item.title,
-                detail: item.message,
-                time: new Date(item.created_at).toLocaleString(),
-                read: item.is_read,
-                type: item.type,
-                serverBacked: true
-            })),
-            ...buildOperationalNotifications(dashboardData, appointments, vaccinationEvents)
-        ]
+        items: staffNotifications.map((item) => ({
+            id: item.id,
+            title: item.title,
+            detail: item.message,
+            time: new Date(item.created_at).toLocaleString(),
+            read: item.is_read,
+            type: item.type
+        }))
     };
 
     syncNotifDot(notificationState);
@@ -658,7 +661,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 element.classList.add('read');
                 syncNotifDot(notificationState);
 
-                if (entry.serverBacked && window.VetAPI?.markNotificationRead) {
+                if (window.VetAPI?.markNotificationRead) {
                     const result = await window.VetAPI.markNotificationRead(entry.id).catch(() => null);
                     if (!result || !result.ok) {
                         entry.read = false;
@@ -1335,43 +1338,6 @@ function buildCalendarEvents(appointments, vaccinationEvents) {
     return [...appointmentEvents, ...vaccinationCalendarEvents];
 }
 
-function buildOperationalNotifications(data, appointments, vaccinationEvents) {
-    const notifications = [];
-    const pendingCount = data?.kpis?.pendingActions ?? appointments.filter((item) => ['pending', 'confirmed'].includes(item.status)).length;
-    const nextEvent = findNextVaccinationEvent(vaccinationEvents);
-
-    if (pendingCount > 0) {
-        notifications.push({
-            id: 'N-pending-appointments',
-            title: 'Pending Appointments',
-            detail: `${pendingCount} appointment${pendingCount === 1 ? '' : 's'} need review or completion.`,
-            time: 'Live from appointments',
-            read: false
-        });
-    }
-
-    if (nextEvent) {
-        notifications.push({
-            id: `N-event-${nextEvent.id}`,
-            title: 'Upcoming Vaccination Event',
-            detail: `${nextEvent.vaccine} at ${nextEvent.barangay} on ${nextEvent.dateLabel || formatDateLabel(nextEvent.date, { month: 'long', day: 'numeric', year: 'numeric' })}.`,
-            time: 'Live from events',
-            read: false
-        });
-    }
-
-    if (!notifications.length) {
-        notifications.push({
-            id: 'N-empty',
-            title: 'No Operational Notifications',
-            detail: 'No pending appointments or upcoming vaccination events were found.',
-            time: 'Just checked',
-            read: true
-        });
-    }
-
-    return notifications;
-}
 
 function updateCalendarTitle() {
     const title = document.querySelector('.calendar-header h3');

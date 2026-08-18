@@ -1,5 +1,17 @@
 <?php
 
+/**
+ * BVetter – notification feed
+ *
+ * One feed for everyone. Rows belong to a single recipient (notifications
+ * .user_id), so the caller only ever sees, marks, or dismisses their own —
+ * there is no role branching here and no client-supplied identity.
+ *
+ * Pet owners are included. Their notifications used to be synthesized in
+ * the browser from six endpoints with read state in localStorage, which
+ * made "read" per-device and unrecoverable; they are ordinary rows now.
+ */
+
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -35,38 +47,19 @@ function clean($value)
     return trim((string) $value);
 }
 
-/**
- * The staff feed an authenticated caller may see.
- *
- * Derived from the session row, never from a client-posted `role`. That
- * field used to decide which feed you got, so any caller could ask for
- * 'admin' and be handed the admin feed.
- *
- * Only the two staff roles reach here (see requireRole at the dispatch
- * below). Pet owners are deliberately excluded rather than mapped: they
- * have no rows of their own until notifications carry a user_id, so
- * admitting them would fall through to the vet feed instead of returning
- * nothing.
- */
-function audienceForSession(array $session)
-{
-    return $session['role_name'] === 'admin' ? 'admin' : 'vet';
-}
-
-function listNotifications($pdo, $data, $audience)
+function listNotifications($pdo, $data, $userId)
 {
     $limit = (int) ($data['limit'] ?? 30);
     if ($limit <= 0 || $limit > 100) $limit = 30;
 
     $stmt = $pdo->prepare("
-        SELECT id, audience, type, title, message, reference_id, is_read, created_at
+        SELECT id, type, title, message, reference_id, is_read, created_at
         FROM notifications
-        WHERE audience = :audience OR audience = 'both'
+        WHERE user_id = :user_id AND dismissed_at IS NULL
         ORDER BY created_at DESC
         LIMIT $limit
     ");
-    $stmt->execute([':audience' => $audience]);
-    $rows = $stmt->fetchAll();
+    $stmt->execute([':user_id' => $userId]);
 
     $data = array_map(function ($row) {
         return [
@@ -78,36 +71,70 @@ function listNotifications($pdo, $data, $audience)
             'is_read' => (bool) $row['is_read'],
             'created_at' => $row['created_at'],
         ];
-    }, $rows);
+    }, $stmt->fetchAll());
+
+    // Counted over the whole feed, not the page just returned — the bell has
+    // to reflect every unread notification, including any past the limit.
+    $unread = $pdo->prepare('
+        SELECT COUNT(*) FROM notifications
+        WHERE user_id = :user_id AND dismissed_at IS NULL AND is_read = 0
+    ');
+    $unread->execute([':user_id' => $userId]);
 
     respond(200, [
         'success' => true,
         'data' => $data,
-        'unread_count' => count(array_filter($data, fn($item) => !$item['is_read'])),
+        'unread_count' => (int) $unread->fetchColumn(),
     ]);
 }
 
-function markRead($pdo, $data)
+/**
+ * Unread count on its own, for the bell dot.
+ *
+ * Split out because the dot is refreshed far more often than the list is
+ * opened, and it only ever needed one number. The owner-side dot used to
+ * cost six API calls per refresh to work this out.
+ */
+function unreadCount($pdo, $userId)
+{
+    $stmt = $pdo->prepare('
+        SELECT COUNT(*) FROM notifications
+        WHERE user_id = :user_id AND dismissed_at IS NULL AND is_read = 0
+    ');
+    $stmt->execute([':user_id' => $userId]);
+
+    respond(200, ['success' => true, 'unread_count' => (int) $stmt->fetchColumn()]);
+}
+
+/**
+ * Every write is scoped by user_id as well as the row id, so a valid session
+ * still cannot touch somebody else's notification by guessing its id.
+ */
+function markRead($pdo, $data, $userId)
 {
     $id = (int) ($data['id'] ?? 0);
     if ($id <= 0) {
         respond(422, ['success' => false, 'message' => 'Invalid notification id.']);
     }
 
-    $stmt = $pdo->prepare('UPDATE notifications SET is_read = 1 WHERE id = :id');
-    $stmt->execute([':id' => $id]);
+    $stmt = $pdo->prepare('UPDATE notifications SET is_read = 1 WHERE id = :id AND user_id = :user_id');
+    $stmt->execute([':id' => $id, ':user_id' => $userId]);
 
-    respond(200, ['success' => true, 'message' => 'Notification marked as read.']);
+    // rowCount() counts rows CHANGED, not matched, so 0 here is ambiguous —
+    // it means either "already read" or "not your row". Callers should treat
+    // `success` as the signal; `updated` is for diagnostics only. In
+    // markAllRead() below it is unambiguous, because that WHERE filters on
+    // is_read = 0 and so only ever matches rows that are about to change.
+    respond(200, ['success' => true, 'message' => 'Notification marked as read.', 'updated' => $stmt->rowCount()]);
 }
 
-function markAllRead($pdo, $audience)
+function markAllRead($pdo, $userId)
 {
-    $stmt = $pdo->prepare("
-        UPDATE notifications
-        SET is_read = 1
-        WHERE (audience = :audience OR audience = 'both') AND is_read = 0
-    ");
-    $stmt->execute([':audience' => $audience]);
+    $stmt = $pdo->prepare('
+        UPDATE notifications SET is_read = 1
+        WHERE user_id = :user_id AND dismissed_at IS NULL AND is_read = 0
+    ');
+    $stmt->execute([':user_id' => $userId]);
 
     // `updated` distinguishes "the UPDATE ran but matched no rows" from "the
     // UPDATE never ran at all". Without it a failing mark-all-read is
@@ -119,8 +146,29 @@ function markAllRead($pdo, $audience)
     ]);
 }
 
-$session = requireRole($pdo, ['admin', 'veterinarian']);
-$audience = audienceForSession($session);
+/**
+ * Dismiss hides a notification from its own recipient only, which is safe
+ * now that rows are not shared. Soft-deleted rather than deleted so a
+ * vanished notification stays explainable after the fact.
+ */
+function dismiss($pdo, $data, $userId)
+{
+    $id = (int) ($data['id'] ?? 0);
+    if ($id <= 0) {
+        respond(422, ['success' => false, 'message' => 'Invalid notification id.']);
+    }
+
+    $stmt = $pdo->prepare('
+        UPDATE notifications SET dismissed_at = NOW()
+        WHERE id = :id AND user_id = :user_id AND dismissed_at IS NULL
+    ');
+    $stmt->execute([':id' => $id, ':user_id' => $userId]);
+
+    respond(200, ['success' => true, 'message' => 'Notification dismissed.', 'updated' => $stmt->rowCount()]);
+}
+
+$session = requireRole($pdo, ['admin', 'veterinarian', 'pet_owner']);
+$userId = (int) $session['user_id'];
 
 $input = inputData();
 
@@ -131,9 +179,11 @@ $input = inputData();
 $action = clean($input['action'] ?? '');
 
 try {
-    if ($action === 'list') listNotifications($pdo, $input, $audience);
-    if ($action === 'mark_read') markRead($pdo, $input);
-    if ($action === 'mark_all_read') markAllRead($pdo, $audience);
+    if ($action === 'list') listNotifications($pdo, $input, $userId);
+    if ($action === 'unread_count') unreadCount($pdo, $userId);
+    if ($action === 'mark_read') markRead($pdo, $input, $userId);
+    if ($action === 'mark_all_read') markAllRead($pdo, $userId);
+    if ($action === 'dismiss') dismiss($pdo, $input, $userId);
 
     respond(400, [
         'success' => false,

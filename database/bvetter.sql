@@ -851,22 +851,34 @@ CREATE TABLE `user_notification_preferences` (
 --
 -- Table structure for table `notifications`
 --
--- Shared staff notification feed: rows written here are read by both the
--- admin and vet dashboards (filtered by `audience`), replacing the two
--- disconnected/synthetic per-dashboard notification builders.
+-- One feed for every role. A row belongs to exactly one recipient, so an
+-- event concerning several people writes several rows (fan-out on write,
+-- see notifyStaff() in api/config/notifications.php).
+--
+-- This replaced an `audience` enum whose single shared `is_read` meant one
+-- admin marking a notification read marked it read for every admin, and
+-- rows addressed to 'both' leaked read state between the admin and vet
+-- dashboards. Pet owners had no rows at all — their feed was rebuilt in the
+-- browser from six endpoints with read state in localStorage.
+--
+-- `dismissed_at` soft-deletes a notification for its own recipient. Safe
+-- only because rows are per-person now.
 --
 
 CREATE TABLE `notifications` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `audience` enum('admin','vet','both') NOT NULL DEFAULT 'both',
+  `user_id` int NOT NULL,
   `type` varchar(50) NOT NULL,
   `title` varchar(255) NOT NULL,
   `message` text NOT NULL,
   `reference_id` int DEFAULT NULL,
   `is_read` tinyint(1) NOT NULL DEFAULT '0',
+  `dismissed_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `idx_audience_created` (`audience`,`created_at`)
+  KEY `idx_user_created` (`user_id`,`created_at`),
+  KEY `idx_user_unread` (`user_id`,`is_read`,`dismissed_at`),
+  CONSTRAINT `fk_notifications_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------

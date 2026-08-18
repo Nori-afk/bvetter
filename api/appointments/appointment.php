@@ -728,10 +728,24 @@ function notifyOwnerAppointmentConfirmed($pdo, $appointmentId)
     $row = $stmt->fetch();
     if (!$row) return;
 
+    $ownerId = (int) $row['owner_id'];
+
+    // In-app row first, and unconditionally. The checks below gate the
+    // *email* — the settings page presents those toggles as email channels
+    // and quiet hours says so outright — so letting them skip this would
+    // leave the owner with no record at all that their appointment changed.
+    notifyUser(
+        $pdo,
+        $ownerId,
+        'appointment_status',
+        'Appointment Confirmed',
+        "Your appointment on {$row['preferred_date']} at {$row['time_slot']} has been confirmed.",
+        (int) $appointmentId
+    );
+
     $recipientEmail = $row['contact_email'] ?: $row['owner_email'];
     if (!$recipientEmail) return;
 
-    $ownerId = (int) $row['owner_id'];
     if (!userWantsNotification($pdo, $ownerId, 'appointment_reminders')) return;
 
     $subject = 'BVetter – Your appointment is confirmed';
@@ -760,10 +774,20 @@ function notifyOwnerAppointmentRejected($pdo, $appointmentId, $verb)
     $row = $stmt->fetch();
     if (!$row) return;
 
+    $ownerId = (int) $row['owner_id'];
+
+    notifyUser(
+        $pdo,
+        $ownerId,
+        'appointment_status',
+        'Appointment ' . ucfirst($verb),
+        "Your appointment on {$row['preferred_date']} at {$row['time_slot']} was {$verb}.",
+        (int) $appointmentId
+    );
+
     $recipientEmail = $row['contact_email'] ?: $row['owner_email'];
     if (!$recipientEmail) return;
 
-    $ownerId = (int) $row['owner_id'];
     if (!userWantsNotification($pdo, $ownerId, 'appointment_reminders')) return;
 
     $subject = 'BVetter – Your appointment was ' . $verb;
@@ -798,10 +822,21 @@ function notifyOwnerRescheduleProposed($pdo, $appointmentId)
     $row = $stmt->fetch();
     if (!$row) return;
 
+    $ownerId = (int) $row['owner_id'];
+
+    notifyUser(
+        $pdo,
+        $ownerId,
+        'appointment_reschedule_proposed',
+        'New Time Proposed',
+        "The clinic proposed moving your appointment to {$row['proposed_date']} at "
+            . "{$row['proposed_time_slot']}. Your original booking is held until you answer.",
+        (int) $appointmentId
+    );
+
     $recipientEmail = $row['contact_email'] ?: $row['owner_email'];
     if (!$recipientEmail) return;
 
-    $ownerId = (int) $row['owner_id'];
     if (!userWantsNotification($pdo, $ownerId, 'appointment_reminders')) return;
 
     $reason = clean($row['reschedule_reason'] ?? '');

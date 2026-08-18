@@ -409,7 +409,7 @@ function wireNotificationsModal() {
 
     async function loadNotifications() {
         if (listEl) listEl.innerHTML = '<p class="am-loading-cell">Loading notifications…</p>';
-        const result = await api.getStaffNotifications().catch(() => ({ success: false }));
+        const result = await api.getNotifications().catch(() => ({ success: false }));
         if (!result.success) {
             if (listEl) listEl.innerHTML = '<p class="am-loading-cell">Could not load notifications.</p>';
             return;

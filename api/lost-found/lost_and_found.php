@@ -769,21 +769,36 @@ function fetchReportForMatch($pdo, $id)
 function notifyReportOwnerStatus($pdo, $ownerId, $reportId, $status)
 {
     $ownerId = (int) $ownerId;
-    if ($ownerId <= 0 || !userWantsNotification($pdo, $ownerId, 'lost_found_alerts')) {
-        return;
-    }
+    if ($ownerId <= 0) return;
 
     $stmt = $pdo->prepare('SELECT case_number, report_type, pet_name, photo_path FROM lost_found_reports WHERE id = :id LIMIT 1');
     $stmt->execute([':id' => (int) $reportId]);
     $report = $stmt->fetch();
     if (!$report) return;
 
+    $label = $report['report_type'] === 'lost' ? 'lost pet' : 'found pet';
+
+    // In-app row first, and unconditionally. The lost_found_alerts toggle is
+    // an email channel on the settings page, so gating this on it would hide
+    // the outcome of the owner's own report from them entirely.
+    notifyUser(
+        $pdo,
+        $ownerId,
+        'lost_found_report_status',
+        $status === 'active' ? 'Report Published' : 'Report Rejected',
+        "Your {$label} report" . ($report['pet_name'] ? " for {$report['pet_name']}" : '')
+            . " (case #{$report['case_number']}) was "
+            . ($status === 'active' ? 'approved and is now live.' : 'rejected.'),
+        (int) $reportId
+    );
+
+    if (!userWantsNotification($pdo, $ownerId, 'lost_found_alerts')) return;
+
     $userStmt = $pdo->prepare('SELECT full_name, email FROM users WHERE id = :id LIMIT 1');
     $userStmt->execute([':id' => $ownerId]);
     $user = $userStmt->fetch();
     if (!$user || !$user['email']) return;
 
-    $label = $report['report_type'] === 'lost' ? 'lost pet' : 'found pet';
     $petLabel = $report['pet_name'] ? " for <strong>" . htmlspecialchars($report['pet_name']) . "</strong>" : '';
 
     if ($status === 'active') {
@@ -878,11 +893,41 @@ function rebuildMatchesForReport($pdo, $reportId)
                 ':confidence' => $score,
                 ':reasons_json' => json_encode($reasons),
             ]);
+            notifyLostReportOwnerOfMatch($pdo, (int) $lostReport['id'], (int) $pdo->lastInsertId());
         }
     }
 
     $lostId = $report['report_type'] === 'lost' ? (int) $report['id'] : 0;
     if ($lostId > 0) rebuildSightingMatches($pdo, $lostId);
+}
+
+/**
+ * Tell the owner of a lost report that a new possible match turned up.
+ *
+ * Only called from the INSERT branches of the match rebuilds, never the
+ * UPDATE ones — rebuilds are upserts rather than delete-and-recreate, so an
+ * insert really is a match that did not exist before. Re-scoring an existing
+ * match must stay silent or every rebuild would notify the whole board.
+ */
+function notifyLostReportOwnerOfMatch($pdo, $lostReportId, $matchId)
+{
+    $stmt = $pdo->prepare('
+        SELECT owner_id, case_number, pet_name FROM lost_found_reports WHERE id = :id LIMIT 1
+    ');
+    $stmt->execute([':id' => (int) $lostReportId]);
+    $report = $stmt->fetch();
+    if (!$report || (int) $report['owner_id'] <= 0) return;
+
+    notifyUser(
+        $pdo,
+        (int) $report['owner_id'],
+        'lost_found_match',
+        'New Potential Match Found',
+        'A possible match was found for your lost report'
+            . ($report['pet_name'] ? " for {$report['pet_name']}" : '')
+            . " (case #{$report['case_number']}).",
+        (int) $matchId
+    );
 }
 
 function rebuildSightingMatches($pdo, $lostReportId)
@@ -953,6 +998,7 @@ function rebuildSightingMatches($pdo, $lostReportId)
                 ':confidence' => $score,
                 ':reasons_json' => json_encode($reasons),
             ]);
+            notifyLostReportOwnerOfMatch($pdo, (int) $lostReportId, (int) $pdo->lastInsertId());
         }
     }
 }
@@ -1246,6 +1292,21 @@ function updateSightingStatus($pdo, $data, $status)
     if ($sightingInfo && in_array($status, ['active', 'rejected'], true)) {
         $submitterId = (int) ($sightingInfo['submitted_by_user_id'] ?? 0);
         $submitterEmail = nullableClean($sightingInfo['contact_email'] ?? '');
+
+        // Anonymous sightings carry no user id and so have no in-app feed to
+        // write to — they stay email-only.
+        if ($submitterId > 0) {
+            notifyUser(
+                $pdo,
+                $submitterId,
+                'lost_found_sighting_status',
+                'Sighting ' . ($status === 'active' ? 'Approved' : 'Rejected'),
+                "Your sighting report (case #{$sightingInfo['case_number']}) was "
+                    . ($status === 'active' ? 'approved.' : 'rejected.'),
+                $id
+            );
+        }
+
         if ($submitterEmail && userWantsNotification($pdo, $submitterId, 'lost_found_alerts')) {
             $verb = $status === 'active' ? 'approved' : 'rejected';
             $subject = 'BVetter – Your sighting report has been ' . $verb;
@@ -1303,6 +1364,28 @@ function createClaim($pdo, $data)
         $claimId,
         true
     );
+
+    // The person who posted the found report also needs to know somebody has
+    // claimed their pet — previously only staff heard about it, and the owner
+    // saw it only because the browser re-derived it from the claims list.
+    $reportOwner = $pdo->prepare('
+        SELECT owner_id, case_number, pet_name FROM lost_found_reports WHERE id = :id LIMIT 1
+    ');
+    $reportOwner->execute([':id' => $reportId]);
+    $reportRow = $reportOwner->fetch();
+
+    if ($reportRow && (int) $reportRow['owner_id'] > 0 && (int) $reportRow['owner_id'] !== $claimantId) {
+        notifyUser(
+            $pdo,
+            (int) $reportRow['owner_id'],
+            'lost_found_claim_new',
+            'New Claim on Your Report',
+            'Someone submitted an ownership claim on your report'
+                . ($reportRow['pet_name'] ? " for {$reportRow['pet_name']}" : '')
+                . " (case #{$reportRow['case_number']}). It is awaiting vet review.",
+            $claimId
+        );
+    }
 
     respond(201, ['success' => true, 'message' => 'Claim submitted for vet review.', 'claim_id' => $claimId]);
 }
@@ -1425,6 +1508,22 @@ function updateClaimStatus($pdo, $data, $status)
     if ($claimInfo && in_array($status, ['approved', 'rejected'], true)) {
         $claimantId = (int) ($claimInfo['claimant_user_id'] ?? 0);
         $claimantEmail = nullableClean($claimInfo['claimant_email'] ?? '');
+
+        // In-app row is unconditional; only the email honours the preference.
+        // A claimant with no account (claimant_user_id 0) has nowhere to
+        // receive an in-app notification, so they still get email only.
+        if ($claimantId > 0) {
+            notifyUser(
+                $pdo,
+                $claimantId,
+                'lost_found_claim_status',
+                'Claim ' . ucfirst($status),
+                'Your claim' . ($claimInfo['pet_name'] ? " for {$claimInfo['pet_name']}" : '')
+                    . " (case #{$claimInfo['case_number']}) was {$status}.",
+                $id
+            );
+        }
+
         if ($claimantEmail && userWantsNotification($pdo, $claimantId, 'lost_found_alerts')) {
             $verb = $status === 'approved' ? 'approved' : 'rejected';
             $subject = 'BVetter – Your claim has been ' . $verb;
