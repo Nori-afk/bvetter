@@ -665,14 +665,13 @@ async function getVaccinationForecast(steps) {
 }
 
 /* ── Notifications (shared admin/vet feed) ──────────────── */
-
-/** POST notifications.php { action: 'list', role: 'vet' } */
+/** POST notifications.php { action: 'list' } — feed is derived from the session, not a posted role */
 async function getStaffNotifications() {
     try {
         const response = await fetch(NOTIFICATIONS_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'list', role: 'vet' })
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ action: 'list' })
         });
         const result = await response.json();
         return { ok: result.success, data: result.data || [], error: result.success ? null : result.message };
@@ -685,7 +684,7 @@ async function markNotificationRead(id) {
     try {
         const response = await fetch(NOTIFICATIONS_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ action: 'mark_read', id })
         });
         const result = await response.json();
@@ -699,8 +698,8 @@ async function markAllNotificationsRead() {
     try {
         const response = await fetch(NOTIFICATIONS_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'mark_all_read', role: 'vet' })
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ action: 'mark_all_read' })
         });
         const result = await response.json();
         return { ok: result.success, error: result.success ? null : result.message };

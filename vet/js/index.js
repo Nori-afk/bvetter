@@ -621,15 +621,22 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         const markAllBtn = document.getElementById('mark-all-read-btn');
         if (markAllBtn) {
-            markAllBtn.addEventListener('click', () => {
+            markAllBtn.addEventListener('click', async () => {
+                // Fired and forgotten before, so a failed write was invisible
+                // until the dot came back on the next page load. Confirm the
+                // server accepted it before showing everything as read.
+                if (window.VetAPI?.markAllNotificationsRead) {
+                    const result = await window.VetAPI.markAllNotificationsRead().catch(() => null);
+                    if (!result || !result.ok) {
+                        showNotification('Could not mark notifications as read. Please try again.', 'error');
+                        return;
+                    }
+                }
                 notificationState.items.forEach((item) => {
                     item.read = true;
                 });
                 syncNotifDot(notificationState);
                 openNotificationModal();
-                if (window.VetAPI?.markAllNotificationsRead) {
-                    window.VetAPI.markAllNotificationsRead();
-                }
             });
         }
 
@@ -642,15 +649,23 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
 
         modalRoot.querySelectorAll('[data-notification-id]').forEach((element) => {
-            element.addEventListener('click', () => {
+            element.addEventListener('click', async () => {
                 const entry = notificationState.items.find((item) => String(item.id) === element.dataset.notificationId);
-                if (entry) {
-                    entry.read = true;
-                    element.classList.remove('unread');
-                    element.classList.add('read');
-                    syncNotifDot(notificationState);
-                    if (entry.serverBacked && window.VetAPI?.markNotificationRead) {
-                        window.VetAPI.markNotificationRead(entry.id);
+                if (!entry) return;
+
+                entry.read = true;
+                element.classList.remove('unread');
+                element.classList.add('read');
+                syncNotifDot(notificationState);
+
+                if (entry.serverBacked && window.VetAPI?.markNotificationRead) {
+                    const result = await window.VetAPI.markNotificationRead(entry.id).catch(() => null);
+                    if (!result || !result.ok) {
+                        entry.read = false;
+                        element.classList.remove('read');
+                        element.classList.add('unread');
+                        syncNotifDot(notificationState);
+                        showNotification('Could not mark that notification as read.', 'error');
                     }
                 }
             });

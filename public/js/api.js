@@ -923,27 +923,31 @@ forgotPassword: (email) => {
 
   /**
    * Shared admin/vet notification feed (api/notifications/notifications.php).
-   * role: 'admin' | 'vet'
+   *
+   * These three were the only wrappers in this file sending no token — the
+   * endpoint had no auth guard and picked the feed from a `role` field in
+   * the body. It now authenticates and derives the feed from the session,
+   * so the role argument is gone rather than sent and ignored.
    */
-  getStaffNotifications: (role) =>
+  getStaffNotifications: () =>
     fetch(NOTIFICATIONS_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'list', role })
+      headers: authHeaders(),
+      body: JSON.stringify({ action: 'list' })
     }).then(r => r.json()),
 
   markNotificationRead: (id) =>
     fetch(NOTIFICATIONS_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ action: 'mark_read', id })
     }).then(r => r.json()),
 
-  markAllNotificationsRead: (role) =>
+  markAllNotificationsRead: () =>
     fetch(NOTIFICATIONS_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'mark_all_read', role })
+      headers: authHeaders(),
+      body: JSON.stringify({ action: 'mark_all_read' })
     }).then(r => r.json()),
 
 };

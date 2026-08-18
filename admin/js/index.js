@@ -409,7 +409,7 @@ function wireNotificationsModal() {
 
     async function loadNotifications() {
         if (listEl) listEl.innerHTML = '<p class="am-loading-cell">Loading notifications…</p>';
-        const result = await api.getStaffNotifications('admin').catch(() => ({ success: false }));
+        const result = await api.getStaffNotifications().catch(() => ({ success: false }));
         if (!result.success) {
             if (listEl) listEl.innerHTML = '<p class="am-loading-cell">Could not load notifications.</p>';
             return;
@@ -456,7 +456,18 @@ function wireNotificationsModal() {
                 el.classList.remove('unread');
                 el.classList.add('read');
                 setDotVisible(currentItems.some((item) => !item.is_read));
-                await api.markNotificationRead(id).catch(() => null);
+
+                // Marked optimistically above so the click feels immediate,
+                // but a failed write has to be put back — otherwise the item
+                // reads as done until the next refresh restores it.
+                const result = await api.markNotificationRead(id).catch(() => null);
+                if (!result || !result.success) {
+                    if (entry) entry.is_read = false;
+                    el.classList.remove('read');
+                    el.classList.add('unread');
+                    setDotVisible(currentItems.some((item) => !item.is_read));
+                    showToast('Could not mark that notification as read.', 'error');
+                }
             });
         });
     }
@@ -470,7 +481,15 @@ function wireNotificationsModal() {
     }
     if (markAllBtn) {
         markAllBtn.addEventListener('click', async () => {
-            await api.markAllNotificationsRead('admin').catch(() => null);
+            // The UI used to mark everything read and hide the dot regardless
+            // of what the server said, so a write that failed every time still
+            // looked like it worked until the next refresh brought the dot
+            // back. Only reflect the change once the server confirms it.
+            const result = await api.markAllNotificationsRead().catch(() => null);
+            if (!result || !result.success) {
+                showToast('Could not mark notifications as read. Please try again.', 'error');
+                return;
+            }
             currentItems.forEach((item) => { item.is_read = true; });
             setDotVisible(false);
             renderNotifications();
