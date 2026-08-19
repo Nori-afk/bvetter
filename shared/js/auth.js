@@ -532,6 +532,39 @@ function requireAuth(allowedRoles = []) {
     }
 }
 
+/**
+ * Inverse of requireAuth — call at the top of a public ENTRY-POINT page
+ * (landing, login, create-account). Those pages are for guests and pet
+ * owners; a logged-in vet or admin is sent to their own dashboard.
+ *
+ * WHY. The session lives in localStorage, so it is shared across tabs.
+ * A vet with the portal open in one tab who opened the public landing
+ * page in another got the owner navigation — Book An Appointment, My
+ * Pets, Lost And Found — rendered for them, complete with a pill
+ * labelled "Veterinarian". Every one of those links is guarded by
+ * requireAuth(['owner']), so clicking any of them bounced them to the
+ * vet dashboard. The guard was doing its job; the page should never
+ * have offered the links in the first place. Bouncing on arrival
+ * removes the dead end rather than apologising for it.
+ *
+ * Deliberately NOT applied to forgot-password.html / reset-password.html:
+ * password recovery is role-agnostic (api/admin/verify-contact.php has no
+ * role filter), and an emailed reset link has to work on a shared clinic
+ * computer regardless of whose session happens to be live in that browser.
+ *
+ * Call it from <head>, immediately after this script, so the redirect
+ * lands before the browser paints the page it is redirecting away from.
+ */
+function requireOwnerOrGuest() {
+    const session = getSession();
+    if (!session || !session.role) return;   // guest — the page is for them
+    if (session.role === 'owner') return;    // owner — likewise
+
+    // replace(), not href: the entry page never enters history, so Back
+    // from the dashboard cannot bounce them straight back here again.
+    window.location.replace(withBase(ROLE_ROUTES[session.role] || LOGIN_PAGE));
+}
+
 /* ── Forced password upgrade ─────────────────────────────────────
    Set when the server reports at login that the password just used no
    longer meets the policy — i.e. an account created before the rules
@@ -589,12 +622,12 @@ function autoRoute() {
 /* ── Exports ────────────────────────────────────────────────── */
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        getCurrentUser, requireAuth, logout, redirectToDashboard, autoRoute, getSession,
+        getCurrentUser, requireAuth, requireOwnerOrGuest, logout, redirectToDashboard, autoRoute, getSession,
         requirePasswordUpgrade, passwordUpgradePending, clearPasswordUpgrade
     };
 } else {
     window.VBetterAuth = {
-        getCurrentUser, requireAuth, logout, redirectToDashboard, autoRoute, getSession,
+        getCurrentUser, requireAuth, requireOwnerOrGuest, logout, redirectToDashboard, autoRoute, getSession,
         requirePasswordUpgrade, passwordUpgradePending, clearPasswordUpgrade
     };
 }

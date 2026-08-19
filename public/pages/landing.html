@@ -17,6 +17,11 @@
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
   <link rel="stylesheet" href="../css/landing.css"/>
+  <!-- Loaded in <head>, not at the end of <body>: requireOwnerOrGuest()
+       redirects a logged-in vet/admin to their own dashboard, and that has
+       to happen before first paint or they see this page flash past. -->
+  <script src="../../shared/js/auth.js?v=20260819-entryguard"></script>
+  <script>requireOwnerOrGuest();</script>
 </head>
 <body>
 
@@ -306,8 +311,7 @@
     </div>
   </footer>
   
-  <script src="../../shared/js/auth.js?v=20260816-sec"></script>
-  <script src="../js/nav.js?v=20260818-notif"></script>
+  <script src="../js/nav.js?v=20260819-entryguard2"></script>
   <script src="../js/api.js?v=20260818-notif"></script>
   <script src="../js/landing.js"></script>
   <script src="../js/site-settings.js"></script>

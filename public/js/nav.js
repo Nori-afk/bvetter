@@ -40,12 +40,73 @@ function hydrateNavUser() {
   if (navAuth) navAuth.style.display = user ? 'flex' : 'none';
   if (!user) return;
 
+  if (user.role !== 'owner') stripOwnerOnlyNav(user.role);
+
   const nameEl = document.querySelector('.nav-user-name');
   const roleEl = document.querySelector('.nav-user-role');
   const avatarEl = document.querySelector('.nav-user-avatar');
   if (nameEl) nameEl.textContent = user.name || 'Pet Owner';
   if (roleEl) roleEl.textContent = user.role === 'admin' ? 'Administrator' : (user.role === 'vet' ? 'Veterinarian' : 'Pet Owner');
   if (avatarEl && user.avatarUrl) avatarEl.src = user.avatarUrl;
+}
+
+/* =============================================
+   NON-OWNER NAV — this nav is owner-shaped: every
+   link in it (Book An Appointment, My Pets, Lost And
+   Found, and the whole account dropdown) leads to a
+   page guarded by requireAuth(['owner']).
+
+   Entry-point pages call requireOwnerOrGuest() and
+   bounce staff before they ever render, but the legal
+   pages (privacy-policy, terms-of-service) stay open to
+   everyone on purpose — a vet may need to read the
+   clinic's own terms, and nothing in the vet portal
+   links there, so a bounce would make them unreachable.
+
+   On those pages, strip the links a vet/admin cannot
+   follow instead of letting them click into a redirect.
+   ============================================= */
+function dashboardHref(role) {
+  return role === 'admin' ? '../../admin/pages/index.html' : '../../vet/html/index.html';
+}
+
+function stripOwnerOnlyNav(role) {
+  const OWNER_ONLY = [
+    'book-appointment.html', 'lost-found.html', 'my-pets.html', 'my-claims.html',
+    'account-profile.html', 'account-settings.html', 'notification-settings.html',
+    'my-tickets.html'
+  ];
+
+  document.querySelectorAll('.nav-links a, .nav-user-dropdown a').forEach((link) => {
+    const href = (link.getAttribute('href') || '').split('/').pop();
+    if (!OWNER_ONLY.includes(href)) return;
+    // Drop the whole <li> in the top nav; the bare <a> in the dropdown.
+    (link.closest('li') || link).remove();
+  });
+
+  // "Home" means landing.html, which now bounces staff via
+  // requireOwnerOrGuest(). Point it at their own dashboard so the link
+  // goes straight there instead of arriving via a redirect.
+  const home = document.querySelector('.nav-links a[href$="landing.html"]');
+  if (home) {
+    home.setAttribute('href', dashboardHref(role));
+    home.textContent = 'Dashboard';
+  }
+
+  // Owner notification rows only — staff read theirs in their own portal.
+  const bell = document.getElementById('notification-icon-btn');
+  if (bell) bell.style.display = 'none';
+
+  // The dropdown is down to just Log Out now; give them the way home.
+  const dropdown = document.getElementById('userDropdown');
+  const divider = dropdown && dropdown.querySelector('.dropdown-divider');
+  if (dropdown && divider) {
+    const link = document.createElement('a');
+    link.className = 'dropdown-item';
+    link.href = dashboardHref(role);
+    link.textContent = role === 'admin' ? 'Admin Dashboard' : 'Vet Dashboard';
+    dropdown.insertBefore(link, divider);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', hydrateNavUser);

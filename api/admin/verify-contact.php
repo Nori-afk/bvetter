@@ -332,10 +332,17 @@ $resetUrl = APP_URL . '/public/pages/reset-password.html?token='
         'message' => 'A password reset link has been sent to your email.',
     ];
 
-    // No SMTP credentials configured locally (no .env / empty SMTP_USER) — hand
-    // back the reset link directly so the flow is still testable without real email.
-    $smtpUser = getenv('SMTP_USER');
-    if (!$mailSent && ($smtpUser === false || $smtpUser === '')) {
+    // Hand the reset link back in the response so the flow stays testable
+    // without real email — but ONLY to a caller on this machine.
+    //
+    // This used to key off "SMTP looks unconfigured" (send failed + empty
+    // SMTP_USER), which is exactly the state a broken production deploy is in.
+    // There, any stranger who typed an email address into the form would have
+    // been handed a working reset link for that account, administrators
+    // included. The condition has to be about WHO is asking, not about how
+    // healthy the mailer happens to be.
+    $isLocalCaller = in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true);
+    if (!$mailSent && $isLocalCaller) {
         $response['dev_link'] = $resetUrl;
     }
 
@@ -405,6 +412,32 @@ function resetPassword(PDO $pdo): never
 
     $pdo->prepare('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = :id')
         ->execute([':id' => $row['id']]);
+
+    // Lift a failed-login block. Three wrong passwords blocks the account
+    // (MAX_FAILED_LOGIN_ATTEMPTS in login_security.php), and being locked out
+    // is the single most common reason to use this form -- so without this the
+    // user resets successfully, is told "You can now log in", and is then
+    // refused at login by a message telling them to phone the office.
+    //
+    // Scoped to blocked_reason = 'failed_login' on purpose. An 'inactivity'
+    // block is a deliberate administrative decision about a dormant account,
+    // and control of the mailbox must not silently reverse it.
+    $pdo->prepare("
+        UPDATE users
+        SET account_status = 'active', blocked_reason = NULL, failed_login_attempts = 0
+        WHERE id = :id AND account_status = 'blocked' AND blocked_reason = 'failed_login'
+    ")->execute([':id' => $row['user_id']]);
+
+    // Revoke every live session for this account. Resetting a password is what
+    // someone does when they believe another person has it, so leaving that
+    // person's user_sessions row valid defeats the point -- and the idle
+    // timeout does not save you, since they renew it just by clicking.
+    // The owner's own devices are signed out too; they are about to log in
+    // with the new password anyway, and that is the honest trade.
+    $pdo->prepare('
+        UPDATE user_sessions SET revoked_at = NOW()
+        WHERE user_id = :id AND revoked_at IS NULL
+    ')->execute([':id' => $row['user_id']]);
 
     $pdo->commit();
 

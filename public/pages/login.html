@@ -16,6 +16,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/login.css"/>
+  <!-- Loaded in <head>, not at the end of <body>: requireOwnerOrGuest()
+       redirects a logged-in vet/admin to their own dashboard, and that has
+       to happen before first paint or they see this page flash past. -->
+  <script src="../../shared/js/auth.js?v=20260819-entryguard"></script>
+  <script>requireOwnerOrGuest();</script>
 </head>
 <body>
   <div class="page-wrapper">
@@ -105,7 +110,6 @@
     </div>
   </div>
 
-<script src="../../shared/js/auth.js?v=20260816-sec"></script>
 <script src="../js/api.js?v=20260818-notif"></script>
 <script src="../js/login.js?v=20260816-sec"></script>
 </body>
