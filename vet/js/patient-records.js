@@ -529,6 +529,14 @@ function detailTabButton(label, tabKey, activeTab) {
 	return `<button type="button" class="detail-tab ${isActive ? 'active' : ''}" data-detail-tab="${tabKey}">${escapeHtml(label)}</button>`;
 }
 
+// Barangay and street render as two separate rows, from two separate sources:
+// the barangay comes from the catalog, the street is free text. They used to be
+// one free-text field that the table then contradicted, which is the mismatch
+// that started all this.
+//
+// NOTE: keep explanations like this one OUT of the template literals below. An
+// HTML comment inside a template string that contains a backtick silently
+// terminates the string and mangles the markup, and `node --check` still passes.
 function renderPatientInfoTab(record) {
 	const medications = Array.isArray(record.medications) ? record.medications : [];
 	const isEmergency = String(record.category || '').toLowerCase().includes('emergency');
@@ -639,12 +647,6 @@ function renderPatientInfoTab(record) {
 							<span class="pi-label">EMAIL ADDRESS</span>
 							<span class="pi-value">${escapeHtml(record.email)}</span>
 						</div>
-						<!--
-							Barangay and street are shown as separate rows, from separate
-							sources: the barangay comes from the catalog, the street is free
-							text. They used to be one free-text field that the table then
-							contradicted, which is the mismatch that started all this.
-						-->
 						<div class="pi-field pi-field-full">
 							<span class="pi-label">BARANGAY</span>
 							<span class="pi-value">${escapeHtml(record.location)}</span>
@@ -740,6 +742,12 @@ function renderPatientInfoTab(record) {
 	`;
 }
 
+// The "Reported barangay" box shows what the Disease Incidence Report counts
+// this case under. It is a snapshot taken when the visit was saved, so it does
+// NOT follow later edits to the owner's profile: deliberately, so an owner
+// moving house cannot retroactively relocate old cases. When the snapshot
+// itself was the mistake, Re-sync copies the owner's current barangay onto this
+// one visit only.
 function renderVisitHistoryTab(record) {
 	const visitHistory = getVisitHistory(record);
 	return `
@@ -791,14 +799,6 @@ function renderVisitHistoryTab(record) {
 									${(Array.isArray(visit.medications) ? visit.medications : []).map((medication) => `<span class="med-pill">${escapeHtml(medication)}</span>`).join('') || '<span class="muted">Not applicable</span>'}
 								</div>
 							</div>
-							<!--
-								The barangay this case is counted under in the Disease Incidence
-								Report. It is a snapshot taken when the visit was saved, so it does
-								NOT follow later edits to the owner's profile -- deliberately, so an
-								owner moving house cannot retroactively relocate old cases. When the
-								snapshot itself was the mistake, Re-sync copies the owner's current
-								barangay onto this one visit only.
-							-->
 							<div class="muted-box">
 								<p class="history-label">Reported barangay</p>
 								<p class="detail-paragraph">${escapeHtml(visit.barangayAtVisit || 'Unspecified')}</p>
@@ -885,6 +885,11 @@ function actionButton(label, action, className, id, variant = 'icon') {
 	return `<button type="button" class="table-action table-action-icon ${className}" data-action="${action}" data-id="${id}" aria-label="${escapeHtml(label)}">${icon}</button>`;
 }
 
+// The Location column reads record.location with no fallback to record.address.
+// That fallback is what let this column disagree with the record's own owner
+// panel: location came from owner_profiles.barangay_id (silently defaulted to
+// Tiaong) while the panel showed the typed address. The server now sends
+// 'Unspecified' when there is no barangay, so a gap reads as a gap.
 function renderList() {
 	const filtered = filteredRecords();
 	const total = state.records.length;
@@ -977,13 +982,6 @@ function renderList() {
 											<span>${escapeHtml(record.lastVisit)}</span>
 										</div>
 									</td>
-									<!--
-										No `|| record.address` fallback. That is what let this column show a
-										different barangay from the one on the record's owner panel: location
-										came from owner_profiles.barangay_id (silently defaulted to Tiaong)
-										while the panel showed the typed address. The server now sends
-										'Unspecified' when there is no barangay, so a gap reads as a gap.
-									-->
 									<td><span class="location-text">${escapeHtml(record.location)}</span></td>
 									<td>${statusTag(record)}</td>
 									<td><span class="pet-pill pet-pill-${escapeHtml((record.species || 'other').toLowerCase())}">${escapeHtml(record.species)}</span></td>
