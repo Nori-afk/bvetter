@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css">
-    <link rel="stylesheet" href="../../vet/css/disease-analytics.css?v=20260711-2">
+    <link rel="stylesheet" href="../../vet/css/disease-analytics.css?v=20260819-1">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 
@@ -86,10 +86,15 @@
                         <p>View reports and auto-triggered insights here.</p>
                     </div>
                     <div class="header-actions">
+    <select id="dataViewFilter" aria-label="Select data view">
+        <option value="historical">Historical (Training Data)</option>
+        <option value="current">Current (Live Records)</option>
+    </select>
     <select id="periodFilter" aria-label="Select period">
         <option value="year">Yearly</option>
         <option value="month">Monthly</option>
     </select>
+    <select id="currentMonthFilter" aria-label="Select month" hidden></select>
     <select id="diseaseFilter" aria-label="Select disease"></select>
     <button id="openMapBtn" class="btn btn-primary">View Detailed Map</button>
 </div>
@@ -112,6 +117,7 @@
                 <section class="chart-grid">
                     <div class="card chart-card">
                         <h3>Actual Disease Cases per Barangay</h3>
+                        <div id="liveCoverageNote" class="fallback-warning" hidden></div>
                         <div id="actualChart" class="bar-chart"></div>
                     </div>
                     <div class="card chart-card">

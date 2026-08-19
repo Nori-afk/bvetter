@@ -386,8 +386,8 @@ function getReportExportUrl(filters = {}, format = 'pdf') {
 /* ── Disease Analytics ───────────────────────────────────── */
 
 /** GET /api/vet/disease-analytics */
-async function getDiseaseAnalytics(disease = 'all', period = 'year') {
-    const params = new URLSearchParams({ scope: 'disease_analytics', disease, period }).toString();
+async function getDiseaseAnalytics(disease = 'all', period = 'year', dataView = 'historical', currentMonth = '') {
+    const params = new URLSearchParams({ scope: 'disease_analytics', disease, period, data_view: dataView, current_month: currentMonth }).toString();
     try {
         const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?${params}`, { cache: 'no-store' });
         const result = await response.json();
@@ -630,10 +630,10 @@ async function getDiseaseRiskPrediction(barangays, currentCasesByBarangay = {}, 
         return { ok: false, data: [], error: error.message };
     }
 }
-async function getMassVaccinationDataset() {
+async function getMassVaccinationDataset(dataView = 'historical') {
     try {
         const response = await fetch(
-            `${BACKEND_URL}/dashboard/dashboard.php?scope=mass_vaccination_dataset`
+            `${BACKEND_URL}/dashboard/dashboard.php?scope=mass_vaccination_dataset&data_view=${encodeURIComponent(dataView)}`
         );
         const result = await response.json();
         return {

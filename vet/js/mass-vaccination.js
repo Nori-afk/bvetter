@@ -49,9 +49,15 @@
         events:             [],   // from DB (mass_vaccination_events table)  ← LIVE SOURCE
         arimaData:          null, // from Python ARIMA service
         dashboardData:      null, // from PHP vet_dashboard (Excel summary)
-        vaccinationDataset: null, // from PHP mass_vaccination_dataset (Excel monthly)
+        vaccinationDataset: null, // from PHP mass_vaccination_dataset, scoped to state.dataView
         eventTablePage:     1,
+        // 'historical' = frozen pre-2025 baseline (Excel + the 2023-2024 rows
+        // already sitting in mass_vaccination_events -- training data either
+        // way). 'current' = live mass_vaccination_events rows dated 2025+.
+        // See MASS_VACC_CURRENT_CUTOFF in dashboard.php for the exact split.
+        dataView:           'historical',
     };
+    const MASS_VACC_CUTOFF = new Date('2025-01-01T00:00:00');
 
     // Desktop can comfortably show more rows per page than a phone screen.
     const pageSizeForViewport = () => (window.innerWidth <= 768 ? 5 : 10);
@@ -155,6 +161,11 @@
             if (!e.date) return true;
             var d = new Date(e.date + 'T00:00:00');
             if (isNaN(d.getTime())) return true;
+            // Belt-and-suspenders on top of the server-side split (see
+            // MASS_VACC_CURRENT_CUTOFF in dashboard.php): whichever view is
+            // active, an event from the other era never enters a range total.
+            if (state.dataView === 'current'    && d <  MASS_VACC_CUTOFF) return false;
+            if (state.dataView === 'historical' && d >= MASS_VACC_CUTOFF) return false;
             if (range === 'This Month')    return d.getFullYear() === nowYear && d.getMonth() === nowMonth;
             if (range === 'Last 3 Months') {
                 var cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - 3);
@@ -162,6 +173,18 @@
             }
             if (range === 'This Year') return d.getFullYear() === nowYear;
             return true;
+        });
+    }
+
+    // All DB events belonging to the active Historical/Current view, with no
+    // range slicing -- used by the KPI cards, which aren't scoped by
+    // range-filter at all.
+    function eventsInView() {
+        return (state.events || []).filter(function(e) {
+            if (!e.date) return true;
+            var d = new Date(e.date + 'T00:00:00');
+            if (isNaN(d.getTime())) return true;
+            return state.dataView === 'current' ? d >= MASS_VACC_CUTOFF : d < MASS_VACC_CUTOFF;
         });
     }
 
@@ -278,12 +301,13 @@
         }
     };
 
-    // SOURCE: Excel — Combined_Rabies_3Years (monthly vaccination series)
+    // SOURCE: Historical baseline (Excel + pre-2025 DB rows) or live DB rows
+    // dated 2025+, scoped server-side by state.dataView.
     const loadVaccinationDataset = async () => {
         try {
             const fetchFn = window.VetAPI?.getMassVaccinationDataset
-                ? () => window.VetAPI.getMassVaccinationDataset()
-                : () => fetch(`${DASHBOARD_API}?scope=mass_vaccination_dataset`)
+                ? () => window.VetAPI.getMassVaccinationDataset(state.dataView)
+                : () => fetch(`${DASHBOARD_API}?scope=mass_vaccination_dataset&data_view=${encodeURIComponent(state.dataView)}`)
                     .then(r => r.json()).then(r => ({ ok: r.success, data: r.data }));
             const res = await fetchFn();
             if (res.ok && res.data) state.vaccinationDataset = res.data;
@@ -328,25 +352,29 @@
         const petsEl      = document.querySelector('[data-metric="petsVaccinated"]');
         const barangayEl  = document.querySelector('[data-metric="activeBarangay"]');
 
+        // DB events scoped to the active Historical/Current view -- these
+        // cards read the same split as the charts, not an all-time mix.
+        const viewEvents = eventsInView();
+
         // DB: pending + total events
-        const pending   = state.events.filter(e => e.status === 'Pending Report').length;
-        const completed = state.events.length - pending;
+        const pending   = viewEvents.filter(e => e.status === 'Pending Report').length;
+        const completed = viewEvents.length - pending;
         if (pendingEl) pendingEl.textContent = pending;
-        if (totalEl)   totalEl.textContent   = state.events.length || '-';
+        if (totalEl)   totalEl.textContent   = viewEvents.length || '-';
 
         // These captions were left as permanent loading-skeleton placeholders
         // before — renderSkeletons() blanks them out, but nothing ever put
         // real text back in for these three cards.
         const totalNoteEl = totalEl?.nextElementSibling;
-        if (totalNoteEl) totalNoteEl.textContent = state.events.length
+        if (totalNoteEl) totalNoteEl.textContent = viewEvents.length
             ? `${completed} completed, ${pending} pending`
             : 'No events recorded yet';
 
         const pendingNoteEl = pendingEl?.nextElementSibling;
         if (pendingNoteEl) pendingNoteEl.textContent = pending > 0 ? 'Events awaiting data' : 'All caught up';
 
-        // DB first (all-time), then Excel fallback for total vaccinated
-        const dbTotal = state.events.reduce((s, e) => {
+        // DB first (scoped to view), then Excel/vaccinationDataset fallback for total vaccinated
+        const dbTotal = viewEvents.reduce((s, e) => {
             var tv = Number(e.totalVaccinated) || 0;
             if (tv === 0 && e.breakdown) {
                 tv = (Number(e.breakdown.dogs) || 0)
@@ -371,7 +399,7 @@
 
         // DB: most active barangay by vaccinated count
         const barangayTotals = {};
-        state.events.forEach(e => {
+        viewEvents.forEach(e => {
             if (!e.barangay) return;
             var tv = Number(e.totalVaccinated) || 0;
             if (tv === 0 && e.breakdown) {
@@ -602,6 +630,16 @@
 
     const buildCharts = (range) => {
         range = range || document.getElementById('range-filter')?.value || 'This Year';
+        // Historical mode has no range sub-filter (a closed 2023-2024 period
+        // isn't "This Month" of anything) -- it always reads the full
+        // Historical-scoped dataset from the server instead of range-slicing
+        // state.events client-side.
+        var isHistoricalView = state.dataView === 'historical';
+        // range only drives client-side event filtering in Current mode (see
+        // isHistoricalView guards below) -- in Historical mode it's purely a
+        // display label, so it's overridden here rather than left showing
+        // whatever the (now hidden) range-filter select last had selected.
+        if (isHistoricalView) range = 'Historical Baseline (2023–2024)';
 
         document.querySelectorAll('.chart-skeleton').forEach((el) => el.remove());
         ['vaccinatedPerBarangayChart', 'predictedAnimalsChart', 'vaccinesNeededList'].forEach((id) => {
@@ -610,8 +648,8 @@
         });
 
         // ── Live DB barangay totals for this range (used across multiple charts)
-        var dbBarangayTotals = getDbBarangayTotals(range);
-        var dbGrandTotal     = getDbGrandTotal(range);
+        var dbBarangayTotals = isHistoricalView ? {} : getDbBarangayTotals(range);
+        var dbGrandTotal     = isHistoricalView ? 0  : getDbGrandTotal(range);
         var hasDbData        = Object.keys(dbBarangayTotals).length > 0;
 
         // ── Chart 1: Vaccinated per Barangay
@@ -1388,8 +1426,25 @@
 
     document.getElementById('range-filter')?.addEventListener('change', e => buildCharts(e.target.value));
 
+    document.getElementById('data-view-filter')?.addEventListener('change', async (e) => {
+        state.dataView = e.target.value === 'current' ? 'current' : 'historical';
+        applyDataViewVisibility();
+        renderSkeletons();
+        await loadVaccinationDataset();
+        updateMetrics();
+        buildCharts();
+    });
+
+    function applyDataViewVisibility() {
+        const rangeEl = document.getElementById('range-filter');
+        // Historical is a closed period -- This Month/Last 3 Months/This Year
+        // don't apply to it, so the range sub-filter only shows in Current.
+        if (rangeEl) rangeEl.hidden = state.dataView === 'historical';
+    }
+
     // ── Init ──────────────────────────────────────────────────────────────
     renderSkeletons();
+    applyDataViewVisibility();
     await Promise.all([loadEvents(), loadArimaForecast(), loadDashboardData(), loadVaccinationDataset()]);
 
     renderTable();

@@ -177,60 +177,65 @@ function disease_name_filter($value): string
  * risk_class labels, which Consult_Diagnosis_3Y does not) and the vaccination
  * chart. It is simply no longer a second answer to "how many cases".
  */
-function disease_case_series($pdo, string $selected, string $period = 'year'): array
+function disease_case_series($pdo, string $selected, string $period = 'year', string $dataView = 'historical', string $currentMonth = ''): array
 {
-    $latestYear  = bv_latest_dataset_year();
-    $counts      = [];
-    $consultRows = bv_sheet_rows('Consult_Diagnosis_3Y');
-    $latestMonth = 12;
+    $counts = [];
 
-    if ($period === 'month') {
-        foreach ($consultRows as $r) {
-            if ((int)($r['year'] ?? 0) === $latestYear) {
-                $m = (int)($r['month_no'] ?? 0);
-                if ($m > $latestMonth) $latestMonth = $m;
+    if ($dataView === 'current') {
+        // Current mode reads the clinic's own live records only -- the Excel
+        // 2023-2025 snapshot is training data here, not a second answer to
+        // "how many cases", so it plays no part in this branch at all.
+        foreach (db_disease_barangay_counts($pdo, $selected, 'all', null, $currentMonth) as $b => $cases) {
+            if ($b === '' || $b === 'Unspecified') continue;
+            $counts[$b] = ($counts[$b] ?? 0) + $cases;
+        }
+    } else {
+        $latestYear  = bv_latest_dataset_year();
+        $consultRows = bv_sheet_rows('Consult_Diagnosis_3Y');
+        $latestMonth = 12;
+
+        if ($period === 'month') {
+            foreach ($consultRows as $r) {
+                if ((int)($r['year'] ?? 0) === $latestYear) {
+                    $m = (int)($r['month_no'] ?? 0);
+                    if ($m > $latestMonth) $latestMonth = $m;
+                }
             }
         }
-    }
 
-    foreach ($consultRows as $r) {
-        // An empty $selected means "All Diseases", which is every row rather
-        // than a different source.
-        //
-        // Matched exactly, not by substring: "Respiratory Infection" is a
-        // substring of "Upper Respiratory Infection", so a contains-match put
-        // that disease's 102 cases under both names and the per-disease totals
-        // summed to 102 more than All Diseases. The filter list and the
-        // diagnosis column share one 42-name vocabulary, so there is nothing
-        // for a looser match to catch.
-        if ($selected !== '') {
-            $diagnosis = strtolower(trim((string)($r['diagnosis'] ?? '')));
-            if ($diagnosis !== $selected) continue;
+        foreach ($consultRows as $r) {
+            // An empty $selected means "All Diseases", which is every row rather
+            // than a different source.
+            //
+            // Matched exactly, not by substring: "Respiratory Infection" is a
+            // substring of "Upper Respiratory Infection", so a contains-match put
+            // that disease's 102 cases under both names and the per-disease totals
+            // summed to 102 more than All Diseases. The filter list and the
+            // diagnosis column share one 42-name vocabulary, so there is nothing
+            // for a looser match to catch.
+            if ($selected !== '') {
+                $diagnosis = strtolower(trim((string)($r['diagnosis'] ?? '')));
+                if ($diagnosis !== $selected) continue;
+            }
+
+            $rowYear  = (int)($r['year']     ?? 0);
+            $rowMonth = (int)($r['month_no'] ?? 0);
+
+            // 'all' pins neither, so every year falls through.
+            if ($period === 'year' && $rowYear !== $latestYear) continue;
+            if ($period === 'month'
+                && ($rowYear !== $latestYear || $rowMonth !== $latestMonth)) continue;
+
+            $b = trim((string)($r['barangay'] ?? ''));
+            if ($b === '') continue;
+
+            $counts[$b] = ($counts[$b] ?? 0) + (float)($r['cases_reported'] ?? 1);
         }
 
-        $rowYear  = (int)($r['year']     ?? 0);
-        $rowMonth = (int)($r['month_no'] ?? 0);
-
-        // 'all' pins neither, so every year falls through.
-        if ($period === 'year' && $rowYear !== $latestYear) continue;
-        if ($period === 'month'
-            && ($rowYear !== $latestYear || $rowMonth !== $latestMonth)) continue;
-
-        $b = trim((string)($r['barangay'] ?? ''));
-        if ($b === '') continue;
-
-        $counts[$b] = ($counts[$b] ?? 0) + (float)($r['cases_reported'] ?? 1);
-    }
-
-    /* ── Merge live DB counts ─────────────────────────────────────────── */
-    // Pin the merge to $latestYear for the 'year' period so live 2026+ entries
-    // don't silently get counted into a bucket labeled "Full Year $latestYear".
-    // 'month' period is left on its old real-current-month behavior for now
-    // (same class of issue, not yet addressed -- see conversation).
-    $mergeYear = $period === 'year' ? $latestYear : null;
-    foreach (db_disease_barangay_counts($pdo, $selected, $period, $mergeYear) as $b => $cases) {
-        if ($b === '' || $b === 'Unspecified') continue;
-        $counts[$b] = ($counts[$b] ?? 0) + $cases;
+        // Historical mode is the frozen 2023-2025 snapshot only -- no live DB
+        // merge. Splitting Historical/Current apart is the whole point of this
+        // view; merging them back here would recreate the "which number is
+        // real" confusion the toggle exists to remove.
     }
 
     unset($counts[''], $counts['Unspecified']);
@@ -253,7 +258,7 @@ function disease_case_series($pdo, string $selected, string $period = 'year'): a
     return [$actualCases, $predictedCases];
 }
 
-function db_disease_barangay_counts($pdo, string $selected, string $dateType = 'all', ?int $year = null): array
+function db_disease_barangay_counts($pdo, string $selected, string $dateType = 'all', ?int $year = null, ?string $exactMonth = null): array
 {
     if (!bv_table_exists($pdo, 'patient_visit_records') || !bv_table_exists($pdo, 'pets')) {
         return [];
@@ -269,14 +274,22 @@ function db_disease_barangay_counts($pdo, string $selected, string $dateType = '
     $liveBarangay = $barangayJoin ? "NULLIF(b.name, ''), NULLIF(op.complete_address, ''), " : '';
     $barangayExpr = "COALESCE(NULLIF(patient_visit_records.barangay_at_visit, ''), {$liveBarangay}'Unspecified')";
 
+    // $exactMonth pins the window to one specific calendar month ('Y-m'), for
+    // the Current-mode month picker on Disease Analytics -- browsing to e.g.
+    // June 2026 must show only June, not "today minus N days".
     // $year pins the window to a specific dataset year (e.g. the latest Excel
     // year) instead of today's real calendar year -- without it, merging live
     // DB rows into an Excel-year bucket via bv_date_window($dateType) silently
     // pulls in whatever year "today" happens to be, which drifts once the
     // Excel snapshot's latest year and the real calendar year diverge.
-    [$start, $end] = $year !== null
-        ? [new DateTime("$year-01-01"), new DateTime("$year-12-31")]
-        : bv_date_window($dateType);
+    if ($exactMonth !== null && preg_match('/^\d{4}-\d{2}$/', $exactMonth)) {
+        $start = new DateTime("$exactMonth-01");
+        $end   = (clone $start)->modify('last day of this month');
+    } else {
+        [$start, $end] = $year !== null
+            ? [new DateTime("$year-01-01"), new DateTime("$year-12-31")]
+            : bv_date_window($dateType);
+    }
     // A visit counts as a disease case only when its diagnosis is a real entry
     // in the `diseases` catalog. The old rule -- any non-empty diagnosis, or
     // failing that any category -- counted whatever text happened to be in the
@@ -330,6 +343,81 @@ function db_disease_barangay_counts($pdo, string $selected, string $dateType = '
     } catch (Throwable $e) {
         error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return [];
+    }
+}
+
+/**
+ * How much of a given live month is actually usable for case counting, so
+ * Current mode can say "3 consultations recorded, 1 with a listed diagnosis"
+ * instead of drawing a normal-looking chart off a single bar. Coverage, not
+ * disease counting, so it deliberately ignores the diseases-catalog filter
+ * that db_disease_barangay_counts applies -- a visit with an off-catalog or
+ * blank diagnosis still counts as "recorded", it just isn't a case yet.
+ */
+function db_live_coverage_stats($pdo, string $exactMonth): array
+{
+    if (!bv_table_exists($pdo, 'patient_visit_records') || !preg_match('/^\d{4}-\d{2}$/', $exactMonth)) {
+        return ['total_visits' => 0, 'with_diagnosis' => 0];
+    }
+
+    $catalogOnly = bv_table_exists($pdo, 'diseases')
+        ? 'diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)'
+        : 'COALESCE(diagnosis, "") <> ""';
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) AS total,
+                   SUM(CASE WHEN {$catalogOnly} THEN 1 ELSE 0 END) AS with_diagnosis
+            FROM patient_visit_records
+            WHERE DATE_FORMAT(COALESCE(visit_date, created_at), '%Y-%m') = :ym
+        ");
+        $stmt->execute([':ym' => $exactMonth]);
+        $row = $stmt->fetch() ?: [];
+        return [
+            'total_visits'   => (int) ($row['total'] ?? 0),
+            'with_diagnosis' => (int) ($row['with_diagnosis'] ?? 0),
+        ];
+    } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
+        return ['total_visits' => 0, 'with_diagnosis' => 0];
+    }
+}
+
+/**
+ * Top diagnosis for a live month, mirroring the Excel-era "Most Common
+ * Disease" KPI but sourced from patient_visit_records instead of
+ * Consult_Diagnosis_3Y. Same catalog rule as db_disease_barangay_counts.
+ */
+function db_top_diagnosis($pdo, string $exactMonth, string $selected): string
+{
+    if (!bv_table_exists($pdo, 'patient_visit_records') || !preg_match('/^\d{4}-\d{2}$/', $exactMonth)) {
+        return '';
+    }
+
+    $where = bv_table_exists($pdo, 'diseases')
+        ? ['diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)']
+        : ['COALESCE(diagnosis, "") <> ""'];
+    $where[]  = "DATE_FORMAT(COALESCE(visit_date, created_at), '%Y-%m') = :ym";
+    $params   = [':ym' => $exactMonth];
+    if ($selected !== '') {
+        $where[]            = 'LOWER(COALESCE(diagnosis, "")) = :disease';
+        $params[':disease'] = $selected;
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT diagnosis, COUNT(*) AS n
+            FROM patient_visit_records
+            WHERE " . implode(' AND ', $where) . "
+            GROUP BY diagnosis
+            ORDER BY n DESC
+            LIMIT 1
+        ");
+        $stmt->execute($params);
+        return bv_clean($stmt->fetchColumn() ?: '');
+    } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
+        return '';
     }
 }
 
@@ -392,11 +480,25 @@ function disease_analytics_data($pdo)
     $selected = disease_name_filter($input['disease'] ?? $_GET['disease'] ?? '');
     $period   = strtolower(bv_clean($input['period'] ?? $_GET['period'] ?? 'year'));
 
+    // Historical = the frozen 2023-2025 municipal snapshot (training data).
+    // Current    = only what this clinic has actually recorded in the live DB.
+    // The two are never merged into one number -- see disease_case_series().
+    $dataView = strtolower(bv_clean($input['data_view'] ?? $_GET['data_view'] ?? 'historical'));
+    if (!in_array($dataView, ['historical', 'current'], true)) $dataView = 'historical';
+    $isCurrent = $dataView === 'current';
+
+    // The Current-mode month picker. Defaults to the real current month
+    // ("assuming August" when today is August) rather than the Excel
+    // snapshot's latest year, since Current has nothing to do with the Excel
+    // dataset's period.
+    $currentMonth = bv_clean($input['current_month'] ?? $_GET['current_month'] ?? '');
+    if (!preg_match('/^\d{4}-\d{2}$/', $currentMonth)) $currentMonth = date('Y-m');
+
     $latestYear    = bv_latest_dataset_year();
     $isAllDiseases = $selected === '';
 
     /* ── Actual case counts from the correct source per disease ──────── */
-    [$actualCases, $predictedCases] = disease_case_series($pdo, $selected, $period);
+    [$actualCases, $predictedCases] = disease_case_series($pdo, $selected, $period, $dataView, $currentMonth);
 
     $totalCases     = array_sum(array_column($actualCases, 'value'));
     $barangayCounts = [];
@@ -429,30 +531,36 @@ function disease_analytics_data($pdo)
     $liveLatest   = db_latest_case_date($pdo);
 
     /* ── Top disease label ───────────────────────────────────────────── */
-    $consultRows   = bv_sheet_rows('Consult_Diagnosis_3Y');
-    $latestConsult = [];
-    $latestMonth   = 12;
+    if ($isCurrent) {
+        $topDisease = db_top_diagnosis($pdo, $currentMonth, $selected)
+            ?: ($selected !== '' ? ucwords($selected) : 'N/A');
+        if ($topDisease !== 'N/A') $topDisease = ucwords(strtolower($topDisease));
+    } else {
+        $consultRows   = bv_sheet_rows('Consult_Diagnosis_3Y');
+        $latestConsult = [];
+        $latestMonth   = 12;
 
-    if ($period === 'month') {
-        foreach ($consultRows as $r) {
-            if ((int)($r['year'] ?? 0) === $latestYear) {
-                $m = (int)($r['month_no'] ?? 0);
-                if ($m > $latestMonth) $latestMonth = $m;
+        if ($period === 'month') {
+            foreach ($consultRows as $r) {
+                if ((int)($r['year'] ?? 0) === $latestYear) {
+                    $m = (int)($r['month_no'] ?? 0);
+                    if ($m > $latestMonth) $latestMonth = $m;
+                }
             }
         }
-    }
 
-    foreach ($consultRows as $r) {
-        $rowYear = (int)($r['year'] ?? 0);
-        if ($rowYear !== $latestYear) continue;
-        if ($period === 'month' && (int)($r['month_no'] ?? 0) !== $latestMonth) continue;
-        if ($selected !== '' && strtolower(trim((string)($r['diagnosis'] ?? ''))) !== $selected) continue;
-        $latestConsult[] = $r;
-    }
+        foreach ($consultRows as $r) {
+            $rowYear = (int)($r['year'] ?? 0);
+            if ($rowYear !== $latestYear) continue;
+            if ($period === 'month' && (int)($r['month_no'] ?? 0) !== $latestMonth) continue;
+            if ($selected !== '' && strtolower(trim((string)($r['diagnosis'] ?? ''))) !== $selected) continue;
+            $latestConsult[] = $r;
+        }
 
-    $diseaseCounts = bv_count_by($latestConsult, 'diagnosis');
-    $topDisease    = array_key_first($diseaseCounts)
-        ?: ($selected !== '' ? ucwords($selected) : 'N/A');
+        $diseaseCounts = bv_count_by($latestConsult, 'diagnosis');
+        $topDisease    = array_key_first($diseaseCounts)
+            ?: ($selected !== '' ? ucwords($selected) : 'N/A');
+    }
 
     /* ── Filter dropdown ─────────────────────────────────────────────── */
     $monthly = bv_sheet_rows('Disease_Monthly_2023_2025');
@@ -561,19 +669,34 @@ function disease_analytics_data($pdo)
         ];
     }, $hotspots);
 
-    $alertCount  = count(array_filter($hotspots, fn($r) => $r['risk'] !== 'stable'));
-    $periodLabel = $period === 'month' ? 'Latest Month' : 'Full Year ' . $latestYear;
+    $alertCount = count(array_filter($hotspots, fn($r) => $r['risk'] !== 'stable'));
+
+    if ($isCurrent) {
+        $periodLabel = date('F Y', strtotime("$currentMonth-01"));
+    } else {
+        $periodLabel = $period === 'month' ? 'Latest Month' : 'Full Year ' . $latestYear;
+    }
 
     /* ── Source labels ───────────────────────────────────────────────────
-     * One counting source for both views now, so these no longer swap around
-     * depending on what is selected. Barangay_Disease_Monthly is still listed
-     * because it is still doing work -- just not counting.
+     * Historical and Current never share a counting source (see
+     * disease_case_series), so their source lists say so plainly instead of
+     * describing one blended pipeline.
      */
-    $sources = [
-        ['name' => 'Consult_Diagnosis_3Y',      'status' => 'Case counts · Excel 2023-2025 + live records (used)'],
-        ['name' => 'Barangay_Disease_Monthly',  'status' => 'Trains the risk model · not used for case counts'],
-        ['name' => 'Disease_Monthly_2023_2025', 'status' => 'Disease list for the filter (used)'],
-    ];
+    if ($isCurrent) {
+        $sources = [
+            ['name' => 'patient_visit_records', 'status' => 'Case counts · live clinic entries (used)'],
+            ['name' => 'diseases catalog',      'status' => 'Validates diagnosis before it counts as a case (used)'],
+            ['name' => 'Consult_Diagnosis_3Y',  'status' => 'Historical training data · not used in Current view'],
+        ];
+    } else {
+        $sources = [
+            ['name' => 'Consult_Diagnosis_3Y',      'status' => 'Case counts · Excel 2023-2025 municipal records (used)'],
+            ['name' => 'Barangay_Disease_Monthly',  'status' => 'Trains the risk model · not used for case counts'],
+            ['name' => 'Disease_Monthly_2023_2025', 'status' => 'Disease list for the filter (used)'],
+        ];
+    }
+
+    $liveCoverage = $isCurrent ? db_live_coverage_stats($pdo, $currentMonth) : null;
 
     return [
         'filters'         => $filters,
@@ -581,9 +704,14 @@ function disease_analytics_data($pdo)
         'period'          => $period,
         'periodLabel'     => $periodLabel,
         'isAllDiseases'   => $isAllDiseases,
-        // Every card here reads the frozen snapshot, so the section carries one
-        // period label and no card restates the year on its own.
-        'baselineLabel'   => 'Historical Baseline · 2023-' . $latestYear . ' municipal records',
+        'dataView'        => $dataView,
+        'currentMonth'    => $currentMonth,
+        // Every card here reads one single source per view, so the section
+        // carries one period label and no card restates the year on its own.
+        'baselineLabel'   => $isCurrent
+            ? 'Live Clinic Records · ' . $periodLabel
+            : 'Historical Baseline · 2023-' . $latestYear . ' municipal records (training data)',
+        'liveCoverage'    => $liveCoverage,
         'kpis'            => [
             [
                 'label' => 'Total Cases',
@@ -609,12 +737,16 @@ function disease_analytics_data($pdo)
                     : 'Generated from automatic risk rules',
             ],
         ],
-        'liveLayer'       => [
+        // The live-layer teaser strip only makes sense in Historical mode --
+        // it exists to point at data that isn't on screen. In Current mode
+        // the whole page already is that live data, so showing it again here
+        // would be redundant; renderLiveLayer() hides the strip on null.
+        'liveLayer'       => $isCurrent ? null : [
             'label'   => 'Live Clinic Records · ' . $currentCalendarYear . ' to date',
             'summary' => live_layer_summary($liveFiltered, $liveTotal, $isAllDiseases,
                                             $isAllDiseases ? '' : ucwords($selected)),
             'latest'  => $liveLatest !== '' ? 'Latest entry ' . $liveLatest : '',
-            'note'    => 'Grows as visits are logged; excluded from the baseline figures above.',
+            'note'    => 'Grows as visits are logged; excluded from the baseline figures above. Switch to Current to view them.',
             'total'   => $liveTotal,
         ],
         'predictionSummary' => [
@@ -1020,9 +1152,19 @@ function admin_dashboard($pdo)
  * same barangay records now in the DB — verified identical for overlapping
  * months — so this avoids double-counting both).
  */
-function monthly_vaccination_series($pdo): array
+/**
+ * The 2025-01-01 cutoff between Historical and Current for Mass Vaccination.
+ * mass_vaccination_events itself holds rows from both eras (79 rows dated
+ * 2023-2024 alongside live 2025+ entries), so unlike Disease Analytics "is it
+ * in the DB" doesn't answer "is it current" here -- the split has to be by
+ * event_date, not by table.
+ */
+const MASS_VACC_CURRENT_CUTOFF = '2025-01-01';
+
+function monthly_vaccination_series($pdo, string $dataView = 'historical'): array
 {
-    $rabiesRows = bv_sheet_rows('Combined_Rabies_3Years');
+    $isCurrent  = $dataView === 'current';
+    $rabiesRows = $isCurrent ? [] : bv_sheet_rows('Combined_Rabies_3Years');
     $byMonth    = [];
 
     foreach ($rabiesRows as $row) {
@@ -1046,16 +1188,20 @@ function monthly_vaccination_series($pdo): array
     $dbMonthly = [];
     if (bv_table_exists($pdo, 'mass_vaccination_events')) {
         try {
-            $monthlyRows = $pdo->query("
+            $dateWhere = $isCurrent
+                ? 'AND event_date >= :cutoff'
+                : 'AND event_date < :cutoff';
+            $monthlyRows = $pdo->prepare("
                 SELECT DATE_FORMAT(event_date, '%Y-%m') AS ym,
                        SUM(dogs_count) AS dogs_vaccinated,
                        SUM(cats_count) AS cats_vaccinated,
                        SUM(COALESCE(total_vaccinated, dogs_count + cats_count + others_count)) AS total_vaccinated
                 FROM mass_vaccination_events
-                WHERE status = 'Completed'
+                WHERE status = 'Completed' {$dateWhere}
                 GROUP BY ym
-            ")->fetchAll();
-            foreach ($monthlyRows as $row) {
+            ");
+            $monthlyRows->execute([':cutoff' => MASS_VACC_CURRENT_CUTOFF]);
+            foreach ($monthlyRows->fetchAll() as $row) {
                 $dbMonthly[$row['ym']] = $row;
             }
         } catch (Throwable $e) { $dbMonthly = []; }
@@ -1079,26 +1225,32 @@ function monthly_vaccination_series($pdo): array
     return array_values($byMonth);
 }
 
-function mass_vaccination_dataset_data($pdo)
+function mass_vaccination_dataset_data($pdo, string $dataView = 'historical')
 {
+    if (!in_array($dataView, ['historical', 'current'], true)) $dataView = 'historical';
+    $isCurrent  = $dataView === 'current';
     $latestYear = bv_latest_dataset_year();
-    $byMonth    = monthly_vaccination_series($pdo);
+    $byMonth    = monthly_vaccination_series($pdo, $dataView);
 
     $barangayVacc = [];
     if (bv_table_exists($pdo, 'mass_vaccination_events')) {
         try {
-            $rows = $pdo->query("
+            $dateWhere = $isCurrent
+                ? 'AND event_date >= :cutoff'
+                : 'AND event_date < :cutoff';
+            $stmt = $pdo->prepare("
                 SELECT barangay,
                        SUM(dogs_count) AS dogs_vaccinated,
                        SUM(cats_count) AS cats_vaccinated,
                        SUM(others_count) AS others_vaccinated,
                        SUM(COALESCE(total_vaccinated, dogs_count + cats_count + others_count)) AS total_vaccinated
                 FROM mass_vaccination_events
-                WHERE status = 'Completed'
+                WHERE status = 'Completed' {$dateWhere}
                 GROUP BY barangay
                 ORDER BY total_vaccinated DESC
-            ")->fetchAll();
-            foreach ($rows as $row) {
+            ");
+            $stmt->execute([':cutoff' => MASS_VACC_CURRENT_CUTOFF]);
+            foreach ($stmt->fetchAll() as $row) {
                 $barangayVacc[] = [
                     'barangay'          => $row['barangay'],
                     'dogs_vaccinated'   => (int) $row['dogs_vaccinated'],
@@ -1112,6 +1264,7 @@ function mass_vaccination_dataset_data($pdo)
 
     $latestYearRows = array_values(array_filter($byMonth, fn($r) => $r['year'] === $latestYear));
     return [
+        'data_view'   => $dataView,
         'by_month'    => $byMonth,
         'by_barangay' => $barangayVacc,
         'latest_year' => $latestYearRows,
@@ -1163,7 +1316,8 @@ if ($scope === 'disease_risk_prediction' || $scope === 'disease-risk-prediction'
 }
 
 if ($scope === 'mass_vaccination_dataset') {
-    bv_json_response(200, ['success' => true, 'data' => mass_vaccination_dataset_data($pdo)]);
+    $mvDataView = strtolower(bv_clean($input['data_view'] ?? $_GET['data_view'] ?? 'historical'));
+    bv_json_response(200, ['success' => true, 'data' => mass_vaccination_dataset_data($pdo, $mvDataView)]);
 }
 
 if ($scope === 'vaccination_forecast' || $scope === 'vaccination-forecast') {

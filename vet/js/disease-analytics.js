@@ -125,11 +125,13 @@ function getRiskLevel(insight) {
 }
 
 /* ── API calls ──────────────────────────────────────────────── */
-async function diseaseAnalyticsRequest(disease, period) {
+async function diseaseAnalyticsRequest(disease, period, dataView, currentMonth) {
     const params = new URLSearchParams({
-        scope:   'disease_analytics',
-        disease: disease || 'All Diseases',
-        period:  period  || 'year',
+        scope:         'disease_analytics',
+        disease:       disease  || 'All Diseases',
+        period:        period   || 'year',
+        data_view:     dataView || 'historical',
+        current_month: currentMonth || '',
     });
     try {
         const res    = await fetch(`/api/dashboard/dashboard.php?${params}`, { cache: 'no-store' });
@@ -243,15 +245,17 @@ async function submitCreateEvent() {
 }
 
 /* ── Main loader ────────────────────────────────────────────── */
-async function loadDiseaseAnalytics(disease, period) {
+async function loadDiseaseAnalytics(disease, period, dataView, currentMonth) {
     const requestId = ++state.loadRequestId;
-    disease = disease || 'All Diseases';
-    period  = period  || 'year';
+    disease  = disease  || 'All Diseases';
+    period   = period   || 'year';
+    dataView = dataView || 'historical';
+    const isCurrent   = dataView === 'current';
     const allDiseases = isAllDiseasesSelected(disease);
 
     const analyticsRes = window.VetAPI?.getDiseaseAnalytics
-        ? await window.VetAPI.getDiseaseAnalytics(disease, period)
-        : await diseaseAnalyticsRequest(disease, period);
+        ? await window.VetAPI.getDiseaseAnalytics(disease, period, dataView, currentMonth)
+        : await diseaseAnalyticsRequest(disease, period, dataView, currentMonth);
 
     if (requestId !== state.loadRequestId) return false;
     if (!analyticsRes.ok || !analyticsRes.data || !Object.keys(analyticsRes.data).length) return false;
@@ -268,19 +272,30 @@ async function loadDiseaseAnalytics(disease, period) {
         if (!seenBarangays[key]) { seenBarangays[key] = true; barangayNames.push(h.barangay); }
     });
 
-    const currentCasesByBarangay = {};
-    (diseaseAnalyticsData.actualCases || []).forEach(r => {
-        currentCasesByBarangay[r.barangay] = Number(r.value) || 0;
-    });
+    // The Predicted/Forecast chart always trains on the full historical
+    // series and does not change as you browse Current mode's month picker
+    // -- a live month with a handful of records isn't enough to refit a
+    // model on, so the request that drives it stays fixed to "next month"
+    // and skips the current-cases override rather than reflecting whichever
+    // month happens to be selected.
+    let rfPeriod = period;
+    let currentCasesByBarangay = {};
+    if (isCurrent) {
+        rfPeriod = 'month';
+    } else {
+        (diseaseAnalyticsData.actualCases || []).forEach(r => {
+            currentCasesByBarangay[r.barangay] = Number(r.value) || 0;
+        });
+    }
 
     const rfRes = window.VetAPI?.getDiseaseRiskPrediction
-        ? await window.VetAPI.getDiseaseRiskPrediction(barangayNames, currentCasesByBarangay, disease, period)
-        : await diseaseRiskRequest(barangayNames, currentCasesByBarangay, disease, period);
+        ? await window.VetAPI.getDiseaseRiskPrediction(barangayNames, currentCasesByBarangay, disease, rfPeriod)
+        : await diseaseRiskRequest(barangayNames, currentCasesByBarangay, disease, rfPeriod);
 
     if (requestId !== state.loadRequestId) return false;
 
     if (rfRes.ok && Array.isArray(rfRes.data) && rfRes.data.length) {
-        _mergeRFResults(rfRes.data, disease, period, allDiseases);
+        _mergeRFResults(rfRes.data, disease, rfPeriod, allDiseases);
     }
 
     state.selectedInsightId = diseaseAnalyticsData.insights?.[0]?.id || null;
@@ -458,14 +473,45 @@ function bindEvents() {
         filterEl.appendChild(opt);
     });
 
+    // Current mode's month picker: January of this calendar year through the
+    // current month, defaulting to the current month ("assuming August" when
+    // today is August). Populated once; the months that exist don't change
+    // within a page load.
+    function populateMonthPicker() {
+        const sel = document.getElementById('currentMonthFilter');
+        if (!sel || sel.options.length) return;
+        const now      = new Date();
+        const year     = now.getFullYear();
+        const thisIdx  = now.getMonth();
+        for (let m = 0; m <= thisIdx; m++) {
+            const opt = document.createElement('option');
+            opt.value = `${year}-${String(m + 1).padStart(2, '0')}`;
+            opt.textContent = new Date(year, m, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+            sel.appendChild(opt);
+        }
+        sel.value = `${year}-${String(thisIdx + 1).padStart(2, '0')}`;
+    }
+    populateMonthPicker();
+
+    function applyDataViewVisibility() {
+        const isCurrent = (document.getElementById('dataViewFilter')?.value || 'historical') === 'current';
+        const periodEl  = document.getElementById('periodFilter');
+        const monthEl   = document.getElementById('currentMonthFilter');
+        if (periodEl) periodEl.hidden = isCurrent;
+        if (monthEl)  monthEl.hidden  = !isCurrent;
+    }
+    applyDataViewVisibility();
+
     function reloadWithCurrentFilters() {
-        const disease = document.getElementById('diseaseFilter').value  || 'All Diseases';
-        const period  = document.getElementById('periodFilter')?.value  || 'year';
+        const disease      = document.getElementById('diseaseFilter').value      || 'All Diseases';
+        const period       = document.getElementById('periodFilter')?.value      || 'year';
+        const dataView     = document.getElementById('dataViewFilter')?.value    || 'historical';
+        const currentMonth = document.getElementById('currentMonthFilter')?.value || '';
         ['actualChart', 'predictedChart'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.innerHTML = '<div class="chart-loading">Updating…</div>';
         });
-        loadDiseaseAnalytics(disease, period).then(applied => {
+        loadDiseaseAnalytics(disease, period, dataView, currentMonth).then(applied => {
             if (!applied) return;
             state.mapActionMode = false;
             if (state.map) refreshMapLayers();
@@ -477,6 +523,11 @@ function bindEvents() {
 
     filterEl.addEventListener('change', reloadWithCurrentFilters);
     document.getElementById('periodFilter')?.addEventListener('change', reloadWithCurrentFilters);
+    document.getElementById('currentMonthFilter')?.addEventListener('change', reloadWithCurrentFilters);
+    document.getElementById('dataViewFilter')?.addEventListener('change', () => {
+        applyDataViewVisibility();
+        reloadWithCurrentFilters();
+    });
     document.getElementById('refreshSourcesBtn')?.addEventListener('click', () => {
         document.getElementById('refreshSourcesBtn').textContent = 'Refreshed ' + new Date().toLocaleTimeString();
     });
@@ -566,10 +617,30 @@ function renderOverview() {
         <span>${pred.label}</span>
     `;
 
-    const isMonthly   = diseaseAnalyticsData.period === 'month';
+    const isCurrentView = diseaseAnalyticsData.dataView === 'current';
+    const isMonthly   = isCurrentView || diseaseAnalyticsData.period === 'month';
     const periodLabel = diseaseAnalyticsData.periodLabel || (isMonthly ? 'Latest Month' : 'Full Year');
     const allDiseases = diseaseAnalyticsData.isAllDiseases;
     const diseaseName = diseaseAnalyticsData.selectedDisease || 'All Diseases';
+
+    // Honest small-N state: Current mode can be a handful of live visits, and
+    // a normal-looking chart off 1 case reads as a full, comparable picture
+    // when it isn't one. Named rather than hidden.
+    const coverageNote = document.getElementById('liveCoverageNote');
+    if (coverageNote) {
+        const cov = diseaseAnalyticsData.liveCoverage;
+        const SPARSE_THRESHOLD = 5;
+        if (isCurrentView && cov && cov.with_diagnosis < SPARSE_THRESHOLD) {
+            coverageNote.hidden = false;
+            coverageNote.textContent = cov.total_visits === 0
+                ? `No clinic visits recorded yet for ${periodLabel}.`
+                : `${cov.total_visits} clinic visit${cov.total_visits === 1 ? '' : 's'} recorded in ${periodLabel} · `
+                  + `${cov.with_diagnosis} with a listed diagnosis. Case counts are just starting to build up — `
+                  + `treat this chart as early, not a full picture yet.`;
+        } else {
+            coverageNote.hidden = true;
+        }
+    }
 
     const actualCard = document.querySelector('#actualChart')?.closest('.chart-card');
     if (actualCard) {

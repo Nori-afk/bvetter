@@ -265,6 +265,14 @@ select option { background: #0D2040; color: #fff; }
     border-left: 3px solid var(--teal);
 }
 
+/* A same-specificity class rule setting `display` beats the UA stylesheet's
+   [hidden]{display:none} regardless of source order (author origin always
+   wins over UA origin) -- this class selector must be paired with [hidden]
+   to actually take the element out of flow when JS hides it. */
+.live-layer[hidden] {
+    display: none;
+}
+
 .live-layer .live-label {
     font-size: 10px;
     font-weight: 700;
