@@ -32,6 +32,40 @@ async function loadDiagnosisOptions() {
 	}
 }
 
+// The barangay catalog, loaded once. The clinic serves Baliwag, so this table
+// holds only Baliwag barangays.
+let BARANGAY_OPTIONS = [];
+const BARANGAY_OUTSIDE = 'outside';
+
+async function loadBarangayOptions() {
+	try {
+		const res = await fetch(`${appBasePath()}/api/barangays/list.php`, { cache: 'no-store' });
+		const result = await res.json();
+		BARANGAY_OPTIONS = (result?.data || []).filter((row) => row && row.id && row.name);
+	} catch (err) {
+		console.warn('Barangay catalog unavailable.', err);
+	}
+}
+
+// The first option is deliberately blank and disabled. A select whose first
+// option is a real barangay auto-selects it, which is how the old
+// defaultBarangayId() bug would come straight back wearing a dropdown: the
+// encoder submits without touching the field and a plausible-looking barangay
+// is recorded anyway. Blank + required forces a deliberate choice.
+function barangaySelectHtml({ id, name, className, selectedId, isOutside }) {
+	const options = BARANGAY_OPTIONS.map((row) => {
+		const chosen = !isOutside && Number(selectedId) === Number(row.id);
+		return `<option value="${row.id}" ${chosen ? 'selected' : ''}>${escapeHtml(row.name)}</option>`;
+	}).join('');
+	const placeholder = BARANGAY_OPTIONS.length ? 'Select barangay' : 'Barangay list unavailable';
+	return `
+		<select class="${className}" id="${id}" name="${name}" required>
+			<option value="" disabled ${!selectedId && !isOutside ? 'selected' : ''}>${placeholder}</option>
+			${options}
+			<option value="${BARANGAY_OUTSIDE}" ${isOutside ? 'selected' : ''}>Outside Baliwag</option>
+		</select>`;
+}
+
 function vaccineTypeOptionsHtml(selected) {
 	const types = window.VaccineTypes?.getAll ? window.VaccineTypes.getAll() : ['Anti-Rabies'];
 	if (selected && !types.includes(selected)) types.push(selected);
@@ -605,9 +639,19 @@ function renderPatientInfoTab(record) {
 							<span class="pi-label">EMAIL ADDRESS</span>
 							<span class="pi-value">${escapeHtml(record.email)}</span>
 						</div>
+						<!--
+							Barangay and street are shown as separate rows, from separate
+							sources: the barangay comes from the catalog, the street is free
+							text. They used to be one free-text field that the table then
+							contradicted, which is the mismatch that started all this.
+						-->
 						<div class="pi-field pi-field-full">
-							<span class="pi-label">RESIDENTIAL ADDRESS</span>
-							<span class="pi-value">${escapeHtml(record.address)}</span>
+							<span class="pi-label">BARANGAY</span>
+							<span class="pi-value">${escapeHtml(record.location)}</span>
+						</div>
+						<div class="pi-field pi-field-full">
+							<span class="pi-label">HOUSE NO. / STREET</span>
+							<span class="pi-value">${escapeHtml(record.address || '—')}</span>
 						</div>
 					</div>
 				</article>
@@ -746,6 +790,20 @@ function renderVisitHistoryTab(record) {
 								<div class="medication-list stacked">
 									${(Array.isArray(visit.medications) ? visit.medications : []).map((medication) => `<span class="med-pill">${escapeHtml(medication)}</span>`).join('') || '<span class="muted">Not applicable</span>'}
 								</div>
+							</div>
+							<!--
+								The barangay this case is counted under in the Disease Incidence
+								Report. It is a snapshot taken when the visit was saved, so it does
+								NOT follow later edits to the owner's profile -- deliberately, so an
+								owner moving house cannot retroactively relocate old cases. When the
+								snapshot itself was the mistake, Re-sync copies the owner's current
+								barangay onto this one visit only.
+							-->
+							<div class="muted-box">
+								<p class="history-label">Reported barangay</p>
+								<p class="detail-paragraph">${escapeHtml(visit.barangayAtVisit || 'Unspecified')}</p>
+								<button type="button" class="btn-ghost btn-small" data-resync-visit="${visit.id}"
+									title="Copy the owner's current barangay onto this visit">Re-sync from owner profile</button>
 							</div>
 						</div>
 					</div>
@@ -919,7 +977,14 @@ function renderList() {
 											<span>${escapeHtml(record.lastVisit)}</span>
 										</div>
 									</td>
-									<td><span class="location-text">${escapeHtml(record.location || record.address)}</span></td>
+									<!--
+										No `|| record.address` fallback. That is what let this column show a
+										different barangay from the one on the record's owner panel: location
+										came from owner_profiles.barangay_id (silently defaulted to Tiaong)
+										while the panel showed the typed address. The server now sends
+										'Unspecified' when there is no barangay, so a gap reads as a gap.
+									-->
+									<td><span class="location-text">${escapeHtml(record.location)}</span></td>
 									<td>${statusTag(record)}</td>
 									<td><span class="pet-pill pet-pill-${escapeHtml((record.species || 'other').toLowerCase())}">${escapeHtml(record.species)}</span></td>
 									<td>
@@ -990,6 +1055,8 @@ function buildBlankRecord(prefill = {}) {
 		phone: prefill.phone || '',
 		email: prefill.email || '',
 		address: prefill.address || '',
+		barangayId: prefill.barangayId || '',
+		isOutsideBaliwag: prefill.isOutsideBaliwag || false,
 		status: prefill.status || 'Active Patient',
 		statusType: prefill.statusType || 'success',
 		recordCount: prefill.recordCount || 1,
@@ -1199,9 +1266,19 @@ function renderAdd(record) {
 							<label class="field-label" for="email">EMAIL ADDRESS</label>
 							<input class="form-input" id="email" name="email" type="email" placeholder="owner@email.com" value="${escapeHtml(data.email)}">
 						</div>
-						<div class="field span-2">
-							<label class="field-label" for="address">COMPLETE ADDRESS</label>
-							<input class="form-input" id="address" name="address" placeholder="Barangay, Municipality, Province" value="${escapeHtml(data.address)}">
+						<div class="field">
+							<label class="field-label" for="barangay">BARANGAY</label>
+							${barangaySelectHtml({
+								id: 'barangay',
+								name: 'barangayId',
+								className: 'form-input',
+								selectedId: data.barangayId,
+								isOutside: data.isOutsideBaliwag
+							})}
+						</div>
+						<div class="field">
+							<label class="field-label" for="address">HOUSE NO. / STREET</label>
+							<input class="form-input" id="address" name="address" placeholder="e.g. 123 Rizal St." value="${escapeHtml(data.address)}">
 						</div>
 					</div>
 				</article>
@@ -1452,9 +1529,19 @@ function renderEditModal(record) {
 							<label class="em-label" for="edit-email">EMAIL ADDRESS <span class="em-optional">optional</span></label>
 							<input class="em-input" id="edit-email" name="email" type="email" placeholder="owner@email.com" value="${escapeHtml(record.email || '')}">
 						</div>
-						<div class="em-field em-span-2">
-							<label class="em-label" for="edit-address">RESIDENTIAL ADDRESS</label>
-							<input class="em-input" id="edit-address" name="address" placeholder="e.g. 123 Harbor St., Brgy. Poblacion, Balanga City" value="${escapeHtml(record.address || '')}">
+						<div class="em-field">
+							<label class="em-label" for="edit-barangay">BARANGAY</label>
+							${barangaySelectHtml({
+								id: 'edit-barangay',
+								name: 'barangayId',
+								className: 'em-input',
+								selectedId: record.barangayId,
+								isOutside: record.isOutsideBaliwag
+							})}
+						</div>
+						<div class="em-field">
+							<label class="em-label" for="edit-address">HOUSE NO. / STREET</label>
+							<input class="em-input" id="edit-address" name="address" placeholder="e.g. 123 Rizal St." value="${escapeHtml(record.address || '')}">
 						</div>
 					</div>
 				</div>
@@ -1576,6 +1663,7 @@ function getFormData(form) {
 		phone: String(formData.get('phone') || '').trim(),
 		email: String(formData.get('email') || '').trim(),
 		address: String(formData.get('address') || '').trim(),
+		barangayId: String(formData.get('barangayId') || '').trim(),
 		visitTitle: String(formData.get('visitTitle') || '').trim(),
 		visitDate: String(formData.get('visitDate') || '').trim(),
 		followUpDate: String(formData.get('followUpDate') || '').trim(),
@@ -1913,6 +2001,24 @@ function handleModalAction(action, target) {
 
 function bindGlobalEvents() {
 	app.addEventListener('click', async (event) => {
+		const resyncButton = event.target.closest('[data-resync-visit]');
+		if (resyncButton) {
+			const visitId = Number(resyncButton.dataset.resyncVisit);
+			if (!window.confirm('Copy this owner’s current barangay onto this visit? Other visits are not affected.')) return;
+
+			resyncButton.disabled = true;
+			try {
+				const result = await patientRequest('resync_visit_barangay', { visitId });
+				await reloadRecords();
+				render();
+				window.alert(result.message || 'Visit barangay updated.');
+			} catch (error) {
+				resyncButton.disabled = false;
+				window.alert(error.message || 'Could not re-sync this visit.');
+			}
+			return;
+		}
+
 		const coverageButton = event.target.closest('[data-coverage]');
 		if (coverageButton) {
 			const clearing = coverageButton.dataset.coverage === 'clear';
@@ -1985,7 +2091,7 @@ function bindGlobalEvents() {
 async function bootstrap() {
 	routeFromUrl();
 	app.innerHTML = '<section class="records-shell"><div class="empty-state">Loading patient records...</div></section>';
-	await Promise.all([loadRecords(), loadDiagnosisOptions(), loadCoverage()]);
+	await Promise.all([loadRecords(), loadDiagnosisOptions(), loadBarangayOptions(), loadCoverage()]);
 	render();
 	bindGlobalEvents();
 }

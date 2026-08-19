@@ -80,6 +80,29 @@ function setupPatientTables($pdo)
     // api/admin/account-management.php de-identifies visits by clearing pet_id
     // rather than destroying the clinical record; these two columns are what
     // keeps such a row usable for disease surveillance afterwards.
+    // Owner barangay: make "unknown" representable, and keep "outside Baliwag"
+    // distinct from it.
+    //
+    // barangay_id was NOT NULL, which is why patient_records.php invented a
+    // value (the lowest id in `barangays` -- Tiaong) rather than storing
+    // nothing. database/migrations/2026-08-19-apply.php --part=1 is the
+    // explicit path for this, but it is mirrored here so a code deploy that
+    // lands before the migration still works: the notifications rollout on
+    // 2026-08-18 broke production for exactly that window.
+    try {
+        $barangayCol = $pdo->query("SHOW COLUMNS FROM owner_profiles LIKE 'barangay_id'")->fetch();
+        if ($barangayCol && strtoupper($barangayCol['Null']) !== 'YES') {
+            $pdo->exec('ALTER TABLE owner_profiles MODIFY barangay_id INT NULL');
+        }
+        if (!$pdo->query("SHOW COLUMNS FROM owner_profiles LIKE 'is_outside_baliwag'")->fetch()) {
+            $pdo->exec('ALTER TABLE owner_profiles ADD COLUMN is_outside_baliwag TINYINT(1) NOT NULL DEFAULT 0 AFTER barangay_id');
+        }
+    } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
+        // owner_profiles may not exist yet on a fresh install; the migration
+        // runner covers that case.
+    }
+
     $barangayAtVisitCheck = $pdo->query("SHOW COLUMNS FROM patient_visit_records LIKE 'barangay_at_visit'")->fetch();
     if (!$barangayAtVisitCheck) {
         $pdo->exec("ALTER TABLE patient_visit_records ADD COLUMN barangay_at_visit VARCHAR(120) NULL AFTER patient_status_at_visit");
@@ -95,7 +118,7 @@ function setupPatientTables($pdo)
                 INNER JOIN pets ON pets.id = pvr.pet_id
                 LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id
                 LEFT JOIN barangays b ON b.id = op.barangay_id
-                SET pvr.barangay_at_visit = COALESCE(NULLIF(b.name, ''), NULLIF(op.complete_address, '')),
+                SET pvr.barangay_at_visit = CASE WHEN op.is_outside_baliwag = 1 THEN 'Outside Baliwag' ELSE NULLIF(b.name, '') END,
                     pvr.species_at_visit  = NULLIF(pets.species, '')
                 WHERE pvr.barangay_at_visit IS NULL
             ");

@@ -275,7 +275,7 @@ function db_consultation_rows($pdo)
         : '';
     // See db_disease_rows(): the visit's own snapshot is preferred over the
     // owner's current profile, and is all that remains after de-identification.
-    $liveBarangay = $barangayJoin ? "NULLIF(b.name, ''), NULLIF(op.complete_address, ''), " : '';
+    $liveBarangay = $barangayJoin ? "NULLIF(b.name, ''), " : '';
     $barangayExpr = "COALESCE(NULLIF(pvr.barangay_at_visit, ''), {$liveBarangay}'N/A')";
 
     $profileJoin = bv_table_exists($pdo, 'patient_record_profiles')
@@ -422,7 +422,7 @@ function db_disease_rows($pdo)
     // visit has been de-identified (see deleteUserAccount in
     // api/admin/account-management.php). The live joins stay as a fallback for
     // rows saved before that column existed.
-    $liveBarangay = $barangayJoin ? "NULLIF(b.name, ''), NULLIF(op.complete_address, ''), " : '';
+    $liveBarangay = $barangayJoin ? "NULLIF(b.name, ''), " : '';
     $barangayExpr = "COALESCE(NULLIF(pvr.barangay_at_visit, ''), {$liveBarangay}'Unspecified')";
 
     try {

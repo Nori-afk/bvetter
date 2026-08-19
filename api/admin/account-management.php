@@ -519,7 +519,7 @@ function deleteUser($pdo)
         INNER JOIN pets ON pets.id = pvr.pet_id
         LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id
         LEFT JOIN barangays b ON b.id = op.barangay_id
-        SET pvr.barangay_at_visit = COALESCE(pvr.barangay_at_visit, NULLIF(b.name, \'\'), NULLIF(op.complete_address, \'\')),
+        SET pvr.barangay_at_visit = COALESCE(pvr.barangay_at_visit, CASE WHEN op.is_outside_baliwag = 1 THEN \'Outside Baliwag\' ELSE NULLIF(b.name, \'\') END),
             pvr.species_at_visit  = COALESCE(pvr.species_at_visit, NULLIF(pets.species, \'\')),
             pvr.pet_id            = NULL,
             pvr.owner_id          = NULL

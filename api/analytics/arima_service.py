@@ -682,7 +682,7 @@ def load_db_disease_monthly(after_year: int, after_month: int) -> pd.DataFrame:
                     YEAR(pvr.visit_date)  AS year,
                     MONTH(pvr.visit_date) AS month_no,
                     COALESCE(NULLIF(pvr.barangay_at_visit, ''), NULLIF(b.name, ''),
-                             NULLIF(op.complete_address, ''), 'Unspecified') AS barangay,
+                             'Unspecified') AS barangay,
                     pvr.disease_category  AS disease_category,
                     COUNT(*) AS cases
                 FROM patient_visit_records pvr
@@ -1419,7 +1419,7 @@ def load_db_consult_rows(after_year: int, after_month: int) -> pd.DataFrame:
                     YEAR(pvr.visit_date)  AS year,
                     MONTH(pvr.visit_date) AS month_no,
                     COALESCE(NULLIF(pvr.barangay_at_visit, ''), NULLIF(b.name, ''),
-                             NULLIF(op.complete_address, ''), 'Unspecified') AS barangay,
+                             'Unspecified') AS barangay,
                     pvr.diagnosis AS diagnosis
                 FROM patient_visit_records pvr
                 LEFT JOIN pets ON pets.id = pvr.pet_id

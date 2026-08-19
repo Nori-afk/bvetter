@@ -60,10 +60,48 @@ function getRoleId($pdo, $roleName)
     return $row ? (int) $row['id'] : 0;
 }
 
-function defaultBarangayId($pdo)
+/**
+ * The barangay the caller actually chose -- never a guess.
+ *
+ * This replaced defaultBarangayId(), which returned the lowest id in
+ * `barangays` (id 3, Tiaong) whenever the vet form omitted a barangay -- which
+ * it always did, because the form had no barangay field. Every owner created
+ * here was filed under Tiaong regardless of the address typed, and
+ * visitSnapshot() froze that onto the visit, so the Disease Incidence Report,
+ * Disease Analytics and the per-barangay forecast all inflated one barangay and
+ * deflated the rest. Tiaong is a real Baliwag barangay, so the wrong answer
+ * never looked wrong.
+ *
+ * The other three owner-creation paths (register.php, appointments,
+ * castration-spay) already require and validate a barangay. This brings the
+ * patient-records path in line with them.
+ *
+ * Returns [barangayId, isOutsideBaliwag]. 'outside' is the one deliberate way
+ * to have no barangay: the clinic serves Baliwag, so `barangays` holds only
+ * Baliwag rows and an owner from a neighbouring town is otherwise
+ * unrepresentable -- which would push the encoder into filing them under a
+ * Baliwag barangay they do not live in.
+ */
+function resolveBarangay($pdo, $data)
 {
-    $id = (int) $pdo->query('SELECT id FROM barangays ORDER BY id ASC LIMIT 1')->fetchColumn();
-    return $id > 0 ? $id : null;
+    $raw = clean($data['barangayId'] ?? $data['barangay_id'] ?? '');
+
+    if (strtolower($raw) === 'outside') {
+        return [null, 1];
+    }
+
+    $barangayId = (int) $raw;
+    if ($barangayId <= 0) {
+        respond(422, ['success' => false, 'message' => 'Please select a barangay.']);
+    }
+
+    $check = $pdo->prepare('SELECT id FROM barangays WHERE id = :id LIMIT 1');
+    $check->execute([':id' => $barangayId]);
+    if (!$check->fetch()) {
+        respond(422, ['success' => false, 'message' => 'Please select a valid barangay.']);
+    }
+
+    return [$barangayId, 0];
 }
 
 function findOrCreateOwner($pdo, $data)
@@ -73,11 +111,33 @@ function findOrCreateOwner($pdo, $data)
     $phone = clean($data['phone'] ?? '');
     $address = clean($data['address'] ?? '');
 
+    // Validated up front, so the barangay is required on every save -- not just
+    // when the owner happens to be new. The early return below would otherwise
+    // let a visit for an existing owner skip the field entirely.
+    [$barangayId, $isOutside] = resolveBarangay($pdo, $data);
+
     if ($email !== '') {
         $stmt = $pdo->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
         $stmt->execute([':email' => $email]);
         $existing = $stmt->fetch();
-        if ($existing) return (int) $existing['id'];
+        if ($existing) {
+            // An owner already on file still gets their barangay refreshed from
+            // what was just entered. Without this, an owner carrying the old
+            // defaulted Tiaong could never be corrected by ordinary use, and
+            // visitSnapshot() would keep stamping the wrong barangay on every
+            // new visit -- the original bug, still running.
+            $existingId = (int) $existing['id'];
+            $pdo->prepare('
+                UPDATE owner_profiles
+                SET barangay_id = :barangay_id, is_outside_baliwag = :is_outside
+                WHERE user_id = :user_id
+            ')->execute([
+                ':barangay_id' => $barangayId,
+                ':is_outside' => $isOutside,
+                ':user_id' => $existingId,
+            ]);
+            return $existingId;
+        }
     }
 
     if ($ownerName === '') {
@@ -107,12 +167,13 @@ function findOrCreateOwner($pdo, $data)
     $ownerId = (int) $pdo->lastInsertId();
 
     $profile = $pdo->prepare("
-        INSERT INTO owner_profiles (user_id, barangay_id, complete_address, verification_status, verified_at)
-        VALUES (:user_id, :barangay_id, :complete_address, 'approved', NOW())
+        INSERT INTO owner_profiles (user_id, barangay_id, is_outside_baliwag, complete_address, verification_status, verified_at)
+        VALUES (:user_id, :barangay_id, :is_outside, :complete_address, 'approved', NOW())
     ");
     $profile->execute([
         ':user_id' => $ownerId,
-        ':barangay_id' => defaultBarangayId($pdo),
+        ':barangay_id' => $barangayId,
+        ':is_outside' => $isOutside,
         ':complete_address' => $address,
     ]);
 
@@ -142,18 +203,40 @@ function upsertOwnerProfile($pdo, $ownerId, $data)
         ]);
     }
 
+    // barangay_id used to be written on INSERT only, so an owner's barangay
+    // could never be corrected once set -- the reason the defaulted Tiaong rows
+    // were stuck. It is updated here too now.
+    //
+    // Correcting a profile deliberately does NOT rewrite barangay_at_visit on
+    // past visits: that snapshot exists so surveillance history stays put when
+    // an owner moves house. Use action=resync_visit_barangay to move a single
+    // visit when the snapshot itself was the mistake.
+    [$barangayId, $isOutside] = resolveBarangay($pdo, $data);
+
     $exists = $pdo->prepare('SELECT id FROM owner_profiles WHERE user_id = :user_id LIMIT 1');
     $exists->execute([':user_id' => $ownerId]);
+
     if ($exists->fetch()) {
-        $stmt = $pdo->prepare('UPDATE owner_profiles SET complete_address = :address WHERE user_id = :user_id');
+        $stmt = $pdo->prepare('
+            UPDATE owner_profiles
+            SET complete_address = :address,
+                barangay_id = :barangay_id,
+                is_outside_baliwag = :is_outside
+            WHERE user_id = :user_id
+        ');
     } else {
-        $stmt = $pdo->prepare("INSERT INTO owner_profiles (user_id, barangay_id, complete_address, verification_status, verified_at) VALUES (:user_id, :barangay_id, :address, 'approved', NOW())");
+        $stmt = $pdo->prepare("
+            INSERT INTO owner_profiles (user_id, barangay_id, is_outside_baliwag, complete_address, verification_status, verified_at)
+            VALUES (:user_id, :barangay_id, :is_outside, :address, 'approved', NOW())
+        ");
     }
-    $params = [':user_id' => $ownerId, ':address' => $address];
-    if (strpos($stmt->queryString, ':barangay_id') !== false) {
-        $params[':barangay_id'] = defaultBarangayId($pdo);
-    }
-    $stmt->execute($params);
+
+    $stmt->execute([
+        ':user_id' => $ownerId,
+        ':address' => $address,
+        ':barangay_id' => $barangayId,
+        ':is_outside' => $isOutside,
+    ]);
 }
 
 function medicationsJson($data)
@@ -183,6 +266,10 @@ function mapVisit($row)
         'treatment' => $row['treatment'],
         'medications' => json_decode($row['medications_json'] ?: '[]', true) ?: [],
         'vaccinationStatus' => $row['vaccination_status'],
+        // Surfaced so the vet can see what this case is actually reported under
+        // and correct it -- the value the Disease Incidence Report reads, not
+        // the owner's present-day barangay.
+        'barangayAtVisit' => $row['barangay_at_visit'] ?: null,
     ];
 }
 
@@ -215,7 +302,17 @@ function mapRecord($pdo, $row)
     $followUp = $latest['followUp'] ?? '';
     $alert = $row['alert_text'] ?: ($followUp && $followUp !== 'TBD' ? 'Follow-up set' : '0');
     $lastVisit = $latest && $latest['date'] ? displayDate($latest['date']) : displayDate($row['created_at']);
-    $locationParts = array_filter([$row['barangay_name'] ? 'Brgy. ' . $row['barangay_name'] : '', $row['city'], $row['province']]);
+    // The table column reads this. It must never silently fall back to
+    // complete_address: that is what let the owner panel show one barangay
+    // while the table showed another. An owner with no barangay reads
+    // 'Unspecified' -- visibly missing rather than quietly substituted.
+    if ((int) ($row['is_outside_baliwag'] ?? 0) === 1) {
+        $location = 'Outside Baliwag';
+    } elseif ($row['barangay_name']) {
+        $location = implode(', ', array_filter(['Brgy. ' . $row['barangay_name'], $row['city'], $row['province']]));
+    } else {
+        $location = 'Unspecified';
+    }
 
     return [
         'id' => (int) $row['pet_id'],
@@ -230,7 +327,9 @@ function mapRecord($pdo, $row)
         'phone' => $row['phone_number'],
         'email' => $row['email'],
         'address' => $row['complete_address'],
-        'location' => implode(', ', $locationParts),
+        'location' => $location,
+        'barangayId' => $row['barangay_id'] !== null ? (int) $row['barangay_id'] : null,
+        'isOutsideBaliwag' => (int) ($row['is_outside_baliwag'] ?? 0) === 1,
         'status' => $status,
         'statusType' => statusType($status),
         'recordCount' => count($visits),
@@ -276,6 +375,8 @@ function listRecords($pdo)
             users.email,
             users.phone_number,
             owner_profiles.complete_address,
+            owner_profiles.barangay_id,
+            owner_profiles.is_outside_baliwag,
             barangays.name AS barangay_name,
             barangays.city,
             barangays.province,
@@ -477,9 +578,22 @@ function listDiseases($pdo)
 function visitSnapshot($pdo, $petId, $ownerId)
 {
     try {
+        // complete_address is NOT a fallback source here any more. It is free
+        // text meaning house number and street -- and for owners created via
+        // register.php it holds a barangay name instead -- so reading it as a
+        // barangay wrote strings like '123 Rizal St.' into a surveillance
+        // column. An owner with no barangay now yields NULL, which the reports
+        // render as 'Unspecified': a true statement rather than a wrong one.
+        //
+        // is_outside_baliwag is kept distinct from NULL. Both mean "no Baliwag
+        // barangay", but one is a case that legitimately belongs to another
+        // town and the other is a Baliwag case with missing data.
         $stmt = $pdo->prepare("
             SELECT
-                COALESCE(NULLIF(b.name, ''), NULLIF(op.complete_address, '')) AS barangay,
+                CASE
+                    WHEN op.is_outside_baliwag = 1 THEN 'Outside Baliwag'
+                    ELSE NULLIF(b.name, '')
+                END AS barangay,
                 NULLIF(pets.species, '') AS species
             FROM pets
             LEFT JOIN owner_profiles op ON op.user_id = COALESCE(pets.owner_id, :owner_id)
@@ -760,6 +874,54 @@ function deleteRecord($pdo, $data)
     respond(200, ['success' => true, 'deleted' => $petId]);
 }
 
+/**
+ * Re-takes the barangay snapshot for ONE visit from its owner's current
+ * profile.
+ *
+ * barangay_at_visit is frozen on purpose: an owner who moves house must not
+ * retroactively relocate every case they ever had, and the snapshot is all that
+ * survives de-identification. That makes an encoder's mis-click permanent,
+ * though -- and a profile edit alone would leave the owner panel showing the
+ * corrected barangay while the report still showed the old one, which is the
+ * exact mismatch this whole change exists to remove.
+ *
+ * So correction is explicit and per-visit. It can only copy a validated
+ * barangay_id (or the outside-Baliwag marker), never free text, so it cannot
+ * introduce a value the catalog does not contain.
+ */
+function resyncVisitBarangay($pdo, $data)
+{
+    $visitId = (int) ($data['visitId'] ?? $data['visit_id'] ?? 0);
+    if ($visitId <= 0) respond(422, ['success' => false, 'message' => 'Invalid visit id.']);
+
+    $stmt = $pdo->prepare('SELECT id, pet_id, owner_id, barangay_at_visit FROM patient_visit_records WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => $visitId]);
+    $visit = $stmt->fetch();
+    if (!$visit) respond(404, ['success' => false, 'message' => 'Visit not found.']);
+
+    // A de-identified visit has no owner left to read a barangay from; its
+    // snapshot is the only record of where the case happened.
+    if (!$visit['owner_id'] && !$visit['pet_id']) {
+        respond(409, [
+            'success' => false,
+            'message' => 'This visit has been de-identified. Its barangay can no longer be recovered.',
+        ]);
+    }
+
+    $snapshot = visitSnapshot($pdo, (int) $visit['pet_id'], (int) $visit['owner_id']);
+
+    $update = $pdo->prepare('UPDATE patient_visit_records SET barangay_at_visit = :barangay WHERE id = :id');
+    $update->execute([':barangay' => $snapshot['barangay'], ':id' => $visitId]);
+
+    respond(200, [
+        'success' => true,
+        'visitId' => $visitId,
+        'from' => $visit['barangay_at_visit'],
+        'to' => $snapshot['barangay'],
+        'message' => 'Visit barangay updated to ' . ($snapshot['barangay'] ?: 'Unspecified') . '.',
+    ]);
+}
+
 $input = inputData();
 $action = clean($input['action'] ?? 'list');
 
@@ -774,6 +936,7 @@ try {
     if ($action === 'save_batch') saveBatch($pdo, $input);
     if ($action === 'update') updateRecord($pdo, $input);
     if ($action === 'delete') deleteRecord($pdo, $input);
+    if ($action === 'resync_visit_barangay') resyncVisitBarangay($pdo, $input);
 
     respond(400, ['success' => false, 'message' => 'Unknown patient records action.']);
 } catch (PDOException $e) {

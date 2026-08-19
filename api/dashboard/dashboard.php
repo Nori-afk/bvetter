@@ -271,7 +271,7 @@ function db_disease_barangay_counts($pdo, string $selected, string $dateType = '
     // it is what was true when the case was recorded, and it is the only
     // barangay left on a de-identified visit (see deleteUserAccount in
     // api/admin/account-management.php).
-    $liveBarangay = $barangayJoin ? "NULLIF(b.name, ''), NULLIF(op.complete_address, ''), " : '';
+    $liveBarangay = $barangayJoin ? "NULLIF(b.name, ''), " : '';
     $barangayExpr = "COALESCE(NULLIF(patient_visit_records.barangay_at_visit, ''), {$liveBarangay}'Unspecified')";
 
     // $exactMonth pins the window to one specific calendar month ('Y-m'), for
