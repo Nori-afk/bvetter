@@ -6,6 +6,7 @@ require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/security_settings.php';
 require_once __DIR__ . '/../config/two_factor.php';
 require_once __DIR__ . '/../config/input_validation.php';
+require_once __DIR__ . '/../config/auth_guard.php';
 
 function respond($statusCode, $payload)
 {
@@ -320,17 +321,107 @@ function changePassword($pdo, $data)
     respond(200, ['success' => true, 'message' => 'Password updated.']);
 }
 
+/**
+ * blocked_reason gained 'user_request' in
+ * database/migrations/2026-08-19-deactivate-reason.sql. Self-heal it here so a
+ * deploy that ships this code before the migration cannot write a value the
+ * column rejects -- the same failure mode that broke production on 2026-08-18,
+ * when notification code went out ahead of its schema change.
+ *
+ * Widening an enum rewrites no rows, so this is safe to run repeatedly.
+ */
+function ensureDeactivationReason(PDO $pdo): void
+{
+    $column = $pdo->query("SHOW COLUMNS FROM users LIKE 'blocked_reason'")->fetch();
+    if (!$column || strpos($column['Type'], 'user_request') !== false) {
+        return;
+    }
+
+    try {
+        $pdo->exec("ALTER TABLE users
+            MODIFY blocked_reason ENUM('failed_login', 'inactivity', 'user_request') NULL DEFAULT NULL");
+    } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
+    }
+}
+
+/**
+ * Self-service deactivation.
+ *
+ * This DEACTIVATES, it does not delete. account_status='blocked' is the same
+ * mechanism the 3-strike lockout and the 365-day inactivity sweep already use,
+ * so an admin restores it exactly the way they restore those --
+ * updateAccountStatus() in api/admin/account-management.php already clears
+ * blocked_reason and resets the failed-login counter. Nothing is destroyed and
+ * nothing here is irreversible.
+ *
+ * Deletion is deliberately NOT offered from this button. The privacy policy
+ * routes it through contacting the vet office, it requires the de-identify
+ * cascade over pets and visit records, and it would fail today for any owner
+ * registered in the castration/spay programme (csp_registrations has foreign
+ * keys to both pets and users with no ON DELETE, and deleteUser() never clears
+ * them).
+ */
+function deactivateAccount(PDO $pdo, int $userId): void
+{
+    if ($userId <= 0) respond(422, ['success' => false, 'message' => 'User id is required.']);
+
+    ensureDeactivationReason($pdo);
+
+    $pdo->beginTransaction();
+
+    $pdo->prepare("
+        UPDATE users
+        SET account_status = 'blocked',
+            blocked_reason = 'user_request'
+        WHERE id = :id
+    ")->execute([':id' => $userId]);
+
+    // Cut every signed-in device immediately, not just the tab that clicked the
+    // button -- otherwise a session on another device keeps working against an
+    // account its owner has just closed.
+    $pdo->prepare("
+        UPDATE user_sessions
+        SET revoked_at = NOW()
+        WHERE user_id = :id AND revoked_at IS NULL
+    ")->execute([':id' => $userId]);
+
+    $pdo->commit();
+
+    respond(200, [
+        'success' => true,
+        'message' => 'Your account has been deactivated. Contact the Baliwag City Veterinary Office if you want it reopened.'
+    ]);
+}
+
 $input = inputData();
 $action = clean($input['action'] ?? 'get');
+
+// Every action in this file operates on the caller's OWN account. Until now the
+// client sent user_id and the server simply believed it, with no token checked
+// anywhere in this file -- so an unauthenticated POST could read any account's
+// name/email/phone, change any account's email, or switch off any account's
+// two-factor. Chained, that is account takeover: repoint the email, disable 2FA,
+// then use password reset.
+//
+// The bearer token is now the only source of identity. Any user_id/userId in the
+// request body is overwritten below and can no longer influence which row is
+// touched. Kept as an overwrite rather than deleting the parameter so the four
+// helpers below keep their existing signatures.
+$authSession = requireRole($pdo, ['pet_owner', 'veterinarian', 'admin']);
+$authUserId  = (int) $authSession['user_id'];
+$input['user_id'] = $authUserId;
+$input['userId']  = $authUserId;
 
 try {
     setupProfileTables($pdo);
 
-    if ($action === 'get') getProfile($pdo, (int) ($input['user_id'] ?? $input['userId'] ?? 0));
+    if ($action === 'get') getProfile($pdo, $authUserId);
     if ($action === 'update') updateProfile($pdo, $input);
     if ($action === 'preferences') updatePreferences($pdo, $input);
     if ($action === 'password') changePassword($pdo, $input);
     if ($action === 'two_factor') setTwoFactor($pdo, $input);
+    if ($action === 'deactivate') deactivateAccount($pdo, $authUserId);
 
     respond(400, ['success' => false, 'message' => 'Unknown profile action.']);
 } catch (PDOException $e) {

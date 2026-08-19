@@ -17,7 +17,9 @@ require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../includes/dataset.php';
 require_once __DIR__ . '/../config/auth_guard.php';
 
-requireRole($pdo, ['veterinarian', 'admin']);
+// Captured, not discarded: the ROUTER at the bottom needs the authenticated
+// role to keep the admin-only scope away from veterinarians.
+$dashboardSession = requireRole($pdo, ['veterinarian', 'admin']);
 
 function dashboard_input()
 {
@@ -1286,6 +1288,13 @@ $input = dashboard_input();
 $scope = strtolower(bv_clean($input['scope'] ?? $input['action'] ?? 'vet'));
 
 if ($scope === 'admin') {
+    // The guard at the top of this file admits veterinarians as well as admins,
+    // because every other scope here is clinical and they need it. The admin
+    // dashboard is not clinical, and scope came from the request, so a vet could
+    // read it simply by asking for it. Only admins get this one.
+    if (($dashboardSession['role_name'] ?? '') !== 'admin') {
+        bv_json_response(403, ['success' => false, 'message' => 'Admin access required.']);
+    }
     bv_json_response(200, ['success' => true, 'data' => admin_dashboard($pdo)]);
 }
 

@@ -19,6 +19,16 @@ const NOTIFICATIONS_URL = `${BACKEND_URL}/notifications/notifications.php`;
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
+/* Authorization only -- no Content-Type, because these calls send FormData and
+   the browser must set its own multipart boundary. Owner/staff actions on
+   appointment.php, program.php and lost_and_found.php authenticate with the
+   bearer token; the user_id in the body is not identity. */
+function formAuthHeaders() {
+    const session = JSON.parse(localStorage.getItem('vbetter_session') || 'null');
+    const token = session?.token || localStorage.getItem('bvetter_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 function getAuthHeaders() {
     const session = JSON.parse(localStorage.getItem('vbetter_session') || 'null');
     return {
@@ -81,6 +91,7 @@ async function getAppointments(filters = {}) {
     try {
         const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
             method: 'POST',
+            headers: formAuthHeaders(),
             body: formData
         });
         const result = await response.json();
@@ -118,8 +129,13 @@ function lostFoundForm(action, data = {}) {
 
 async function lostFoundFetch(action, data = {}) {
     try {
+        const session = JSON.parse(localStorage.getItem('vbetter_session') || 'null');
+        const token = session?.token || localStorage.getItem('bvetter_token');
         const response = await fetch(LOST_FOUND_URL, {
             method: 'POST',
+            // Authorization only -- no Content-Type, FormData sets its own
+            // multipart boundary. requireRole() reads this header, not the body.
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
             body: lostFoundForm(action, data)
         });
         const result = await response.json();
@@ -139,6 +155,7 @@ async function updateAppointmentStatus(id, status) {
     try {
         const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
             method: 'POST',
+            headers: formAuthHeaders(),
             body: formData
         });
         const result = await response.json();
@@ -160,6 +177,7 @@ async function rescheduleAppointment(id, preferredDate, timeSlot, reason = '') {
     try {
         const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
             method: 'POST',
+            headers: formAuthHeaders(),
             body: formData
         });
         const result = await response.json();
@@ -180,6 +198,7 @@ async function getBookedSlots({ veterinarian_id, preferred_date, exclude_id } = 
     try {
         const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
             method: 'POST',
+            headers: formAuthHeaders(),
             body: formData
         });
         const result = await response.json();
@@ -197,6 +216,7 @@ async function getVisitTypes() {
     try {
         const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
             method: 'POST',
+            headers: formAuthHeaders(),
             body: formData
         });
         const result = await response.json();
@@ -215,6 +235,7 @@ async function addVisitType(name) {
     try {
         const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
             method: 'POST',
+            headers: formAuthHeaders(),
             body: formData
         });
         const result = await response.json();
@@ -233,6 +254,7 @@ async function removeVisitType(id) {
     try {
         const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
             method: 'POST',
+            headers: formAuthHeaders(),
             body: formData
         });
         const result = await response.json();
@@ -256,6 +278,7 @@ async function cspRequest(action, params = {}) {
     try {
         const response = await fetch(`${BACKEND_URL}/castration-spay/program.php`, {
             method: 'POST',
+            headers: formAuthHeaders(),
             body: formData
         });
         return await response.json();
@@ -331,6 +354,7 @@ async function deleteAppointment(id) {
     try {
         const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
             method: 'POST',
+            headers: formAuthHeaders(),
             body: formData
         });
         const result = await response.json();

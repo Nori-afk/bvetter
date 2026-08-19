@@ -1594,9 +1594,9 @@ function getActiveReportCount($pdo)
 $input = inputData();
 $action = clean($input['action'] ?? 'list');
 
-// Management/moderation actions are staff-only; public browsing, owner
-// reports/claims/sightings, and match viewing stay open (owner-side identity
-// enforcement is handled separately).
+// Management/moderation actions are staff-only. Public browsing (list, get,
+// matches, the landing-page counters) genuinely stays open. Owner actions are
+// authenticated separately, immediately below.
 $staffActions = [
     'management_list', 'management_claims', 'rebuild_image_features',
     'approve', 'approve_report', 'reject', 'reject_report', 'resolve', 'resolve_report',
@@ -1607,6 +1607,51 @@ $staffActions = [
 if (in_array($action, $staffActions, true)) {
     require_once __DIR__ . '/../config/auth_guard.php';
     requireRole($pdo, ['veterinarian', 'admin']);
+}
+
+// Owner-side actions: anything that reads or writes one specific person's data.
+//
+// These previously took the identity straight from the request body and only
+// checked it was a positive integer -- the "You must be logged in" responses in
+// listMyReports()/createClaim()/createSighting() verified nothing at all. So an
+// unauthenticated POST carrying someone else's owner_id could read their reports
+// (full name, phone number, email address and map coordinates), file claims and
+// sightings in their name, and close their reports. resolveOwnReport() compared
+// the report's owner against that same body value, so its ownership check passed
+// for an attacker who simply sent the victim's id.
+//
+// The bearer token is now the only source of identity here, matching
+// api/users/profile.php and api/pets/my_pets.php.
+$ownerActions = [
+    'my_reports',
+    'create', 'create_report',
+    'create_claim', 'submit_claim', 'list_claims',
+    'create_sighting', 'submit_sighting',
+    'resolve_own_report',
+];
+if (in_array($action, $ownerActions, true)) {
+    require_once __DIR__ . '/../config/auth_guard.php';
+    $ownerSession = requireRole($pdo, ['pet_owner', 'veterinarian', 'admin']);
+    $authId = (int) $ownerSession['user_id'];
+
+    $input['user_id']  = $authId;
+    $input['owner_id'] = $authId;
+
+    // createReport() derives the new report's STATUS from this role: 'vet' or
+    // 'admin' publishes immediately as 'active', anything else waits at
+    // 'pending' for moderation. Taken from the body, that let any caller send
+    // role=admin and push an unreviewed post straight onto the public feed.
+    // The session decides the role now, so moderation cannot be self-granted.
+    $input['role']        = $ownerSession['role_name'];
+    $input['source_role'] = $ownerSession['role_name'];
+
+    // report_owner_id means "claims filed against MY reports". listClaims()
+    // branches on whether it was sent at all, so overwrite the value when it is
+    // present rather than always adding it -- force-adding would change which
+    // claims a caller sees instead of merely stopping them seeing someone else's.
+    if ((int) ($input['report_owner_id'] ?? 0) > 0) {
+        $input['report_owner_id'] = $authId;
+    }
 }
 
 try {

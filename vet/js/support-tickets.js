@@ -43,7 +43,14 @@ async function apiCall(payload) {
     const formData = new FormData();
     Object.entries(payload).forEach(([key, value]) => formData.append(key, value));
     try {
-        const response = await fetch(TICKETS_API, { method: 'POST', body: formData });
+        const session = JSON.parse(localStorage.getItem('vbetter_session') || 'null');
+        const token = session?.token || localStorage.getItem('bvetter_token');
+        // Authorization only -- FormData sets its own multipart boundary.
+        const response = await fetch(TICKETS_API, {
+            method: 'POST',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: formData
+        });
         return await response.json();
     } catch (error) {
         return { success: false, message: 'Network error. Please try again.' };

@@ -77,7 +77,7 @@ function profileRequest(action, data = {}) {
   const session = currentSession();
   return fetch(PROFILE_ENDPOINT, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify({
       action,
       user_id: data.user_id || data.userId || session?.userId || session?.id || 0,
@@ -90,7 +90,7 @@ function myPetsRequest(action, data = {}) {
   const session = currentSession();
   return fetch(MY_PETS_ENDPOINT, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify({
       action,
       owner_id: data.owner_id || data.ownerId || session?.userId || session?.id || 0,
@@ -121,6 +121,10 @@ function lostFoundForm(action, data = {}) {
 function lostFoundRequest(action, data = {}) {
   return fetch(LOST_FOUND_ENDPOINT, {
     method: 'POST',
+    // FormData variant: must NOT set Content-Type, the browser adds the
+    // multipart boundary itself. Owner actions on this endpoint authenticate
+    // with the bearer token now, so it has to be sent or they 401.
+    headers: authHeadersFormData(),
     body: lostFoundForm(action, data)
   }).then(r => r.json());
 }
@@ -661,6 +665,7 @@ forgotPassword: (email) => {
     });
     return fetch(`${API_BASE_REG}/appointments/appointment.php`, {
       method: 'POST',
+      headers: authHeadersFormData(),
       body: formData
     }).then(r => r.json());
   },
@@ -672,6 +677,7 @@ forgotPassword: (email) => {
   bookAppointment: (data) =>
     fetch(`${API_BASE_REG}/appointments/appointment.php`, {
       method: 'POST',
+      headers: authHeaders(),
       body: JSON.stringify(data)
     }).then(r => r.json()),
 
@@ -718,6 +724,7 @@ forgotPassword: (email) => {
   registerCspProgram: (data) =>
     fetch(`${API_BASE_REG}/castration-spay/program.php`, {
       method: 'POST',
+      headers: authHeaders(),
       body: JSON.stringify({ ...data, action: 'register' })
     }).then(r => r.json()),
 
@@ -731,6 +738,7 @@ forgotPassword: (email) => {
     formData.append('owner_id', ownerId || '');
     return fetch(`${API_BASE_REG}/castration-spay/program.php`, {
       method: 'POST',
+      headers: authHeadersFormData(),
       body: formData
     }).then(r => r.json());
   },
@@ -741,6 +749,7 @@ forgotPassword: (email) => {
     formData.append('registration_id', registrationId);
     return fetch(`${API_BASE_REG}/castration-spay/program.php`, {
       method: 'POST',
+      headers: authHeadersFormData(),
       body: formData
     }).then(r => r.json());
   },
@@ -761,6 +770,7 @@ forgotPassword: (email) => {
     });
     return fetch(`${API_BASE_REG}/tickets/tickets.php`, {
       method: 'POST',
+      headers: authHeadersFormData(),
       body: formData
     }).then(r => r.json());
   },
@@ -770,8 +780,11 @@ forgotPassword: (email) => {
     formData.append('action', 'list');
     formData.append('role', 'owner');
     formData.append('reporter_id', ownerId || '');
+    // role and reporter_id above are ignored by the server now -- it takes both
+    // from the session. Sending them keeps the request shape unchanged.
     return fetch(`${API_BASE_REG}/tickets/tickets.php`, {
       method: 'POST',
+      headers: authHeadersFormData(),
       body: formData
     }).then(r => r.json());
   },
@@ -808,6 +821,13 @@ forgotPassword: (email) => {
    */
   setTwoFactor: (enabled) =>
     profileRequest('two_factor', { enabled: enabled ? 1 : 0 }),
+
+  /* Closes the caller's own account: account_status becomes 'blocked' with
+     blocked_reason 'user_request', and every session is revoked server-side.
+     Reversible by the vet office, exactly like an inactivity or lockout block.
+     This is NOT deletion -- see api/users/profile.php for why. */
+  deactivateAccount: () =>
+    profileRequest('deactivate'),
 
 
   /* ══════════════════════════════════════════

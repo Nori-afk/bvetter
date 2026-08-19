@@ -1268,7 +1268,7 @@ function getBookedSlots($pdo, $data)
         'booked'  => array_column($stmt->fetchAll(), 'time_slot')
     ]);
 }
-function submitReview($pdo, $data)
+function submitReview($pdo, $data, $callerSession = null)
 {
     $appointmentId = (int)($data['appointment_id'] ?? 0);
     $rating        = (int)($data['rating']         ?? 0);
@@ -1291,6 +1291,15 @@ function submitReview($pdo, $data)
     }
     if ($appt['status'] !== 'completed') {
         respond(422, ['success' => false, 'message' => 'Only completed appointments can be reviewed.']);
+    }
+
+    // A pet owner may only review their own visit. Without this any authenticated
+    // owner could rate any completed appointment in the clinic by guessing an id,
+    // which would quietly distort the per-vet satisfaction figures. Staff are not
+    // constrained here: they never submit reviews through this path.
+    if (($callerSession['role_name'] ?? '') === 'pet_owner'
+        && (int) $appt['owner_id'] !== (int) $callerSession['user_id']) {
+        respond(403, ['success' => false, 'message' => 'You can only review your own appointments.']);
     }
 
     // Insert or update (owner can edit their review)
@@ -1335,6 +1344,26 @@ if ($action === 'respond_reschedule') {
     $ownerSession = requireRole($pdo, ['pet_owner']);
 }
 
+// Booking, listing and reviewing all act on a specific person's data and had no
+// token check at all: owner_id came from the request body, so an unauthenticated
+// POST could book an appointment in someone else's name, and `list` sent without
+// an owner_id returned EVERY appointment in the clinic -- owner names, pet names,
+// dates and contact details.
+//
+// Staff genuinely do act on other people here: the vet portal books walk-ins
+// through findOrCreateOwner() and lists the whole clinic. So this authenticates
+// every caller and then constrains only pet owners to their own id, rather than
+// forcing one identity on everybody.
+$callerSession = null;
+if (in_array($action, ['list', 'create', 'submit_review'], true)) {
+    require_once __DIR__ . '/../config/auth_guard.php';
+    $callerSession = requireRole($pdo, ['pet_owner', 'veterinarian', 'admin']);
+
+    if (($callerSession['role_name'] ?? '') === 'pet_owner') {
+        $input['owner_id'] = (int) $callerSession['user_id'];
+    }
+}
+
 // Resolve the schema once, up front. MySQL implicitly commits on DDL, so
 // attempting the migration inside bookAppointment's transaction would silently
 // end it and break the rollback -- running it here means every later call just
@@ -1359,7 +1388,7 @@ try {
     if ($action === 'delete') deleteAppointment($pdo, $input);
     if ($action === 'vets') listVeterinarians($pdo);
     if ($action === 'booked_slots') getBookedSlots($pdo, $input);
-    if ($action === 'submit_review') submitReview($pdo, $input);
+    if ($action === 'submit_review') submitReview($pdo, $input, $callerSession);
     if ($action === 'vet_reviews') getVetReviews($pdo, $input);
     if ($action === 'get_total') getTotalAppointment($pdo, $input);
     if ($action === 'common_cases') getCommonCases($pdo, $input);

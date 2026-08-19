@@ -1165,6 +1165,23 @@ function openAnnouncementEditorModal({ mode, item }) {
     // login until a bio is saved, then never shows again.
     checkBioPrompt();
 
+    // api/users/profile.php authenticates with the bearer token now and ignores
+    // any user_id in the body, so both calls below must carry it or they 401.
+    // Reads the session itself rather than closing over bioSession, because the
+    // save call lives in openBioPromptModal() where that variable is out of scope.
+    function bioAuthHeaders() {
+        let s = null;
+        try {
+            s = (window.VBetterAuth && window.VBetterAuth.getSession)
+                ? window.VBetterAuth.getSession()
+                : JSON.parse(localStorage.getItem('vbetter_session') || 'null');
+        } catch { s = null; }
+        const token = s?.token || localStorage.getItem('bvetter_token');
+        return token
+            ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }
+            : { 'Content-Type': 'application/json' };
+    }
+
     async function checkBioPrompt() {
         let bioSession = null;
         try {
@@ -1179,7 +1196,7 @@ function openAnnouncementEditorModal({ mode, item }) {
         try {
             const response = await fetch('/api/users/profile.php', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: bioAuthHeaders(),
                 body: JSON.stringify({ action: 'get', user_id: userId })
             });
             const result = await response.json();
@@ -1229,7 +1246,7 @@ function openAnnouncementEditorModal({ mode, item }) {
                 try {
                     await fetch('/api/users/profile.php', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: bioAuthHeaders(),
                         body: JSON.stringify({
                             action: 'update',
                             user_id: userId,

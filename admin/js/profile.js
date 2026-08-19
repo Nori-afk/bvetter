@@ -14,10 +14,21 @@ document.addEventListener("DOMContentLoaded", () => {
 		message.dataset.type = type;
 	}
 
+	// api/users/profile.php now authenticates with the bearer token and ignores
+	// any user_id in the body, so this request must carry the token or it 401s.
+	function authHeaders() {
+		// Both are written at login; vet-api.js reads session.token, public/js
+		// reads bvetter_token. Accept either so neither convention can break it.
+		const token = session?.token || localStorage.getItem("bvetter_token");
+		return token
+			? { "Content-Type": "application/json", "Authorization": "Bearer " + token }
+			: { "Content-Type": "application/json" };
+	}
+
 	async function profileRequest(action, payload = {}) {
 		const response = await fetch(PROFILE_API, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: authHeaders(),
 			body: JSON.stringify({ action, user_id: userId, ...payload })
 		});
 		const result = await response.json();

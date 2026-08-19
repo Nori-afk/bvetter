@@ -411,6 +411,26 @@ try {
         requireRole($pdo, ['veterinarian', 'admin']);
     }
 
+    // Creating and listing were unauthenticated, and listTickets() read the
+    // caller's ROLE out of the request body: sending {"action":"list",
+    // "role":"admin"} skipped the reporter_id filter entirely and returned every
+    // ticket in the system -- reporter names, email addresses and the full
+    // complaint text -- with no token at all. That is privilege escalation by
+    // request parameter, not merely id-guessing: the client declared its own
+    // rank. createTicket() likewise took reporter_id/reporter_role from the body,
+    // so tickets could be filed in someone else's name.
+    //
+    // Role and identity now come from the session only. The body values are
+    // overwritten so the existing helpers keep their signatures.
+    if (in_array($action, ['create', 'list'], true)) {
+        require_once __DIR__ . '/../config/auth_guard.php';
+        $ticketSession = requireRole($pdo, ['pet_owner', 'veterinarian', 'admin']);
+
+        $data['role']          = $ticketSession['role_name'];
+        $data['reporter_role'] = $ticketSession['role_name'];
+        $data['reporter_id']   = (int) $ticketSession['user_id'];
+    }
+
     switch ($action) {
         case 'create':
             createTicket($pdo, $data);

@@ -101,6 +101,16 @@ function attemptLogin(PDO $pdo, string $email, string $password, string $otpCode
     }
 
     if ($user['account_status'] === 'blocked') {
+        // The owner closed this account themselves from Account Settings. Without
+        // this branch they fall through to the failed-login message below and are
+        // told they got their password wrong too many times, which is untrue.
+        if ($user['blocked_reason'] === 'user_request') {
+            return [403, [
+                'success' => false,
+                'message' => 'This account was deactivated at your request. Please contact the Baliwag City Veterinary Office if you want it reopened.'
+            ]];
+        }
+
         if ($user['blocked_reason'] === 'inactivity') {
             $days = getSecuritySettings($pdo)['inactivity_lockout_days'];
             return [403, [

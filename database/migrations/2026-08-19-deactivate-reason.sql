@@ -1,0 +1,32 @@
+-- BVetter -- "I want to leave" becomes a reason the system can express.
+--
+-- WHY
+-- public/pages/account-settings.html has always shown a "Deactivate My Account"
+-- button. Its confirm button had no id, so no listener was ever attached: it did
+-- nothing, not even close the modal, while the modal promised the user "your
+-- data will be retained for 30 days before permanent deletion". That promise
+-- also contradicted the privacy policy, which routes deletion through contacting
+-- the vet office and says inactive accounts are *blocked*, not deleted.
+--
+-- The button now works, and it deactivates (reversible) rather than deletes.
+-- account_status='blocked' is the existing mechanism -- the same one the 3-strike
+-- lockout and the 365-day inactivity sweep already use -- and blocked_reason is
+-- the existing way to record WHY. This adds the third reason.
+--
+-- Without it, a self-deactivated account falls through the reason branches in
+-- api/config/login_flow.php and the user is told they were "blocked due to
+-- multiple failed login attempts", which is untrue, and the admin list shows a
+-- bare "Blocked" with no explanation -- so an admin could restore an account the
+-- owner deliberately closed.
+--
+-- ORDER
+-- Safe to run before or after the code deploy. The application self-heals this
+-- same change at runtime (see ensureDeactivationReason() in
+-- api/users/profile.php), so a code-first deploy cannot break, but running it
+-- here keeps the schema explicit rather than incidental.
+--
+-- Apply with the runner, not by hand:
+--   php database/migrations/2026-08-19-deactivate-apply.php
+
+ALTER TABLE users
+    MODIFY blocked_reason ENUM('failed_login', 'inactivity', 'user_request') NULL DEFAULT NULL;

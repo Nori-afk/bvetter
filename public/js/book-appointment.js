@@ -403,7 +403,10 @@ async function loadRecentHistory(options = {}) {
 
     const res = await fetch('/api/appointments/appointment.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // 'list' authenticates now, and the server pins owner_id to the session
+      // for pet owners -- the owner_id below is ignored, kept only so the
+      // request shape is unchanged for staff callers.
+      headers: authHeaders(),
       body: JSON.stringify({
         action: 'list',
         owner_id: session?.userId || session?.id || ''
@@ -569,7 +572,9 @@ async function submitReview(appointmentId, rating, comment) {
   try {
     const res = await fetch('/api/appointments/appointment.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // submit_review authenticates now: the server checks the appointment
+      // actually belongs to the caller before accepting a rating.
+      headers: authHeaders(),
       body: JSON.stringify({
         action: 'submit_review',
         appointment_id: appointmentId,
@@ -725,7 +730,10 @@ async function loadAppointmentHistory(options = {}) {
 
     const res = await fetch('/api/appointments/appointment.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // 'list' authenticates now, and the server pins owner_id to the session
+      // for pet owners -- the owner_id below is ignored, kept only so the
+      // request shape is unchanged for staff callers.
+      headers: authHeaders(),
       body: JSON.stringify({
         action: 'list',
         owner_id: session?.userId || session?.id || ''

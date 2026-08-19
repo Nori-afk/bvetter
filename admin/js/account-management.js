@@ -139,8 +139,19 @@ function renderTable() {
             ? ' title="Blocked automatically for inactivity"'
             : u.status === 'blocked' && u.blockedReason === 'failed_login'
                 ? ' title="Blocked after repeated failed login attempts"'
-                : '';
-        const statusEl = `<span class="am-status ${u.status}"${blockedTitle}><span class="am-status-dot"></span>${capitalize(u.status)}</span>`;
+                : u.status === 'blocked' && u.blockedReason === 'user_request'
+                    ? ' title="The owner closed this account themselves from Account Settings"'
+                    : '';
+
+        // The other two reasons stay hover-only: both are things the system did
+        // TO the user, and unblocking is the expected remedy. This one is the
+        // user's own decision, so it is spelled out on the row -- restoring an
+        // account someone deliberately closed is the mistake worth preventing,
+        // and a tooltip is too easy to skim past.
+        const selfClosed = u.status === 'blocked' && u.blockedReason === 'user_request'
+            ? '<span class="am-status-note"> · Left by request</span>'
+            : '';
+        const statusEl = `<span class="am-status ${u.status}"${blockedTitle}><span class="am-status-dot"></span>${capitalize(u.status)}${selfClosed}</span>`;
 
         let actionsEl = `
             <button class="am-btn-delete" onclick="openDeleteModal('${u.id}')" title="Delete user">

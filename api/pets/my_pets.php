@@ -3,6 +3,7 @@
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
+require_once __DIR__ . '/../config/auth_guard.php';
 
 function respond($statusCode, $payload)
 {
@@ -238,6 +239,18 @@ function getMyPetDetail($pdo, $data)
 
 $input = inputData();
 $action = clean($input['action'] ?? 'list');
+
+// resolveOwnerId() used to read owner_id/ownerId/user_id/userId straight from
+// the request body with no token checked anywhere in this file, so anyone could
+// list or open any owner's pets by guessing sequential ids. The bearer token is
+// now the only source of identity; the body values are overwritten here and
+// resolveOwnerId() therefore always resolves to the authenticated caller.
+$authSession = requireRole($pdo, ['pet_owner', 'veterinarian', 'admin']);
+$authUserId  = (int) $authSession['user_id'];
+$input['owner_id'] = $authUserId;
+$input['ownerId']  = $authUserId;
+$input['user_id']  = $authUserId;
+$input['userId']   = $authUserId;
 
 try {
     setupPetHistoryTables($pdo);

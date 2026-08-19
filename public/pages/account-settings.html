@@ -206,10 +206,10 @@
       <img src="../images/icons/icon-close.svg" alt="" class="modal-icon-lg"/>
     </div>
     <div class="modal-title center">Deactivate Account?</div>
-    <div class="modal-desc center">This will suspend access to all services. Your data will be retained for 30 days before permanent deletion.</div>
+    <div class="modal-desc center">You will be signed out on every device and will not be able to sign in again. Your records are kept, not deleted &mdash; the Baliwag City Veterinary Office can reopen your account if you change your mind. To have your personal data deleted instead, contact the office using the details in our <a href="privacy-policy.html">Privacy Policy</a>.</div>
     <div class="modal-footer-row centered">
       <button class="btn-modal-cancel" id="btnCancelDeactivate">Cancel</button>
-      <button class="btn-modal-danger">Yes, Deactivate</button>
+      <button class="btn-modal-danger" id="btnConfirmDeactivate">Yes, Deactivate</button>
     </div>
   </div>
 </div>
@@ -221,9 +221,9 @@
     requireAuth(['owner']);
   </script>
   <script src="../js/nav.js?v=20260819-entryguard2"></script>
-  <script src="../js/api.js?v=20260818-notif"></script>
+  <script src="../js/api.js?v=20260819-authfix"></script>
   <script src="../js/password-policy.js?v=20260816-sec"></script>
-  <script src="../js/account-settings.js?v=20260816-sec"></script>
+  <script src="../js/account-settings.js?v=20260819-deactivate"></script>
   <script src="../js/site-settings.js"></script>
 </body>
 </html>

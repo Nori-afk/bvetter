@@ -445,6 +445,11 @@ body {
 
 .am-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 
+/* "Left by request" — the owner closed the account themselves. Deliberately
+   visible rather than a tooltip: restoring an account someone chose to close
+   is the one mistake here with a real person on the other end of it. */
+.am-status-note { font-weight: 500; color: var(--text-tertiary); white-space: nowrap; }
+
 .am-status.active   .am-status-dot { background: var(--secondary-light-green); }
 .am-status.blocked  .am-status-dot { background: var(--accent-red); }
 .am-status.pending  .am-status-dot { background: #D97706; }

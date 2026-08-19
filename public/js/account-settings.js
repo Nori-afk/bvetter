@@ -11,7 +11,9 @@
    - (pw eye toggles)
    - (2FA toggle)           — api.setTwoFactor(enabled); enforced at login
                               via api/auth/login.php (email-OTP challenge)
-   - (deactivate modal)     — UI-only, no backend endpoint yet
+   - (deactivate modal)     — api.deactivateAccount(); blocks the account with
+                              reason 'user_request' and revokes every session,
+                              then logs out. Reversible by the vet office.
    - showToast(msg, type)
    ============================================= */
 
@@ -176,14 +178,41 @@
   }
 
   /* ── Deactivate Modal ───────────────────────
-     No backend endpoint exists yet — confirm button
-     just closes the modal for now. */
-  const deactivateModal     = document.getElementById('deactivateModal');
-  const btnDeactivate       = document.getElementById('btnDeactivate');
-  const btnCancelDeactivate = document.getElementById('btnCancelDeactivate');
+     Deactivates, does not delete: the account is blocked with reason
+     'user_request' and every session is revoked server-side, so the vet
+     office can reopen it the same way it lifts an inactivity block.
+     Deletion is a separate request routed through the office — see the
+     Privacy Policy link in the modal. */
+  const deactivateModal      = document.getElementById('deactivateModal');
+  const btnDeactivate        = document.getElementById('btnDeactivate');
+  const btnCancelDeactivate  = document.getElementById('btnCancelDeactivate');
+  const btnConfirmDeactivate = document.getElementById('btnConfirmDeactivate');
   if (btnDeactivate)       btnDeactivate      .addEventListener('click', () => deactivateModal.classList.add('open'));
   if (btnCancelDeactivate) btnCancelDeactivate.addEventListener('click', () => deactivateModal.classList.remove('open'));
   if (deactivateModal)     deactivateModal    .addEventListener('click', e => { if (e.target === deactivateModal) deactivateModal.classList.remove('open'); });
+
+  if (btnConfirmDeactivate) {
+    btnConfirmDeactivate.addEventListener('click', async () => {
+      btnConfirmDeactivate.disabled = true;
+      const result = await api.deactivateAccount().catch(() => ({ success: false }));
+
+      if (!result.success) {
+        btnConfirmDeactivate.disabled = false;
+        showToast(result.message || 'Could not deactivate the account. Please try again.', 'error');
+        return;
+      }
+
+      // The server has already revoked every session, so this session is dead
+      // whatever happens next. Clear the local copy and send them to the login
+      // page rather than leaving a signed-in-looking page behind.
+      deactivateModal.classList.remove('open');
+      showToast('Your account has been deactivated.', 'success');
+      setTimeout(() => {
+        if (window.VBetterAuth) window.VBetterAuth.logout();
+        else window.location.replace('login.html');
+      }, 1200);
+    });
+  }
 
   /* ── Escape key closes any open modal ──────── */
   document.addEventListener('keydown', e => {

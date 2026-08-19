@@ -371,15 +371,24 @@ function getMyStatus($pdo, $data)
     ]);
 }
 
-function cancelRegistration($pdo, $data)
+function cancelRegistration($pdo, $data, $cspSession = null)
 {
     $id = (int) ($data['registration_id'] ?? $data['id'] ?? 0);
     if ($id <= 0) respond(422, ['success' => false, 'message' => 'Invalid registration id.']);
 
-    $stmt = $pdo->prepare('SELECT status FROM csp_registrations WHERE id = :id LIMIT 1');
+    $stmt = $pdo->prepare('SELECT status, owner_id FROM csp_registrations WHERE id = :id LIMIT 1');
     $stmt->execute([':id' => $id]);
     $reg = $stmt->fetch();
     if (!$reg) respond(404, ['success' => false, 'message' => 'Registration not found.']);
+
+    // A pet owner may only cancel their own slot. This check did not exist at
+    // all, so any registration id could be cancelled by anyone. Staff keep the
+    // ability to cancel on an owner's behalf, which is why the role is checked
+    // rather than the owner id being matched unconditionally.
+    if (($cspSession['role_name'] ?? '') === 'pet_owner'
+        && (int) $reg['owner_id'] !== (int) $cspSession['user_id']) {
+        respond(403, ['success' => false, 'message' => 'You can only cancel your own registration.']);
+    }
     if ($reg['status'] === 'completed') {
         respond(422, ['success' => false, 'message' => 'A completed registration cannot be cancelled.']);
     }
@@ -822,12 +831,31 @@ if (in_array($action, $staffActions, true)) {
     requireRole($pdo, ['veterinarian', 'admin']);
 }
 
+// Owner-side actions had no token check: owner_id came from the request body, so
+// an unauthenticated POST could register someone else for the programme or read
+// their status. cancelRegistration() was worse -- it verified only that the
+// registration existed and was not completed, never that it belonged to the
+// caller, so any id could be cancelled by anyone.
+//
+// As with appointments, staff legitimately act for other people here (they
+// register walk-ins), so everyone is authenticated and only pet owners are
+// constrained to their own id.
+$cspSession = null;
+if (in_array($action, ['register', 'my_status', 'cancel'], true)) {
+    require_once __DIR__ . '/../config/auth_guard.php';
+    $cspSession = requireRole($pdo, ['pet_owner', 'veterinarian', 'admin']);
+
+    if (($cspSession['role_name'] ?? '') === 'pet_owner') {
+        $input['owner_id'] = (int) $cspSession['user_id'];
+    }
+}
+
 try {
     setupCspTables($pdo);
 
     if ($action === 'register') registerInterest($pdo, $input);
     if ($action === 'my_status') getMyStatus($pdo, $input);
-    if ($action === 'cancel') cancelRegistration($pdo, $input);
+    if ($action === 'cancel') cancelRegistration($pdo, $input, $cspSession);
     if ($action === 'delete_registration') deleteRegistration($pdo, $input);
     if ($action === 'list_registrations') listRegistrations($pdo, $input);
     if ($action === 'list_programs') listPrograms($pdo);

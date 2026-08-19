@@ -194,8 +194,18 @@ function lfForm(action, data = {}) {
 	return form;
 }
 
+// Staff actions on this endpoint are guarded by requireRole(), which reads the
+// Authorization header only -- the user_id in the form body is not identity.
+// Without this the whole management page 401s, which is what it was doing.
+// No Content-Type here: FormData sets its own multipart boundary.
+function lfAuthHeaders() {
+	const session = getSession();
+	const token = session?.token || localStorage.getItem('bvetter_token');
+	return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function lfRequest(action, data = {}) {
-	const response = await fetch(LF_ENDPOINT, { method: 'POST', body: lfForm(action, data) });
+	const response = await fetch(LF_ENDPOINT, { method: 'POST', headers: lfAuthHeaders(), body: lfForm(action, data) });
 	const result = await response.json();
 	if (!result.success) throw new Error(result.message || 'Lost and found request failed.');
 	return result;
