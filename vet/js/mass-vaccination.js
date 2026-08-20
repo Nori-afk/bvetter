@@ -788,7 +788,7 @@
         // solid history, dashed forecast continuation, shaded confidence
         // band — instead of disconnected bar slots per data source/month.
         // SOURCE: Excel monthly history (Combined_Rabies_3Years) + Python ARIMA
-        // FALLBACK (ARIMA unreachable): a simple +12%-on-last-month projection
+        // FALLBACK (ARIMA unreachable): flat 3-month moving average of history
         destroyChart('predictedAnimals');
         {
             var tv = state.arimaData?.total_vaccinated || {};
@@ -814,11 +814,26 @@
                 upperCi = tv.upper_ci || [];
                 usingArima = true;
             } else if (historyValues.length) {
-                var lastActual = historyValues[historyValues.length - 1] || 0;
-                forecastLabels = ['Next Month (est.)'];
-                forecastValues = [Math.round(lastActual * 1.12)];
-                lowerCi = [lastActual];
-                upperCi = [Math.round(lastActual * 1.24)];
+                // Benchmark shown only when the analytics service is unreachable.
+                // This was a hardcoded +12%-on-last-month: a growth rate with no
+                // derivation behind it, asserting a rising trend the data had never
+                // been tested for. A moving average is the standard naive benchmark
+                // a forecasting model is measured against, and it is the same family
+                // the disease side already degrades to ("Basic Estimate"), so both
+                // modules now fail the same way.
+                var maWindow = historyValues.slice(-3);
+                var maMean   = maWindow.reduce((s, v) => s + v, 0) / maWindow.length;
+                // Band = observed spread of that same window, not an invented percentage.
+                var maSd = Math.sqrt(
+                    maWindow.reduce((s, v) => s + Math.pow(v - maMean, 2), 0) / maWindow.length
+                );
+                var maPoint = Math.round(maMean);
+                // Flat projection: a mean-based benchmark models no trend, and a flat
+                // line says so honestly instead of implying one.
+                forecastLabels = ['Next Month (est.)', 'Month 2 (est.)', 'Month 3 (est.)'];
+                forecastValues = [maPoint, maPoint, maPoint];
+                lowerCi = forecastValues.map(v => Math.max(0, Math.round(v - maSd)));
+                upperCi = forecastValues.map(v => Math.round(v + maSd));
                 usingArima = false;
             } else {
                 forecastLabels = []; forecastValues = []; lowerCi = []; upperCi = [];
@@ -896,7 +911,7 @@
             var c2Title = usingArima
                 ? `Vaccine Demand Trend — next ${forecastLabels.length} month${forecastLabels.length === 1 ? '' : 's'} forecast`
                 : (forecastLabels.length
-                    ? 'Monthly Trend — Forecast Service Unavailable (simple projection shown)'
+                    ? 'Monthly Trend — Forecast Service Unavailable (3-month average estimate shown)'
                     : 'No historical or forecast data available');
 
             var dividerIndex = (historyValues.length > 0 && forecastLabels.length > 0)
