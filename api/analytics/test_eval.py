@@ -354,7 +354,9 @@ from arima_service import (
     load_barangay_allocation_weights, forecast_vaccination_by_barangay,
 )
 
-vacc_series_dict, _ = load_vaccination_series()
+# load_vaccination_series() returns (series_dict, dataframe, live_meta) since the
+# live mass_vaccination_events feed was added.
+vacc_series_dict, _, vacc_live_meta = load_vaccination_series()
 vacc_series  = vacc_series_dict["total_vaccinated"]
 vacc_fc_steps = 6
 vacc_result  = run_vaccination_arima(vacc_series, steps=vacc_fc_steps)
@@ -428,6 +430,7 @@ plt.tight_layout()
 _save(fig, "fig4_vaccination_forecast.png")
 
 print(f"  Aggregate forecast: {vacc_result['forecast']}  |  Trend: {vacc_result['trend']}")
+print(f"  Forecast input     : {vacc_live_meta['source']}  |  live DB months available {vacc_live_meta['db_months_available']}, used {vacc_live_meta['db_months_used']} (threshold {vacc_live_meta['db_months_required']})")
 if note_txt:
     print(f"  Data quality note: {note_txt}")
 print("  Top 5 barangays (next-month allocation):")
@@ -436,10 +439,15 @@ for b, v in barangay_next_month[:5]:
 
 print(_wrap(
     "INTERPRETATION — Figure 4: The municipal forecast (left) is the only real, ARIMA-fitted "
-    "time series available for vaccination demand — it already accounts for the 2023-2025 "
-    "data-basis difference (see data-quality flag above; 2025 uses one official annual total "
-    "allocated across months rather than granular monthly logs, per the workbook's own README) "
-    "by flooring to a seasonal baseline. The per-barangay breakdown (right) answers the "
+    "time series available for vaccination demand. The workbook records 2023 and 2024 as "
+    "year-to-date running totals ('Photo-derived accomplishment summary') and 2025 as one "
+    "official annual total allocated across months, so the 2023/24 years are de-cumulated "
+    "back to monthly increments before fitting — see _decumulate_ytd_years(). Without that "
+    "step the summed cumulative columns read as 24,815 and 26,388 against 2025's genuine "
+    "6,422, the regime guard saw a 75% collapse, and every forecast was floored to a "
+    "seasonal baseline (model_type ARIMARegimeAdjusted). Corrected, the annual totals are "
+    "3,959 / 4,006 / 6,422 — vaccinations rose — and the model fits cleanly as ARIMA. "
+    "The per-barangay breakdown (right) answers the "
     "operational question 'how many doses per barangay' using a real population-based "
     "weighting, but should be reported as an allocation of the aggregate forecast, not as "
     "27 independently-validated barangay forecasts."
