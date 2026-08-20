@@ -662,14 +662,12 @@
         destroyChart('vaccinatedPerBarangay');
         {
             var labels = [], dogsD = [], catsD = [], otherD = [];
-            var dbDogsD = [], dbCatsD = [], dbOtherD = [];
 
             if (hasDbData) {
                 Object.keys(dbBarangayTotals).forEach(barangay => {
                     labels.push(barangay);
                     var db = dbBarangayTotals[barangay];
                     dogsD.push(db.dogs); catsD.push(db.cats); otherD.push(db.others);
-                    dbDogsD.push(0); dbCatsD.push(0); dbOtherD.push(0);
                 });
 
             } else if (state.vaccinationDataset?.by_barangay?.length) {
@@ -678,7 +676,6 @@
                     dogsD.push(r.dogs_vaccinated);
                     catsD.push(r.cats_vaccinated);
                     otherD.push(r.others_vaccinated);
-                    dbDogsD.push(0); dbCatsD.push(0); dbOtherD.push(0);
                 });
 
             } else if (state.dashboardData?.diseaseCasesByBarangay) {
@@ -688,26 +685,28 @@
                     dogsD.push(r.actual);
                     catsD.push(Math.round(r.actual * 0.4));
                     otherD.push(Math.round(r.actual * 0.15));
-                    dbDogsD.push(0); dbCatsD.push(0); dbOtherD.push(0);
                 });
             }
 
-            // Merge Excel historical + live DB per species into clean legend entries.
-            // DB events with no species breakdown go into a separate "Unspecified" bar
-            // rather than being fabricated into dogs/cats/others.
-            var mergedDogs    = labels.map((_, i) => (dogsD[i]  || 0) + (dbDogsD[i]  || 0));
-            var mergedCats    = labels.map((_, i) => (catsD[i]  || 0) + (dbCatsD[i]  || 0));
-            var mergedOther   = labels.map((_, i) => (otherD[i] || 0) + (dbOtherD[i] || 0));
+            // Per-species series, straight from whichever source branch ran above.
+            // DB events with no species breakdown go into a separate "No breakdown
+            // entered" bar rather than being fabricated into dogs/cats/others.
+            var mergedDogs    = labels.map((_, i) => dogsD[i]  || 0);
+            var mergedCats    = labels.map((_, i) => catsD[i]  || 0);
+            var mergedOther   = labels.map((_, i) => otherD[i] || 0);
 
             // Unspecified = DB total minus the breakdown portion (events with no species data)
             var dbTotalsArr   = labels.map((_, i) => {
                 var b = dbBarangayTotals[labels[i]] || {};
-                var breakdownSum = (dbDogsD[i] || 0) + (dbCatsD[i] || 0) + (dbOtherD[i] || 0);
+                var breakdownSum = (mergedDogs[i] || 0) + (mergedCats[i] || 0) + (mergedOther[i] || 0);
                 return Math.max(0, (b.total || 0) - breakdownSum);
             });
             var hasUnspecified = dbTotalsArr.some(v => v > 0);
-            var hasLiveData    = dbDogsD.some(v => v > 0) || dbCatsD.some(v => v > 0)
-                              || dbOtherD.some(v => v > 0) || hasUnspecified;
+            // Tracks whether live DB events fed this chart at all - NOT whether any of
+            // them lacked a species breakdown. This previously read three arrays that
+            // were always 0, so it collapsed into hasUnspecified and the title's live-
+            // record note vanished whenever every event was fully encoded.
+            var hasLiveData    = hasDbData && dbGrandTotal > 0;
 
             // Drop barangays with nothing to show (zero in every category —
             // e.g. a placeholder row in the Excel fallback dataset), then sort
@@ -733,7 +732,7 @@
             // Only add Unspecified dataset when there are events without species breakdown
             if (hasUnspecified) {
                 datasets.push({
-                    label: 'Unspecified (no breakdown entered)',
+                    label: 'No breakdown entered',
                     data: dbTotalsArr,
                     backgroundColor: VIZ.muted, borderRadius: 4
                 });
