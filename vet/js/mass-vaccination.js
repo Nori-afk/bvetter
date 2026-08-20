@@ -474,7 +474,28 @@
     const renderArimaCard = () => {
         var existing = document.getElementById('arima-vacc-card');
         if (existing) existing.remove();
-        if (!state.arimaData?.total_vaccinated?.forecast) return;
+
+        // No forecast to show. This used to `return` here, which left the
+        // loading skeleton that renderSkeletons() wrote into the placeholder
+        // sitting there permanently - so an unreachable analytics service was
+        // indistinguishable from a page that never finished loading. Clear it
+        // and say plainly that the forecast is missing.
+        if (!state.arimaData?.total_vaccinated?.forecast) {
+            var emptyHost = document.getElementById('arima-card-placeholder');
+            if (emptyHost) emptyHost.innerHTML = `
+                <section class="card mv-arima-card" id="arima-vacc-card">
+                    <div class="mv-arima-header">
+                        <div>
+                            <span class="mv-arima-badge" style="background:#F1F5F9;color:#64748B;">Forecast Unavailable</span>
+                            <h3 class="mv-arima-title">Vaccine Demand Forecast</h3>
+                            <p class="mv-arima-desc">The analytics service did not return a forecast, so no demand
+                            projection is shown. Vaccination records and the charts below are unaffected. Reload the
+                            page to retry - if it keeps happening, the analytics service needs to be checked.</p>
+                        </div>
+                    </div>
+                </section>`;
+            return;
+        }
 
         var tv   = state.arimaData.total_vaccinated || {};
         var cs   = state.arimaData.clients_served   || {};
@@ -1431,6 +1452,11 @@
         renderSkeletons();
         await loadVaccinationDataset();
         updateMetrics();
+        // renderSkeletons() just overwrote the placeholder - and the ARIMA card
+        // lives inside it - so the card has to be rebuilt or the view toggle
+        // leaves a skeleton where the KPIs were. The forecast itself is
+        // municipality-wide and not scoped to the data view, so no refetch.
+        renderArimaCard();
         buildCharts();
     });
 
