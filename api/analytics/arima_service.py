@@ -329,9 +329,34 @@ def _vaccination_regime_diagnostics(series: pd.Series) -> dict:
 
     years = sorted(int(year) for year in totals.keys())
     latest_year = years[-1]
-    previous_totals = [float(totals[str(year)]) for year in years[:-1]]
+
+    # A trailing year that is still being encoded holds fewer months than the
+    # full years it is measured against, so its raw total is smaller for a
+    # reason that has nothing to do with demand. Once live mass_vaccination_events
+    # extend the series past the workbook's last December that is permanently
+    # true, and every run would report a collapse from arithmetic alone. So when
+    # the latest year is partial, compare it against the SAME calendar months in
+    # earlier years -- which also keeps the comparison seasonally honest, since
+    # vaccination volume is strongly seasonal.
+    latest_months, is_partial = list(range(1, 13)), False
+    if isinstance(series.index, pd.PeriodIndex):
+        latest_months = sorted({int(m) for m in series.index[series.index.year == latest_year].month})
+        is_partial = 0 < len(latest_months) < 12
+
+    if is_partial:
+        previous_totals = [
+            float(series[(series.index.year == year) & (series.index.month.isin(latest_months))].sum())
+            for year in years[:-1]
+        ]
+        latest_total = float(series[series.index.year == latest_year].sum())
+        comparison_basis = (f"months {latest_months[0]}-{latest_months[-1]} only "
+                            f"({len(latest_months)} of 12 encoded so far)")
+    else:
+        previous_totals = [float(totals[str(year)]) for year in years[:-1]]
+        latest_total = float(totals[str(latest_year)])
+        comparison_basis = "full calendar year"
+
     previous_median = float(np.median(previous_totals)) if previous_totals else 0.0
-    latest_total = float(totals[str(latest_year)])
     ratio = latest_total / previous_median if previous_median > 0 else 1.0
     regime_shift = previous_median > 0 and ratio < 0.45
 
@@ -342,6 +367,8 @@ def _vaccination_regime_diagnostics(series: pd.Series) -> dict:
         "latest_year_total": round(latest_total, 1),
         "previous_year_median": round(previous_median, 1),
         "latest_vs_previous_ratio": round(ratio, 3),
+        "comparison_basis": comparison_basis,
+        "latest_year_is_partial": is_partial,
     }
 
 
@@ -402,9 +429,10 @@ def run_vaccination_arima(series: pd.Series, steps: int = 3) -> dict:
         ar["seasonal_baseline"] = baseline
         if diagnostics.get("regime_shift"):
             ar["data_quality_note"] = (
-                f"Latest year total ({diagnostics['latest_year_total']}) is only "
+                f"Latest period total ({diagnostics['latest_year_total']}) is only "
                 f"{round(diagnostics['latest_vs_previous_ratio'] * 100)}% of the "
-                f"previous-year median ({diagnostics['previous_year_median']}). "
+                f"comparable earlier median ({diagnostics['previous_year_median']}), "
+                f"compared on {diagnostics.get('comparison_basis', 'full calendar year')}. "
                 "Forecast is floored to a seasonal demand baseline; verify the latest-year records."
             )
         else:
@@ -422,6 +450,130 @@ def run_vaccination_arima(series: pd.Series, steps: int = 3) -> dict:
     return ar
 
 
+# Live mass_vaccination_events only take over the forecast once there are
+# enough of them to fit anything on. Below this the events are still read and
+# reported, so the wiring is visibly live, but the fit stays on the workbook:
+# a couple of beta months at a fraction of campaign coverage would read as a
+# collapse and trip the same regime guard this module already suffers from.
+MIN_DB_MONTHS_FOR_FORECAST = 6
+
+
+def _looks_like_year_to_date(values: list) -> bool:
+    """
+    True when a calendar year's points are a running year-to-date total rather
+    than independent monthly counts.
+
+    The workbook says so itself: Combined_Rabies_3Years labels 2023 and 2024
+    "Photo-derived accomplishment summary" -- an accomplishment report is
+    cumulative by convention -- and 2025 "Uploaded annual summary total
+    allocated by month". We test the shape rather than trust that string, so a
+    future year entered the same way is corrected automatically, and one
+    entered as real monthly counts is left alone.
+
+    Shape test: an accumulating series ends at its own maximum and almost never
+    steps backwards. Two decreases are tolerated because this workbook has
+    exactly two artifacts -- 2023 July repeats April's 1096 verbatim, and 2024
+    August dips by 5.
+    """
+    if len(values) < 6:
+        return False
+    decreases     = sum(1 for i in range(1, len(values)) if values[i] < values[i - 1])
+    ends_at_peak  = values[-1] >= max(values) * 0.95
+    grows_steeply = values[-1] >= max(1.0, values[0]) * 5
+    return decreases <= 2 and ends_at_peak and grows_steeply
+
+
+def _decumulate_ytd_years(s: pd.Series) -> pd.Series:
+    """
+    Convert any year-to-date year in `s` into real monthly increments.
+
+    Taking the cumulative maximum before differencing repairs the workbook's
+    backward steps and guarantees a converted year sums to its own December
+    figure: 2023 becomes 3,959 and 2024 becomes 4,006, rather than the 24,815
+    and 26,388 you get by summing a cumulative column. That inflation is what
+    made 2025 (6,422, a genuine annual total) look like a 75% collapse and
+    pushed run_vaccination_arima onto its ARIMARegimeAdjusted baseline floor.
+    """
+    if s.empty:
+        return s
+    out, converted = s.copy(), []
+    for year, chunk in s.groupby(s.index.year):
+        values = [float(v) for v in chunk.tolist()]
+        if not _looks_like_year_to_date(values):
+            continue
+        running_peak, previous, monthly = 0.0, 0.0, []
+        for value in values:
+            running_peak = max(running_peak, value)
+            monthly.append(running_peak - previous)
+            previous = running_peak
+        out.loc[chunk.index] = monthly
+        converted.append(int(year))
+    if converted:
+        print(f"[Excel] de-cumulated year-to-date vaccination series for: {converted}")
+    return out
+
+
+def load_db_vaccination_monthly(after_year: int, after_month: int) -> pd.DataFrame:
+    """
+    Live continuation of the workbook's vaccination series, from
+    mass_vaccination_events. Returns only months strictly after
+    (after_year, after_month) -- the workbook's own last covered month -- so a
+    month present in both sources is never counted twice. Same rule
+    load_db_disease_monthly() applies on the disease side.
+
+    Counts only status='Completed', matching monthly_vaccination_series() in
+    api/dashboard/dashboard.php, so the forecast's history and the dashboard's
+    actual-line agree. total falls back to the species breakdown when
+    total_vaccinated was left null, mirroring the same COALESCE there.
+
+    mass_vaccination_events has no clients_served column, so that one metric
+    stays workbook-only; the response reports this rather than inventing it.
+    """
+    cols  = ["year", "month_no", "dogs_vaccinated", "cats_vaccinated", "total_vaccinated"]
+    empty = pd.DataFrame(columns=cols)
+
+    # First day of the month after the workbook ends, so the date index is used.
+    start_year  = after_year + (after_month // 12)
+    start_month = (after_month % 12) + 1
+    start_date  = f"{start_year:04d}-{start_month:02d}-01"
+
+    try:
+        conn = db_connect()
+    except Exception as e:
+        print(f"[DB] vaccination-monthly connect failed, using workbook only: {e}")
+        return empty
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT YEAR(event_date)  AS year,
+                       MONTH(event_date) AS month_no,
+                       SUM(dogs_count)   AS dogs_vaccinated,
+                       SUM(cats_count)   AS cats_vaccinated,
+                       SUM(COALESCE(total_vaccinated,
+                                    dogs_count + cats_count + others_count)) AS total_vaccinated
+                FROM mass_vaccination_events
+                WHERE status = 'Completed'
+                  AND event_date IS NOT NULL
+                  AND event_date >= %s
+                GROUP BY year, month_no
+                ORDER BY year, month_no
+            """, (start_date,))
+            rows = cur.fetchall()
+    except Exception as e:
+        print(f"[DB] vaccination-monthly query failed, using workbook only: {e}")
+        return empty
+    finally:
+        conn.close()
+
+    if not rows:
+        return empty
+    df = pd.DataFrame(rows)
+    for column in cols:
+        if column not in df.columns:
+            df[column] = 0
+    return df[cols].fillna(0).astype(float).astype({"year": int, "month_no": int})
+
+
 def _load_forecast_input_metric(sheet_name: str, metric_col_name: str) -> pd.Series:
     """Reads one Forecast_Input_* sheet (long format: period/year/month_no/metric/value)."""
     df = read_excel_sheet(sheet_name)
@@ -434,7 +586,8 @@ def _load_forecast_input_metric(sheet_name: str, metric_col_name: str) -> pd.Ser
     ).dt.to_period("M")
     df = df.sort_values("period")
     s = df.set_index("period")["value"].astype(float).rename(metric_col_name)
-    return s[~s.index.duplicated(keep="last")].asfreq("M", fill_value=0)
+    s = s[~s.index.duplicated(keep="last")].asfreq("M", fill_value=0)
+    return _decumulate_ytd_years(s)
 
 
 def load_vaccination_series():
@@ -450,13 +603,53 @@ def load_vaccination_series():
     clients = _load_forecast_input_metric("Forecast_Input_Clients_3Y", "clients_served")
     total   = (dogs + cats).rename("total_vaccinated")
 
+    # ── Live continuation from mass_vaccination_events ────────────────────
+    # The workbook is a frozen 2023-2025 snapshot; every vaccination the clinic
+    # encodes from here on lives in the DB. Those months are appended after the
+    # workbook's last covered month, never merged into it, so nothing is counted
+    # twice. total comes from the DB's own total column rather than dogs + cats,
+    # because an event may carry an others_count or a bare total with no species
+    # breakdown -- deriving it would silently drop those animals.
+    last_period = max(dogs.index.max(), cats.index.max())
+    db = load_db_vaccination_monthly(int(last_period.year), int(last_period.month))
+    live = {
+        "source":              "workbook",
+        "db_months_available": int(len(db)),
+        "db_months_required":  MIN_DB_MONTHS_FOR_FORECAST,
+        "db_months_used":      0,
+        "gap_months":          0,
+        "clients_from_db":     False,   # no clients_served column exists in the events table
+    }
+
+    if len(db) >= MIN_DB_MONTHS_FOR_FORECAST:
+        live_index = pd.PeriodIndex(
+            [pd.Period(f"{int(r.year):04d}-{int(r.month_no):02d}", freq="M")
+             for r in db.itertuples()], freq="M")
+
+        def extend(series, column):
+            joined = pd.concat([series, pd.Series(db[column].values, index=live_index, dtype=float)])
+            # Months between the workbook's end and the first encoded event are
+            # zero-filled, the same treatment the workbook's own gaps already get
+            # in _load_forecast_input_metric. gap_months reports how many, since
+            # a long stretch of zeros does depress the fit.
+            return joined.asfreq("M", fill_value=0).rename(series.name)
+
+        live["gap_months"]     = max(0, (live_index.min() - last_period).n - 1)
+        dogs  = extend(dogs,  "dogs_vaccinated")
+        cats  = extend(cats,  "cats_vaccinated")
+        total = extend(total, "total_vaccinated")
+        live["db_months_used"] = int(len(db))
+        live["source"]         = "workbook+live"
+        print(f"[DB] vaccination forecast now includes {len(db)} live month(s) "
+              f"from mass_vaccination_events (gap {live['gap_months']})")
+
     series_dict = {
         "total_vaccinated": total, "dogs_vaccinated": dogs,
         "cats_vaccinated": cats, "clients_served": clients,
     }
     df = pd.concat([total, dogs, cats, clients], axis=1).reset_index()
     df.columns = ["period", "total_vaccinated", "dogs_vaccinated", "cats_vaccinated", "clients_served"]
-    return series_dict, df
+    return series_dict, df, live
 
 
 def load_barangay_allocation_weights() -> dict:
@@ -499,7 +692,7 @@ def forecast_vaccination_by_barangay(barangay_name: str, metric: str = "total_va
     """
     ck = f"{metric}_{steps}"
     if ck not in _barangay_vacc_cache:
-        series_dict, _ = load_vaccination_series()
+        series_dict, _, _ = load_vaccination_series()
         series = series_dict.get(metric)
         if series is None:
             return {"error": f"Unknown metric: {metric}"}
@@ -533,7 +726,7 @@ def vaccination_forecast():
     if cached:
         return jsonify({"success": True, "data": cached, "cached": True})
     try:
-        series_dict, _ = load_vaccination_series()
+        series_dict, _, live_meta = load_vaccination_series()
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
     month_labels = ["Next Month", "Month 2", "Month 3"]
@@ -570,6 +763,9 @@ def vaccination_forecast():
             "year_totals": ar.get("year_totals", {}),
             "data_quality_note": ar.get("data_quality_note", ""),
         }
+    # Reported so the UI, and anyone auditing the model, can see whether live
+    # events are driving the fit yet without having to read the service logs.
+    results["live_data"] = live_meta
     cache_set(ck, results)
     return jsonify({"success": True, "data": results})
 
