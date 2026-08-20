@@ -450,14 +450,6 @@ def run_vaccination_arima(series: pd.Series, steps: int = 3) -> dict:
     return ar
 
 
-# Live mass_vaccination_events only take over the forecast once there are
-# enough of them to fit anything on. Below this the events are still read and
-# reported, so the wiring is visibly live, but the fit stays on the workbook:
-# a couple of beta months at a fraction of campaign coverage would read as a
-# collapse and trip the same regime guard this module already suffers from.
-MIN_DB_MONTHS_FOR_FORECAST = 6
-
-
 def _looks_like_year_to_date(values: list) -> bool:
     """
     True when a calendar year's points are a running year-to-date total rather
@@ -612,36 +604,75 @@ def load_vaccination_series():
     # breakdown -- deriving it would silently drop those animals.
     last_period = max(dogs.index.max(), cats.index.max())
     db = load_db_vaccination_monthly(int(last_period.year), int(last_period.month))
+
+    # Live months are admitted INDIVIDUALLY, on the same plausibility test the
+    # disease side applies to live patient-visit months: a month holding far
+    # less than the historical norm is under-encoded, not a real collapse in
+    # demand. ARIMA is dominated by whatever sits at the tail of a series, so a
+    # single half-entered month at the end can crater the forecast -- exactly
+    # the failure _implausibly_low_live_months() exists to stop. The share is
+    # the shared MIN_PLAUSIBLE_SHARE_OF_MEDIAN, so both modules gate live data
+    # on one rule and one number.
+    #
+    # Two deliberate differences from the disease version:
+    #   - The median is municipality-wide, not per barangay. The workbook has no
+    #     barangay-level vaccination data at all (see load_barangay_allocation_
+    #     weights), so there is nothing to compare a single barangay against.
+    #   - No unbroken-run requirement. Patient visits happen continuously, so a
+    #     gap there means missing data; vaccination campaigns are episodic, and
+    #     a month with no campaign is a genuine zero rather than a coverage hole.
+    workbook_median = float(total.median()) if len(total) else 0.0
+    floor           = workbook_median * MIN_PLAUSIBLE_SHARE_OF_MEDIAN
+
     live = {
-        "source":              "workbook",
-        "db_months_available": int(len(db)),
-        "db_months_required":  MIN_DB_MONTHS_FOR_FORECAST,
-        "db_months_used":      0,
-        "gap_months":          0,
-        "clients_from_db":     False,   # no clients_served column exists in the events table
+        "source":                  "workbook",
+        "db_months_available":     int(len(db)),
+        "db_months_used":          0,
+        "db_months_rejected":      0,
+        "workbook_monthly_median": round(workbook_median, 1),
+        "plausibility_floor":      round(floor, 1),
+        "plausibility_share":      MIN_PLAUSIBLE_SHARE_OF_MEDIAN,
+        "rejected_months":         [],
+        "gap_months":              0,
+        "clients_from_db":         False,   # no clients_served column in the events table
     }
 
-    if len(db) >= MIN_DB_MONTHS_FOR_FORECAST:
-        live_index = pd.PeriodIndex(
-            [pd.Period(f"{int(r.year):04d}-{int(r.month_no):02d}", freq="M")
-             for r in db.itertuples()], freq="M")
+    if len(db):
+        trusted  = db[db["total_vaccinated"] >= floor]
+        rejected = db[db["total_vaccinated"] <  floor]
 
-        def extend(series, column):
-            joined = pd.concat([series, pd.Series(db[column].values, index=live_index, dtype=float)])
-            # Months between the workbook's end and the first encoded event are
-            # zero-filled, the same treatment the workbook's own gaps already get
-            # in _load_forecast_input_metric. gap_months reports how many, since
-            # a long stretch of zeros does depress the fit.
-            return joined.asfreq("M", fill_value=0).rename(series.name)
+        live["db_months_rejected"] = int(len(rejected))
+        for r in rejected.itertuples():
+            period = f"{int(r.year):04d}-{int(r.month_no):02d}"
+            live["rejected_months"].append({"period": period,
+                                            "total": float(r.total_vaccinated)})
+            print(f"[coverage] vaccination {period}: {int(r.total_vaccinated)} is below "
+                  f"{floor:.1f} ({int(MIN_PLAUSIBLE_SHARE_OF_MEDIAN * 100)}% of the workbook "
+                  f"monthly median {workbook_median:.0f}); kept out of the forecast series")
 
-        live["gap_months"]     = max(0, (live_index.min() - last_period).n - 1)
-        dogs  = extend(dogs,  "dogs_vaccinated")
-        cats  = extend(cats,  "cats_vaccinated")
-        total = extend(total, "total_vaccinated")
-        live["db_months_used"] = int(len(db))
-        live["source"]         = "workbook+live"
-        print(f"[DB] vaccination forecast now includes {len(db)} live month(s) "
-              f"from mass_vaccination_events (gap {live['gap_months']})")
+        if len(trusted):
+            live_index = pd.PeriodIndex(
+                [pd.Period(f"{int(r.year):04d}-{int(r.month_no):02d}", freq="M")
+                 for r in trusted.itertuples()], freq="M")
+
+            def extend(series, column):
+                joined = pd.concat([series,
+                                    pd.Series(trusted[column].values, index=live_index, dtype=float)])
+                # Months between the workbook's end and the first trusted event are
+                # zero-filled, the same treatment the workbook's own gaps already get
+                # in _load_forecast_input_metric. gap_months reports how many, since
+                # a long stretch of zeros does depress the fit.
+                return joined.asfreq("M", fill_value=0).rename(series.name)
+
+            live["gap_months"]     = max(0, (live_index.min() - last_period).n - 1)
+            dogs  = extend(dogs,  "dogs_vaccinated")
+            cats  = extend(cats,  "cats_vaccinated")
+            total = extend(total, "total_vaccinated")
+            live["db_months_used"] = int(len(trusted))
+            live["source"]         = "workbook+live"
+            print(f"[DB] vaccination forecast now includes {len(trusted)} trusted live "
+                  f"month(s) from mass_vaccination_events (gap {live['gap_months']}, "
+                  f"{len(rejected)} rejected as under-encoded)")
 
     series_dict = {
         "total_vaccinated": total, "dogs_vaccinated": dogs,

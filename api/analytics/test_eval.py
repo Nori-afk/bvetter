@@ -430,7 +430,12 @@ plt.tight_layout()
 _save(fig, "fig4_vaccination_forecast.png")
 
 print(f"  Aggregate forecast: {vacc_result['forecast']}  |  Trend: {vacc_result['trend']}")
-print(f"  Forecast input     : {vacc_live_meta['source']}  |  live DB months available {vacc_live_meta['db_months_available']}, used {vacc_live_meta['db_months_used']} (threshold {vacc_live_meta['db_months_required']})")
+print(f"  Forecast input     : {vacc_live_meta['source']}  |  live DB months: "
+      f"{vacc_live_meta['db_months_available']} available, {vacc_live_meta['db_months_used']} trusted, "
+      f"{vacc_live_meta['db_months_rejected']} rejected as under-encoded")
+print(f"  Live-month gate    : >= {vacc_live_meta['plausibility_floor']} "
+      f"({int(vacc_live_meta['plausibility_share'] * 100)}% of the workbook monthly median "
+      f"{vacc_live_meta['workbook_monthly_median']}) - same rule as Disease Analytics")
 if note_txt:
     print(f"  Data quality note: {note_txt}")
 print("  Top 5 barangays (next-month allocation):")

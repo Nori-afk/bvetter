@@ -714,7 +714,34 @@
         {
             var labels = [], dogsD = [], catsD = [], otherD = [];
 
-            if (hasDbData) {
+            // Historical Baseline plots the workbook's own MONTHLY series, not
+            // barangays. The workbook records municipality-wide monthly figures
+            // and carries no per-barangay vaccination breakdown at all, so the
+            // honest thing to show for that period is the real monthly data
+            // rather than an empty card or a per-barangay estimate presented as
+            // if it were measured. Chronological, never sorted by size.
+            var isMonthlySeries = isHistoricalView;
+
+            // The card is titled "per Barangay" in the markup; the historical view
+            // plots months, so the heading has to follow what is actually drawn.
+            var vaccHeading = document.getElementById('vaccChartHeading');
+            if (vaccHeading) {
+                vaccHeading.textContent = isMonthlySeries
+                    ? 'Pets Vaccinated per Month'
+                    : 'Pets Vaccinated per Barangay';
+            }
+
+            if (isMonthlySeries) {
+                (state.vaccinationDataset?.by_month || []).forEach(r => {
+                    var monthName = String(r.month || '').slice(0, 3);
+                    var yearShort = String(r.year || '').slice(-2);
+                    labels.push(`${monthName} ${yearShort}`);
+                    dogsD.push(Number(r.dogs_vaccinated) || 0);
+                    catsD.push(Number(r.cats_vaccinated) || 0);
+                    otherD.push(0);
+                });
+
+            } else if (hasDbData) {
                 Object.keys(dbBarangayTotals).forEach(barangay => {
                     labels.push(barangay);
                     var db = dbBarangayTotals[barangay];
@@ -755,12 +782,17 @@
             // e.g. a placeholder row in the Excel fallback dataset), then sort
             // the rest by grand total, high → low, so the horizontal chart
             // below reads as a ranking instead of showing empty labeled rows.
-            var order = labels.map((_, i) => i)
-                .filter(i => (mergedDogs[i] + mergedCats[i] + mergedOther[i] + dbTotalsArr[i]) > 0)
-                .sort((a, b) =>
-                    (mergedDogs[b] + mergedCats[b] + mergedOther[b] + dbTotalsArr[b])
-                  - (mergedDogs[a] + mergedCats[a] + mergedOther[a] + dbTotalsArr[a])
-                );
+            // A monthly series must stay in calendar order -- ranking it by size
+            // would scramble the timeline into a meaningless bar list. Zero months
+            // are kept too, because "no campaign that month" is real information.
+            var order = isMonthlySeries
+                ? labels.map((_, i) => i)
+                : labels.map((_, i) => i)
+                    .filter(i => (mergedDogs[i] + mergedCats[i] + mergedOther[i] + dbTotalsArr[i]) > 0)
+                    .sort((a, b) =>
+                        (mergedDogs[b] + mergedCats[b] + mergedOther[b] + dbTotalsArr[b])
+                      - (mergedDogs[a] + mergedCats[a] + mergedOther[a] + dbTotalsArr[a])
+                    );
             labels      = order.map(i => labels[i]);
             mergedDogs  = order.map(i => mergedDogs[i]);
             mergedCats  = order.map(i => mergedCats[i]);
@@ -772,6 +804,12 @@
                 { label: 'Cats',   data: mergedCats,  backgroundColor: VIZ.cats,   borderRadius: 4 },
                 { label: 'Others', data: mergedOther, backgroundColor: VIZ.others, borderRadius: 4 },
             ];
+            // Drop any series that is entirely zero, so the workbook's monthly view
+            // does not carry an "Others" legend entry it has no column for. Guarded:
+            // if that would empty the chart, keep the original set.
+            var nonEmpty = datasets.filter(ds => ds.data.some(v => (Number(v) || 0) > 0));
+            if (nonEmpty.length) datasets = nonEmpty;
+
             // Only add Unspecified dataset when there are events without species breakdown
             if (hasUnspecified) {
                 datasets.push({
@@ -781,19 +819,18 @@
                 });
             }
 
-            var chart1Title = hasLiveData
-                ? `Vaccinated per Barangay — ${range} (includes ${dbGrandTotal.toLocaleString()} live records) — highest to lowest`
-                : `Vaccinated per Barangay — ${range} — highest to lowest`;
+            var chart1Title = isMonthlySeries
+                ? 'Vaccinated per Month — Baliwag workbook, 2023–2025 (municipality-wide; the workbook has no per-barangay breakdown)'
+                : hasLiveData
+                    ? `Vaccinated per Barangay — ${range} (includes ${dbGrandTotal.toLocaleString()} live records) — highest to lowest`
+                    : `Vaccinated per Barangay — ${range} — highest to lowest`;
 
             // if/else rather than an early return: this is a bare block inside
             // buildCharts(), so returning here would skip Charts 2 and 3 as well.
             if (!labels.length) {
                 sizeHorizontalChart('vaccinatedPerBarangayChart', 0, 30);
-                setChartEmptyState('vaccinatedPerBarangayChart', isHistoricalView
-                    ? 'No barangay-level vaccination records exist for 2023-2024. '
-                      + 'The historical totals shown elsewhere on this page come from the '
-                      + 'Baliwag workbook, which records municipality-wide monthly figures '
-                      + 'only - it has no per-barangay breakdown.'
+                setChartEmptyState('vaccinatedPerBarangayChart', isMonthlySeries
+                    ? 'No monthly vaccination figures were found in the Baliwag workbook.'
                     : `No vaccination events have been encoded for ${range} yet. `
                       + 'Barangay bars appear here once an event is recorded and marked completed.');
             } else {
