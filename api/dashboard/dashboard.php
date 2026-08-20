@@ -1163,6 +1163,69 @@ function admin_dashboard($pdo)
  */
 const MASS_VACC_CURRENT_CUTOFF = '2025-01-01';
 
+/**
+ * True when a calendar year's values are a running year-to-date total rather
+ * than 12 independent monthly counts.
+ *
+ * Combined_Rabies_3Years labels 2023 and 2024 "Photo-derived accomplishment
+ * summary" -- accomplishment reports are cumulative by convention -- and 2025
+ * "Uploaded annual summary total allocated by month". Summing a cumulative
+ * column inflates 2023 to 24,815 and 2024 to 26,388 against 2025's genuine
+ * 6,422. This mirrors _looks_like_year_to_date() in api/analytics/arima_service.py
+ * so the PHP dashboard and the Python forecast report the same history.
+ *
+ * Two decreases are tolerated: this workbook has exactly two artifacts -- 2023
+ * July repeats April's 1096 verbatim, and 2024 August dips by 5.
+ */
+function bv_looks_like_year_to_date(array $values): bool
+{
+    $n = count($values);
+    if ($n < 6) return false;
+    $decreases = 0;
+    for ($i = 1; $i < $n; $i++) {
+        if ($values[$i] < $values[$i - 1]) $decreases++;
+    }
+    $max = max($values);
+    return $decreases <= 2
+        && $values[$n - 1] >= $max * 0.95
+        && $values[$n - 1] >= max(1, $values[0]) * 5;
+}
+
+/**
+ * Converts any year-to-date year in $byMonth into real monthly increments.
+ * Running the cumulative maximum before differencing repairs the workbook's
+ * backward steps and makes each converted year sum to its own December figure:
+ * 2023 -> 3,959 and 2024 -> 4,006, matching the Python service exactly.
+ */
+function bv_decumulate_vaccination_months(array $byMonth): array
+{
+    $metrics = ['dogs_vaccinated', 'cats_vaccinated', 'total_vaccinated', 'clients_served'];
+
+    $byYear = [];
+    foreach ($byMonth as $key => $row) {
+        $byYear[(int) $row['year']][$key] = (int) $row['month_no'];
+    }
+
+    foreach ($byYear as $year => $keys) {
+        asort($keys);
+        $orderedKeys = array_keys($keys);
+        $totals = array_map(fn($k) => (int) $byMonth[$k]['total_vaccinated'], $orderedKeys);
+        if (!bv_looks_like_year_to_date($totals)) continue;
+
+        foreach ($metrics as $metric) {
+            $runningPeak = 0;
+            $previous    = 0;
+            foreach ($orderedKeys as $key) {
+                $value       = (int) $byMonth[$key][$metric];
+                $runningPeak = max($runningPeak, $value);
+                $byMonth[$key][$metric] = $runningPeak - $previous;
+                $previous    = $runningPeak;
+            }
+        }
+    }
+    return $byMonth;
+}
+
 function monthly_vaccination_series($pdo, string $dataView = 'historical'): array
 {
     $isCurrent  = $dataView === 'current';
@@ -1186,6 +1249,12 @@ function monthly_vaccination_series($pdo, string $dataView = 'historical'): arra
         $byMonth[$key]['total_vaccinated'] += (int) ($row['total_vaccinated'] ?? 0);
         $byMonth[$key]['clients_served']   += (int) ($row['clients_served']   ?? 0);
     }
+
+    // Before any DB month is merged in: 2023 and 2024 are year-to-date running
+    // totals in the workbook, so summing them as monthly counts inflates the
+    // historical figures roughly six-fold. Seeded DB rows used to overwrite
+    // those months and hide it; with those removed the raw values would show.
+    $byMonth = bv_decumulate_vaccination_months($byMonth);
 
     $dbMonthly = [];
     if (bv_table_exists($pdo, 'mass_vaccination_events')) {

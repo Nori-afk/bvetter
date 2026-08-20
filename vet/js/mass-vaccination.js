@@ -586,6 +586,31 @@
     // labels into a fixed box — .chart-scroll (CSS) caps it and scrolls
     // vertically once it's taller than the card, so the page itself doesn't
     // grow no matter how many barangays there are.
+    // Shows an explicit "nothing to plot" panel in place of a chart. Used when a
+    // chart genuinely has no data, so it never falls back to a fabricated series
+    // just to keep the canvas populated. Pass an empty message to clear it.
+    const setChartEmptyState = (canvasId, message) => {
+        const canvas = document.getElementById(canvasId);
+        const inner  = canvas?.closest('.chart-scroll-inner') || canvas?.parentElement;
+        if (!canvas || !inner) return;
+        let panel = inner.querySelector('.chart-empty');
+        if (!message) {
+            if (panel) panel.remove();
+            canvas.style.display = '';
+            return;
+        }
+        canvas.style.display = 'none';
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.className = 'chart-empty';
+            panel.style.cssText = 'display:flex;align-items:center;justify-content:center;'
+                + 'height:100%;min-height:200px;padding:24px;text-align:center;'
+                + 'font-size:12px;line-height:1.6;color:#64748B;';
+            inner.appendChild(panel);
+        }
+        panel.textContent = message;
+    };
+
     const sizeHorizontalChart = (canvasId, rowCount, rowHeight) => {
         const canvas = document.getElementById(canvasId);
         const inner  = canvas?.closest('.chart-scroll-inner');
@@ -679,7 +704,12 @@
         // source at different time windows, so they must never be added together.
         // PRIMARY:  dbBarangayTotals, scoped to the selected range
         // FALLBACK: by_barangay all-time totals, when the range has no events yet
-        // LAST RESORT: diseaseCasesByBarangay proxy, when there is no DB data at all
+        // NO THIRD SOURCE: this used to fall back to the diseaseCasesByBarangay
+        // proxy, deriving dogs from disease case counts and inventing cats as
+        // actual * 0.4 and others as actual * 0.15. That is fabricated data on a
+        // surveillance chart, and once the seeded 2023-24 events were deleted it
+        // would have silently filled the Historical view with it. An empty chart
+        // that says why is the correct output when there is nothing to plot.
         destroyChart('vaccinatedPerBarangay');
         {
             var labels = [], dogsD = [], catsD = [], otherD = [];
@@ -699,14 +729,6 @@
                     otherD.push(r.others_vaccinated);
                 });
 
-            } else if (state.dashboardData?.diseaseCasesByBarangay) {
-                // Disease proxy fallback — no DB events at all
-                state.dashboardData.diseaseCasesByBarangay.forEach(r => {
-                    labels.push(r.barangay);
-                    dogsD.push(r.actual);
-                    catsD.push(Math.round(r.actual * 0.4));
-                    otherD.push(Math.round(r.actual * 0.15));
-                });
             }
 
             // Per-species series, straight from whichever source branch ran above.
@@ -763,24 +785,38 @@
                 ? `Vaccinated per Barangay — ${range} (includes ${dbGrandTotal.toLocaleString()} live records) — highest to lowest`
                 : `Vaccinated per Barangay — ${range} — highest to lowest`;
 
-            sizeHorizontalChart('vaccinatedPerBarangayChart', labels.length, 30);
-            charts['vaccinatedPerBarangay'] = new Chart(
-                document.getElementById('vaccinatedPerBarangayChart'), {
-                type: 'bar',
-                data: { labels, datasets },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true, maintainAspectRatio: false,
-                    scales: {
-                        x: { beginAtZero: true, stacked: true, ticks: { color: '#456084' }, grid: { color: '#edf2f9' } },
-                        y: { stacked: true, ticks: { color: '#456084', font: { size: 11 } }, grid: { display: false } }
-                    },
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        title: { display: true, text: chart1Title, font: { size: 11 }, color: '#456084' }
+            // if/else rather than an early return: this is a bare block inside
+            // buildCharts(), so returning here would skip Charts 2 and 3 as well.
+            if (!labels.length) {
+                sizeHorizontalChart('vaccinatedPerBarangayChart', 0, 30);
+                setChartEmptyState('vaccinatedPerBarangayChart', isHistoricalView
+                    ? 'No barangay-level vaccination records exist for 2023-2024. '
+                      + 'The historical totals shown elsewhere on this page come from the '
+                      + 'Baliwag workbook, which records municipality-wide monthly figures '
+                      + 'only - it has no per-barangay breakdown.'
+                    : `No vaccination events have been encoded for ${range} yet. `
+                      + 'Barangay bars appear here once an event is recorded and marked completed.');
+            } else {
+                setChartEmptyState('vaccinatedPerBarangayChart', '');
+                sizeHorizontalChart('vaccinatedPerBarangayChart', labels.length, 30);
+                charts['vaccinatedPerBarangay'] = new Chart(
+                    document.getElementById('vaccinatedPerBarangayChart'), {
+                    type: 'bar',
+                    data: { labels, datasets },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true, maintainAspectRatio: false,
+                        scales: {
+                            x: { beginAtZero: true, stacked: true, ticks: { color: '#456084' }, grid: { color: '#edf2f9' } },
+                            y: { stacked: true, ticks: { color: '#456084', font: { size: 11 } }, grid: { display: false } }
+                        },
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            title: { display: true, text: chart1Title, font: { size: 11 }, color: '#456084' }
+                        }
                     }
-                }
-            });
+                });
+            }
         }
 
         // ── Chart 2: Predicted Number of Animals to be Vaccinated
