@@ -4,6 +4,9 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/input_validation.php';
+// Lets a completed event evict the analytics service's cached vaccination
+// forecast, instead of waiting out its 6-hour TTL.
+require_once __DIR__ . '/../includes/analytics_client.php';
 
 function respond($statusCode, $payload)
 {
@@ -126,11 +129,22 @@ function deleteEvent($pdo, $data)
     $id = (int) preg_replace('/^evt-/', '', (string) ($data['id'] ?? $data['event_id'] ?? 0));
     if ($id <= 0) respond(422, ['success' => false, 'message' => 'Invalid event id.']);
 
+    // Read the status BEFORE deleting: only a Completed event was ever part of
+    // the forecast, so only its removal changes the model's inputs. Cancelling a
+    // Pending Report event changes nothing and must not evict the cache.
+    $lookup = $pdo->prepare('SELECT status FROM mass_vaccination_events WHERE id = :id');
+    $lookup->execute([':id' => $id]);
+    $wasCompleted = ($lookup->fetchColumn() === 'Completed');
+
     $stmt = $pdo->prepare('DELETE FROM mass_vaccination_events WHERE id = :id');
     $stmt->execute([':id' => $id]);
 
     if ($stmt->rowCount() === 0) {
         respond(404, ['success' => false, 'message' => 'Event not found.']);
+    }
+
+    if ($wasCompleted) {
+        bv_analytics_invalidate_vaccination();
     }
 
     respond(200, ['success' => true, 'message' => 'Event deleted.']);
@@ -164,6 +178,13 @@ function submitReport($pdo, $data)
         ':others' => (int) ($breakdown['others'] ?? $data['others'] ?? 0),
         ':id' => $id,
     ]);
+
+    // This is the only path that sets status = 'Completed', so it covers both
+    // the first completion and any later edit of an already-completed event --
+    // either way the numbers the forecast reads have changed. Invalidation only
+    // forces a recalculation; the plausibility gate still decides whether these
+    // months actually reach the fit.
+    bv_analytics_invalidate_vaccination();
 
     $stmt = $pdo->prepare('SELECT * FROM mass_vaccination_events WHERE id = :id');
     $stmt->execute([':id' => $id]);

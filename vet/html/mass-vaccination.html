@@ -122,6 +122,8 @@
                                 <option value="historical">Historical (Training Data)</option>
                                 <option value="current">Current (Live Records)</option>
                             </select>
+                            <select id="historical-year-filter" aria-label="Workbook year filter" class="dropdown" hidden>
+                            </select>
                             <select id="range-filter" aria-label="Time range filter" class="dropdown">
                                 <option>This Month</option>
                                 <option>Last 3 Months</option>
@@ -426,7 +428,7 @@
     <script>VBetterAuth.requireAuth(['vet']);</script>
     <script src="../../shared/js/sidebar.js"></script>
     <script src="../../shared/js/vaccine-types.js"></script>
-    <script src="../../vet/js/mass-vaccination.js?v=20260820-historical-monthly"></script>
+    <script src="../../vet/js/mass-vaccination.js?v=20260820-cache-invalidation"></script>
 
 </body>
 

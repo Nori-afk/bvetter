@@ -104,6 +104,11 @@ _cache    = {}
 # matching how _all_disease_models/arima_cache already never expire.
 CACHE_TTL = 21600
 
+# Months of fitted history returned alongside a vaccination forecast, so the
+# dashboard can plot the model's own input instead of a separately-queried
+# series that may not match it.
+FORECAST_HISTORY_MONTHS = 6
+
 
 def cache_get(key):
     entry = _cache.get(key)
@@ -797,6 +802,19 @@ def vaccination_forecast():
     # Reported so the UI, and anyone auditing the model, can see whether live
     # events are driving the fit yet without having to read the service logs.
     results["live_data"] = live_meta
+
+    # The trailing history the model was ACTUALLY fitted on. The dashboard used to
+    # draw this chart's history from its own by_month query, which follows the
+    # Historical/Current selector -- so in Current view it plotted two live months
+    # (100, 100) under a forecast fitted on 36 months of workbook data it was not
+    # showing. Serving the fitted series here means the two halves of that chart
+    # cannot disagree, whatever the selector is set to.
+    _hist_series = series_dict.get("total_vaccinated")
+    results["history"] = [
+        {"period": str(period), "value": round(float(value), 1)}
+        for period, value in (_hist_series.tail(FORECAST_HISTORY_MONTHS).items()
+                              if _hist_series is not None else [])
+    ]
     cache_set(ck, results)
     return jsonify({"success": True, "data": results})
 
@@ -2359,13 +2377,56 @@ def disease_list():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/invalidate-vaccination-cache", methods=["POST"])
+def invalidate_vaccination_cache():
+    """
+    Drops the cached vaccination forecasts so the next request recomputes.
+
+    Called by api/mass-vaccination/events.php when an event becomes Completed,
+    or when an already-Completed event is edited or deleted. Without it a newly
+    completed event waits out CACHE_TTL (6 hours), and the per-barangay numbers
+    never refresh at all -- _barangay_vacc_cache has no expiry and is only
+    cleared by restarting the service.
+
+    Deliberately narrow: it clears the two vacc_* key families and the barangay
+    dict, and nothing else. The disease SARIMA entries are the expensive ones
+    (~15-20s per filter to rebuild) and have no reason to be dropped when a
+    vaccination event is encoded, so they are left alone along with their TTL.
+
+    Invalidation is not eligibility. The plausibility gate still decides whether
+    live months reach the fit -- this only guarantees the decision is made
+    against current data.
+    """
+    stale = [key for key in list(_cache.keys()) if key.startswith("vacc_")]
+    for key in stale:
+        _cache.pop(key, None)
+
+    barangay_cleared = len(_barangay_vacc_cache)
+    _barangay_vacc_cache.clear()
+
+    print(f"[cache] vaccination forecast invalidated: {len(stale)} forecast key(s), "
+          f"{barangay_cleared} barangay entr(ies)")
+    return jsonify({"success": True, "data": {
+        "forecast_keys_cleared":    len(stale),
+        "barangay_entries_cleared": barangay_cleared,
+    }})
+
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({
         "status": "ok", "service": "BVetter Analytics v3.1",
-        "fixes": ["CACHE_TTL 300→600", "SARIMA grid 81→16 combos",
+        # This list previously advertised "CACHE_TTL 300->600" long after the
+        # constant had been raised to 21600. Reported from the constant now, so
+        # it cannot drift out of date again.
+        "cache_ttl_seconds": CACHE_TTL,
+        "vaccination_cache_invalidation": "POST /invalidate-vaccination-cache",
+        "fixes": [f"CACHE_TTL {CACHE_TTL}s ({CACHE_TTL // 3600}h), invalidated on event completion",
+                  "SARIMA grid 81→16 combos",
                   "Bootstrap CI 1000→200", "RF warm-start at boot",
-                  "Annual predicted = sum(12-month ARIMA forecast)"],
+                  "Annual predicted = sum(12-month ARIMA forecast)",
+                  "Workbook 2023/24 de-cumulated from year-to-date",
+                  "Live months gated on MIN_PLAUSIBLE_SHARE_OF_MEDIAN"],
     })
 
 

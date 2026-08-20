@@ -56,6 +56,11 @@
         // way). 'current' = live mass_vaccination_events rows dated 2025+.
         // See MASS_VACC_CURRENT_CUTOFF in dashboard.php for the exact split.
         dataView:           'historical',
+        // Which workbook year the Historical monthly chart shows. 2024 is the
+        // default because it is the most recent year of REAL campaign data --
+        // 2025 is one annual total allocated across months, so it plots as a
+        // smooth curve rather than the actual peaks and quiet months.
+        historicalYear:     '2024',
     };
     const MASS_VACC_CUTOFF = new Date('2025-01-01T00:00:00');
 
@@ -732,7 +737,10 @@
             }
 
             if (isMonthlySeries) {
-                (state.vaccinationDataset?.by_month || []).forEach(r => {
+                var yearPick = state.historicalYear;
+                (state.vaccinationDataset?.by_month || []).filter(r =>
+                    yearPick === 'all' || String(r.year) === String(yearPick)
+                ).forEach(r => {
                     var monthName = String(r.month || '').slice(0, 3);
                     var yearShort = String(r.year || '').slice(-2);
                     labels.push(`${monthName} ${yearShort}`);
@@ -820,7 +828,8 @@
             }
 
             var chart1Title = isMonthlySeries
-                ? 'Vaccinated per Month — Baliwag workbook, 2023–2025 (municipality-wide; the workbook has no per-barangay breakdown)'
+                ? `Vaccinated per Month — Baliwag workbook, ${state.historicalYear === 'all' ? 'all years' : state.historicalYear} `
+                  + `(municipality-wide; the workbook has no per-barangay breakdown)`
                 : hasLiveData
                     ? `Vaccinated per Barangay — ${range} (includes ${dbGrandTotal.toLocaleString()} live records) — highest to lowest`
                     : `Vaccinated per Barangay — ${range} — highest to lowest`;
@@ -866,18 +875,41 @@
         {
             var tv = state.arimaData?.total_vaccinated || {};
 
-            var rawMonthly = (state.vaccinationDataset?.by_month || []).slice(-6);
-            var monthlyRows = rawMonthly.filter(r =>
-                (Number(r.total_vaccinated) || 0) > 0 ||
-                (Number(r.dogs_vaccinated)  || 0) > 0 ||
-                (Number(r.cats_vaccinated)  || 0) > 0
-            );
+            // This chart deliberately IGNORES the Historical/Current selector.
+            // Its history used to come from by_month, which follows that selector,
+            // while the forecast came from the analytics service, which does not --
+            // so Current view drew two live months (100, 100) beneath a forecast
+            // fitted on 36 months of workbook data it wasn't showing. The service
+            // now returns the exact series it fitted, so the two halves of this
+            // chart cannot disagree. Chart 1 and the KPI cards still follow the
+            // selector; this one answers "what did the model see, and what does it
+            // predict next", which is the same question in either view.
+            var MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            var fittedHistory = state.arimaData?.history || [];
 
-            var historyLabels = monthlyRows.map(r => (r.month || '').slice(0, 3) + ' ' + String(r.year).slice(-2));
-            var historyValues = monthlyRows.map(r => {
-                var total = Number(r.total_vaccinated) || 0;
-                return total || (Number(r.dogs_vaccinated) || 0) + (Number(r.cats_vaccinated) || 0);
-            });
+            var historyLabels, historyValues;
+            if (fittedHistory.length) {
+                historyLabels = fittedHistory.map(h => {
+                    var parts = String(h.period || '').split('-');
+                    var monthIdx = (parseInt(parts[1], 10) || 1) - 1;
+                    return `${MONTH_ABBR[monthIdx] || '?'} ${String(parts[0] || '').slice(-2)}`;
+                });
+                historyValues = fittedHistory.map(h => Number(h.value) || 0);
+            } else {
+                // Analytics service unreachable: fall back to the dashboard's own
+                // monthly series so the chart still shows something real.
+                var rawMonthly = (state.vaccinationDataset?.by_month || []).slice(-6);
+                var monthlyRows = rawMonthly.filter(r =>
+                    (Number(r.total_vaccinated) || 0) > 0 ||
+                    (Number(r.dogs_vaccinated)  || 0) > 0 ||
+                    (Number(r.cats_vaccinated)  || 0) > 0
+                );
+                historyLabels = monthlyRows.map(r => (r.month || '').slice(0, 3) + ' ' + String(r.year).slice(-2));
+                historyValues = monthlyRows.map(r => {
+                    var total = Number(r.total_vaccinated) || 0;
+                    return total || (Number(r.dogs_vaccinated) || 0) + (Number(r.cats_vaccinated) || 0);
+                });
+            }
 
             var forecastLabels, forecastValues, lowerCi, upperCi, usingArima;
             if (tv.forecast?.length) {
@@ -1534,11 +1566,17 @@
 
     document.getElementById('range-filter')?.addEventListener('change', e => buildCharts(e.target.value));
 
+    document.getElementById('historical-year-filter')?.addEventListener('change', (e) => {
+        state.historicalYear = e.target.value;
+        buildCharts();
+    });
+
     document.getElementById('data-view-filter')?.addEventListener('change', async (e) => {
         state.dataView = e.target.value === 'current' ? 'current' : 'historical';
         applyDataViewVisibility();
         renderSkeletons();
         await loadVaccinationDataset();
+        populateHistoricalYears();
         updateMetrics();
         // renderSkeletons() just overwrote the placeholder - and the ARIMA card
         // lives inside it - so the card has to be rebuilt or the view toggle
@@ -1553,6 +1591,33 @@
         // Historical is a closed period -- This Month/Last 3 Months/This Year
         // don't apply to it, so the range sub-filter only shows in Current.
         if (rangeEl) rangeEl.hidden = state.dataView === 'historical';
+
+        // ...and the workbook year filter is the mirror image: only meaningful
+        // for the closed historical period, so it swaps in where range swaps out.
+        const yearEl = document.getElementById('historical-year-filter');
+        if (yearEl) yearEl.hidden = state.dataView !== 'historical';
+    }
+
+    // Fills the workbook year dropdown from whatever years the dataset actually
+    // holds, rather than hardcoding 2023-2025 -- if the workbook is extended the
+    // filter follows it. Keeps the current selection when it still exists.
+    function populateHistoricalYears() {
+        const select = document.getElementById('historical-year-filter');
+        if (!select) return;
+        const years = Array.from(new Set(
+            (state.vaccinationDataset?.by_month || [])
+                .map(r => String(r.year || '').trim())
+                .filter(Boolean)
+        )).sort().reverse();
+        if (!years.length) return;
+
+        if (!years.includes(state.historicalYear)) {
+            // Preferred default is gone from the data; fall back to the newest.
+            state.historicalYear = years[0];
+        }
+        select.innerHTML = years.map(y =>
+            `<option value="${y}"${y === state.historicalYear ? ' selected' : ''}>${y}</option>`
+        ).join('') + `<option value="all"${state.historicalYear === 'all' ? ' selected' : ''}>All years</option>`;
     }
 
     // ── Init ──────────────────────────────────────────────────────────────
@@ -1565,6 +1630,7 @@
     setPanel('dashboard');
     closeModal();
     renderArimaCard();
+    populateHistoricalYears();
     buildCharts();
     populateBarangayDropdown();
 });
