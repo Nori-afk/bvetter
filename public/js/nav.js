@@ -250,6 +250,12 @@ async function buildOwnerNotifications(limit) {
 
   return (result.data || []).map((row) => ({
     id: row.id,
+    /* Carried through because the Recent Activity cards on account-profile.html
+       categorise on it. They used to read a prefix off a synthetic id ('appt-',
+       'claim-', 'report-') that this function built itself; since notifications
+       became real per-user rows, `id` is the table's auto-increment INT and the
+       category only exists in `type`. */
+    type: row.type,
     title: row.title,
     detail: row.message,
     time: formatNotifDate(row.created_at) || 'Just now',

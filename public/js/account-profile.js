@@ -23,10 +23,28 @@ function escapeHtmlProfile(value) {
 }
 
 /* Maps a buildOwnerNotifications() item to activity-card visuals.
-   id prefixes come from nav.js: 'appt-', 'claim-', 'report-'.        */
+
+   Categorises on `type`, the notifications table's own column. It used to read
+   a prefix off the id ('appt-', 'claim-', 'report-') back when nav.js
+   synthesised those ids itself. Once notifications became real per-user rows
+   the id became the table's auto-increment INT, so calling a string method on
+   it threw "startsWith is not a function"; the map died before assigning
+   innerHTML, and the page sat on its "Loading recent activity..." placeholder
+   forever. Owners with no notifications never reached this code, which is why
+   the failure looked intermittent.
+
+   The legacy prefix check is kept as a fallback so any caller still passing a
+   synthetic string id keeps working. */
 function activityCardMeta(item) {
-  if (item.id.startsWith('appt-')) {
-    const pending = item.title.includes('Awaiting');
+  const type  = String(item.type || '');
+  const idStr = String(item.id || '');
+  const title = String(item.title || '');
+  const isAppointment = type === 'appointment_status'       || idStr.startsWith('appt-');
+  const isClaim       = type === 'lost_found_claim_status'  || idStr.startsWith('claim-');
+  const isReport      = type === 'lost_found_report_status' || idStr.startsWith('report-');
+
+  if (isAppointment) {
+    const pending = title.includes('Awaiting');
     return {
       dotClass: 'blue-dot',
       icon: 'profile-report-submitted.svg',
@@ -35,22 +53,22 @@ function activityCardMeta(item) {
       badgeText: pending ? 'PENDING' : 'UPCOMING'
     };
   }
-  if (item.id.startsWith('claim-')) {
+  if (isClaim) {
     return {
       dotClass: 'teal-dot',
       icon: 'profile-report-verification.svg',
       refLabel: 'Claim',
-      badgeClass: item.title.includes('Approved') ? 'badge-approved' : item.title.includes('Rejected') ? 'badge-rejected' : 'badge-completed',
-      badgeText: item.title.includes('Approved') ? 'APPROVED' : item.title.includes('Rejected') ? 'REJECTED' : 'RESOLVED'
+      badgeClass: title.includes('Approved') ? 'badge-approved' : title.includes('Rejected') ? 'badge-rejected' : 'badge-completed',
+      badgeText: title.includes('Approved') ? 'APPROVED' : title.includes('Rejected') ? 'REJECTED' : 'RESOLVED'
     };
   }
-  if (item.id.startsWith('report-')) {
+  if (isReport) {
     return {
       dotClass: 'green-dot',
       icon: 'profile-appointment-completed.svg',
       refLabel: 'Report',
-      badgeClass: item.title.includes('Approved') ? 'badge-approved' : item.title.includes('Rejected') ? 'badge-rejected' : 'badge-completed',
-      badgeText: item.title.includes('Approved') ? 'APPROVED' : item.title.includes('Rejected') ? 'REJECTED' : 'RESOLVED'
+      badgeClass: title.includes('Approved') ? 'badge-approved' : title.includes('Rejected') ? 'badge-rejected' : 'badge-completed',
+      badgeText: title.includes('Approved') ? 'APPROVED' : title.includes('Rejected') ? 'REJECTED' : 'RESOLVED'
     };
   }
   return { dotClass: 'blue-dot', icon: 'profile-report-submitted.svg', refLabel: 'Update', badgeClass: 'badge-review', badgeText: 'INFO' };
@@ -76,9 +94,19 @@ function renderActivityPage() {
   const start = (activityPage - 1) * ACTIVITY_PAGE_SIZE;
   const pageItems = activityItems.slice(start, start + ACTIVITY_PAGE_SIZE);
 
-  list.innerHTML = pageItems.map((item) => {
+  /* Built into a local first, then assigned. If anything in here throws, the
+     assignment below never runs and the "Loading recent activity..." placeholder
+     survives -- which is exactly how a TypeError in activityCardMeta presented as
+     a permanent loading state with no visible error. Now a failure says so. */
+  let cardsHtml;
+  try {
+    cardsHtml = pageItems.map((item) => {
     const meta = activityCardMeta(item);
-    const ref = item.id.replace(/^(\w+)-/, '').toUpperCase();
+    // String() for the same reason as activityCardMeta: `id` is an INT from the
+    // notifications table, and numbers have no .replace either. With a numeric id
+    // the regex simply does not match, so the id renders as-is -- which is the
+    // correct reference to show now that it IS the notification's real id.
+    const ref = String(item.id).replace(/^(\w+)-/, '').toUpperCase();
     return `
       <div class="activity-card">
         <div class="activity-card-top">
@@ -99,7 +127,16 @@ function renderActivityPage() {
         </div>
       </div>
     `;
-  }).join('');
+    }).join('');
+  } catch (err) {
+    console.error('[account-profile] could not render Recent Activity:', err);
+    list.innerHTML = '<p class="activity-empty">Recent activity could not be displayed. '
+      + 'Please refresh the page.</p>';
+    if (pagination) pagination.innerHTML = '';
+    return;
+  }
+
+  list.innerHTML = cardsHtml;
 
   if (!pagination) return;
   if (totalPages <= 1) {
