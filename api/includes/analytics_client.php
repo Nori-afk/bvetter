@@ -19,11 +19,14 @@ if (!function_exists('bv_analytics_urls')) {
     function bv_analytics_urls(): array
     {
         $configured = trim((string) (getenv('VBETTER_ANALYTICS_URL') ?: ''));
-        $urls = $configured !== '' ? [$configured] : [];
-        $urls[] = 'http://127.0.0.1:5001';
-        $urls[] = 'http://localhost:5001';
-        $urls[] = 'http://192.168.1.25:5001';
-        return array_values(array_unique(array_map(fn($url) => rtrim($url, '/'), $urls)));
+        if ($configured !== '') {
+            return [rtrim($configured, '/')];
+        }
+        // Loopback only. A hardcoded LAN address used to trail this list and,
+        // off that one machine, was filtered rather than refused - so every
+        // call waited out the full connect timeout reaching for it. See the
+        // matching note on analytics_service_urls() in dashboard.php.
+        return ['http://127.0.0.1:5001', 'http://localhost:5001'];
     }
 }
 

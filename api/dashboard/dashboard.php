@@ -46,14 +46,28 @@ function annual_dashboard()
     return [$rows, $latest ?: end($rows)];
 }
 
+/**
+ * Where to look for the Python analytics service.
+ *
+ * An explicit VBETTER_ANALYTICS_URL wins outright and is used ALONE — if it is
+ * configured and not answering, trying other hosts afterwards only adds delay
+ * to a failure that has already been decided.
+ *
+ * The fallbacks are the loopback pair only. A hardcoded LAN address used to sit
+ * at the end of this list; on any machine that is not that machine the connect
+ * is filtered rather than refused, so it waited out the full connect timeout
+ * on every single call. Combined with the 3-second timeout below, one dashboard
+ * scope spent 6.15s failing to reach a service that was never going to answer,
+ * and Disease Analytics and Mass Vaccination both missed their 5-second budget
+ * for that reason alone. Reachable-only-from-one-desk hosts belong in .env.
+ */
 function analytics_service_urls(): array
 {
     $configured = bv_clean(getenv('VBETTER_ANALYTICS_URL') ?: '');
-    $urls   = $configured !== '' ? [$configured] : [];
-    $urls[] = 'http://127.0.0.1:5001';
-    $urls[] = 'http://localhost:5001';
-    $urls[] = 'http://192.168.1.25:5001';
-    return array_values(array_unique(array_map(fn($url) => rtrim($url, '/'), $urls)));
+    if ($configured !== '') {
+        return [rtrim($configured, '/')];
+    }
+    return ['http://127.0.0.1:5001', 'http://localhost:5001'];
 }
 
 function analytics_post(string $path, array $payload, int $timeout = 60): array
@@ -68,7 +82,19 @@ function analytics_post(string $path, array $payload, int $timeout = 60): array
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+        // CONNECT only - this is NOT the model's budget. $timeout above (60s
+        // for a forecast, 15s for a GET) is what the computation runs under,
+        // and it is deliberately untouched: /disease-predict measures 6.4s on a
+        // cold cache, so anything less than that would start truncating real
+        // predictions.
+        //
+        // Establishing the connection, by contrast, is a loopback handshake:
+        // measured 0.3-17ms against 127.0.0.1 with the service up, and 221ms
+        // via 'localhost' where Windows tries ::1 first and falls back. One
+        // second leaves ~4x headroom over even that pathological path, while
+        // capping the cost of a service that is simply not running at ~2s
+        // across both candidates instead of the 6.15s this used to spend.
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 1000);
 
         $raw     = curl_exec($ch);
         $curlOk  = curl_errno($ch) === 0;
@@ -100,7 +126,19 @@ function analytics_get(string $path, int $timeout = 15): array
         curl_setopt($ch, CURLOPT_HTTPGET, true);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+        // CONNECT only - this is NOT the model's budget. $timeout above (60s
+        // for a forecast, 15s for a GET) is what the computation runs under,
+        // and it is deliberately untouched: /disease-predict measures 6.4s on a
+        // cold cache, so anything less than that would start truncating real
+        // predictions.
+        //
+        // Establishing the connection, by contrast, is a loopback handshake:
+        // measured 0.3-17ms against 127.0.0.1 with the service up, and 221ms
+        // via 'localhost' where Windows tries ::1 first and falls back. One
+        // second leaves ~4x headroom over even that pathological path, while
+        // capping the cost of a service that is simply not running at ~2s
+        // across both candidates instead of the 6.15s this used to spend.
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 1000);
 
         $raw    = curl_exec($ch);
         $curlOk = curl_errno($ch) === 0;

@@ -64,6 +64,52 @@ function updateProofPreview(file) {
     }
 }
 
+/**
+ * Renders the chosen proof file into the REVIEW step's preview box.
+ *
+ * Sibling of updateProofPreview() above, which draws the same file into the
+ * upload box on step 2. This one targets the review step's three elements
+ * (wrapper, <img>, PDF placeholder), whose ids the caller passes in.
+ *
+ * This was being called by reviewStep() and had never been defined, so moving
+ * to step 3 threw a ReferenceError every time: no proof preview was drawn, and
+ * because the throw happened before updateStepper(3), the stepper never marked
+ * step 3 as current either.
+ */
+function renderProofPreview(file, targets) {
+    const wrap = document.getElementById(targets.wrap);
+    const img  = document.getElementById(targets.img);
+    const pdf  = document.getElementById(targets.pdf);
+    if (!wrap || !img || !pdf) return;
+
+    if (!file) {
+        wrap.hidden = true;
+        img.hidden  = true;
+        pdf.hidden  = true;
+        img.removeAttribute('src');
+        return;
+    }
+
+    wrap.hidden = false;
+
+    if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            img.src    = event.target.result;
+            img.hidden = false;
+            pdf.hidden = true;
+        };
+        reader.readAsDataURL(file);
+        return;
+    }
+
+    // Anything else the form accepts is a PDF — show the document placeholder
+    // rather than a broken <img>.
+    img.hidden = true;
+    img.removeAttribute('src');
+    pdf.hidden = false;
+}
+
 document.getElementById('reg_proof')?.addEventListener('change', function () {
     updateProofPreview(this.files[0] || null);
 });
