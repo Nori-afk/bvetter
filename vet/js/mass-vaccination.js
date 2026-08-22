@@ -50,6 +50,13 @@
         arimaData:          null, // from Python ARIMA service
         dashboardData:      null, // from PHP vet_dashboard (Excel summary)
         vaccinationDataset: null, // from PHP mass_vaccination_dataset, scoped to state.dataView
+        // Chart 2's history fallback. vaccinationDataset above is re-fetched for
+        // whichever view is selected, so using it there made that chart follow the
+        // Historical/Current dropdown -- the very thing serving the model's fitted
+        // series was meant to stop. This is captured ONCE from the workbook-backed
+        // view and never re-scoped, so the fallback is as view-independent as the
+        // fitted series it stands in for.
+        forecastBaseline:   null,
         eventTablePage:     1,
         // 'historical' = frozen pre-2025 baseline (Excel + the 2023-2024 rows
         // already sitting in mass_vaccination_events -- training data either
@@ -315,9 +322,33 @@
                 : () => fetch(`${DASHBOARD_API}?scope=mass_vaccination_dataset&data_view=${encodeURIComponent(state.dataView)}`)
                     .then(r => r.json()).then(r => ({ ok: r.success, data: r.data }));
             const res = await fetchFn();
-            if (res.ok && res.data) state.vaccinationDataset = res.data;
+            if (res.ok && res.data) {
+                state.vaccinationDataset = res.data;
+                // The default view is historical, so this normally captures the
+                // baseline with no extra request.
+                if (state.dataView === 'historical' && !state.forecastBaseline) {
+                    state.forecastBaseline = res.data;
+                }
+            }
         } catch (err) {
             console.warn('Vaccination dataset unavailable:', err);
+        }
+    };
+
+    // Guarantees Chart 2 has a view-independent history fallback even if the page
+    // never loads the historical view (e.g. if the default changes later). No-ops
+    // when loadVaccinationDataset() already captured it, which is the normal path.
+    const loadForecastBaseline = async () => {
+        if (state.forecastBaseline) return;
+        try {
+            const fetchFn = window.VetAPI?.getMassVaccinationDataset
+                ? () => window.VetAPI.getMassVaccinationDataset('historical')
+                : () => fetch(`${DASHBOARD_API}?scope=mass_vaccination_dataset&data_view=historical`)
+                    .then(r => r.json()).then(r => ({ ok: r.success, data: r.data }));
+            const res = await fetchFn();
+            if (res.ok && res.data) state.forecastBaseline = res.data;
+        } catch (err) {
+            console.warn('Forecast baseline unavailable:', err);
         }
     };
 
@@ -896,9 +927,12 @@
                 });
                 historyValues = fittedHistory.map(h => Number(h.value) || 0);
             } else {
-                // Analytics service unreachable: fall back to the dashboard's own
-                // monthly series so the chart still shows something real.
-                var rawMonthly = (state.vaccinationDataset?.by_month || []).slice(-6);
+                // Analytics service unreachable, or running a build that predates
+                // the fitted-history field: fall back to the workbook-backed
+                // BASELINE, never to vaccinationDataset -- that one is re-scoped by
+                // the Historical/Current dropdown, which is exactly how this chart
+                // started following the selector again.
+                var rawMonthly = (state.forecastBaseline?.by_month || []).slice(-6);
                 var monthlyRows = rawMonthly.filter(r =>
                     (Number(r.total_vaccinated) || 0) > 0 ||
                     (Number(r.dogs_vaccinated)  || 0) > 0 ||
@@ -1604,8 +1638,13 @@
     function populateHistoricalYears() {
         const select = document.getElementById('historical-year-filter');
         if (!select) return;
+        // From the BASELINE, not the selector-scoped dataset. This is the workbook
+        // year filter, and the workbook is the same in either view; reading the
+        // scoped copy meant a Historical -> Current -> Historical round trip
+        // repopulated it with 2026 and silently dropped the 2024 default.
+        const source = state.forecastBaseline || state.vaccinationDataset;
         const years = Array.from(new Set(
-            (state.vaccinationDataset?.by_month || [])
+            (source?.by_month || [])
                 .map(r => String(r.year || '').trim())
                 .filter(Boolean)
         )).sort().reverse();
@@ -1629,6 +1668,7 @@
     updateMetrics();
     setPanel('dashboard');
     closeModal();
+    await loadForecastBaseline();
     renderArimaCard();
     populateHistoricalYears();
     buildCharts();
