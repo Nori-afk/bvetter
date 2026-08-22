@@ -115,10 +115,13 @@
 
         .sec-page-title-icon:hover { color: var(--primary-blue); }
 
-        /* ── TOP ROW (2FA / Password Policy / Account Lifespan) ── */
+        /* ── TOP ROW (2FA / Password Policy / Account Lifespan / Session Timeout) ──
+           Two columns, not three. There are four cards: on a 3-column grid the
+           fourth dropped onto its own row at a third of the width, which read as
+           a layout fault rather than a deliberate row. 4 into 2 is a clean 2x2. */
         .sec-top-row {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 18px;
         }
 
@@ -595,9 +598,7 @@
 
         .sec-checkbox-row input { width: 17px; height: 17px; accent-color: var(--secondary-light-green); cursor: pointer; }
 
-        @media (max-width: 1240px) {
-            .sec-top-row { grid-template-columns: 1fr 1fr; }
-        }
+        /* No 1240px rule needed any more — the base grid is already two columns. */
 
         @media (max-width: 960px) {
             /* Below 768px the sidebar leaves position:fixed and rejoins the
@@ -776,8 +777,12 @@
             </div>
 
             <div class="sec-card">
-                <div class="sec-card-head">
-                    <div class="sec-card-left">
+                <!-- sec-card-header / sec-card-title-row, matching the other three
+                     cards. This card used sec-card-head / sec-card-left, which are
+                     styled nowhere — so its icon and title stacked vertically
+                     instead of sitting inline like every other card. -->
+                <div class="sec-card-header">
+                    <div class="sec-card-title-row">
                         <div class="sec-card-icon">
                             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#00B928" stroke-width="2">
                                 <rect x="3" y="4" width="18" height="14" rx="2"/>

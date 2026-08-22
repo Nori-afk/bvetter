@@ -37,6 +37,10 @@ function setupProfileTables($pdo)
             quiet_hours_enabled TINYINT(1) NOT NULL DEFAULT 0,
             quiet_hours_start TIME NOT NULL DEFAULT '22:00:00',
             quiet_hours_end TIME NOT NULL DEFAULT '07:00:00',
+            staff_appointment_alerts TINYINT(1) NOT NULL DEFAULT 1,
+            staff_lost_found_alerts TINYINT(1) NOT NULL DEFAULT 1,
+            staff_ticket_alerts TINYINT(1) NOT NULL DEFAULT 1,
+            staff_csp_alerts TINYINT(1) NOT NULL DEFAULT 1,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
@@ -53,6 +57,30 @@ function setupProfileTables($pdo)
     } catch (PDOException $e) {
         error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         // Columns already exist — nothing to do.
+    }
+
+    // Staff notification toggles (database/migrations/2026-08-22-admin-profile-columns.sql).
+    // Same defensive ALTER as above so the PHP can never deploy ahead of the
+    // migration — the failure mode that broke production on 2026-08-18.
+    try {
+        $pdo->exec("
+            ALTER TABLE user_notification_preferences
+                ADD COLUMN staff_appointment_alerts TINYINT(1) NOT NULL DEFAULT 1,
+                ADD COLUMN staff_lost_found_alerts TINYINT(1) NOT NULL DEFAULT 1,
+                ADD COLUMN staff_ticket_alerts TINYINT(1) NOT NULL DEFAULT 1,
+                ADD COLUMN staff_csp_alerts TINYINT(1) NOT NULL DEFAULT 1
+        ");
+    } catch (PDOException $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
+        // Columns already exist — nothing to do.
+    }
+
+    // Backs "Password · Last changed …" on the Security card.
+    try {
+        $pdo->exec("ALTER TABLE users ADD COLUMN password_changed_at DATETIME NULL DEFAULT NULL");
+    } catch (PDOException $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
+        // Column already exists — nothing to do.
     }
 
     ensureUserTwoFactorColumn($pdo);
@@ -96,6 +124,32 @@ function profileStats($pdo, $userId, $roleName)
                 if ($rating) $stats['satisfactionRate'] = (string) $rating;
             }
         }
+
+        // The admin profile's KPI strip. These are deliberately NOT the same
+        // numbers as admin_dashboard() in api/dashboard/dashboard.php:
+        // "Active Users" there means account_status='active' (i.e. not blocked,
+        // which includes accounts that have never once logged in), whereas this
+        // tile is labelled "Active this month" and so measures actual sign-ins.
+        if ($roleName === 'admin') {
+            $stats['totalAccounts'] = (int) $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
+
+            // last_login_at is stamped on every successful login by
+            // api/config/login_flow.php. Rolling 30 days rather than the
+            // calendar month, so the number doesn't collapse to near-zero
+            // every 1st.
+            $stats['activeUsers'] = (int) $pdo->query("
+                SELECT COUNT(*) FROM users
+                WHERE last_login_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            ")->fetchColumn();
+
+            // What Website Management actually publishes. An "edited in the
+            // last 30 days" count was the original intent but reads 0 for long
+            // stretches, which looks like the tile is broken rather than like
+            // nothing was edited.
+            $stats['siteUpdates'] = (function_exists('bv_table_exists') && !bv_table_exists($pdo, 'announcements'))
+                ? 0
+                : (int) $pdo->query("SELECT COUNT(*) FROM announcements WHERE status = 'published'")->fetchColumn();
+        }
     } catch (Throwable $e) {
         error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return $stats;
@@ -110,7 +164,7 @@ function getProfile($pdo, $userId)
 
     $stmt = $pdo->prepare("
         SELECT users.id, users.full_name, users.email, users.phone_number, users.profile_photo,
-               users.two_factor_enabled,
+               users.two_factor_enabled, users.password_changed_at,
                veterinarian_profiles.education, veterinarian_profiles.specialization, veterinarian_profiles.bio,
                roles.name AS role_name, users.created_at
         FROM users
@@ -135,7 +189,25 @@ function getProfile($pdo, $userId)
             'quiet_hours_enabled' => 0,
             'quiet_hours_start' => '22:00:00',
             'quiet_hours_end' => '07:00:00',
+            'staff_appointment_alerts' => 1,
+            'staff_lost_found_alerts' => 1,
+            'staff_ticket_alerts' => 1,
+            'staff_csp_alerts' => 1,
         ];
+    }
+
+    // 2FA can be on for two independent reasons — see requiresTwoFactor in
+    // api/config/login_flow.php, which challenges when EITHER the site-wide
+    // admin switch is on and this is an admin, OR the account opted in itself.
+    // Reporting only the personal flag would tell an admin "Not Enabled" while
+    // they are in fact being OTP-challenged at every sign-in.
+    $tfaPersonal = (bool) $user['two_factor_enabled'];
+    $tfaByPolicy = false;
+    try {
+        $securitySettings = getSecuritySettings($pdo);
+        $tfaByPolicy = !empty($securitySettings['two_factor_enabled']) && $user['role_name'] === 'admin';
+    } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     }
 
     respond(200, [
@@ -154,6 +226,12 @@ function getProfile($pdo, $userId)
             'twoFactorEnabled' => (bool) $user['two_factor_enabled'],
             'memberSince' => substr((string) $user['created_at'], 0, 4),
             'stats' => profileStats($pdo, $userId, $user['role_name']),
+            'security' => [
+                'passwordChangedAt' => $user['password_changed_at'],
+                'tfaEnabled' => $tfaPersonal || $tfaByPolicy,
+                'tfaPersonal' => $tfaPersonal,
+                'tfaByPolicy' => $tfaByPolicy,
+            ],
             'notifications' => [
                 'lostFoundAlerts' => (bool) $prefs['lost_found_alerts'],
                 'appointmentReminders' => (bool) $prefs['appointment_reminders'],
@@ -161,6 +239,10 @@ function getProfile($pdo, $userId)
                 'quietHoursEnabled' => (bool) $prefs['quiet_hours_enabled'],
                 'quietHoursStart' => substr((string) $prefs['quiet_hours_start'], 0, 5),
                 'quietHoursEnd' => substr((string) $prefs['quiet_hours_end'], 0, 5),
+                'staffAppointmentAlerts' => (bool) ($prefs['staff_appointment_alerts'] ?? 1),
+                'staffLostFoundAlerts' => (bool) ($prefs['staff_lost_found_alerts'] ?? 1),
+                'staffTicketAlerts' => (bool) ($prefs['staff_ticket_alerts'] ?? 1),
+                'staffCspAlerts' => (bool) ($prefs['staff_csp_alerts'] ?? 1),
             ],
         ],
     ]);
@@ -237,6 +319,10 @@ function updatePreferences($pdo, $data)
         'quiet_hours_enabled' => 0,
         'quiet_hours_start' => '22:00:00',
         'quiet_hours_end' => '07:00:00',
+        'staff_appointment_alerts' => 1,
+        'staff_lost_found_alerts' => 1,
+        'staff_ticket_alerts' => 1,
+        'staff_csp_alerts' => 1,
     ];
 
     $lostFound = array_key_exists('lostFoundAlerts', $data) ? !empty($data['lostFoundAlerts']) : (bool) $existing['lost_found_alerts'];
@@ -246,18 +332,31 @@ function updatePreferences($pdo, $data)
     $quietStart = normalizeQuietTime($data['quietHoursStart'] ?? null) ?? $existing['quiet_hours_start'];
     $quietEnd = normalizeQuietTime($data['quietHoursEnd'] ?? null) ?? $existing['quiet_hours_end'];
 
+    // Staff streams — the admin profile's notification card. Same
+    // absent-means-unchanged rule as the columns above.
+    $staffAppointments = array_key_exists('staffAppointmentAlerts', $data) ? !empty($data['staffAppointmentAlerts']) : (bool) ($existing['staff_appointment_alerts'] ?? 1);
+    $staffLostFound = array_key_exists('staffLostFoundAlerts', $data) ? !empty($data['staffLostFoundAlerts']) : (bool) ($existing['staff_lost_found_alerts'] ?? 1);
+    $staffTickets = array_key_exists('staffTicketAlerts', $data) ? !empty($data['staffTicketAlerts']) : (bool) ($existing['staff_ticket_alerts'] ?? 1);
+    $staffCsp = array_key_exists('staffCspAlerts', $data) ? !empty($data['staffCspAlerts']) : (bool) ($existing['staff_csp_alerts'] ?? 1);
+
     $stmt = $pdo->prepare("
         INSERT INTO user_notification_preferences
-            (user_id, lost_found_alerts, appointment_reminders, chatbot_updates, quiet_hours_enabled, quiet_hours_start, quiet_hours_end)
+            (user_id, lost_found_alerts, appointment_reminders, chatbot_updates, quiet_hours_enabled, quiet_hours_start, quiet_hours_end,
+             staff_appointment_alerts, staff_lost_found_alerts, staff_ticket_alerts, staff_csp_alerts)
         VALUES
-            (:user_id, :lost_found, :appointments, :chatbot, :quiet_enabled, :quiet_start, :quiet_end)
+            (:user_id, :lost_found, :appointments, :chatbot, :quiet_enabled, :quiet_start, :quiet_end,
+             :staff_appointments, :staff_lost_found, :staff_tickets, :staff_csp)
         ON DUPLICATE KEY UPDATE
             lost_found_alerts = VALUES(lost_found_alerts),
             appointment_reminders = VALUES(appointment_reminders),
             chatbot_updates = VALUES(chatbot_updates),
             quiet_hours_enabled = VALUES(quiet_hours_enabled),
             quiet_hours_start = VALUES(quiet_hours_start),
-            quiet_hours_end = VALUES(quiet_hours_end)
+            quiet_hours_end = VALUES(quiet_hours_end),
+            staff_appointment_alerts = VALUES(staff_appointment_alerts),
+            staff_lost_found_alerts = VALUES(staff_lost_found_alerts),
+            staff_ticket_alerts = VALUES(staff_ticket_alerts),
+            staff_csp_alerts = VALUES(staff_csp_alerts)
     ");
     $stmt->execute([
         ':user_id' => $userId,
@@ -267,6 +366,10 @@ function updatePreferences($pdo, $data)
         ':quiet_enabled' => $quietEnabled ? 1 : 0,
         ':quiet_start' => $quietStart,
         ':quiet_end' => $quietEnd,
+        ':staff_appointments' => $staffAppointments ? 1 : 0,
+        ':staff_lost_found' => $staffLostFound ? 1 : 0,
+        ':staff_tickets' => $staffTickets ? 1 : 0,
+        ':staff_csp' => $staffCsp ? 1 : 0,
     ]);
 
     getProfile($pdo, $userId);
@@ -316,7 +419,7 @@ function changePassword($pdo, $data)
         respond(401, ['success' => false, 'message' => 'Current password is incorrect.']);
     }
 
-    $stmt = $pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id');
+    $stmt = $pdo->prepare('UPDATE users SET password_hash = :hash, password_changed_at = NOW() WHERE id = :id');
     $stmt->execute([':hash' => password_hash($next, PASSWORD_DEFAULT), ':id' => $userId]);
     respond(200, ['success' => true, 'message' => 'Password updated.']);
 }

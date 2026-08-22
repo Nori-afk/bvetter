@@ -404,7 +404,18 @@ function resetPassword(PDO $pdo): never
 
     $pdo->beginTransaction();
 
-    $pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id')
+    // password_changed_at backs the profile Security card's "Last changed"
+    // line. A reset is a password change, so it has to stamp the column too --
+    // otherwise resetting via Forgot Password leaves the card under-reporting.
+    // Probed rather than assumed: this endpoint never runs setupProfileTables(),
+    // so on an install where the PHP is newer than
+    // database/migrations/2026-08-22-admin-profile-columns.sql the column may
+    // not exist yet, and an unknown column here would break password reset.
+    $stampsChangedAt = (bool) $pdo->query("SHOW COLUMNS FROM users LIKE 'password_changed_at'")->fetch();
+
+    $pdo->prepare('UPDATE users SET password_hash = :hash'
+            . ($stampsChangedAt ? ', password_changed_at = NOW()' : '')
+            . ' WHERE id = :id')
         ->execute([
             ':hash' => password_hash($password, PASSWORD_DEFAULT),
             ':id'   => $row['user_id'],

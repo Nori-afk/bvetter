@@ -97,6 +97,10 @@ body {
 .hero-avatar-wrap {
     position: relative;
     flex-shrink: 0;
+    /* Explicit box: the initials fallback is absolutely positioned, so without
+       this the wrap would collapse for an admin who has no photo. */
+    width: 88px;
+    height: 88px;
 }
 
 .hero-avatar {
@@ -108,9 +112,14 @@ body {
     display: block;
 }
 
+/* Overlays the photo rather than sitting beside it in normal flow. When both
+   were briefly visible the initials used to stack BELOW the avatar and stretch
+   the hero band; positioned like .avatar-edit-ring, the worst case is now one
+   circle drawn over another instead of two circles. JS still hides whichever
+   is not in use — this is the belt to that braces. */
 .hero-avatar-initials {
-    width: 88px;
-    height: 88px;
+    position: absolute;
+    inset: 0;
     border-radius: 50%;
     border: 3px solid rgba(255,255,255,0.30);
     background: rgba(255,255,255,0.14);
@@ -118,10 +127,16 @@ body {
     font-size: 28px;
     font-weight: 700;
     letter-spacing: -0.5px;
+    display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
 }
+
+/* An author-declared display: block on .hero-avatar outranks the UA
+   stylesheet's [hidden] { display: none }, so the attribute would be ignored
+   without this. Same reason the initials need an explicit hidden rule. */
+.hero-avatar[hidden],
+.hero-avatar-initials[hidden] { display: none; }
 
 .avatar-edit-ring {
     position: absolute;
@@ -221,7 +236,8 @@ body {
    ══════════════════════════════════════════ */
 .kpi-strip {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    /* Three cards since the fabricated System Uptime tile was removed. */
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
 }
 
@@ -649,7 +665,10 @@ body {
    RESPONSIVE
    ══════════════════════════════════════════ */
 @media (max-width: 1180px) {
+    /* Three cards in a 2-column grid would leave the last one orphaned at half
+       width; spanning it reads as deliberate instead. */
     .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+    .kpi-strip .kpi-card:last-child { grid-column: span 2; }
 }
 
 @media (max-width: 900px) {
@@ -664,7 +683,8 @@ body {
 }
 
 @media (max-width: 700px) {
-    .kpi-strip { grid-template-columns: 1fr 1fr; }
+    .kpi-strip { grid-template-columns: 1fr; }
+    .kpi-strip .kpi-card:last-child { grid-column: auto; }
     .profile-hero { padding: 24px 20px; }
     .hero-inner { flex-direction: column; align-items: flex-start; gap: 16px; }
     .prof-card-head { flex-wrap: wrap; }

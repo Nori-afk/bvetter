@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css">
-    <link rel="stylesheet" href="../../vet/css/profile.css?v=20260713-4">
+    <link rel="stylesheet" href="../../vet/css/profile.css?v=20260822-avatarfix">
 </head>
 <body>
 <div class="main-holder">
@@ -79,9 +79,14 @@
         <section class="profile-hero">
             <div class="hero-inner">
                 <div class="hero-avatar-wrap">
-                    <img id="profile-avatar" src="" alt="User profile" class="hero-avatar"
-                         onerror="this.style.display='none';document.getElementById('avatar-initials').style.display='flex';">
-                    <div id="avatar-initials" class="hero-avatar-initials" style="display:none;" aria-hidden="true"></div>
+                    <!-- No src="" here. An empty src resolves to this page's own
+                         URL, so the browser fetches the HTML, fails to decode it
+                         as an image and fires error — which used to reveal the
+                         initials before the profile had even loaded. src is set
+                         from JS only when there is a real photo; the error
+                         fallback is bound there too. -->
+                    <img id="profile-avatar" alt="User profile" class="hero-avatar" hidden>
+                    <div id="avatar-initials" class="hero-avatar-initials" aria-hidden="true"></div>
                     <div class="avatar-edit-ring" title="Change photo">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
@@ -413,6 +418,6 @@
 <script src="../../shared/js/auth.js?v=20260816-sec"></script>
 <script>VBetterAuth.requireAuth(['vet']);</script>
 <script src="../../shared/js/sidebar.js"></script>
-<script src="../../vet/js/profile.js?v=20260819-authfix"></script>
+<script src="../../vet/js/profile.js?v=20260822-avatarfix"></script>
 </body>
 </html>

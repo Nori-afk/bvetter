@@ -45,11 +45,22 @@
 		const avatar = document.getElementById("profile-avatar");
 		if (initialsEl) initialsEl.textContent = displayName.charAt(0).toUpperCase();
 
+		// Exactly one of the two is ever visible. The old version never turned the
+		// photo back ON, so once the empty-src error handler had revealed the
+		// initials, a vet with an uploaded photo never saw it at all.
+		function showAvatar(usePhoto) {
+			if (avatar) avatar.hidden = !usePhoto;
+			if (initialsEl) initialsEl.hidden = usePhoto;
+		}
+
 		if (avatar && profile.avatarUrl) {
+			// Bound here rather than inline in the HTML: an inline onerror fires
+			// against the placeholder src too, before this code ever runs.
+			avatar.onerror = () => { avatar.onerror = null; showAvatar(false); };
 			avatar.src = profile.avatarUrl;
-		} else if (avatar) {
-			avatar.style.display = "none";
-			if (initialsEl) initialsEl.style.display = "flex";
+			showAvatar(true);
+		} else {
+			showAvatar(false);
 		}
 
 		if (profileForm) {

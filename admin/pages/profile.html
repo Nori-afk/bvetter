@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css">
-    <link rel="stylesheet" href="../css/profile.css">
+    <link rel="stylesheet" href="../css/profile.css?v=20260822-adminprofile">
 </head>
 <body>
 <div class="main-holder">
@@ -79,9 +79,14 @@
         <section class="profile-hero">
             <div class="hero-inner">
                 <div class="hero-avatar-wrap">
-                    <img id="profile-avatar" src="" alt="Admin profile" class="hero-avatar"
-                         onerror="this.style.display='none';document.getElementById('avatar-initials').style.display='flex';">
-                    <div id="avatar-initials" class="hero-avatar-initials" style="display:none;" aria-hidden="true"></div>
+                    <!-- No src="" here. An empty src resolves to this page's own
+                         URL, so the browser fetches the HTML, fails to decode it
+                         as an image and fires error — which used to reveal the
+                         initials before the profile had even loaded, leaving two
+                         avatars stacked. src is set from JS only when there is a
+                         real photo; the error fallback is bound there too. -->
+                    <img id="profile-avatar" alt="Admin profile" class="hero-avatar" hidden>
+                    <div id="avatar-initials" class="hero-avatar-initials" aria-hidden="true"></div>
                     <div class="avatar-edit-ring" title="Change photo">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
@@ -141,23 +146,13 @@
                 <div class="kpi-body">
                     <p class="kpi-label">Site Updates</p>
                     <strong class="kpi-val" id="stat-site-updates">—</strong>
-                    <span class="kpi-note">Last 30 days</span>
+                    <span class="kpi-note">Published announcements</span>
                 </div>
             </article>
-            <article class="kpi-card">
-                <div class="kpi-icon kpi-icon--navy">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-                        <line x1="8" y1="21" x2="16" y2="21"/>
-                        <line x1="12" y1="17" x2="12" y2="21"/>
-                    </svg>
-                </div>
-                <div class="kpi-body">
-                    <p class="kpi-label">System Uptime</p>
-                    <strong class="kpi-val" id="stat-uptime">—</strong>
-                    <span class="kpi-note">All-time average</span>
-                </div>
-            </article>
+            <!-- A fourth "System Uptime 99.9%" card used to sit here. Nothing in
+                 this system measures uptime — the figure was a hardcoded string
+                 in profile.js — so it was removed rather than given a source it
+                 does not have. -->
         </div>
 
         <section class="prof-card">
@@ -265,11 +260,11 @@
                     </div>
                     <div class="sec-right">
                         <span class="sec-status-pill sec-status-pill--off" id="tfa-status-pill">Not Enabled</span>
-                        <button class="btn-outline" type="button">
+                        <button class="btn-outline" type="button" id="tfa-manage-btn">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                             </svg>
-                            Manage 2FA
+                            <span id="tfa-manage-label">Manage 2FA</span>
                         </button>
                     </div>
                 </div>
@@ -324,89 +319,78 @@
             </div>
             <div class="prof-divider"></div>
             <form class="notif-list" id="notification-form">
+                <!-- These four are the staff notification streams that actually
+                     fire — every notifyStaff() call in the codebase raises one of
+                     them. They are gated for admins in api/config/notifications.php.
+
+                     The five toggles that used to live here (New Account
+                     Registrations, System Alerts, Website Content Updates, Weekly
+                     Summary, Security Alerts) had no columns behind them and no
+                     code that would ever have read them: nothing in the system
+                     sends an admin any of those notifications. -->
                 <div class="notif-item">
                     <div class="notif-item-icon">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                            <circle cx="9" cy="7" r="4"/>
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="16" y1="2" x2="16" y2="6"/>
+                            <line x1="8" y1="2" x2="8" y2="6"/>
+                            <line x1="3" y1="10" x2="21" y2="10"/>
                         </svg>
                     </div>
                     <div class="notif-item-body">
-                        <p class="notif-title">New Account Registrations</p>
-                        <p class="notif-desc">Get notified when a new user registers on the system</p>
+                        <p class="notif-title">Appointment Activity</p>
+                        <p class="notif-desc">New bookings, reschedules, and status changes from pet owners</p>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" name="newAccountRegistrations">
+                        <input type="checkbox" name="staffAppointmentAlerts" aria-label="Appointment activity notifications">
                         <span class="toggle-track"><span class="toggle-thumb"></span></span>
                     </label>
                 </div>
                 <div class="notif-item">
                     <div class="notif-item-icon">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                            <line x1="12" y1="9" x2="12" y2="13"/>
-                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                            <circle cx="12" cy="10" r="3"/>
                         </svg>
                     </div>
                     <div class="notif-item-body">
-                        <p class="notif-title">System Alerts</p>
-                        <p class="notif-desc">Critical system events, errors, and downtime warnings</p>
+                        <p class="notif-title">Lost &amp; Found Reports</p>
+                        <p class="notif-desc">New lost or found pet reports, sightings, and ownership claims</p>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" name="systemAlerts">
+                        <input type="checkbox" name="staffLostFoundAlerts" aria-label="Lost and found notifications">
                         <span class="toggle-track"><span class="toggle-thumb"></span></span>
                     </label>
                 </div>
                 <div class="notif-item">
                     <div class="notif-item-icon">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="23 4 23 10 17 10"/>
-                            <polyline points="1 20 1 14 7 14"/>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         </svg>
                     </div>
                     <div class="notif-item-body">
-                        <p class="notif-title">Website Content Updates</p>
-                        <p class="notif-desc">Notify me when website content is published or changed</p>
+                        <p class="notif-title">Support Tickets</p>
+                        <p class="notif-desc">Notify me when a pet owner submits a new support ticket</p>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" name="contentUpdates">
+                        <input type="checkbox" name="staffTicketAlerts" aria-label="Support ticket notifications">
                         <span class="toggle-track"><span class="toggle-thumb"></span></span>
                     </label>
                 </div>
                 <div class="notif-item">
                     <div class="notif-item-icon">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="20" x2="18" y2="10"/>
-                            <line x1="12" y1="20" x2="12" y2="4"/>
-                            <line x1="6" y1="20" x2="6" y2="14"/>
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                            <path d="M9 14l2 2 4-4"/>
                         </svg>
                     </div>
                     <div class="notif-item-body">
-                        <p class="notif-title">Weekly Summary Reports</p>
-                        <p class="notif-desc">Weekly digest of system activity and user statistics</p>
+                        <p class="notif-title">Castration &amp; Spay Registrations</p>
+                        <p class="notif-desc">New sign-ups to a castration or spay programme</p>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" name="weeklySummary">
-                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                    </label>
-                </div>
-                <div class="notif-item">
-                    <div class="notif-item-icon notif-item-icon--red">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                            <line x1="12" y1="8" x2="12" y2="12"/>
-                            <line x1="12" y1="16" x2="12.01" y2="16"/>
-                        </svg>
-                    </div>
-                    <div class="notif-item-body">
-                        <p class="notif-title">Security Alerts <span class="notif-badge-required">Recommended</span></p>
-                        <p class="notif-desc">Get notified when your account is accessed from a new device or location</p>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" name="securityAlerts" checked>
+                        <input type="checkbox" name="staffCspAlerts" aria-label="Castration and spay notifications">
                         <span class="toggle-track"><span class="toggle-thumb"></span></span>
                     </label>
                 </div>
@@ -466,6 +450,6 @@
 <script src="../../shared/js/auth.js?v=20260816-sec"></script>
 <script>VBetterAuth.requireAuth(['admin']);</script>
 <script src="../../shared/js/sidebar.js"></script>
-<script src="../js/profile.js?v=20260819-authfix"></script>
+<script src="../js/profile.js?v=20260822-adminprofile"></script>
 </body>
 </html>
