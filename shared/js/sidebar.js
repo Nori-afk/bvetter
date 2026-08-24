@@ -94,16 +94,30 @@
     function buildMobileActions(sidebar, session) {
         if (sidebar.querySelector('.sidebar-mobile-actions')) return;
 
+        /* The page's own notification bell, if it has one. Only the two
+           dashboards (admin/pages/index.html, vet/html/index.html) do — they
+           own the modal and the fetch, and this file has no business
+           duplicating either. On the other 13 pages there is nothing to open,
+           so the mobile bell is not built at all rather than rendered as a
+           button that silently does nothing when tapped. */
+        const pageBell = document.getElementById('notification-icon-btn');
+
         const wrap = document.createElement('div');
         wrap.className = 'sidebar-mobile-actions';
         wrap.innerHTML =
-            '<button type="button" class="sidebar-mobile-notif-btn" id="sidebar-mobile-notif-btn" aria-label="Notifications">' +
-            '<img src="../../public/images/icons/icon-bell.svg" class="sidebar-mobile-notif-icon" alt="">' +
-            '<span class="sidebar-mobile-notif-dot"></span>' +
-            '</button>' +
+            (pageBell
+                ? '<button type="button" class="sidebar-mobile-notif-btn" id="sidebar-mobile-notif-btn" aria-label="Notifications">' +
+                  '<img src="../../public/images/icons/icon-bell.svg" class="sidebar-mobile-notif-icon" alt="">' +
+                  '<span class="sidebar-mobile-notif-dot" hidden></span>' +
+                  '</button>'
+                : '') +
             avatarMarkup(session, 'sidebar-mobile-avatar', 'sidebar-mobile-avatar--initials', 'sidebar-mobile-avatar-btn');
 
         sidebar.appendChild(wrap);
+
+        if (pageBell) {
+            wireMobileBell(wrap, pageBell);
+        }
 
         const avatarBtn = wrap.querySelector('#sidebar-mobile-avatar-btn');
         if (avatarBtn) {
@@ -113,6 +127,43 @@
                 syncToggleState(sidebar);
             });
         }
+    }
+
+    /* ── Mobile bell → the page's own bell ────────────────────
+       Forwards the tap rather than reimplementing the modal, so the mobile
+       bell can never drift out of step with the desktop one, and mirrors its
+       unread dot instead of keeping a second source of truth.
+
+       The dot markup used to ship with no `hidden` attribute and no CSS rule
+       to hide it, so every mobile page showed a permanent red "you have
+       unread notifications" dot. The observer below is what actually turns
+       it off: each dashboard already toggles `.notif-dot` on its own bell
+       when it knows the real unread count. */
+    function wireMobileBell(wrap, pageBell) {
+        const mobileBell = wrap.querySelector('#sidebar-mobile-notif-btn');
+        const mobileDot  = wrap.querySelector('.sidebar-mobile-notif-dot');
+        if (!mobileBell) return;
+
+        mobileBell.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();   // don't let it bubble into close-the-panel
+            pageBell.click();
+        });
+
+        const pageDot = pageBell.querySelector('.notif-dot');
+        if (!pageDot || !mobileDot) return;
+
+        const syncDot = function () {
+            mobileDot.hidden = pageDot.hidden;
+        };
+        syncDot();
+
+        // The dashboards set `.notif-dot[hidden]` asynchronously, once the
+        // notifications fetch resolves — after this runs. Watch for it.
+        new MutationObserver(syncDot).observe(pageDot, {
+            attributes: true,
+            attributeFilter: ['hidden']
+        });
     }
 
     /* ── Mobile dropdown panel ─────────────────────────────────

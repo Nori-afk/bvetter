@@ -472,3 +472,25 @@ input[type="file"] { display: none; }
   .wm-hero { flex-direction: column; align-items: flex-start; }
 }
 @media (max-width: 600px) { .wm-assets-grid { grid-template-columns: 1fr; } }
+
+/* Quick Preview toolbar.
+   .wm-preview-topbar is flex + space-between and never wrapped, so on a
+   phone the title and the five controls together are wider than the screen
+   and space-between pushed them off BOTH edges. Nothing in the ancestry
+   scrolls horizontally, so "Mobile" (right edge ~462px) and "View full
+   site" (~546px) were clipped off a 390px viewport and could not be tapped
+   at all — not small, not hidden behind something, just unreachable.
+   Letting the row wrap puts them back on screen. */
+@media (max-width: 700px) {
+  .wm-preview-topbar {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+  .wm-preview-controls {
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 8px;
+  }
+  .wm-preview-divider { display: none; }
+}

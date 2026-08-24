@@ -989,6 +989,32 @@ html, body {
     gap: 14px;
 }
 
+/* About & Help modal — same look as the vet dashboard's (vet/css/index.css),
+   so the two portals' help panels read as one system. */
+.dash-help-section {
+    border-radius: 10px;
+    background: #f5f8fd;
+    border: 1px solid #d8e2f0;
+    padding: 12px;
+    display: grid;
+    gap: 6px;
+}
+
+.dash-help-section h3 { color: #0e3e74; }
+
+.dash-help-section p,
+.dash-help-list {
+    color: #4d6482;
+    font-size: 0.9rem;
+}
+
+.dash-help-list {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 4px;
+}
+
 .dash-form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;

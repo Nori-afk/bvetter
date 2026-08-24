@@ -34,6 +34,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     wireCloseButtons();
 
     await Promise.all([loadRoles(), loadUsers()]);
+
+    // Deep link from the notification bell / staff alert email: both send
+    // the admin here with ?review=<user_id> instead of making them find the
+    // applicant by hand. Runs only after loadUsers() has populated allUsers,
+    // since openVerifyModal looks the id up there.
+    //
+    // Kept as a string, not Number(...) — listUsers() casts id to (string) in
+    // its JSON response (see account-management.php), and openVerifyModal's
+    // lookup is a strict `u.id === id`, same as every other caller here (e.g.
+    // the onclick="openVerifyModal('${u.id}')" above). A numeric id would
+    // never match and the deep link would silently do nothing.
+    const reviewId = new URLSearchParams(window.location.search).get('review');
+    if (reviewId) openVerifyModal(reviewId);
 });
 
 /* ── Load real data ─────────────────────────────────────────── */
@@ -502,7 +515,6 @@ function openVerifyModal(id) {
     const fullLink   = document.getElementById('verify-fullsize-link');
 
     const docPath = user.idImage || '';
-    console.log(docPath);
     const isPdf   = /\.pdf($|\?)/i.test(docPath) || /\.pdf$/i.test(user.proofName || '');
 
     if (idImg)     idImg.hidden = true;

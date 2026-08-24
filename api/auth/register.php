@@ -17,6 +17,7 @@ if ($requestMethod !== 'POST') {
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/security_settings.php';
 require_once __DIR__ . '/../config/input_validation.php';
+require_once __DIR__ . '/../config/notifications.php';
 
 function respond($statusCode, $payload)
 {
@@ -239,6 +240,41 @@ try {
     ]);
 
     $pdo->commit();
+
+    // Alert the admins. Until this existed, an application arrived completely
+    // silently — every other queue in the app (appointments, tickets, lost &
+    // found, castration programs) calls notifyStaff, registration did not, so
+    // the only way to discover a pending owner was to open the page and look.
+    //
+    // Audience is 'admin' because only admins can act on it: verification is
+    // gated by requireRole($pdo, ['admin']) in api/admin/account-management.php.
+    // The final `true` also emails every admin, which is the part that survives
+    // an admin being offline — the mail waits in their inbox.
+    //
+    // AFTER the commit and in its own try/catch, both deliberately. The outer
+    // handler answers "Registration failed." with a 500; letting an SMTP or
+    // notification error reach it would tell an applicant whose account was
+    // already written that their registration did not go through.
+    try {
+        notifyStaff(
+            $pdo,
+            'admin',
+            'account_application',
+            'New Account Application',
+            $fullName . ' (' . $barangay . ') submitted a proof of residence and is waiting for verification.',
+            $userId,
+            true,
+            // Relative to admin/pages/ — the login page's own directory,
+            // since admin-login.js resolves `next` with a plain
+            // window.location.href from there. Same path the notification
+            // bell itself navigates to (admin/js/index.js), so both routes
+            // land on the identical URL.
+            'account-management.html?review=' . $userId,
+            'Review Application'
+        );
+    } catch (Throwable $notifyError) {
+        error_log('[BVetter] ' . __FILE__ . ': staff alert failed for user ' . $userId . ': ' . $notifyError->getMessage());
+    }
 
     respond(201, [
         'success' => true,

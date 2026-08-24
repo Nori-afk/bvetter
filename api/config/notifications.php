@@ -140,7 +140,9 @@ function notifyStaff(
     string $title,
     string $message,
     ?int $referenceId = null,
-    bool $emailImportant = false
+    bool $emailImportant = false,
+    ?string $actionUrl = null,
+    string $actionLabel = 'Review in BVetter'
 ): void {
     $audience = in_array($audience, ['admin', 'vet', 'both'], true) ? $audience : 'both';
 
@@ -156,7 +158,30 @@ function notifyStaff(
 
     if ($emailImportant) {
         $subject = 'BVetter Alert – ' . $title;
-        $body = notificationEmailWrapper($title, '<p>' . htmlspecialchars($message, ENT_QUOTES) . '</p>');
+
+        // $actionUrl is where the admin should land AFTER logging in — a
+        // bare filename relative to admin/pages/ (e.g.
+        // 'account-management.html?review=42'), not the login page itself
+        // and not prefixed with 'admin/pages/'. admin-login.js resolves
+        // `next` with a plain window.location.href from its own directory
+        // (admin/pages/ops-3bab26d632.html), so anything else silently
+        // resolves to the wrong place. It's wrapped behind the admin login
+        // page as `next` so a reader opening this on their phone, where the
+        // app usually has no session, lands on login first and is carried
+        // through to the right screen afterward instead of the plain
+        // dashboard.
+        //
+        // The login page path is hardcoded here rather than shared with
+        // ADMIN_LOGIN_PAGE in shared/js/auth.js — there's no PHP/JS constant
+        // shared between them today. If that page is ever renamed, this
+        // link goes stale along with it.
+        $button = null;
+        if ($actionUrl !== null) {
+            $loginUrl = rtrim(APP_URL, '/') . '/admin/pages/ops-3bab26d632.html?next=' . rawurlencode($actionUrl);
+            $button = ['url' => $loginUrl, 'label' => $actionLabel];
+        }
+
+        $body = notificationEmailWrapper($title, '<p>' . htmlspecialchars($message, ENT_QUOTES) . '</p>', null, $button);
         foreach (staffAlertRecipients($pdo) as $admin) {
             if (in_array((int) $admin['id'], $optedOut, true)) continue;
             sendAppMail($admin['email'], $admin['full_name'] ?: STAFF_ALERT_NAME, $subject, $body);

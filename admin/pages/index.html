@@ -14,8 +14,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" href="../../shared/css/sidebar.css">
-    <link rel="stylesheet" href="../css/index.css">
+    <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260824-tz">
+    <link rel="stylesheet" href="../css/index.css?v=20260824-tz">
 </head>
 <body>
     <div class="main-holder">
@@ -413,11 +413,47 @@
         </div>
     </div>
 
+    <div class="dash-overlay" id="modal-about-help" hidden>
+        <div class="dash-modal" role="dialog" aria-modal="true" aria-labelledby="about-help-title">
+            <div class="dash-modal-head">
+                <div>
+                    <h2 id="about-help-title">About Us &amp; Help</h2>
+                    <p>What this portal does, and who to contact</p>
+                </div>
+                <button class="dash-modal-close" id="modal-about-help-close" type="button" aria-label="Close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="dash-modal-body">
+                <section class="dash-help-section">
+                    <h3>About BVetter</h3>
+                    <p>BVetter is the Baliwag City Veterinary Services platform. This admin
+                       portal manages user accounts, public website content, announcements,
+                       and system security across the pet owner and veterinarian portals.</p>
+                </section>
+                <section class="dash-help-section">
+                    <h3>Quick Help</h3>
+                    <ul class="dash-help-list">
+                        <li>Use <strong>Add Account</strong> to create a staff or administrator login.</li>
+                        <li>Use <strong>Manage Accounts</strong> to approve, deactivate, or remove users.</li>
+                        <li>Use <strong>Website Management</strong> to edit homepage content and announcements.</li>
+                        <li>Use <strong>Manage Security</strong> to review sessions, password policy, and 2FA.</li>
+                    </ul>
+                </section>
+                <section class="dash-help-section">
+                    <h3>Support Contact</h3>
+                    <p>Email: support@vbetter.local</p>
+                    <p>Hotline: +63 2 8123 4567</p>
+                </section>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="../../shared/js/auth.js?v=20260816-sec"></script>
     <script>VBetterAuth.requireAuth(['admin']);</script>
-    <script src="../../shared/js/sidebar.js"></script>
+    <script src="../../shared/js/sidebar.js?v=20260824-tz"></script>
     <script src="../../public/js/api.js?v=20260818-notif"></script>
-    <script src="../js/index.js?v=20260818-notif"></script>
+    <script src="../js/index.js?v=20260824-tz"></script>
 </body>
 </html>

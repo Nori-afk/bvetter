@@ -478,6 +478,11 @@
         border:         1.5px solid var(--primary-dark);
     }
 
+    /* Explicit, so the dot can never come back on because some future rule
+       gives it a `display`. shared/js/sidebar.js mirrors this attribute from
+       the page's own `.notif-dot`; without it the dot showed permanently. */
+    .sidebar-mobile-notif-dot[hidden] { display: none; }
+
     .sidebar-mobile-avatar {
         width:         36px;
         height:        36px;

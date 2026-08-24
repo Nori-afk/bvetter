@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function () {
     wireAddAccountModal();
     wireChartTabs();
     wireNotificationsModal();
+    wireAboutHelpModal();
     wireCoverageCard();
 
     document.getElementById('manage-accounts-btn')?.addEventListener('click', function () {
@@ -364,13 +365,15 @@ const NOTIF_ICONS = {
     appointment: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8.5 15.5l2 2 4-4"/></svg>',
     lostfound: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="20" y1="20" x2="14.5" y2="14.5"/></svg>',
     vaccination: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
-    general: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
+    general: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+    account: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-1.5A5.5 5.5 0 0 1 9.5 14h1"/><circle cx="10" cy="8" r="4"/><path d="M14.5 18.5l2 2 4-4.5"/></svg>'
 };
 
 function notifCategoryFromType(type) {
     if (type === 'appointment_new' || type === 'appointment_status') return 'appointment';
     if (type === 'lost_found_new') return 'lostfound';
     if (type === 'csp_registration') return 'vaccination';
+    if (type === 'account_application') return 'account';
     return 'general';
 }
 
@@ -379,6 +382,28 @@ function notifStatusFromTitle(title) {
     if (t.includes('reject') || t.includes('cancel')) return 'negative';
     if (t.includes('confirmed') || t.includes('approve') || t.includes('resolve') || t.includes('upcoming')) return 'positive';
     return 'neutral';
+}
+
+/* ── About & Help ──────────────────────────────────────────────
+   The "?" button has been in this header since the markup was copied from
+   the vet dashboard, but the admin side never got the handler that vet has
+   in vet/js/index.js — so it did nothing at all when clicked. Same content
+   shape as vet's openAboutHelpModal, rebuilt on admin's own overlay idiom
+   (markup in the page, toggled by `hidden`) rather than vet's showModal(). */
+function wireAboutHelpModal() {
+    const btn      = document.getElementById('about-help-btn');
+    const overlay  = document.getElementById('modal-about-help');
+    const closeBtn = document.getElementById('modal-about-help-close');
+    if (!btn || !overlay) return;
+
+    const close = () => { overlay.hidden = true; };
+
+    btn.addEventListener('click', () => { overlay.hidden = false; });
+    closeBtn?.addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !overlay.hidden) close();
+    });
 }
 
 /* ── Notifications (shared admin/vet feed) ─────────────────── */
@@ -435,7 +460,7 @@ function wireNotificationsModal() {
                 <div class="dash-notification-item-body">
                     <h4>${escapeHtml(item.title)}</h4>
                     <p>${escapeHtml(item.message)}</p>
-                    <small>${escapeHtml(new Date(item.created_at).toLocaleString())}</small>
+                    <small>${escapeHtml(formatNotificationTime(item.created_at))}</small>
                 </div>
             </article>
         `).join('') + (remaining > 0 ? `<button type="button" class="notif-show-more-btn" id="notif-show-more-btn">Show ${remaining} more</button>` : '');
@@ -467,6 +492,20 @@ function wireNotificationsModal() {
                     el.classList.add('unread');
                     setDotVisible(currentItems.some((item) => !item.is_read));
                     showToast('Could not mark that notification as read.', 'error');
+                    return;
+                }
+
+                // Account applications are the one notification with somewhere
+                // to go: reference_id carries the applicant's user id, so open
+                // account management straight on their verification modal
+                // rather than making the admin find the row by hand.
+                //
+                // Navigating only after the mark-read write has landed —
+                // unloading the page mid-request would leave the item unread
+                // again on the next refresh, which is exactly the "did I
+                // already handle this?" confusion the bell is meant to remove.
+                if (entry && entry.type === 'account_application' && entry.reference_id) {
+                    window.location.href = 'account-management.html?review=' + encodeURIComponent(entry.reference_id);
                 }
             });
         });
@@ -707,17 +746,36 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+/* The API hands back MySQL datetimes as "2026-08-21 16:49:32" — a space, no
+   timezone offset. `new Date()` on that exact shape is non-standard: Chrome
+   accepts it, but Safari (so every iPhone) returns Invalid Date. Swapping the
+   space for a "T" makes it an ISO local-time string, which every engine parses
+   the same way.
+
+   Leaving the offset off is deliberate, not an oversight: with no offset the
+   browser reads it as ITS OWN local time, and api/config/connection.php pins
+   the server to Philippine time so that the two agree. */
+function parseServerDate(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(String(dateStr).replace(' ', 'T'));
+    return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function formatShortDate(dateStr) {
-    if (!dateStr) return '—';
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) return '—';
+    const d = parseServerDate(dateStr);
+    if (!d) return '—';
     return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
 }
 
+/** Date + time, for the notification list. */
+function formatNotificationTime(dateStr) {
+    const d = parseServerDate(dateStr);
+    return d ? d.toLocaleString() : '—';
+}
+
 function formatRelativeTime(dateStr) {
-    if (!dateStr) return '—';
-    const then = new Date(dateStr.replace(' ', 'T'));
-    if (Number.isNaN(then.getTime())) return '—';
+    const then = parseServerDate(dateStr);
+    if (!then) return '—';
     const diffMs = Date.now() - then.getTime();
     const diffMin = Math.floor(diffMs / 60000);
 

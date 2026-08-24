@@ -4,6 +4,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/normalize.php';
+require_once __DIR__ . '/scoring.php';
 
 function respond($statusCode, $payload)
 {
@@ -492,20 +493,6 @@ function deleteConsultationRule($pdo, $data)
     respond(200, ['success' => true, 'deleted' => $id]);
 }
 
-function scoreRule($rule, $petType, $symptoms, $duration, $severity)
-{
-    $score = 0;
-    if ($rule['pet_type'] === $petType || $rule['pet_type'] === 'Other') $score += 2;
-    if ($rule['duration'] === $duration) $score += 2;
-    if ($rule['severity'] === $severity) $score += 2;
-
-    $ruleSymptoms = decodeSymptoms($rule['symptoms_json']);
-    foreach ($symptoms as $symptom) {
-        if (in_array($symptom, $ruleSymptoms, true)) $score += 3;
-    }
-    return $score;
-}
-
 function urgentSymptomNames($pdo)
 {
     return $pdo->query("SELECT name FROM chatbot_symptoms WHERE is_urgent = 1 AND status = 'active'")->fetchAll(PDO::FETCH_COLUMN);
@@ -539,13 +526,6 @@ function fallbackAssessment($pdo, $symptoms, $duration, $severity)
         'level' => 'low',
         'recommendation' => "Recommended action: Monitor 24hrs\n\nHome care: provide clean water, keep your pet comfortable, and observe eating, drinking, stool, and energy. Book an appointment if symptoms worsen or continue.",
     ];
-}
-
-function actionLevel($actionType)
-{
-    if ($actionType === 'emergency_visit') return 'high';
-    if ($actionType === 'book_appointment') return 'moderate';
-    return 'low';
 }
 
 function assessConsultation($pdo, $data)
