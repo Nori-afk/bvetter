@@ -18,6 +18,11 @@ composer-setup.php
 *.pyo
 .pytest_cache/
 
+# Python virtualenv. Prod keeps one at /var/www/bvetter/.venv and the analytics
+# systemd unit runs from it, so it must never be tracked.
+.venv/
+venv/
+
 # PHPUnit cache
 .phpunit.result.cache
 
