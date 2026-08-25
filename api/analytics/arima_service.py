@@ -96,9 +96,13 @@ def db_connect():
     return pymysql.connect(cursorclass=pymysql.cursors.DictCursor, **DB_CONFIG)
 
 _cache    = {}
-# SPEED-7: raised 600s -> 6h. The source Excel file only changes on a service
-# restart anyway (it's read fresh from disk on first cache-miss, never hot-
-# reloaded), so there's no correctness reason to re-run an expensive ~15-20s
+# SPEED-7: raised 600s -> 6h. This was originally justified by "the source Excel
+# only changes on a service restart", which stopped being true when the clinic
+# gained the ability to upload a dataset. The TTL is still right, but it is no
+# longer what keeps the data fresh: ensure_dataset_version_fresh() drops these
+# entries the moment a new dataset version becomes active, so the long TTL now
+# only spares repeated work WITHIN one version. There's no correctness reason to
+# re-run an expensive ~15-20s
 # disease-specific SARIMA search every 10 minutes. This makes every disease
 # filter pay its cost once per server run instead of once per 10-minute window,
 # matching how _all_disease_models/arima_cache already never expire.
@@ -117,6 +121,121 @@ def cache_get(key):
 
 def cache_set(key, data):
     _cache[key] = {"data": data, "expires": time.time() + CACHE_TTL}
+
+
+# ════════════════════════════════════════════════════════════════════════
+# UPLOADED DATASET VERSIONS
+# ════════════════════════════════════════════════════════════════════════
+#
+# The clinic uploads its consultation workbook through api/dataset/dataset.php,
+# which stores it in `historical_consultations` under a `dataset_versions` row
+# and marks exactly one version active. This service reads that active version
+# instead of the bundled Excel once one exists.
+#
+# FRESHNESS IS PULL-BASED, ON PURPOSE. PHP does fire an invalidation call after
+# an upload, but that call is best-effort: if it fails, _all_disease_models and
+# _consult_diagnosis_df would never expire on their own, and the upload would
+# report success while every chart kept serving the old dataset until somebody
+# restarted the service by hand. So the active version id is re-read here and
+# compared against the one the caches were built from. One tiny indexed query
+# per use buys immunity from that entire failure mode.
+
+_active_dataset_version = None   # version id the current caches were built from
+
+
+def load_active_dataset_version() -> int:
+    """Active dataset_versions.id, or None when nothing has been uploaded yet."""
+    try:
+        conn = db_connect()
+    except Exception:
+        return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM dataset_versions WHERE is_active = 1 LIMIT 1")
+            row = cur.fetchone()
+        return int(row["id"]) if row else None
+    except Exception:
+        # Table absent (upload feature not migrated yet) is a normal state:
+        # it simply means "no uploads, use the Excel fallback".
+        return None
+    finally:
+        conn.close()
+
+
+def load_active_consult_rows() -> pd.DataFrame:
+    """
+    The active version's consultations, shaped like read_excel_sheet(
+    "Consult_Diagnosis_3Y") returns them, so _load_consult_diagnosis_raw() can
+    swap sources without its callers noticing. Returns None (not an empty frame)
+    when there is no active version, so "nothing uploaded" stays distinguishable
+    from "uploaded and genuinely empty".
+    """
+    version_id = load_active_dataset_version()
+    if version_id is None:
+        return None
+    try:
+        conn = db_connect()
+    except Exception as e:
+        print(f"[dataset] connect failed, falling back to Excel: {e}")
+        return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT consultation_id, consultation_date, year, month_no, month,
+                       barangay_id, barangay, animal_group, diagnosis, disease_category,
+                       symptom_cluster, cases_reported, frequency_code, frequency_description,
+                       season_pattern, risk_level, basis, system_use
+                FROM historical_consultations
+                WHERE dataset_version_id = %s
+                ORDER BY year, month_no, consultation_id
+            """, (version_id,))
+            rows = cur.fetchall()
+    except Exception as e:
+        print(f"[dataset] query failed, falling back to Excel: {e}")
+        return None
+    finally:
+        conn.close()
+
+    if not rows:
+        return None
+    df = pd.DataFrame(rows)
+    df.columns = [str(c).strip().lower() for c in df.columns]
+    return df
+
+
+def invalidate_disease_caches() -> dict:
+    """
+    Drops everything derived from the consultation dataset. Deliberately does
+    NOT touch the vacc_* keys or _barangay_vacc_cache: a dataset upload says
+    nothing about vaccination events, and those forecasts are expensive.
+    """
+    global _all_disease_models, _consult_diagnosis_df
+
+    stale = [k for k in list(_cache.keys()) if k.startswith("ds_") or k.startswith("hybrid_")]
+    for key in stale:
+        _cache.pop(key, None)
+
+    had_models = bool(_all_disease_models)
+    _all_disease_models = {}
+    _consult_diagnosis_df = None
+
+    return {"forecast_keys_cleared": len(stale), "models_dropped": had_models}
+
+
+def ensure_dataset_version_fresh():
+    """
+    Rebuild trigger. Call before anything that reads consultation data: if the
+    active version id has moved since the caches were built, they are dropped so
+    the next read repopulates them from the new version.
+    """
+    global _active_dataset_version
+    current = load_active_dataset_version()
+    if current != _active_dataset_version:
+        if _active_dataset_version is not None or current is not None:
+            result = invalidate_disease_caches()
+            print(f"[dataset] active version {_active_dataset_version} -> {current}; "
+                  f"cleared {result['forecast_keys_cleared']} cached forecast(s)")
+        _active_dataset_version = current
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -1320,6 +1439,10 @@ def _arima_pooled_accuracy(arima_series: dict) -> dict:
 
 def get_all_disease_models():
     global _all_disease_models
+    # Same pull-based freshness check _load_consult_diagnosis_raw() does: this
+    # cache has no expiry, so without it an uploaded dataset would never reach
+    # the trained model for the lifetime of the process.
+    ensure_dataset_version_fresh()
     if _all_disease_models:
         return _all_disease_models
     print("Training All-Disease Hybrid (ARIMA + RandomForestClassifier)…")
@@ -1737,9 +1860,19 @@ def _load_consult_diagnosis_raw() -> pd.DataFrame:
     # being re-read from disk (twice, via read_excel_sheet's header probe) on
     # every disease-specific request. Warm-started once, like get_all_disease_models().
     global _consult_diagnosis_df
+    # Cheap indexed lookup; drops the warm cache below if the clinic has
+    # uploaded a new dataset version since it was built. See
+    # ensure_dataset_version_fresh() for why this is pulled rather than pushed.
+    ensure_dataset_version_fresh()
     if _consult_diagnosis_df is not None:
         return _consult_diagnosis_df
-    raw = read_excel_sheet("Consult_Diagnosis_3Y")
+
+    # Uploaded dataset first, bundled workbook only until one exists. Once a
+    # version is active this path no longer opens the .xlsx at all, which takes
+    # openpyxl (and its 20-50x-file-size parse spike) off the request path.
+    raw = load_active_consult_rows()
+    if raw is None:
+        raw = read_excel_sheet("Consult_Diagnosis_3Y")
     raw.columns = [str(c).strip().lower() for c in raw.columns]
     raw["year"]           = pd.to_numeric(raw["year"], errors="coerce")
     raw["month_no"]       = pd.to_numeric(raw["month_no"], errors="coerce").fillna(1).astype(int)
@@ -2370,11 +2503,35 @@ def model_info():
 @app.route("/disease-list", methods=["GET"])
 def disease_list():
     try:
-        raw = read_excel_sheet("Consult_Diagnosis_3Y")
-        raw.columns = [str(c).strip().lower() for c in raw.columns]
+        # Goes through _load_consult_diagnosis_raw() rather than reading the
+        # workbook directly: this endpoint used to be the one place that still
+        # bypassed the shared loader, so after an upload the rest of the page
+        # showed new data while this dropdown kept listing the Excel's diagnoses.
+        raw = _load_consult_diagnosis_raw()
         return jsonify({"success": True, "data": sorted(raw["diagnosis"].dropna().unique().tolist())})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/invalidate-disease-cache", methods=["POST"])
+def invalidate_disease_cache():
+    """
+    Drops everything derived from the consultation dataset so the next request
+    rebuilds from the newly-activated version.
+
+    Called by api/dataset/dataset.php after an upload or a version rollback.
+    This is a latency optimisation ONLY -- correctness comes from
+    ensure_dataset_version_fresh(), which re-checks the active version id before
+    every read. If this call never arrives (service restarting, network blip),
+    the next request notices the version change by itself. That distinction
+    matters here in a way it does not for the vaccination sibling: two of the
+    three caches this clears have no expiry at all, so a missed push would
+    otherwise be permanent rather than merely slow.
+    """
+    result = invalidate_disease_caches()
+    print(f"[cache] disease dataset invalidated: {result['forecast_keys_cleared']} forecast key(s), "
+          f"models_dropped={result['models_dropped']}")
+    return jsonify({"success": True, "data": result})
 
 
 @app.route("/invalidate-vaccination-cache", methods=["POST"])

@@ -903,14 +903,48 @@ function updateRecord($pdo, $data)
     respond(200, ['success' => true, 'id' => $petId, 'message' => 'Patient record updated.']);
 }
 
-function archivePet($pdo, $petId)
+/**
+ * Permanently removes pets and everything clinical hanging off them.
+ *
+ * This is a real DELETE, not the archive flag it replaced. Deleting a patient
+ * record here means "this was never a real patient" -- scratch entries,
+ * duplicates, typed-in test names -- so the visits attached to it are not
+ * cases that happened and must not keep feeding the disease reports or the
+ * forecasting model. Hiding them was not enough: an archived record still sat
+ * in the database, and anything that queried visits without knowing about the
+ * flag went on counting it.
+ *
+ * Deliberately NOT the de-identify treatment used by deleteUserAccount() in
+ * api/admin/account-management.php. That path exists for a real patient whose
+ * owner closed their account: the visit is a genuine case, so it is stripped
+ * of personal links and kept for surveillance. Junk has no case to preserve,
+ * so keeping an anonymised copy would defeat the entire point of deleting it.
+ *
+ * Order matters. appointments.pet_id and csp_registrations.pet_id are
+ * ON DELETE NO ACTION, so the pets row cannot go until they are cleared, and
+ * the three patient_* tables carry no foreign key at all -- nothing cascades
+ * on their behalf, so skipping them would silently orphan their rows.
+ */
+function purgePets($pdo, array $petIds)
 {
-    $stmt = $pdo->prepare("
-        INSERT INTO patient_record_profiles (pet_id, patient_status, health_status, alert_text, source, is_archived)
-        VALUES (:pet_id, 'Archived', 'Archived', 'Archived', 'walk_in', 1)
-        ON DUPLICATE KEY UPDATE is_archived = 1, patient_status = 'Archived', alert_text = 'Archived'
-    ");
-    $stmt->execute([':pet_id' => $petId]);
+    $petIds = array_values(array_unique(array_filter(array_map('intval', $petIds), fn($id) => $id > 0)));
+    if (count($petIds) === 0) return [];
+
+    $placeholders = implode(',', array_fill(0, count($petIds), '?'));
+
+    foreach ([
+        'patient_vaccination_records',
+        'patient_visit_records',
+        'patient_record_profiles',
+        'appointments',
+        'csp_registrations',
+    ] as $table) {
+        $pdo->prepare("DELETE FROM {$table} WHERE pet_id IN ({$placeholders})")->execute($petIds);
+    }
+
+    $pdo->prepare("DELETE FROM pets WHERE id IN ({$placeholders})")->execute($petIds);
+
+    return $petIds;
 }
 
 function deleteRecord($pdo, $data)
@@ -918,34 +952,33 @@ function deleteRecord($pdo, $data)
     $petId = (int) ($data['id'] ?? $data['pet_id'] ?? 0);
     if ($petId <= 0) respond(422, ['success' => false, 'message' => 'Invalid patient id.']);
 
-    archivePet($pdo, $petId);
+    $pdo->beginTransaction();
+    purgePets($pdo, [$petId]);
+    $pdo->commit();
 
     respond(200, ['success' => true, 'deleted' => $petId]);
 }
 
 /**
- * Same archive as deleteRecord(), for a whole batch of ids in one
- * transaction -- so selecting 20 records to remove is one confirmation
- * instead of twenty, and a failure partway through leaves nothing archived
- * rather than an inconsistent half-done batch.
+ * Same purge as deleteRecord(), for a whole batch of ids in one transaction --
+ * so clearing out twenty scratch records is one confirmation instead of
+ * twenty, and a failure partway through leaves nothing deleted rather than an
+ * inconsistent half-done batch.
  */
 function bulkDeleteRecords($pdo, $data)
 {
     $ids = $data['ids'] ?? [];
     if (!is_array($ids)) $ids = [];
-    $ids = array_values(array_unique(array_filter(array_map('intval', $ids), fn($id) => $id > 0)));
-
-    if (count($ids) === 0) {
-        respond(422, ['success' => false, 'message' => 'No records selected.']);
-    }
 
     $pdo->beginTransaction();
-    foreach ($ids as $petId) {
-        archivePet($pdo, $petId);
+    $deleted = purgePets($pdo, $ids);
+    if (count($deleted) === 0) {
+        $pdo->rollBack();
+        respond(422, ['success' => false, 'message' => 'No records selected.']);
     }
     $pdo->commit();
 
-    respond(200, ['success' => true, 'deleted' => $ids]);
+    respond(200, ['success' => true, 'deleted' => $deleted]);
 }
 
 /**

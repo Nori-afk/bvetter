@@ -553,6 +553,17 @@ html, body {
 
 .dash-header-action:hover { background: #F1F5F9; border-color: #CBD5E1; }
 
+.dash-header-action--primary {
+    background: #002A58;
+    border-color: #002A58;
+    color: #ffffff;
+}
+
+.dash-header-action--primary:hover {
+    background: #004080;
+    border-color: #004080;
+}
+
 .dash-modal-header h2 {
     font-size: 16px;
     font-weight: 800;
@@ -659,33 +670,131 @@ html, body {
     line-height: 1.6;
 }
 
+/* A native <select> paints its own arrow in a different place on every OS, so
+   it is stripped and given the same chevron the rest of the dashboard uses. */
+.dash-select-wrap {
+    position: relative;
+    display: block;
+}
+
+.dash-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 34px;
+    cursor: pointer;
+}
+
+.dash-select-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94A3B8;
+    pointer-events: none;
+}
+
+.dash-field-labelrow {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.dash-field-count {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #94A3B8;
+    font-family: 'Manrope', sans-serif;
+    font-variant-numeric: tabular-nums;
+}
+
+.dash-required {
+    color: #DC2626;
+    font-style: normal;
+    font-weight: 800;
+}
+
 .dash-upload-area {
     border: 2px dashed #E2E8F0;
     border-radius: 10px;
-    min-height: 120px;
+    min-height: 132px;
     background: #F8FAFC;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     cursor: pointer;
     transition: border-color 0.15s, background 0.15s;
     overflow: hidden;
     position: relative;
 }
 
-.dash-upload-area:hover {
+.dash-upload-area:hover,
+.dash-upload-area:focus-visible {
     border-color: #93C5FD;
     background: #EFF6FF;
+    outline: none;
 }
 
-.dash-upload-area img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+.dash-upload-area.has-image {
+    border-style: solid;
+    border-color: #E2E8F0;
+    background: #0F172A;
+}
+
+.dash-upload-icon { color: #94A3B8; }
+
+.dash-upload-icon svg {
+    width: 28px;
+    height: 28px;
+}
+
+.dash-upload-preview {
     position: absolute;
     inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Once an image is picked the box has to keep saying what clicking it does,
+   and give a way back out without a full page of guesswork. */
+.dash-upload-overlay {
+    position: absolute;
+    inset: auto 0 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    background: linear-gradient(to top, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0));
+}
+
+.dash-upload-overlay-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #ffffff;
+    font-family: 'Manrope', sans-serif;
+}
+
+.dash-upload-remove {
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    border-radius: 7px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'Manrope', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.dash-upload-remove:hover {
+    background: #DC2626;
+    border-color: #DC2626;
 }
 
 .dash-upload-area-label {
@@ -702,18 +811,6 @@ html, body {
     color: #94A3B8;
     font-family: 'Manrope', sans-serif;
     z-index: 1;
-}
-
-.dash-upload-box {
-    display: none;
-}
-
-.dash-upload-actions {
-    display: none;
-}
-
-.dash-upload-btn {
-    display: none;
 }
 
 .dash-modal-footer {
@@ -846,112 +943,330 @@ html, body {
     background: var(--background-light);
 }
 
+/* Announcement manager: cards match the slate/white modal system used by the
+   rest of the dashboard sheets instead of the old flat-green tiles. */
 .dash-announcement-list {
     display: grid;
     gap: 10px;
+    max-height: 58vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.dash-announcement-list::-webkit-scrollbar { width: 6px; }
+.dash-announcement-list::-webkit-scrollbar-thumb {
+    background: #E2E8F0;
+    border-radius: 999px;
 }
 
 .dash-announcement-card {
-    border-radius: 8px;
-    background: #9ae58f;
-    padding: 8px;
+    border: 1px solid #E8EEF6;
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 12px;
     display: grid;
-    grid-template-columns: 140px 1fr auto;
-    gap: 10px;
+    grid-template-columns: 108px minmax(0, 1fr) auto;
+    gap: 14px;
     align-items: center;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 
-.dash-announcement-card img {
+.dash-announcement-card:hover {
+    border-color: #BFDBFE;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.07);
+}
+
+/* The picture sits on top of a permanent placeholder, so a row with no image
+   -- or one whose file has gone missing -- degrades to the grey icon instead
+   of the browser's broken-image glyph. */
+.dash-announcement-thumb {
+    position: relative;
+    width: 108px;
+    height: 76px;
+    border-radius: 9px;
+    overflow: hidden;
+    background: #F1F5F9;
+    border: 1px solid #E8EEF6;
+    flex-shrink: 0;
+}
+
+.dash-announcement-thumb-ph {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #B6C2D2;
+}
+
+.dash-announcement-thumb-ph svg {
+    width: 24px;
+    height: 24px;
+}
+
+.dash-announcement-thumb img {
+    position: absolute;
+    inset: 0;
     width: 100%;
-    height: 96px;
-    border-radius: 8px;
+    height: 100%;
     object-fit: cover;
+    background: #F1F5F9;
+}
+
+.dash-announcement-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.dash-announcement-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.dash-announcement-tags:empty { display: none; }
+
+.dash-announcement-chip {
+    display: inline-flex;
+    align-items: center;
+    background: #EFF6FF;
+    color: #1D4ED8;
+    border: 1px solid #DBEAFE;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-family: 'Manrope', sans-serif;
+}
+
+.dash-announcement-chip--muted {
+    background: #F1F5F9;
+    color: #64748B;
+    border-color: #E2E8F0;
 }
 
 .dash-announcement-copy h4 {
-    color: #00316c;
-    font-size: 1.4rem;
-    margin-bottom: 4px;
+    color: #0F172A;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.35;
+    letter-spacing: -0.2px;
+    font-family: 'Manrope', sans-serif;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.dash-announcement-copy p,
-.dash-announcement-copy small {
-    color: #224462;
+.dash-announcement-copy p {
+    color: #64748B;
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.dash-announcement-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 2px;
+}
+
+.dash-announcement-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #94A3B8;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'Manrope', sans-serif;
+    min-width: 0;
+}
+
+.dash-announcement-meta svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
 }
 
 .dash-announcement-actions {
     display: flex;
     gap: 6px;
     align-items: center;
+    align-self: flex-start;
 }
 
 .dash-icon-btn {
-    border: 0;
-    background: transparent;
-    width: 20px;
-    height: 20px;
+    border: 1px solid #E2E8F0;
+    background: #F8FAFC;
+    color: #64748B;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
     display: grid;
     place-items: center;
     cursor: pointer;
+    transition: all 0.15s;
 }
 
-.dash-icon-btn img {
-    width: 14px;
-    height: 14px;
+.dash-icon-btn:hover {
+    background: #EFF6FF;
+    border-color: #BFDBFE;
+    color: #002A58;
 }
 
-.dash-confirm-box,
-.dash-delete-box {
-    background: #ffffff;
-    border-radius: 8px;
-    padding: 18px;
+.dash-icon-btn--danger:hover {
+    background: #FEF2F2;
+    border-color: #FECACA;
+    color: #DC2626;
+}
+
+.dash-empty-state {
     display: grid;
+    justify-items: center;
+    gap: 8px;
+    text-align: center;
+    padding: 34px 20px;
+    border: 1px dashed #E2E8F0;
+    border-radius: 12px;
+    background: #F8FAFC;
+}
+
+.dash-empty-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    color: #002A58;
+    display: grid;
+    place-items: center;
+}
+
+.dash-empty-state h4 {
+    color: #0F172A;
+    font-size: 14px;
+    font-weight: 800;
+    font-family: 'Manrope', sans-serif;
+    margin: 0;
+}
+
+.dash-empty-state p {
+    color: #94A3B8;
+    font-size: 12px;
+    max-width: 300px;
+    margin: 0 0 4px;
+}
+
+.dash-confirm-box {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 26px 24px 22px;
+    display: grid;
+    justify-items: center;
     gap: 10px;
     text-align: center;
 }
 
 .dash-confirm-icon {
-    width: 50px;
-    height: 50px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
-    background: #edf1f7;
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    color: #002A58;
     display: grid;
     place-items: center;
-    margin: 0 auto;
+}
+
+.dash-confirm-icon--success {
+    background: #ECFDF5;
+    border-color: #A7F3D0;
+    color: #047857;
+}
+
+.dash-confirm-icon--danger {
+    background: #FEF2F2;
+    border-color: #FECACA;
+    color: #DC2626;
 }
 
 .dash-confirm-box h3 {
-    color: #0a9a2e;
+    color: #0F172A;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+    font-family: 'Manrope', sans-serif;
+    margin: 0;
 }
 
-.dash-confirm-box p,
-.dash-delete-box p {
-    color: #4d6483;
-    font-size: 0.85rem;
+.dash-confirm-box p {
+    color: #64748B;
+    font-size: 12.5px;
+    line-height: 1.55;
+    max-width: 320px;
+    margin: 0;
 }
 
-.dash-text-btn {
+.dash-confirm-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.dash-danger-btn {
     border: 0;
-    background: transparent;
-    color: #6a7f99;
+    border-radius: 9px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'Manrope', sans-serif;
     cursor: pointer;
+    background: #DC2626;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
+    transition: all 0.15s;
 }
 
-.dash-delete-box header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    text-align: left;
-}
-
-.dash-delete-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-}
+.dash-danger-btn:hover { background: #B91C1C; }
+.dash-danger-btn:disabled { opacity: 0.65; cursor: default; }
 
 .dash-empty {
     color: #4f6786;
+}
+
+@media (max-width: 560px) {
+    .dash-announcement-card {
+        grid-template-columns: 76px minmax(0, 1fr);
+        grid-template-areas:
+            'thumb copy'
+            'actions actions';
+    }
+
+    .dash-announcement-thumb {
+        grid-area: thumb;
+        width: 76px;
+        height: 64px;
+    }
+
+    .dash-announcement-copy { grid-area: copy; }
+
+    .dash-announcement-actions {
+        grid-area: actions;
+        justify-content: flex-end;
+    }
+
+    .dash-confirm-actions { flex-direction: column-reverse; width: 100%; }
+    .dash-confirm-actions button { width: 100%; }
 }
 
 .timeline-empty {

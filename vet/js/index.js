@@ -690,7 +690,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                     <h3>Quick Help</h3>
                     <ul class="dash-help-list">
                         <li>Use <strong>Create Announcement</strong> to publish advisories for pet owners.</li>
-                        <li>Use <strong>Manage Announcement</strong> to edit or remove existing posts.</li>
+                        <li>Use <strong>Manage Announcements</strong> to edit or remove existing posts.</li>
                         <li>Use the sidebar modules to navigate between clinic features.</li>
                     </ul>
                 </section>
@@ -703,7 +703,62 @@ document.addEventListener('DOMContentLoaded', async function () {
         `);
     }
 
-function openAnnouncementEditorModal({ mode, item }) {
+    /* Shared bits for the announcement modals so the create/edit sheet and the
+       manage list read as the same feature instead of two different screens. */
+    const ANNOUNCEMENT_CATEGORIES = [
+        'Preventative Care',
+        'Community Advisory',
+        'Health & Wellness',
+        'Vaccination Drive',
+        'Spay & Neuter',
+        'Adoption Event',
+        'Emergency Notice',
+        'General Announcement',
+    ];
+
+    const ANNOUNCEMENT_MAX_IMAGE_MB = 5;
+
+    const ICON_MEGAPHONE = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16 9a3 3 0 0 1 0 6"/><path d="M19 6.5a7 7 0 0 1 0 11"/></svg>';
+    const ICON_PENCIL = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+    const ICON_TRASH = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+    const ICON_IMAGE_PLACEHOLDER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+    const ICON_CALENDAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="16" y1="3" x2="16" y2="7"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+    const ICON_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>';
+
+    function announcementModalHeader({ title, subtitle, actions = '' }) {
+        return `
+            <header class="dash-modal-header">
+                <div class="dash-modal-header-icon">${ICON_MEGAPHONE}</div>
+                <div class="dash-modal-header-text">
+                    <h2>${escapeHtml(title)}</h2>
+                    <p>${escapeHtml(subtitle)}</p>
+                </div>
+                <div class="dash-modal-header-actions">
+                    ${actions}
+                    <button type="button" class="dash-close-btn" data-modal-close aria-label="Close">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+            </header>
+            <div class="dash-modal-divider"></div>
+        `;
+    }
+
+    /* Images come back from the API as '/storage/announcements/...'. A row can
+       also carry no image at all, and older rows can point at a file that is
+       gone -- both used to render as the browser's broken-image glyph with the
+       alt text sprawling across the card. Every thumbnail is now a placeholder
+       with the picture layered on top, and a failed load just drops the <img>. */
+    function announcementThumb(image, alt) {
+        return `
+            <div class="dash-announcement-thumb">
+                <span class="dash-announcement-thumb-ph">${ICON_IMAGE_PLACEHOLDER}</span>
+                ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(alt)}" data-announcement-thumb>` : ''}
+            </div>
+        `;
+    }
+
+function openAnnouncementEditorModal({ mode, item, fromManage = false }) {
     const isEdit = mode === 'edit';
     const localState = {
         title: item?.title || '',
@@ -715,53 +770,55 @@ function openAnnouncementEditorModal({ mode, item }) {
         file: null
     };
 
-    const CATEGORIES = [
-        'Preventative Care',
-        'Community Advisory',
-        'Health & Wellness',
-        'Vaccination Drive',
-        'Spay & Neuter',
-        'Adoption Event',
-        'Emergency Notice',
-        'General Announcement',
-    ];
-
-    const categoryOptions = CATEGORIES.map(cat =>
+    const categoryOptions = ANNOUNCEMENT_CATEGORIES.map(cat =>
         `<option value="${escapeHtml(cat)}" ${localState.category === cat ? 'selected' : ''}>${escapeHtml(cat)}</option>`
     ).join('');
 
+    function uploadMarkup(image) {
+        if (image) {
+            return `
+                <img class="dash-upload-preview" src="${escapeHtml(image)}" alt="Announcement image preview">
+                <div class="dash-upload-overlay">
+                    <span class="dash-upload-overlay-label">Click to replace</span>
+                    <button type="button" class="dash-upload-remove" id="announcement-image-remove">Remove</button>
+                </div>
+            `;
+        }
+        return `
+            <span class="dash-upload-icon">${ICON_IMAGE_PLACEHOLDER}</span>
+            <span class="dash-upload-area-label">Click to upload a cover image</span>
+            <span class="dash-upload-area-sub">JPG, PNG or WEBP &mdash; max ${ANNOUNCEMENT_MAX_IMAGE_MB} MB</span>
+        `;
+    }
+
     showModal(`
-        <header class="dash-modal-header">
-            <div class="dash-modal-header-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-            </div>
-            <div class="dash-modal-header-text">
-                <h2>${isEdit ? 'Edit Announcement' : 'Create Announcement'}</h2>
-                <p>${isEdit ? 'Update the details below and save changes.' : 'Fill in the details to post a new clinic announcement.'}</p>
-            </div>
-            <button type="button" class="dash-close-btn" data-modal-close>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-        </header>
-        <div class="dash-modal-divider"></div>
+        ${announcementModalHeader({
+            title: isEdit ? 'Edit Announcement' : 'Create Announcement',
+            subtitle: isEdit
+                ? 'Update the details below and save your changes.'
+                : 'Fill in the details to post a new clinic announcement.'
+        })}
         <div class="dash-modal-content">
             <div class="dash-field-wrap">
-                <label class="dash-field-label" for="announcement-title">Announcement Title</label>
-                <input id="announcement-title" class="dash-input" type="text" placeholder="e.g. Free Vaccination Drive this Saturday" value="${escapeHtml(localState.title)}">
+                <label class="dash-field-label" for="announcement-title">Announcement Title <em class="dash-required">*</em></label>
+                <input id="announcement-title" class="dash-input" type="text" maxlength="180" placeholder="e.g. Free Vaccination Drive this Saturday" value="${escapeHtml(localState.title)}">
             </div>
             <div class="dash-field-wrap">
-                <label class="dash-field-label" for="announcement-description">Description</label>
-                <textarea id="announcement-description" class="dash-textarea" placeholder="Write a clear and helpful description for pet owners...">${escapeHtml(localState.description)}</textarea>
+                <div class="dash-field-labelrow">
+                    <label class="dash-field-label" for="announcement-description">Description <em class="dash-required">*</em></label>
+                    <span class="dash-field-count" id="announcement-desc-count"></span>
+                </div>
+                <textarea id="announcement-description" class="dash-textarea" maxlength="5000" placeholder="Write a clear and helpful description for pet owners...">${escapeHtml(localState.description)}</textarea>
             </div>
             <div class="dash-form-row">
                 <div class="dash-field-wrap">
                     <label class="dash-field-label" for="announcement-category">Category</label>
-                    <select id="announcement-category" class="dash-input">
-                        ${categoryOptions}
-                    </select>
+                    <div class="dash-select-wrap">
+                        <select id="announcement-category" class="dash-input dash-select">
+                            ${categoryOptions}
+                        </select>
+                        <svg class="dash-select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
                 </div>
                 <div class="dash-field-wrap">
                     <label class="dash-field-label" for="announcement-date">Date</label>
@@ -770,23 +827,18 @@ function openAnnouncementEditorModal({ mode, item }) {
             </div>
             <div class="dash-field-wrap">
                 <label class="dash-field-label" for="announcement-location">Location <span>(optional)</span></label>
-                <input id="announcement-location" class="dash-input" type="text" placeholder="e.g. Baliwag Veterinary Clinic, Main Branch" value="${escapeHtml(localState.location)}">
+                <input id="announcement-location" class="dash-input" type="text" maxlength="180" placeholder="e.g. Baliwag Veterinary Clinic, Main Branch" value="${escapeHtml(localState.location)}">
             </div>
             <div class="dash-field-wrap">
                 <label class="dash-field-label">Cover Image <span>(optional)</span></label>
-                <div class="dash-upload-area" id="announcement-upload-box">
-                    ${localState.image
-                        ? `<img src="${escapeHtml(localState.image)}" alt="Announcement image preview">`
-                        : `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                           <span class="dash-upload-area-label">Click to upload a cover image</span>
-                           <span class="dash-upload-area-sub">PNG, JPG or GIF — max 5 MB</span>`
-                    }
+                <div class="dash-upload-area ${localState.image ? 'has-image' : ''}" id="announcement-upload-box" role="button" tabindex="0">
+                    ${uploadMarkup(localState.image)}
                 </div>
-                <input type="file" id="announcement-upload-input" accept="image/*" hidden>
+                <input type="file" id="announcement-upload-input" accept="image/jpeg,image/png,image/webp" hidden>
             </div>
         </div>
         <div class="dash-modal-footer">
-            <button type="button" class="dash-secondary-btn" data-modal-close>Cancel</button>
+            <button type="button" class="dash-secondary-btn" id="announcement-cancel-btn">${fromManage ? 'Back' : 'Cancel'}</button>
             <button type="button" class="dash-primary-btn" id="announcement-submit-btn">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 ${isEdit ? 'Save Changes' : 'Post Announcement'}
@@ -796,25 +848,81 @@ function openAnnouncementEditorModal({ mode, item }) {
 
     const titleInput       = document.getElementById('announcement-title');
     const descriptionInput = document.getElementById('announcement-description');
+    const descriptionCount = document.getElementById('announcement-desc-count');
     const categoryInput    = document.getElementById('announcement-category');
     const dateInput        = document.getElementById('announcement-date');
     const locationInput    = document.getElementById('announcement-location');
     const uploadBox        = document.getElementById('announcement-upload-box');
     const uploadInput      = document.getElementById('announcement-upload-input');
     const submitBtn        = document.getElementById('announcement-submit-btn');
+    const cancelBtn        = document.getElementById('announcement-cancel-btn');
+
+    // Opened from the manage list, "Back" should return to that list rather
+    // than dumping the vet back on the dashboard.
+    cancelBtn?.addEventListener('click', () => {
+        if (fromManage) openManageAnnouncementModal();
+        else closeModal();
+    });
+
+    function syncDescriptionCount() {
+        if (!descriptionCount || !descriptionInput) return;
+        descriptionCount.textContent = `${descriptionInput.value.length} / 5000`;
+    }
+    descriptionInput?.addEventListener('input', syncDescriptionCount);
+    syncDescriptionCount();
+
+    function bindRemoveButton() {
+        const removeBtn = document.getElementById('announcement-image-remove');
+        removeBtn?.addEventListener('click', (event) => {
+            // The whole box is the file picker, so the remove button has to
+            // stop the click before it re-opens the dialog it just dismissed.
+            event.stopPropagation();
+            localState.image = '';
+            localState.file = null;
+            if (uploadInput) uploadInput.value = '';
+            paintUploadBox();
+        });
+    }
+
+    function paintUploadBox() {
+        if (!uploadBox) return;
+        uploadBox.classList.toggle('has-image', Boolean(localState.image));
+        uploadBox.innerHTML = uploadMarkup(localState.image);
+        bindRemoveButton();
+    }
+
+    bindRemoveButton();
 
     uploadBox?.addEventListener('click', () => uploadInput?.click());
+    uploadBox?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            uploadInput?.click();
+        }
+    });
 
     uploadInput?.addEventListener('change', () => {
         const file = uploadInput.files?.[0];
         if (!file) return;
+
+        // The copy has always promised a size ceiling and a file-type list; the
+        // server only checked the type, so a bad pick failed late and vaguely.
+        if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+            showNotification('Cover image must be a JPG, PNG or WEBP file.', 'error');
+            uploadInput.value = '';
+            return;
+        }
+        if (file.size > ANNOUNCEMENT_MAX_IMAGE_MB * 1024 * 1024) {
+            showNotification(`Cover image must be ${ANNOUNCEMENT_MAX_IMAGE_MB} MB or smaller.`, 'error');
+            uploadInput.value = '';
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = () => {
             localState.image = String(reader.result);
             localState.file = file;
-            if (uploadBox) {
-                uploadBox.innerHTML = `<img src="${escapeHtml(localState.image)}" alt="Announcement image preview" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">`;
-            }
+            paintUploadBox();
         };
         reader.readAsDataURL(file);
     });
@@ -825,6 +933,7 @@ function openAnnouncementEditorModal({ mode, item }) {
 
         if (!title || !description) {
             showNotification('Please fill in title and description first.', 'error');
+            (title ? descriptionInput : titleInput)?.focus();
             return;
         }
 
@@ -835,6 +944,7 @@ function openAnnouncementEditorModal({ mode, item }) {
         localState.location    = locationInput?.value.trim() || '';
 
         openAnnouncementPostConfirmModal({
+            isEdit,
             onConfirm: async () => {
                 const session = sessionValue();
                 const payload = new FormData();
@@ -864,21 +974,23 @@ function openAnnouncementEditorModal({ mode, item }) {
                     openAnnouncementResultModal('Announcement Has Been Updated');
                 } else {
                     announcementState.items.unshift(savedResponse.data);
-                    openAnnouncementResultModal('Announcement Has Been Uploaded');
+                    openAnnouncementResultModal('Announcement Has Been Posted');
                 }
             }
         });
     });
 }
 
-    function openAnnouncementPostConfirmModal({ onConfirm }) {
+    function openAnnouncementPostConfirmModal({ onConfirm, isEdit = false }) {
         showModal(`
             <div class="dash-confirm-box">
-                <div class="dash-confirm-icon">🔒</div>
-                <h3>Are you sure you want to<br>post this announcement?</h3>
-                <p>Upon posting the announcement, pet owner can see it in their landing page.</p>
-                <button type="button" class="dash-primary-btn" id="confirm-announcement-btn">Yes</button>
-                <button type="button" class="dash-text-btn" data-modal-close>No</button>
+                <div class="dash-confirm-icon">${ICON_MEGAPHONE}</div>
+                <h3>${isEdit ? 'Save changes to this announcement?' : 'Post this announcement?'}</h3>
+                <p>Once posted, pet owners will see it on their landing page.</p>
+                <div class="dash-confirm-actions">
+                    <button type="button" class="dash-secondary-btn" data-modal-close>No, go back</button>
+                    <button type="button" class="dash-primary-btn" id="confirm-announcement-btn">${isEdit ? 'Yes, save' : 'Yes, post it'}</button>
+                </div>
             </div>
         `, 'dash-modal-mini');
 
@@ -889,60 +1001,104 @@ function openAnnouncementEditorModal({ mode, item }) {
     function openAnnouncementResultModal(title) {
         showModal(`
             <div class="dash-confirm-box">
+                <div class="dash-confirm-icon dash-confirm-icon--success">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
                 <h3>${escapeHtml(title)}</h3>
-                <p>You can now manage the announcement in the Manage Announcement tab.</p>
-                <button type="button" class="dash-primary-btn" data-modal-close>Close</button>
+                <p>You can edit or remove it any time from Manage Announcements.</p>
+                <div class="dash-confirm-actions">
+                    <button type="button" class="dash-secondary-btn" data-modal-close>Close</button>
+                    <button type="button" class="dash-primary-btn" id="result-manage-btn">Manage Announcements</button>
+                </div>
             </div>
         `, 'dash-modal-mini');
+
+        document.getElementById('result-manage-btn')
+            ?.addEventListener('click', () => openManageAnnouncementModal());
+    }
+
+    function announcementCardMarkup(item) {
+        const dateLabel = item.date
+            ? formatDateLabel(item.date, { month: 'short', day: 'numeric', year: 'numeric' })
+            : 'No date set';
+        const status = String(item.status || 'published');
+
+        return `
+            <article class="dash-announcement-card">
+                ${announcementThumb(item.image, item.title || 'Announcement')}
+                <div class="dash-announcement-copy">
+                    <div class="dash-announcement-tags">
+                        ${item.category ? `<span class="dash-announcement-chip">${escapeHtml(item.category)}</span>` : ''}
+                        ${status !== 'published' ? `<span class="dash-announcement-chip dash-announcement-chip--muted">${escapeHtml(status)}</span>` : ''}
+                    </div>
+                    <h4 title="${escapeHtml(item.title || '')}">${escapeHtml(item.title || 'Untitled announcement')}</h4>
+                    <p>${escapeHtml(item.description || '')}</p>
+                    <div class="dash-announcement-meta">
+                        <span>${ICON_CALENDAR}${escapeHtml(dateLabel)}</span>
+                        ${item.location ? `<span>${ICON_PIN}${escapeHtml(item.location)}</span>` : ''}
+                    </div>
+                </div>
+                <div class="dash-announcement-actions">
+                    <button type="button" class="dash-icon-btn" data-edit-id="${escapeHtml(item.id)}" title="Edit announcement" aria-label="Edit announcement">
+                        ${ICON_PENCIL}
+                    </button>
+                    <button type="button" class="dash-icon-btn dash-icon-btn--danger" data-delete-id="${escapeHtml(item.id)}" title="Delete announcement" aria-label="Delete announcement">
+                        ${ICON_TRASH}
+                    </button>
+                </div>
+            </article>
+        `;
     }
 
     function openManageAnnouncementModal() {
+        const total = announcementState.items.length;
+
         showModal(`
-            <header class="dash-modal-header">
-                <h2>Manage Announcement</h2>
-                <button type="button" class="dash-close-btn" data-modal-close>&times;</button>
-            </header>
+            ${announcementModalHeader({
+                title: 'Manage Announcements',
+                subtitle: total
+                    ? `${total} announcement${total === 1 ? '' : 's'} posted — edit or remove any of them below.`
+                    : 'Nothing posted yet. Create your first announcement.',
+                actions: '<button type="button" class="dash-header-action dash-header-action--primary" id="manage-new-announcement-btn">+ New</button>'
+            })}
             <div class="dash-modal-content">
                 <div class="dash-announcement-list">
                     ${
-                        announcementState.items.length
-                            ? announcementState.items
-                                  .map(
-                                      (item) => `
-                                <article class="dash-announcement-card">
-                                    <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}">
-                                    <div class="dash-announcement-copy">
-                                        <h4>${escapeHtml(item.title)}</h4>
-                                        <p>${escapeHtml(item.description)}</p>
-                                        <small>Date: ${escapeHtml(item.date)}</small>
-                                    </div>
-                                    <div class="dash-announcement-actions">
-                                        <button type="button" class="dash-icon-btn" data-edit-id="${escapeHtml(item.id)}" aria-label="Edit announcement">
-                                            <img src="../../vet/images/pen.svg" alt="Edit">
-                                        </button>
-                                        <button type="button" class="dash-icon-btn" data-delete-id="${escapeHtml(item.id)}" aria-label="Delete announcement">
-                                            <img src="../../vet/images/trash.svg" alt="Delete">
-                                        </button>
-                                    </div>
-                                </article>
+                        total
+                            ? announcementState.items.map(announcementCardMarkup).join('')
+                            : `
+                                <div class="dash-empty-state">
+                                    <span class="dash-empty-icon">${ICON_MEGAPHONE}</span>
+                                    <h4>No announcements yet</h4>
+                                    <p>Announcements show up on the pet owner landing page. Post one to get started.</p>
+                                    <button type="button" class="dash-primary-btn" id="empty-new-announcement-btn">Create Announcement</button>
+                                </div>
                             `
-                                  )
-                                  .join('')
-                            : '<p class="dash-empty">No announcements yet.</p>'
                     }
                 </div>
             </div>
         `);
 
+        ['manage-new-announcement-btn', 'empty-new-announcement-btn'].forEach((id) => {
+            document.getElementById(id)?.addEventListener('click', () => {
+                openAnnouncementEditorModal({ mode: 'create', fromManage: true });
+            });
+        });
+
+        // A thumbnail whose file is missing just drops out, uncovering the
+        // placeholder already sitting behind it.
+        modalRoot.querySelectorAll('[data-announcement-thumb]').forEach((image) => {
+            image.addEventListener('error', () => image.remove());
+        });
+
         modalRoot.querySelectorAll('[data-edit-id]').forEach((button) => {
             button.addEventListener('click', () => {
-                // const target = announcementState.items.find((item) => item.id === button.dataset.editId);
-                const target = announcementState.items.find((item) => item.id ===  Number(button.dataset.editId));
-                console.log('Editing announcement:', announcementState.items);
-                console.log('Editing announcement:', button.dataset.editId);
-                console.log('Editing announcement:', target);
+                // ids come back as ints from the API but as strings off the DOM.
+                const target = announcementState.items.find(
+                    (announcement) => String(announcement.id) === String(button.dataset.editId)
+                );
                 if (target) {
-                    openAnnouncementEditorModal({ mode: 'edit', item: target });
+                    openAnnouncementEditorModal({ mode: 'edit', item: target, fromManage: true });
                 }
             });
         });
@@ -956,29 +1112,35 @@ function openAnnouncementEditorModal({ mode, item }) {
 
     function openAnnouncementDeleteConfirmModal(targetId) {
         showModal(`
-            <div class="dash-delete-box">
-                <header>
-                    <h3>Delete Announcement?</h3>
-                    <button type="button" class="dash-close-btn" data-modal-close>&times;</button>
-                </header>
-                <p>This action is permanent and cannot be undone.</p>
-                <div class="dash-delete-actions">
-                    <button type="button" class="dash-secondary-btn" data-modal-close>No, Keep</button>
-                    <button type="button" class="dash-primary-btn" id="delete-announcement-confirm-btn">Yes, Delete</button>
+            <div class="dash-confirm-box">
+                <div class="dash-confirm-icon dash-confirm-icon--danger">${ICON_TRASH}</div>
+                <h3>Delete this announcement?</h3>
+                <p>It will disappear from the pet owner landing page. This cannot be undone.</p>
+                <div class="dash-confirm-actions">
+                    <button type="button" class="dash-secondary-btn" id="delete-announcement-cancel-btn">No, keep it</button>
+                    <button type="button" class="dash-danger-btn" id="delete-announcement-confirm-btn">Yes, delete</button>
                 </div>
             </div>
         `, 'dash-modal-mini');
 
+        document.getElementById('delete-announcement-cancel-btn')
+            ?.addEventListener('click', () => openManageAnnouncementModal());
+
         const deleteBtn = document.getElementById('delete-announcement-confirm-btn');
         deleteBtn?.addEventListener('click', async () => {
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = 'Deleting...';
             const deleted = window.VetAPI?.deleteAnnouncement
                 ? await window.VetAPI.deleteAnnouncement(targetId)
                 : { ok: false, error: 'Announcement API is unavailable.' };
             if (!deleted.ok) {
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = 'Yes, delete';
                 showNotification(deleted.error || 'Announcement could not be deleted.', 'error');
                 return;
             }
             announcementState.items = announcementState.items.filter((item) => String(item.id) !== String(targetId));
+            showNotification('Announcement deleted.', 'success');
             openManageAnnouncementModal();
         });
     }

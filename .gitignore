@@ -30,6 +30,11 @@ tmp/
 # User uploads (never commit real user data)
 storage/
 
+# Office lock files. Excel/Word write a "~$name.xlsx" stub beside a document
+# while it is open and delete it on close, so one gets staged whenever the
+# dataset workbook happens to be open during a `git add`.
+~$*
+
 # OS files
 .DS_Store
 Thumbs.db

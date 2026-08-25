@@ -88,3 +88,52 @@ if (!function_exists('bv_analytics_invalidate_vaccination')) {
         return false;
     }
 }
+
+if (!function_exists('bv_analytics_invalidate_disease')) {
+    /**
+     * Tells the analytics service a new consultation dataset version is active.
+     *
+     * IMPORTANT — this is an optimisation, not the correctness mechanism.
+     * Unlike the vaccination caches, two of the three disease caches
+     * (_all_disease_models and _consult_diagnosis_df) have NO expiry at all, so
+     * if this call were the only signal and the service happened to be
+     * unreachable, an upload would report success while the dashboard served
+     * the old dataset until somebody restarted the service by hand.
+     *
+     * So arima_service.py independently compares the active dataset_versions.id
+     * against the one it built from, and rebuilds when they differ. That check
+     * is what guarantees freshness. This call only makes the rebuild start now
+     * instead of on the next request, and returning false is not an error.
+     *
+     * Timeouts are longer than the vaccination sibling's: that one sits on a
+     * vet's save button, this one sits on a file upload that already took
+     * seconds, so waiting a moment for a clean acknowledgement is free.
+     *
+     * @return bool true if a service acknowledged the invalidation
+     */
+    function bv_analytics_invalidate_disease(): bool
+    {
+        foreach (bv_analytics_urls() as $baseUrl) {
+            $ch = curl_init($baseUrl . '/invalidate-disease-cache');
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, '{}');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 800);
+            curl_setopt($ch, CURLOPT_TIMEOUT_MS, 4000);
+
+            curl_exec($ch);
+            $ok     = curl_errno($ch) === 0;
+            $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($ok && $status >= 200 && $status < 300) {
+                return true;
+            }
+        }
+
+        error_log('[BVetter] disease cache not invalidated: analytics service unreachable. '
+                . 'The new dataset version will be picked up by the version check on next use.');
+        return false;
+    }
+}
