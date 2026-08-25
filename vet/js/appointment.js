@@ -24,6 +24,28 @@ const RESCHEDULE_SLOTS = [
 ];
 const RESCHEDULE_WEEK_DAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
 
+// Inline SVG rather than the old eye.png/trash.png, which were 22x15 and
+// 16x19 raster files -- blurry on any HiDPI screen, and two different sizes
+// so the pair never lined up. They also defeated the styling in
+// appointment.css, which targets `.action-buttons button svg`: the size rule
+// and both hover colours silently did nothing against an <img>. Same paths as
+// ICONS in vet/js/patient-records.js, so the two tables now match.
+const ICON_EYE = `
+	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path>
+		<circle cx="12" cy="12" r="3"></circle>
+	</svg>
+`;
+const ICON_TRASH = `
+	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<path d="M3 6h18"></path>
+		<path d="M8 6V4h8v2"></path>
+		<path d="M19 6l-1 14H6L5 6"></path>
+		<path d="M10 11v6"></path>
+		<path d="M14 11v6"></path>
+	</svg>
+`;
+
 const ui = {
 	pendingCount: document.getElementById('pending-count'),
 	confirmedCount: document.getElementById('confirmed-count'),
@@ -313,8 +335,8 @@ function renderTable() {
 					<td><span class="status-pill ${statusClass(item.status)}">${statusLabel(item.status)}</span></td>
 					<td>
 						<div class="action-buttons">
-							<button type="button" title="View" data-action="view" data-id="${item.id}"><img src="../../vet/images/eye.png" alt="View"></button>
-							<button type="button" title="Delete" data-action="delete" data-id="${item.id}"><img src="../../vet/images/trash.png" alt="Delete"></button>
+							<button type="button" title="View" data-action="view" data-id="${item.id}" aria-label="View">${ICON_EYE}</button>
+							<button type="button" title="Delete" data-action="delete" data-id="${item.id}" aria-label="Delete">${ICON_TRASH}</button>
 						</div>
 					</td>
 				</tr>

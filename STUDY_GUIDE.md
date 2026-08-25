@@ -135,6 +135,72 @@ to check if the services are running, we first read the output of the test evalu
 ## Day 5 — Broad Pattern Pass + DB Schema + Mock Defense
 _(pending)_
 
+---
+
+# Round 2 — OOP & Event-Driven Evaluation Prep (Aug 25 – Aug 31, 2026)
+
+New interview/evaluation, different professor — strong in OOP and event-driven design specifically, not a general walkthrough. Same method as before: explain each topic out loud/in writing first, self-correct, grill yourself at the end of each day. ~1:30-2hrs/day. For any JS file, find entry points first (`addEventListener` / `onclick` / `onsubmit`) before reading top to bottom — that's still the trick that works for you.
+
+**Reality check going in:** the PHP backend across `api/`, `admin/`, `vet/`, `public/` is 100% procedural — no `class`/`interface` anywhere outside `vendor/` (Composer/PHPUnit) and your own `tests/php/*Test.php` files (which only use a class because PHPUnit's `TestCase` requires it). If the professor asks "where's the OOP," don't invent a class that isn't there — say plainly that the backend is script-per-endpoint procedural by design (no framework), then pivot to where real structure exists: the event-driven JS layer, and be ready to say how you *would* refactor a procedural file into classes if pushed.
+
+### Day 1 — OOP Reality Check: Chatbot Scoring Engine
+Files: `api/chatbot/scoring.php` (new), `api/chatbot/chatbot.php`, `tests/php/ChatbotScoringTest.php`
+- Read `scoreRule($rule, $petType, $symptoms, $duration, $severity)` (line 28) and `actionLevel($actionType)` (line 43) — both plain functions, no class.
+- Questions to answer in your own words:
+  - What does `scoreRule()` take in, and what does it return? How does `chatbot.php` call into it?
+  - **Expect this one:** if you redesigned this as OOP, what classes would you pull out — and why does each one earn its place (not just "because OOP")? (e.g. a `Rule` class per rule, a `ScoringEngine` with a `score()` method instead of a free function)
+- My notes:
+  Answer 
+  - A:  ANSWER: the function scorerole take arguuement like rule, pet type, sysmpotms, duration and severity that is the data or the column of the chatbot consulation management. it return a 9 where we can track wheather the response of the chatbot are accruate or not.
+        the method first decode the sysmpotmps, which connected to normalize.php which functioan is to return a array value of cleaned sympotmps.
+        after that this line "    $overlap = array_intersect($symptoms, $ruleSymptoms);
+"   tell or compare the symptoms we get and the rule ruleSymptoms that from the ruled (the one stored in the database) 
+    then the scoring start, if the pet type, is match plus 2 and so on
+    the line "    $score += 3 * count($overlap);
+" the count overlap should return 0 less the number will exceed if the number exceed to 9 it is not accurate. 
+ - B: Class is a object we are idenfitying and inside the class we have method or function that build this object. So for this chatbot, if we build class i think it should be chatbot_rule, and the values of the chatbot that pet owner type. with this we can view clearly the comparison. In the current code we can't idenfity if the code comes from the systems or the pet owner. that why i think this classes will build a easibility and readibilyt. 
+
+### Day 2 — Event-Driven Deep Dive #1: Service Worker Lifecycle
+Files: `sw.js`, `shared/js/pwa-register.js`
+- `sw.js` is the cleanest textbook event-driven example in the whole codebase: `self.addEventListener('install', ...)` (line 12), `('activate', ...)` (line 16), `('fetch', ...)` (line 20). Nothing in this file calls itself — it sits idle until the browser fires an event at it.
+- Questions:
+  - What triggers `install` vs `activate`? Why are they two separate events instead of one?
+  - What does `event.respondWith(...)` inside the `fetch` listener do?
+  - Vocabulary to have ready: event listener, event object, callback, event source.
+- My notes:
+  _(write here)_
+
+### Day 3 — Event-Driven Deep Dive #2: Notifications, end to end
+Files: `shared/js/sidebar.js` (10 `addEventListener` calls, start here), `api/config/notifications.php`
+- Trace the full loop: DB row created → PHP returns it on next fetch → JS renders it → click fires an event.
+- Questions:
+  - What DOM event opens the notification dropdown? What fires when you click one item?
+  - Push or poll? (Round 1 already confirmed: no real-time push anywhere — admin/vet only see new data on their own next page load/fetch. Be ready to explain that distinction if asked "is this event-driven or just polling.")
+  - Does "mark as read" hit the server, or is it client-side only?
+- My notes:
+  _(write here)_
+
+### Day 4 — What Changed Since the Last Defense
+Files: `database/migrations/2026-08-24-timezone-columns.php`, `-dryrun.php`, `-apply.php`, current diffs in `admin/js/account-management.js` and `admin/js/admin-login.js`
+- These landed after Round 1 — don't assume you already know them.
+- Questions:
+  - What problem does the timezone migration solve? Why three separate files instead of one?
+  - What's the deploy-order risk — what breaks if the code ships before the migration runs, or vice versa?
+- My notes:
+  _(write here)_
+
+### Day 5 — Broad Pass: DB Schema + Carry Over Architecture Answers
+- Re-read your Day 1/Day 2 answers from Round 1 (above) and tighten the wording out loud.
+- Be able to name the 4-5 most important tables in the 37-table schema and what each owns.
+- My notes:
+  _(write here)_
+
+### Day 6 — Full Mock Defense (OOP + Event-Driven focus)
+No new files today. Come back for a live grill session — expect:
+- "Where's your OOP?" / "Why isn't this a class?"
+- "Walk me through one event, from the browser event to the DOM update, without skipping a step."
+- Rapid-fire on whatever tripped you up Days 1-5.
+
 ## Glossary
 _(terms you got corrected on go here)_
 

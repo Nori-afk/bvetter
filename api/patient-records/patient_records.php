@@ -316,6 +316,7 @@ function mapRecord($pdo, $row)
 
     return [
         'id' => (int) $row['pet_id'],
+        'ownerId' => (int) $row['owner_id'],
         'petName' => $row['pet_name'],
         'species' => $row['species'],
         'breed' => $row['breed'],
@@ -735,6 +736,49 @@ function validatePatientIdentityFields($data): void
     }
 }
 
+/**
+ * Registers another pet under an owner already on file.
+ *
+ * Takes owner_id directly instead of routing through findOrCreateOwner(),
+ * which can only reconnect to an existing owner by exact email match -- so a
+ * blank or mistyped email there silently creates a duplicate owner account
+ * rather than reusing the real one. The caller opens this from that owner's
+ * own record and already knows their id, so the guess is unnecessary.
+ *
+ * No visit row is written. A pet that has just been registered has not been
+ * seen yet, and inventing an empty visit for it would inflate the visit
+ * metrics and leave a blank entry in its clinical history.
+ */
+function addPetForOwner($pdo, $data)
+{
+    validatePatientIdentityFields($data);
+
+    $ownerId = (int) ($data['ownerId'] ?? $data['owner_id'] ?? 0);
+    if ($ownerId <= 0) respond(422, ['success' => false, 'message' => 'Invalid owner id.']);
+
+    $ownerStmt = $pdo->prepare('SELECT id FROM users WHERE id = :id LIMIT 1');
+    $ownerStmt->execute([':id' => $ownerId]);
+    if (!$ownerStmt->fetchColumn()) respond(404, ['success' => false, 'message' => 'Owner not found.']);
+
+    if (clean($data['petName'] ?? '') === '') {
+        respond(422, ['success' => false, 'message' => 'Pet name is required.']);
+    }
+
+    $pdo->beginTransaction();
+    $petId = insertPetRow($pdo, $ownerId, $data);
+
+    // listRecords() only surfaces pets that have a profile row or a confirmed
+    // appointment, so without this the new pet would save but never appear.
+    $profile = $pdo->prepare("
+        INSERT INTO patient_record_profiles (pet_id, patient_status, health_status, alert_text, source, is_archived)
+        VALUES (:pet_id, 'Active Patient', 'Good Standing', '', 'walk_in', 0)
+    ");
+    $profile->execute([':pet_id' => $petId]);
+    $pdo->commit();
+
+    respond(201, ['success' => true, 'id' => $petId, 'message' => 'Pet added.']);
+}
+
 function saveRecord($pdo, $data)
 {
     validateVisitDates($data);
@@ -859,19 +903,49 @@ function updateRecord($pdo, $data)
     respond(200, ['success' => true, 'id' => $petId, 'message' => 'Patient record updated.']);
 }
 
-function deleteRecord($pdo, $data)
+function archivePet($pdo, $petId)
 {
-    $petId = (int) ($data['id'] ?? $data['pet_id'] ?? 0);
-    if ($petId <= 0) respond(422, ['success' => false, 'message' => 'Invalid patient id.']);
-
     $stmt = $pdo->prepare("
         INSERT INTO patient_record_profiles (pet_id, patient_status, health_status, alert_text, source, is_archived)
         VALUES (:pet_id, 'Archived', 'Archived', 'Archived', 'walk_in', 1)
         ON DUPLICATE KEY UPDATE is_archived = 1, patient_status = 'Archived', alert_text = 'Archived'
     ");
     $stmt->execute([':pet_id' => $petId]);
+}
+
+function deleteRecord($pdo, $data)
+{
+    $petId = (int) ($data['id'] ?? $data['pet_id'] ?? 0);
+    if ($petId <= 0) respond(422, ['success' => false, 'message' => 'Invalid patient id.']);
+
+    archivePet($pdo, $petId);
 
     respond(200, ['success' => true, 'deleted' => $petId]);
+}
+
+/**
+ * Same archive as deleteRecord(), for a whole batch of ids in one
+ * transaction -- so selecting 20 records to remove is one confirmation
+ * instead of twenty, and a failure partway through leaves nothing archived
+ * rather than an inconsistent half-done batch.
+ */
+function bulkDeleteRecords($pdo, $data)
+{
+    $ids = $data['ids'] ?? [];
+    if (!is_array($ids)) $ids = [];
+    $ids = array_values(array_unique(array_filter(array_map('intval', $ids), fn($id) => $id > 0)));
+
+    if (count($ids) === 0) {
+        respond(422, ['success' => false, 'message' => 'No records selected.']);
+    }
+
+    $pdo->beginTransaction();
+    foreach ($ids as $petId) {
+        archivePet($pdo, $petId);
+    }
+    $pdo->commit();
+
+    respond(200, ['success' => true, 'deleted' => $ids]);
 }
 
 /**
@@ -934,8 +1008,10 @@ try {
     if ($action === 'coverage_set') setCoverage($pdo, $input);
     if ($action === 'save') saveRecord($pdo, $input);
     if ($action === 'save_batch') saveBatch($pdo, $input);
+    if ($action === 'add_pet') addPetForOwner($pdo, $input);
     if ($action === 'update') updateRecord($pdo, $input);
     if ($action === 'delete') deleteRecord($pdo, $input);
+    if ($action === 'bulk_delete') bulkDeleteRecords($pdo, $input);
     if ($action === 'resync_visit_barangay') resyncVisitBarangay($pdo, $input);
 
     respond(400, ['success' => false, 'message' => 'Unknown patient records action.']);

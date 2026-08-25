@@ -210,7 +210,8 @@ function db_patient_rows($pdo){
         $barangayJoin
         $visitJoin
         $profileJoin
-        WHERE (
+        WHERE COALESCE(prp.is_archived, 0) = 0
+          AND (
             pvr.pet_id IS NOT NULL
             OR EXISTS (
                 SELECT 1 FROM appointments a
@@ -282,6 +283,13 @@ function db_consultation_rows($pdo)
         ? 'LEFT JOIN patient_record_profiles prp ON prp.pet_id = pets.id'
         : '';
 
+    // Archived records are ones the encoder marked as not-real (scratch entries,
+    // duplicates, typed-in test names), so their visits are not consultations
+    // that happened. COALESCE keeps de-identified visits, which have no pet row
+    // and therefore no profile to read a flag from -- those are real cases whose
+    // owner closed their account, and must still count.
+    $archiveFilter = $profileJoin ? 'AND COALESCE(prp.is_archived, 0) = 0' : '';
+
     // pvr.disease_category holds the four-bucket value the risk model needs,
     // but this table sits alongside Excel rows that show the richer ten-value
     // category (e.g. 'Zoonotic / reportable'). Joining the catalog lets both
@@ -309,6 +317,7 @@ function db_consultation_rows($pdo)
             {$profileJoin}
             {$diseaseJoin}
             WHERE pvr.diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)
+            {$archiveFilter}
             ORDER BY pvr.visit_date DESC, pvr.id DESC
         ")->fetchAll();
     } catch (Throwable $e) {
@@ -425,6 +434,15 @@ function db_disease_rows($pdo)
     $liveBarangay = $barangayJoin ? "NULLIF(b.name, ''), " : '';
     $barangayExpr = "COALESCE(NULLIF(pvr.barangay_at_visit, ''), {$liveBarangay}'Unspecified')";
 
+    // Joined on pvr.pet_id rather than pets.id so it still resolves for a visit
+    // whose pet row is gone. See the $archiveFilter note in
+    // db_consultation_rows() for why archived visits are excluded but
+    // de-identified ones are kept.
+    $archiveJoin = bv_table_exists($pdo, 'patient_record_profiles')
+        ? 'LEFT JOIN patient_record_profiles prp ON prp.pet_id = pvr.pet_id'
+        : '';
+    $archiveFilter = $archiveJoin ? 'AND COALESCE(prp.is_archived, 0) = 0' : '';
+
     try {
         // LEFT JOIN, not INNER: a de-identified visit has no pet row, and
         // dropping it here would delete a real case from disease surveillance
@@ -452,8 +470,10 @@ function db_disease_rows($pdo)
             FROM patient_visit_records pvr
             LEFT JOIN pets ON pets.id = pvr.pet_id
             {$barangayJoin}
+            {$archiveJoin}
             WHERE pvr.visit_date IS NOT NULL
               AND pvr.diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)
+              {$archiveFilter}
             GROUP BY yr, mo, barangay, pvr.disease_category
         ")->fetchAll();
     } catch (Throwable $e) {

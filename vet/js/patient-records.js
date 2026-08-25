@@ -258,6 +258,7 @@ const state = {
 	page: 1,
 	modal: null,
 	pendingDeleteId: null,
+	selectedIds: [],
 	// The month the encoder has declared visit entry complete through. Until
 	// one is declared the forecasting pipeline cannot tell a barangay-month
 	// with genuinely no cases apart from one nobody has encoded yet, so it
@@ -452,12 +453,22 @@ function navigate(mode, options = {}, replace = false) {
 	if (options.status && options.status !== 'all') params.set('status', options.status);
 	const nextUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
 	if (replace) history.replaceState({}, '', nextUrl); else history.pushState({}, '', nextUrl);
+	// A selection made before a search or filter change would otherwise stay
+	// live while the rows behind it are hidden, so "Delete Selected (3)" could
+	// archive records the vet can no longer see. Paging does not route, so
+	// selecting across pages still works.
+	state.selectedIds = [];
 	routeFromUrl();
 	render();
 }
 
 function getRecordById(id) {
 	return state.records.find((record) => record.id === id) || null;
+}
+
+function otherPetsForOwner(record) {
+	if (!record.ownerId) return [];
+	return state.records.filter((candidate) => candidate.ownerId === record.ownerId && candidate.id !== record.id);
 }
 
 function getVisitHistory(record) {
@@ -540,6 +551,7 @@ function detailTabButton(label, tabKey, activeTab) {
 function renderPatientInfoTab(record) {
 	const medications = Array.isArray(record.medications) ? record.medications : [];
 	const isEmergency = String(record.category || '').toLowerCase().includes('emergency');
+	const otherPets = otherPetsForOwner(record);
 
 	return `
 		<div class="detail-panel-grid">
@@ -655,6 +667,23 @@ function renderPatientInfoTab(record) {
 							<span class="pi-label">HOUSE NO. / STREET</span>
 							<span class="pi-value">${escapeHtml(record.address || '—')}</span>
 						</div>
+					</div>
+					<div class="pi-owner-pets">
+						<span class="pi-label">OTHER PETS OF THIS OWNER</span>
+						${otherPets.length ? `
+						<div class="pi-owner-pets-list">
+							${otherPets.map((pet) => `
+								<button type="button" class="pi-owner-pet-chip" data-action="view" data-id="${pet.id}">
+									<span class="pi-owner-pet-avatar">${escapeHtml((pet.petName || '?').slice(0, 1).toUpperCase())}</span>
+									<span class="pi-owner-pet-text">
+										<strong>${escapeHtml(pet.petName)}</strong>
+										<span>${escapeHtml(pet.species || '')}</span>
+									</span>
+								</button>
+							`).join('')}
+						</div>
+						` : `<p class="pi-owner-pets-empty">No other pets on file for this owner yet.</p>`}
+						<button type="button" class="pi-owner-pet-add" data-action="add-pet" data-id="${record.id}">${ICONS.plus} Add Pet for This Owner</button>
 					</div>
 				</article>
 			</div>
@@ -902,6 +931,8 @@ function renderList() {
 	state.page = Math.min(Math.max(1, state.page), totalPages);
 	const pageStart  = (state.page - 1) * pageSize;
 	const records    = filtered.slice(pageStart, pageStart + pageSize);
+	const pageIds = records.map((record) => record.id);
+	const allSelectedOnPage = pageIds.length > 0 && pageIds.every((id) => state.selectedIds.includes(id));
 
 	return `
 		<section class="records-shell">
@@ -946,10 +977,21 @@ function renderList() {
 					<button type="button" class="filter-pill ${state.filterType === 'active' ? 'active' : ''}" data-filter-type="active">Active Only</button>
 				</div>
 
+				${state.selectedIds.length ? `
+				<div class="bulk-action-bar">
+					<span class="bulk-action-count">${state.selectedIds.length} selected</span>
+					<div class="bulk-action-buttons">
+						<button type="button" class="btn btn-soft" data-action="clear-selection">Clear</button>
+						<button type="button" class="btn btn-danger" data-action="bulk-delete">${ICONS.trash} Delete Selected (${state.selectedIds.length})</button>
+					</div>
+				</div>
+				` : ''}
+
 				<div class="table-wrap">
 					<table class="records-table">
 						<thead>
 							<tr>
+								<th class="th-select"><input type="checkbox" id="select-all-checkbox" class="row-select-checkbox" data-page-ids="${pageIds.join(',')}" ${allSelectedOnPage ? 'checked' : ''} aria-label="Select all patients on this page"></th>
 								<th>Patient</th>
 								<th>Owner</th>
 								<th>Last Visit</th>
@@ -962,6 +1004,7 @@ function renderList() {
 						<tbody>
 							${records.length ? records.map((record) => `
 								<tr>
+									<td class="td-select"><input type="checkbox" class="row-select-checkbox" data-select-id="${record.id}" ${state.selectedIds.includes(record.id) ? 'checked' : ''} aria-label="Select ${escapeHtml(record.petName)}"></td>
 									<td>
 										<div class="patient-mini">
 											<div class="patient-avatar">${escapeHtml((record.petName || '?')[0].toUpperCase())}</div>
@@ -995,7 +1038,7 @@ function renderList() {
 								</tr>
 							`).join('') : `
 								<tr>
-									<td colspan="7"><div class="empty-state">No patient records match the current filters.</div></td>
+									<td colspan="8"><div class="empty-state">No patient records match the current filters.</div></td>
 								</tr>
 							`}
 						</tbody>
@@ -1636,6 +1679,11 @@ async function deleteRecord(id) {
 	await loadRecords();
 }
 
+async function bulkDeleteRecordsRequest(ids) {
+	await patientRequest('bulk_delete', { ids });
+	await loadRecords();
+}
+
 function getFormData(form) {
 	const formData = new FormData(form);
 	const medications = String(formData.get('medications') || '')
@@ -1886,6 +1934,129 @@ function openEditModal(id) {
 	}
 }
 
+// Owner fields are deliberately absent from this form -- the pet is linked
+// via record.ownerId (see openAddPetModal), not by re-typing/re-matching the
+// owner's name or email, so there is no way for this path to spin up a
+// duplicate owner account.
+function renderAddPetModal(record) {
+	if (!record) return '<div class="empty-state">Record not found.</div>';
+	return `
+		<form id="add-pet-form" class="em-form">
+			<div class="em-header">
+				<div class="em-header-icon">${ICONS.plus}</div>
+				<div>
+					<h2 id="records-modal-title" class="em-title">Add Pet</h2>
+					<p class="em-subtitle">Registers a new pet under this owner. Their contact details are reused automatically.</p>
+				</div>
+			</div>
+			<div class="em-divider"></div>
+
+			<div class="em-body">
+				<div class="pi-owner-strip">
+					<div class="owner-avatar">${escapeHtml((record.ownerName || '?').slice(0, 1).toUpperCase())}</div>
+					<div>
+						<strong>${escapeHtml(record.ownerName)}</strong>
+						<span class="pi-label">Owner on file</span>
+					</div>
+				</div>
+
+				<div class="em-section">
+					<p class="em-section-label">Pet Information</p>
+					<div class="em-grid">
+						<div class="em-field em-span-2">
+							<label class="em-label" for="add-pet-name">PET NAME</label>
+							<input class="em-input" id="add-pet-name" name="petName" required placeholder="e.g. Buddy">
+						</div>
+						<div class="em-field">
+							<label class="em-label" for="add-pet-species">SPECIES</label>
+							<select class="em-input" id="add-pet-species" name="species">
+								<option>Canine</option>
+								<option>Feline</option>
+								<option>Avian</option>
+								<option>Exotic</option>
+							</select>
+						</div>
+						<div class="em-field">
+							<label class="em-label" for="add-pet-breed">BREED</label>
+							<input class="em-input" id="add-pet-breed" name="breed" placeholder="e.g. Golden Retriever">
+						</div>
+						<div class="em-field">
+							<label class="em-label" for="add-pet-age-value">AGE</label>
+							<div class="em-field-row">
+								<input class="em-input" id="add-pet-age-value" name="ageValue" type="number" min="0" step="1" placeholder="e.g. 2">
+								<select class="em-input" id="add-pet-age-unit" name="ageUnit">
+									<option>Years</option>
+									<option>Months</option>
+								</select>
+							</div>
+						</div>
+						<div class="em-field">
+							<label class="em-label" for="add-pet-sex">SEX</label>
+							<select class="em-input" id="add-pet-sex" name="sex">
+								<option>Male</option>
+								<option>Female</option>
+							</select>
+						</div>
+						<div class="em-field">
+							<label class="em-label" for="add-pet-weight">WEIGHT</label>
+							<input class="em-input" id="add-pet-weight" name="weight" placeholder="e.g. 12.5 kg">
+						</div>
+						<div class="em-field em-span-2">
+							<label class="em-label" for="add-pet-color-markings">COLOR / MARKINGS</label>
+							<input class="em-input" id="add-pet-color-markings" name="colorMarkings" placeholder="e.g. Golden coat, white chest">
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="em-footer">
+				<div class="em-footer-right">
+					<button type="button" class="btn btn-soft" data-modal-action="close-modal">Cancel</button>
+					<button type="submit" class="btn btn-primary">${ICONS.plus} Add Pet</button>
+				</div>
+			</div>
+		</form>
+	`;
+}
+
+function openAddPetModal(id) {
+	const record = getRecordById(id);
+	if (!record || !record.ownerId) return;
+	state.modal = 'add-pet';
+	openModal(renderAddPetModal(record));
+	const addPetForm = document.getElementById('add-pet-form');
+	if (addPetForm) {
+		addPetForm.addEventListener('submit', async (event) => {
+			event.preventDefault();
+			const data = getFormData(addPetForm);
+			if (!data.petName) {
+				document.getElementById('add-pet-name')?.focus();
+				return;
+			}
+			let result = null;
+			try {
+				result = await patientRequest('add_pet', { ownerId: record.ownerId, ...data });
+			} catch (error) {
+				await vbAlert(error.message || 'Failed to add pet.');
+				return;
+			}
+			await loadRecords();
+			closeModal();
+			navigate('view', { id: result.id }, true);
+			openModal(`
+				<div class="success-banner">
+					<div class="success-mark">${ICONS.check}</div>
+					<h2 id="records-modal-title">Pet Added</h2>
+					<p class="muted">${escapeHtml(data.petName)} has been added under ${escapeHtml(record.ownerName)}.</p>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-primary" data-modal-action="close-modal">Close</button>
+					</div>
+				</div>
+			`);
+		});
+	}
+}
+
 function openDeleteModal(id) {
 	const record = getRecordById(id);
 	if (!record) return;
@@ -1893,6 +2064,51 @@ function openDeleteModal(id) {
 	state.pendingDeleteId = id;
 	state.selectedId = id;
 	openModal(renderDeleteModal(record));
+}
+
+function renderBulkDeleteModal(records) {
+	const names = records.map((record) => record.petName).filter(Boolean);
+	const preview = names.length > 3
+		? `${names.slice(0, 3).join(', ')}, and ${names.length - 3} more`
+		: names.join(', ');
+	return `
+		<div class="delete-modal-wrap">
+			<div class="delete-modal-icon">
+				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+			</div>
+			<h2 id="records-modal-title" class="delete-modal-title">Delete ${records.length} Patient Records?</h2>
+			<p class="delete-modal-sub">This action is permanent and cannot be undone.</p>
+			<div class="delete-warning">
+				<div class="delete-warning-inner">
+					<div class="delete-pet-avatar">${records.length}</div>
+					<div>
+						<strong>${records.length} records selected</strong>
+						<p>${escapeHtml(preview)}</p>
+					</div>
+				</div>
+			</div>
+			<div class="field delete-confirm-field">
+				<label for="bulk-delete-confirm" class="delete-confirm-label">Type <strong>DELETE</strong> to confirm</label>
+				<input class="form-input delete-confirm-input" id="bulk-delete-confirm" type="text" placeholder="DELETE" autocomplete="off"
+					oninput="this.classList.remove('invalid'); document.getElementById('bulk-delete-confirm-error')?.classList.remove('visible');">
+				<span class="field-error" id="bulk-delete-confirm-error">Please type DELETE exactly (all capital letters) to confirm.</span>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-soft" data-modal-action="close-modal">Cancel</button>
+				<button type="button" class="btn btn-danger delete-submit-btn" data-modal-action="confirm-bulk-delete">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+					Delete ${records.length} Records
+				</button>
+			</div>
+		</div>
+	`;
+}
+
+function openBulkDeleteModal() {
+	const records = state.selectedIds.map((selectedId) => getRecordById(selectedId)).filter(Boolean);
+	if (records.length === 0) return;
+	state.modal = 'bulk-delete';
+	openModal(renderBulkDeleteModal(records));
 }
 
 function renderAddVaccineTypeModal() {
@@ -1995,6 +2211,34 @@ function handleModalAction(action, target) {
 			})
 			.catch((error) => vbAlert(error.message || 'Failed to delete patient record.'));
 	}
+
+	if (action === 'confirm-bulk-delete') {
+		const input = document.getElementById('bulk-delete-confirm');
+		if (!input) return;
+		if (input.value.trim() !== 'DELETE') {
+			input.classList.add('invalid');
+			document.getElementById('bulk-delete-confirm-error')?.classList.add('visible');
+			return;
+		}
+		const ids = [...state.selectedIds];
+		bulkDeleteRecordsRequest(ids)
+			.then(() => {
+				state.selectedIds = [];
+				closeModal();
+				navigate('list', {}, true);
+				openModal(`
+					<div class="success-banner">
+						<div class="success-mark">${ICONS.check}</div>
+						<h2 id="records-modal-title">${ids.length} Records Deleted</h2>
+						<p class="muted">The selected records were removed after DELETE confirmation.</p>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-primary" data-modal-action="go-list">Return to Records</button>
+						</div>
+					</div>
+				`);
+			})
+			.catch((error) => vbAlert(error.message || 'Failed to delete selected records.'));
+	}
 }
 
 function bindGlobalEvents() {
@@ -2041,6 +2285,26 @@ function bindGlobalEvents() {
 			return;
 		}
 
+		const selectAllCheckbox = event.target.closest('#select-all-checkbox');
+		if (selectAllCheckbox) {
+			const pageIds = (selectAllCheckbox.dataset.pageIds || '').split(',').filter(Boolean).map(Number);
+			state.selectedIds = selectAllCheckbox.checked
+				? Array.from(new Set([...state.selectedIds, ...pageIds]))
+				: state.selectedIds.filter((selectedId) => !pageIds.includes(selectedId));
+			render();
+			return;
+		}
+
+		const rowCheckbox = event.target.closest('.row-select-checkbox[data-select-id]');
+		if (rowCheckbox) {
+			const rowId = Number(rowCheckbox.dataset.selectId);
+			state.selectedIds = rowCheckbox.checked
+				? Array.from(new Set([...state.selectedIds, rowId]))
+				: state.selectedIds.filter((selectedId) => selectedId !== rowId);
+			render();
+			return;
+		}
+
 		const navButton = event.target.closest('[data-nav]');
 		if (navButton) {
 			const destination = navButton.dataset.nav;
@@ -2058,8 +2322,11 @@ function bindGlobalEvents() {
 
 		if (action === 'view') navigate('view', { id }, false);
 		if (action === 'add-record') navigate('add', { id }, false);
+		if (action === 'add-pet') openAddPetModal(id);
 		if (action === 'edit') openEditModal(id);
 		if (action === 'delete') openDeleteModal(id);
+		if (action === 'clear-selection') { state.selectedIds = []; render(); }
+		if (action === 'bulk-delete') openBulkDeleteModal();
 		if (action === 'prev-page') { state.page -= 1; app.innerHTML = renderList(); }
 		if (action === 'next-page') { state.page += 1; app.innerHTML = renderList(); }
 	});

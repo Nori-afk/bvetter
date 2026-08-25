@@ -9,6 +9,7 @@
  */
 
 if (!function_exists('clean')) {
+    // parang kapang wala pang function na clean doon palang gagawa, for verification
     function clean($value)
     {
         return trim((string) $value);
@@ -17,11 +18,13 @@ if (!function_exists('clean')) {
 
 function normalizeStatus($value)
 {
+    // for checking the if the status of the value is among the list, if not or di siya inactive then we will set it as active
     return strtolower(clean($value)) === 'inactive' ? 'inactive' : 'active';
 }
 
 function normalizeDuration($value)
 {
+    //used str pos to find the first occurance of substring 
     $value = strtolower(clean($value));
     if ($value === '<24h' || strpos($value, 'less') !== false) return 'Less Than 24 Hours';
     if (strpos($value, 'more') !== false || strpos($value, '>3') !== false) return 'More than 3 days';
