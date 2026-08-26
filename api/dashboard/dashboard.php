@@ -602,10 +602,22 @@ function disease_analytics_data($pdo)
             ?: ($selected !== '' ? ucwords($selected) : 'N/A');
     }
 
-    /* ── Filter dropdown ─────────────────────────────────────────────── */
-    $monthly = bv_sheet_rows('Disease_Monthly_2023_2025');
+    /* ── Filter dropdown ─────────────────────────────────────────────────
+     * Built from the SAME consultation source everything else on this page
+     * uses, not from Disease_Monthly_2023_2025.
+     *
+     * Both sheets happen to list the identical 42 diagnoses today, so this
+     * changes nothing visible right now. It stops the list going stale later:
+     * Disease_Monthly_2023_2025 ships with the workbook and is not part of what
+     * a clinic uploads, so once an upload introduces a diagnosis the models
+     * learn, the old source would never list it and the disease would be
+     * invisible in the filter while appearing everywhere else.
+     *
+     * Ordered by frequency (bv_count_by sorts descending), so the diseases a
+     * vet actually sees come first.
+     */
     $filters = ['All Diseases'];
-    foreach (array_keys(bv_count_by($monthly, 'disease_or_condition')) as $d) {
+    foreach (array_keys(bv_count_by(bv_sheet_rows('Consult_Diagnosis_3Y'), 'diagnosis')) as $d) {
         $filters[] = $d;
     }
 
@@ -731,8 +743,11 @@ function disease_analytics_data($pdo)
     } else {
         $sources = [
             ['name' => 'Consult_Diagnosis_3Y',      'status' => 'Case counts · Excel 2023-2025 municipal records (used)'],
-            ['name' => 'Barangay_Disease_Monthly',  'status' => 'Trains the risk model · not used for case counts'],
-            ['name' => 'Disease_Monthly_2023_2025', 'status' => 'Disease list for the filter (used)'],
+            // Both labels were stale. Barangay_Disease_Monthly no longer trains
+            // anything -- the pipeline is single-source on the consultations --
+            // and the disease filter is now built from those consultations too.
+            ['name' => 'Barangay_Disease_Monthly',  'status' => 'No longer used · superseded by the consultation records'],
+            ['name' => 'diseases catalog',          'status' => 'Diagnosis list and categories (used)'],
         ];
     }
 
@@ -1429,6 +1444,31 @@ if ($scope === 'disease_risk_prediction' || $scope === 'disease-risk-prediction'
 
     $rf = get_disease_predictions($barangays, $cleanCases, $disease, $period, $steps);
     bv_json_response($rf['success'] ? 200 : 502, $rf);
+}
+
+/**
+ * Per-disease case forecast from the pooled Random Forest.
+ *
+ * Separate from disease_risk_prediction, which is per BARANGAY. This one is per
+ * DISEASE, and it is the model that beats ARIMA: pooling all 42 disease series
+ * into one regressor scores MAE 0.230 against per-disease ARIMA's 0.441, which
+ * itself lands at MASE 1.302 -- worse than a naive forecast, because 36 monthly
+ * points per disease is too few to fit individually.
+ */
+if ($scope === 'disease_forecast' || $scope === 'disease-forecast') {
+    $diagnosis = bv_clean($input['diagnosis'] ?? $input['disease'] ?? '');
+    $steps     = max(1, min(12, (int) ($input['steps'] ?? 3)));
+    if ($diagnosis === '' || strtolower($diagnosis) === 'all diseases') {
+        bv_json_response(200, ['success' => true, 'data' => null,
+                               'message' => 'Per-disease forecast needs a specific disease.']);
+    }
+    $out = analytics_post('/disease-forecast', ['diagnosis' => $diagnosis, 'steps' => $steps], 30);
+    bv_json_response($out['success'] ? 200 : 502, $out);
+}
+
+if ($scope === 'disease_forecast_info' || $scope === 'disease-forecast-info') {
+    $out = analytics_post('/disease-forecast-info', [], 30);
+    bv_json_response($out['success'] ? 200 : 502, $out);
 }
 
 if ($scope === 'mass_vaccination_dataset') {
