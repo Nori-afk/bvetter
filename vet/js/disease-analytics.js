@@ -288,9 +288,16 @@ async function loadDiseaseAnalytics(disease, period, dataView, currentMonth) {
         });
     }
 
-    const rfRes = window.VetAPI?.getDiseaseRiskPrediction
-        ? await window.VetAPI.getDiseaseRiskPrediction(barangayNames, currentCasesByBarangay, disease, rfPeriod)
-        : await diseaseRiskRequest(barangayNames, currentCasesByBarangay, disease, rfPeriod);
+    // Fetched in parallel with the barangay predictions: it is a different
+    // model answering a different question, and waiting for it in series would
+    // add its latency to a page that already takes seconds on a cold cache.
+    const [rfRes, diseaseFc] = await Promise.all([
+        window.VetAPI?.getDiseaseRiskPrediction
+            ? window.VetAPI.getDiseaseRiskPrediction(barangayNames, currentCasesByBarangay, disease, rfPeriod)
+            : diseaseRiskRequest(barangayNames, currentCasesByBarangay, disease, rfPeriod),
+        diseaseForecastRequest(disease)
+    ]);
+    diseaseAnalyticsData.diseaseForecast = diseaseFc;
 
     if (requestId !== state.loadRequestId) return false;
 
@@ -300,6 +307,138 @@ async function loadDiseaseAnalytics(disease, period, dataView, currentMonth) {
 
     state.selectedInsightId = diseaseAnalyticsData.insights?.[0]?.id || null;
     return true;
+}
+
+/* ── Top-down forecast panel ─────────────────────────────────────
+   Renders what the backend actually produced, labelled by how it was
+   produced. Three rules this markup exists to keep:
+
+   1. The action level is a RULE over observed cases, never a forecast, so it
+      carries no confidence figure. The old panel printed "High case volume ·
+      99.6% confidence" beside "predicts 20.8 cases" -- the same fact twice,
+      with an invented certainty attached.
+   2. Interval coverage is stated as MEASURED (about 80%), not as a flat 80%
+      target: monthly lands at 80.2% and the quarter at 77.8% on 27 barangays.
+   3. A barangay on the fallback path is marked. It is produced by the ~91%
+      MAPE per-barangay method rather than top-down, and must never look
+      identical to a top-down figure. */
+function intervalLabel(insight) {
+    const c = insight.interval_coverage;
+    if (!c) return 'estimated range';
+    return `about ${c.target_pct}% of months fall in this range`;
+}
+
+function topDownPanelHtml(insight) {
+    if (!insight) return '';
+    // The insight object renames these: rf.arima_forecast is stored as
+    // .forecast, and .predicted is an array of chart bars rather than a number.
+    // Reading the raw API names here produced "Next month NaN cases".
+    const fc = insight.forecast || [];
+    const lo = insight.lower_ci || [];
+    const hi = insight.upper_ci || [];
+    const hasQuarter = insight.quarter_total != null;
+
+    const fallbackNote = insight.is_fallback
+        ? `<div class="td-fallback">Limited data &mdash; estimated differently.
+             ${insight.fallback_reason ? vbEscapeHtml(insight.fallback_reason) : ''}
+             <small>This barangay is not part of the municipality-wide forecast, so its
+             figures are less reliable than the others shown.</small>
+           </div>`
+        : '';
+
+    const sharePct = insight.barangay_share != null
+        ? `${(Number(insight.barangay_share) * 100).toFixed(1)}%`
+        : '—';
+
+    return `
+        <div class="td-panel${insight.is_fallback ? ' is-fallback' : ''}">
+            ${fallbackNote}
+            <div class="td-grid">
+                <div class="td-cell">
+                    <span class="td-label">Next month</span>
+                    <span class="td-value">${fc[0] ?? '—'}<small> cases</small></span>
+                    ${lo[0] != null ? `<span class="td-range">${lo[0]}–${hi[0]} &middot; ${intervalLabel(insight)}</span>` : ''}
+                    <span class="td-caveat">Single months vary widely at this size</span>
+                </div>
+                <div class="td-cell td-primary">
+                    <span class="td-label">Next 3 months <em>&mdash; use this for planning</em></span>
+                    <span class="td-value">${hasQuarter ? insight.quarter_total : '—'}<small> cases</small></span>
+                    ${hasQuarter ? `<span class="td-range">${insight.quarter_lower}–${insight.quarter_upper} &middot; ${intervalLabel(insight)}</span>` : ''}
+                    <span class="td-caveat">Typically within about a third of the actual total</span>
+                </div>
+                <div class="td-cell">
+                    <span class="td-label">Share of municipality</span>
+                    <span class="td-value">${sharePct}</span>
+                    <span class="td-caveat">${insight.is_fallback
+                        ? 'Not allocated from the municipal total'
+                        : 'Municipal forecast is split by this share'}</span>
+                </div>
+            </div>
+        </div>`;
+}
+
+/* The action level, stated as the rule it is. */
+function actionTierHtml(insight) {
+    if (!insight?.action_tier_label) return '';
+    const tone = insight.action_tier === 'ESCALATE' ? 'act'
+               : insight.action_tier === 'MONITOR' ? 'watch' : 'normal';
+    return `
+        <div class="td-action td-action-${tone}">
+            <span class="td-action-label">${vbEscapeHtml(insight.action_tier_label)}</span>
+            <span class="td-action-reason">${vbEscapeHtml(insight.action_reason || '')}</span>
+            <span class="td-action-basis">Based on cases already recorded &mdash; not a forecast</span>
+        </div>`;
+}
+
+/* ── Per-disease forecast (pooled Random Forest) ─────────────────
+   Separate model from the barangay forecast and a separate question: this one
+   is per DISEASE, municipality-wide. It is also the model that genuinely beats
+   ARIMA -- pooling all 42 disease series into one regressor scores MAE 0.230
+   against per-disease ARIMA's 0.441, because 36 monthly points per disease is
+   too few to fit each series on its own.
+
+   Only meaningful for a specific disease, so it is skipped for "All Diseases".
+   Never blocks the page: a failure leaves the strip hidden. */
+async function diseaseForecastRequest(disease) {
+    if (!disease || disease.toLowerCase() === 'all diseases') return null;
+    try {
+        const res = await fetch('/api/dashboard/dashboard.php?scope=disease_forecast', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            cache: 'no-store',
+            body: JSON.stringify({ diagnosis: disease, steps: 3 })
+        });
+        const json = await res.json();
+        return json.success ? (json.data || null) : null;
+    } catch (error) {
+        console.warn('Per-disease forecast unavailable:', error);
+        return null;
+    }
+}
+
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function diseaseForecastHtml(fc) {
+    if (!fc || !fc.available || !(fc.forecast || []).length) return '';
+    const months = fc.forecast.map(f => `
+        <div class="df-month">
+            <span class="df-month-label">${MONTH_LABELS[(f.month_no || 1) - 1]} ${f.year}</span>
+            <span class="df-month-value">${f.predicted_cases}</span>
+        </div>`).join('');
+    // Reports the holdout error next to the number rather than a bare
+    // prediction, and names the baseline it beat.
+    const acc = (fc.holdout_mae != null && fc.baseline_mae != null)
+        ? `usually within ${fc.holdout_mae} cases &middot; the simpler "same as usual" estimate misses by ${fc.baseline_mae}`
+        : '';
+    return `
+        <div class="df-strip">
+            <div class="df-strip-head">
+                <span class="df-strip-title">${vbEscapeHtml(fc.diagnosis || '')} &mdash; expected cases, municipality-wide</span>
+                <span class="df-strip-acc">${acc}</span>
+            </div>
+            <div class="df-months">${months}</div>
+        </div>`;
 }
 
 function _mergeRFResults(rfData, disease, period, allDiseases) {
@@ -347,8 +486,9 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
             protocolDesc = (
                 `Our Advanced Forecast predicts ${arimaForecast[0] ?? '?'} cases next month. ` +
                 `Case volume level: ${rf.risk_class || 'N/A'} (${rf.confidence || 0}% confidence). ` +
-                (rf.model_mae != null
-                    ? `Predictions here are usually within ${rf.model_mae} cases of the actual count.`
+                (rf.municipality_accuracy?.mape != null
+                    ? `The municipality-wide forecast this is split from is usually within `
+                      + `${rf.municipality_accuracy.mape}% of the actual total; a single barangay varies more.`
                     : '')
             );
         }
@@ -362,6 +502,23 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
             recommendation:  rf.recommendation,
             rf_risk_class:   rf.risk_class,
             rf_confidence:   rf.confidence,
+            // Top-down output. action_* is a RULE over observed cases, not a
+            // forecast; quarter_* is the barangay figure that can actually be
+            // trusted (~36% MAPE against ~91% for a single month); is_fallback
+            // marks a barangay still on the old per-barangay ARIMA path.
+            action_tier:       rf.action_tier,
+            action_tier_label: rf.action_tier_label,
+            action_reason:     rf.action_reason,
+            action_is_rule:    rf.action_is_rule,
+            quarter_total:     rf.quarter_total,
+            quarter_lower:     rf.quarter_lower,
+            quarter_upper:     rf.quarter_upper,
+            barangay_share:    rf.barangay_share,
+            forecast_method:   rf.forecast_method,
+            is_fallback:       rf.is_fallback,
+            fallback_reason:   rf.fallback_reason,
+            interval_coverage: rf.interval_coverage,
+            municipality_accuracy: rf.municipality_accuracy,
             rf_risk_proba:   rf.risk_proba || rf.rf_future_proba,
             rf_model_type:   rf.rf_model_type || 'RandomForestClassifier',
             risk_thresholds: rf.risk_thresholds || null,
@@ -446,14 +603,20 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
     // barangay (e.g. one barangay ±3.9 cases vs another ±2.8 for the same
     // disease), so showing a single borrowed barangay's number as "Forecast
     // Accuracy" for the whole page was misleading.
-    const maeValues = rfData.map(r => r.model_mae).filter(v => v != null && !Number.isNaN(v));
-    const avgMae    = maeValues.length ? (maeValues.reduce((a, b) => a + b, 0) / maeValues.length) : null;
+    // model_mae is the MUNICIPALITY-wide holdout error, and every barangay in
+    // the response carries the same value -- it is one figure for one model,
+    // not 27 separate measurements. Averaging it and captioning the result
+    // "checked across 27 barangays" implied a per-barangay accuracy of ±2.6
+    // cases when the real per-barangay error is ±3.4. Labelled for what it
+    // measures instead.
+    const munMape = firstRf.municipality_accuracy?.mape ?? null;
+    const munMae  = firstRf.model_mae ?? null;
 
     diseaseAnalyticsData.kpis[3] = {
-        label: 'Prediction Quality',
-        value: avgMae != null ? `Usually within ${Math.round(avgMae * 10) / 10} cases` : 'N/A',
-        trend: avgMae != null
-            ? `of the actual count · checked across ${maeValues.length} barangay${maeValues.length === 1 ? '' : 's'}`
+        label: 'Forecast Accuracy',
+        value: munMape != null ? `Within ${munMape}%` : (munMae != null ? `Within ${munMae} cases` : 'N/A'),
+        trend: munMape != null
+            ? 'of the municipality-wide total · single barangays vary much more'
             : 'Automatic case volume check',
     };
 }
@@ -596,6 +759,19 @@ function renderOverview() {
             </article>
         `).join('');
     document.querySelectorAll('#kpiCards .kpi-card strong').forEach(el => countUp(el));
+
+    // Per-disease forecast sits directly under the KPI row: it is the same
+    // scope those cards describe (this disease, municipality-wide), just
+    // forward-looking. Hidden entirely for "All Diseases", where the pooled
+    // model has nothing single to forecast.
+    const kpiHost = document.getElementById('kpiCards');
+    let dfHost = document.getElementById('diseaseForecastStrip');
+    if (!dfHost && kpiHost?.parentNode) {
+        dfHost = document.createElement('div');
+        dfHost.id = 'diseaseForecastStrip';
+        kpiHost.parentNode.insertBefore(dfHost, kpiHost.nextSibling);
+    }
+    if (dfHost) dfHost.innerHTML = diseaseForecastHtml(diseaseAnalyticsData.diseaseForecast);
 
     document.getElementById('sourceList').innerHTML = diseaseAnalyticsData.sources
         .map(s => {
@@ -776,7 +952,10 @@ function renderInsightPanel() {
     if (insight.forecast?.length) {
         const months    = ['Next Month', 'Month 2', 'Month 3'];
         const modelLabel = friendlyModelLabel(insight.model_type);
-        const metaParts = insight.model_mae != null ? `Usually within ${insight.model_mae} cases of the actual count` : '';
+        // Municipality-wide figure, named as such -- see the KPI note above.
+        const metaParts = insight.municipality_accuracy?.mape != null
+            ? `Municipality forecast usually within ${insight.municipality_accuracy.mape}%`
+            : '';
 
         const trend     = (insight.trend || 'stable').toLowerCase();
         const trendIcon = trend === 'rising' ? '↑' : trend === 'falling' ? '↓' : '→';
@@ -822,12 +1001,17 @@ function renderInsightPanel() {
             </div>
         `;
     } else {
+        // No confidence figure: the action level is a rule over observed
+        // cases, and the forecast's uncertainty is shown as a range instead.
         modelBadgeHtml = `
             <div class="ip-model-row">
-                <span class="ip-model-badge">Advanced Forecast</span>
-                <span class="ip-model-text">${insight.rf_risk_class || 'N/A'} case volume · ${insight.rf_confidence ?? 'N/A'}% confidence</span>
+                <span class="ip-model-badge">${insight.is_fallback ? 'Limited Data' : 'Municipality Forecast'}</span>
+                <span class="ip-model-text">${insight.is_fallback
+                    ? 'Estimated from this barangay alone'
+                    : `Split from the municipality-wide forecast${insight.municipality_accuracy?.mape != null
+                        ? ` (usually within ${insight.municipality_accuracy.mape}% municipality-wide)` : ''}`}</span>
             </div>
-        `;
+        ` + actionTierHtml(insight) + topDownPanelHtml(insight);
     }
 
     // ── Risk tier chip ────────────────────────────────────────────
@@ -1017,10 +1201,11 @@ function showHotspotAction(hotspot) {
                 </div>`;
         } else {
             modelBadge = `
-                <div class="rf-badge">
-                    Advanced Forecast — ${insight.rf_risk_class || 'N/A'} Case Volume ·
-                    ${insight.rf_confidence ?? 'N/A'}% confidence
-                </div>`;
+                <div class="rf-badge${insight.is_fallback ? ' is-fallback' : ''}">
+                    ${insight.is_fallback
+                        ? 'Limited data — estimated from this barangay alone'
+                        : 'Municipality Forecast — split by this barangay’s share'}
+                </div>` + actionTierHtml(insight) + topDownPanelHtml(insight);
         }
     } else {
         steps = [
