@@ -90,11 +90,38 @@ function bv_xlsx_sheet_path($zip, $sheetName)
 
     foreach ($rels->Relationship as $rel) {
         if ((string) $rel['Id'] === $relationshipId) {
-            $target = (string) $rel['Target'];
-            return 'xl/' . ltrim($target, '/');
+            return bv_xlsx_resolve_part((string) $rel['Target']);
         }
     }
     return null;
+}
+
+/**
+ * Turns a workbook relationship Target into a path inside the .xlsx zip.
+ *
+ * Two forms are legal in the OPC spec and both occur in the wild:
+ *
+ *   worksheets/sheet1.xml    relative to the workbook part, i.e. to xl/
+ *   /xl/worksheets/sheet1.xml   absolute from the package root
+ *
+ * Excel writes the first. openpyxl, LibreOffice, pandas.to_excel and Google
+ * Sheets exports write the second. This used to unconditionally prepend 'xl/',
+ * which turned the absolute form into 'xl/xl/worksheets/sheet1.xml' -- a path
+ * that does not exist, so the sheet silently parsed as zero rows.
+ *
+ * That was invisible while the only workbook ever read was the Excel-authored
+ * one bundled with the repo. It stopped being invisible the moment a clinic
+ * could upload a file: a perfectly valid workbook exported from anything other
+ * than Excel was rejected with "No consultation rows found in that file".
+ */
+function bv_xlsx_resolve_part($target)
+{
+    $target = trim((string) $target);
+    if ($target === '') return null;
+    // Absolute: already package-root-relative, just drop the leading slash.
+    if ($target[0] === '/') return ltrim($target, '/');
+    // Relative: resolved against the workbook part's folder, which is xl/.
+    return 'xl/' . $target;
 }
 
 /** Every sheet name in the workbook, in tab order. */

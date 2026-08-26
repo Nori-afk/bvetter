@@ -1,0 +1,166 @@
+/* BVetter — Dataset Upload page.
+   Deliberately close to report.css / patient-records.css in tone: same card
+   radius, same navy, same Manrope weights, so it reads as part of the portal
+   rather than a bolted-on admin tool. */
+
+:root {
+    --du-navy: #002A58;
+    --du-navy-soft: #16437a;
+    --du-ink: #12263f;
+    --du-muted: #667a94;
+    --du-line: #e2e8f0;
+    --du-bg: #f5f7fa;
+    --du-card: #ffffff;
+    --du-green: #15803d;
+    --du-green-bg: #dcfce7;
+    --du-amber: #b45309;
+    --du-amber-bg: #fef3c7;
+    --du-red: #b91c1c;
+    --du-red-bg: #fee2e2;
+}
+
+.du-app {
+    font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+    background: var(--du-bg);
+    min-height: 100vh;
+    padding: 28px 32px 56px;
+    color: var(--du-ink);
+}
+
+.du-hero { margin-bottom: 24px; }
+.du-hero h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; color: var(--du-navy); }
+.du-hero p { margin: 0; font-size: 14px; color: var(--du-muted); max-width: 70ch; line-height: 1.55; }
+
+.du-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.du-card {
+    background: var(--du-card);
+    border: 1px solid var(--du-line);
+    border-radius: 14px;
+    padding: 20px 22px;
+    box-shadow: 0 1px 2px rgba(16, 39, 68, .04);
+}
+.du-card + .du-card { margin-top: 20px; }
+
+.du-card h2 {
+    font-size: 15px; font-weight: 800; margin: 0 0 4px;
+    color: var(--du-navy); letter-spacing: .01em;
+}
+.du-card .du-sub { font-size: 12.5px; color: var(--du-muted); margin: 0 0 16px; line-height: 1.5; }
+
+/* ── Active dataset summary ─────────────────────────────────────── */
+.du-active-empty {
+    padding: 18px; border: 1px dashed var(--du-line); border-radius: 10px;
+    font-size: 13px; color: var(--du-muted); background: #fafbfc;
+}
+.du-stat-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.du-stat {
+    background: #f8fafc; border: 1px solid var(--du-line);
+    border-radius: 10px; padding: 12px 14px;
+}
+.du-stat .du-stat-label {
+    display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--du-muted); margin-bottom: 5px;
+}
+.du-stat .du-stat-value { font-size: 19px; font-weight: 800; color: var(--du-navy); }
+.du-stat .du-stat-note { display: block; font-size: 11.5px; color: var(--du-muted); margin-top: 3px; }
+
+/* ── Upload form ────────────────────────────────────────────────── */
+.du-field { margin-bottom: 14px; }
+.du-label {
+    display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--du-muted); margin-bottom: 6px;
+}
+.du-input, .du-file {
+    width: 100%; box-sizing: border-box;
+    border: 1px solid var(--du-line); border-radius: 9px;
+    padding: 10px 12px; font-size: 13.5px; font-family: inherit; color: var(--du-ink);
+    background: #fff;
+}
+.du-input:focus, .du-file:focus { outline: 2px solid rgba(0, 42, 88, .25); outline-offset: 1px; }
+
+.du-dropzone {
+    border: 1.5px dashed #b8c6d9; border-radius: 11px;
+    padding: 22px 18px; text-align: center; background: #fbfcfe;
+    transition: border-color .15s, background .15s;
+    cursor: pointer;
+}
+.du-dropzone.is-over { border-color: var(--du-navy); background: #eef4fb; }
+.du-dropzone .du-dz-title { font-size: 13.5px; font-weight: 700; color: var(--du-navy); }
+.du-dropzone .du-dz-hint { font-size: 12px; color: var(--du-muted); margin-top: 4px; }
+.du-dropzone .du-dz-file { font-size: 13px; font-weight: 700; color: var(--du-green); margin-top: 8px; word-break: break-all; }
+
+.du-btn {
+    appearance: none; border: 0; cursor: pointer; font-family: inherit;
+    background: var(--du-navy); color: #fff;
+    border-radius: 9px; padding: 11px 20px;
+    font-size: 13.5px; font-weight: 700;
+}
+.du-btn:hover:not(:disabled) { background: var(--du-navy-soft); }
+.du-btn:disabled { opacity: .55; cursor: not-allowed; }
+.du-btn-ghost {
+    background: #fff; color: var(--du-navy); border: 1px solid var(--du-line);
+    padding: 7px 13px; font-size: 12.5px; border-radius: 8px;
+}
+.du-btn-ghost:hover:not(:disabled) { background: #f1f5f9; }
+
+/* ── Messages ───────────────────────────────────────────────────── */
+.du-msg { border-radius: 10px; padding: 13px 15px; font-size: 13px; line-height: 1.55; margin-top: 14px; }
+.du-msg-ok    { background: var(--du-green-bg); color: var(--du-green); border: 1px solid #86efac; }
+.du-msg-warn  { background: var(--du-amber-bg); color: var(--du-amber); border: 1px solid #fcd34d; }
+.du-msg-error { background: var(--du-red-bg);   color: var(--du-red);   border: 1px solid #fca5a5; }
+.du-msg strong { font-weight: 800; }
+.du-msg ul { margin: 8px 0 0; padding-left: 18px; }
+.du-msg li { margin-bottom: 3px; }
+
+/* ── Version history ────────────────────────────────────────────── */
+.du-table-wrap { overflow-x: auto; }
+.du-table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 620px; }
+.du-table th {
+    text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--du-muted);
+    padding: 8px 10px; border-bottom: 1px solid var(--du-line); white-space: nowrap;
+}
+.du-table td { padding: 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.du-table tr:last-child td { border-bottom: 0; }
+.du-table tr.is-active { background: #f0f7ff; }
+.du-pill {
+    display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .05em;
+    text-transform: uppercase; padding: 3px 8px; border-radius: 999px;
+    background: var(--du-green-bg); color: var(--du-green);
+}
+.du-file-name { font-weight: 700; color: var(--du-ink); word-break: break-all; }
+.du-dim { color: var(--du-muted); }
+
+/* ── Explainer ──────────────────────────────────────────────────── */
+.du-note {
+    background: #f8fafc; border-left: 3px solid var(--du-navy);
+    border-radius: 0 8px 8px 0; padding: 12px 15px; font-size: 12.5px;
+    color: var(--du-ink); line-height: 1.6; margin-top: 14px;
+}
+.du-note strong { color: var(--du-navy); }
+.du-cols { margin: 10px 0 0; padding-left: 18px; font-size: 12px; color: var(--du-muted); }
+.du-cols code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: #eef2f7; padding: 1px 5px; border-radius: 4px; font-size: 11.5px; color: var(--du-ink);
+}
+
+.du-spinner {
+    display: inline-block; width: 13px; height: 13px; margin-right: 7px;
+    border: 2px solid rgba(255, 255, 255, .45); border-top-color: #fff;
+    border-radius: 50%; animation: du-spin .7s linear infinite; vertical-align: -2px;
+}
+@keyframes du-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 1024px) {
+    .du-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+    .du-app { padding: 20px 16px 44px; }
+    .du-stat-row { grid-template-columns: minmax(0, 1fr); }
+}

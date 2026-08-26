@@ -140,6 +140,58 @@ function bv_active_dataset_version($pdo = null)
 }
 
 /**
+ * The date range the active uploaded dataset OWNS, or null when nothing has
+ * been uploaded.
+ *
+ * THIS IS THE SINGLE SOURCE OF TRUTH for the covered range. It reads the
+ * covers_from_date / covers_through_date stored on the version at ingest time
+ * rather than recomputing a MAX() somewhere else, so the forecasting pipeline,
+ * the reports and the manual-entry guard can never disagree about where the
+ * boundary is.
+ *
+ * WHY ANYTHING NEEDS THIS. Live visit records are only used for months AFTER
+ * the uploaded data ends (see load_db_consult_rows in
+ * api/analytics/arima_service.py) -- otherwise a month present in both sources
+ * would be counted twice. While the bundled workbook ended in 2025-12 that
+ * boundary sat far in the past and never mattered. Once a clinic uploads
+ * through last month, it lands exactly where vets are working, and a visit
+ * entered for a covered month would be silently dropped from every chart with
+ * no error shown. Returning the range here lets entry be blocked up front with
+ * a reason, instead of being ignored later without one.
+ *
+ * @return array{from:string,through:string,versionId:int}|null
+ */
+function bv_active_upload_coverage($pdo = null)
+{
+    $version = bv_active_dataset_version($pdo);
+    if (!$version) return null;
+    $through = trim((string) ($version['covers_through_date'] ?? ''));
+    if ($through === '') return null;
+    return [
+        'from'      => trim((string) ($version['covers_from_date'] ?? '')),
+        'through'   => $through,
+        'versionId' => (int) $version['id'],
+    ];
+}
+
+/**
+ * The first date a vet may still enter manually: the day after the uploaded
+ * data ends. Null when no upload exists, meaning no restriction applies.
+ */
+function bv_manual_entry_allowed_from($pdo = null)
+{
+    $coverage = bv_active_upload_coverage($pdo);
+    if (!$coverage) return null;
+    try {
+        $date = new DateTime($coverage['through']);
+    } catch (Throwable $e) {
+        return null;
+    }
+    $date->modify('+1 day');
+    return $date->format('Y-m-d');
+}
+
+/**
  * The active version's rows, shaped exactly like bv_sheet_rows() returns them
  * so the call sites cannot tell the difference. Returns null (not []) when
  * there is no active version, so the caller can distinguish "nothing uploaded
