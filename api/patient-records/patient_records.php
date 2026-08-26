@@ -4,6 +4,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../includes/patient_tables.php';
+require_once __DIR__ . '/../includes/dataset_versions.php';
 require_once __DIR__ . '/../config/input_validation.php';
 require_once __DIR__ . '/../config/auth_guard.php';
 
@@ -420,7 +421,18 @@ function listRecords($pdo)
     ]);
 }
 
-function validateVisitDates($data)
+/**
+ * Every visit date passes through here. saveRecord() and saveBatch() are the
+ * only actions that create a visit -- updateRecord() never writes visit_date
+ * and addPetForOwner() creates no visit -- so this is the whole server-side
+ * surface for date rules.
+ *
+ * The uploaded-dataset rule lives in bv_manual_entry_allowed_from()
+ * (api/includes/dataset_versions.php), which is the single source of truth for
+ * the covered range. Look there first if the boundary behaviour ever needs to
+ * change.
+ */
+function validateVisitDates($pdo, $data)
 {
     $today = date('Y-m-d');
     $visitDate = clean($data['visitDate'] ?? '');
@@ -431,6 +443,28 @@ function validateVisitDates($data)
     }
     if ($followUpDate !== '' && $followUpDate < $today) {
         respond(400, ['success' => false, 'message' => 'Follow-up date cannot be in the past.']);
+    }
+
+    // Records for months an uploaded file already covers are managed through
+    // uploads, not manual entry. Without this the visit would save happily and
+    // then be excluded from every chart and forecast with nothing to explain it.
+    //
+    // Only dates INSIDE the covered range are blocked. Yesterday's visit, or any
+    // date after the upload ends, is unaffected -- this is not a ban on
+    // backdating.
+    if ($visitDate === '') return;
+    $allowedFrom = bv_manual_entry_allowed_from($pdo);
+    if ($allowedFrom !== null && $visitDate < $allowedFrom) {
+        $month = date('F Y', strtotime($visitDate));
+        respond(422, [
+            'success' => false,
+            'message' => "$month is already covered by an uploaded records file. "
+                       . "Records up to " . date('F j, Y', strtotime($allowedFrom . ' -1 day'))
+                       . " are managed through file uploads, not manual entry. "
+                       . "You can enter visits dated " . date('F j, Y', strtotime($allowedFrom))
+                       . " onwards.",
+            'allowedFrom' => $allowedFrom,
+        ]);
     }
 }
 
@@ -448,22 +482,44 @@ function deriveDiseaseCategory($pdo, $diagnosis)
     $diagnosis = clean($diagnosis);
     if ($diagnosis === '') return 'General/Other';
 
+    // display_category (ten values, straight from Consult_Diagnosis_3Y), NOT
+    // bucket_category (five).
+    //
+    // The four-bucket scheme collapsed 18 of 42 diagnoses into 'General/Other'
+    // -- including BOTH reportable ones, Rabies (Suspected) and Leptospirosis.
+    // A live rabies case was therefore stored under the same label as a dental
+    // problem, which made the single most action-worthy signal in the system
+    // impossible to see in live data. Surveillance cannot flag what it cannot
+    // distinguish.
+    //
+    // The buckets existed to feed skin_ratio/para_ratio/etc. to a classifier
+    // trained on Barangay_Disease_Monthly. That sheet is no longer read (the
+    // pipeline is single-source on the consultations now) and
+    // load_db_disease_monthly(), the only consumer that matched on the bucket
+    // strings, is dead code. So nothing needs the narrower vocabulary any more.
     try {
-        $stmt = $pdo->prepare('SELECT bucket_category FROM diseases WHERE name = :name LIMIT 1');
+        $stmt = $pdo->prepare('SELECT display_category FROM diseases WHERE name = :name LIMIT 1');
         $stmt->execute([':name' => $diagnosis]);
-        $bucket = $stmt->fetchColumn();
+        $category = $stmt->fetchColumn();
     } catch (Throwable $e) {
         error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return 'General/Other';
     }
 
-    return $bucket !== false && $bucket !== null ? (string) $bucket : 'General/Other';
+    return $category !== false && $category !== null && trim((string) $category) !== ''
+        ? (string) $category
+        : 'General/Other';
 }
 
 function getCoverage($pdo)
 {
     $row = $pdo->query("SELECT complete_through_year, complete_through_month, updated_by, updated_at
                         FROM disease_data_coverage WHERE id = 1")->fetch();
+    // uploadCoverage is a DIFFERENT concept from the encoding declaration above
+    // and is deliberately a separate key. The declaration says "entry is
+    // finished through month X"; this says "an uploaded file OWNS months up to
+    // X, so do not enter them by hand". Conflating the two would block manual
+    // entry the moment an encoder reported progress.
     respond(200, [
         'success' => true,
         'data' => [
@@ -472,6 +528,16 @@ function getCoverage($pdo)
             'updatedBy' => $row['updated_by'] ?? null,
             'updatedAt' => $row['updated_at'] ?? null,
         ],
+        'uploadCoverage' => (function () use ($pdo) {
+            $coverage = bv_active_upload_coverage($pdo);
+            if (!$coverage) return null;
+            return [
+                'from'        => $coverage['from'],
+                'through'     => $coverage['through'],
+                'allowedFrom' => bv_manual_entry_allowed_from($pdo),
+                'versionId'   => $coverage['versionId'],
+            ];
+        })(),
     ]);
 }
 
@@ -781,7 +847,7 @@ function addPetForOwner($pdo, $data)
 
 function saveRecord($pdo, $data)
 {
-    validateVisitDates($data);
+    validateVisitDates($pdo, $data);
     validatePatientIdentityFields($data);
 
     $petId = (int) ($data['id'] ?? $data['pet_id'] ?? 0);
@@ -807,7 +873,7 @@ function saveRecord($pdo, $data)
 
 function saveBatch($pdo, $data)
 {
-    validateVisitDates($data);
+    validateVisitDates($pdo, $data);
     validatePatientIdentityFields($data);
 
     $pets = $data['pets'] ?? [];

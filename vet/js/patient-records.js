@@ -265,7 +265,12 @@ const state = {
 	// distrusts every live month -- and none of them can join the risk
 	// model's training set. See _label_live_rows() and load_coverage_cutoff()
 	// in api/analytics/arima_service.py.
-	coverage: null
+	coverage: null,
+	// Date range covered by the active uploaded dataset, or null when nothing
+	// has been uploaded. See bv_active_upload_coverage() in
+	// api/includes/dataset_versions.php -- that is the source of truth; this is
+	// only a copy for the form.
+	uploadCoverage: null
 };
 
 // Desktop can comfortably show more rows per page than a phone screen.
@@ -304,6 +309,10 @@ async function loadCoverage() {
 	try {
 		const result = await patientRequest('coverage_get');
 		state.coverage = result.data || null;
+		// Separate from state.coverage on purpose: that one is the encoder's
+		// "entry finished through" declaration, this is the range an uploaded
+		// file owns and which therefore cannot be typed in by hand.
+		state.uploadCoverage = result.uploadCoverage || null;
 	} catch (error) {
 		console.warn('Coverage declaration unavailable:', error);
 		state.coverage = null;
@@ -1341,8 +1350,9 @@ function renderAdd(record) {
 						</div>
 						<div class="field">
 							<label class="field-label" for="visit-date">VISIT DATE</label>
-							<input class="form-input" id="visit-date" name="visitDate" type="date" max="${todayIso()}" value="${escapeHtml(data.visitDate)}">
+							<input class="form-input" id="visit-date" name="visitDate" type="date" ${manualEntryAllowedFrom() ? `min="${manualEntryAllowedFrom()}"` : ''} max="${todayIso()}" value="${escapeHtml(data.visitDate)}">
 							<span class="field-error" id="visit-date-error"></span>
+							${visitDateHint()}
 						</div>
 						<div class="field">
 							<label class="field-label" for="follow-up-date">FOLLOW-UP DATE</label>
@@ -1743,6 +1753,40 @@ function getPetEntriesData(form) {
 	}).filter((pet) => pet.petName);
 }
 
+/* ── Uploaded-dataset date boundary ──────────────────────────────
+   Visits dated inside an uploaded file's range are managed through uploads,
+   not manual entry: the forecasting pipeline only uses live records for months
+   AFTER the uploaded data ends, so one typed here would save and then vanish
+   from every chart with nothing to explain it. Blocked at entry instead, with
+   the boundary shown before the vet fills the form.
+
+   Mirrors validateVisitDates() in api/patient-records/patient_records.php.
+   That check is the real one; this exists so the vet finds out before typing. */
+function manualEntryAllowedFrom() {
+	return state.uploadCoverage?.allowedFrom || null;
+}
+
+function formatLongDate(iso) {
+	if (!iso) return '';
+	const d = new Date(iso + 'T00:00:00');
+	if (isNaN(d)) return iso;
+	return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+/* Helper text under the date field, so the limit is visible up front. */
+function visitDateHint() {
+	const from = manualEntryAllowedFrom();
+	if (!from) return '';
+	if (from > todayIso()) {
+		// The upload covers up to today, so there is no date left to pick.
+		// Say so plainly rather than leaving an input that rejects everything.
+		return `<span class="field-hint">Records up to ${formatLongDate(state.uploadCoverage.through)} `
+			+ `come from an uploaded file. Manual entry resumes ${formatLongDate(from)}.</span>`;
+	}
+	return `<span class="field-hint">Manual entry available from ${formatLongDate(from)} onward &mdash; `
+		+ `earlier months are covered by an uploaded file.</span>`;
+}
+
 function validateVisitDates(form) {
 	const visitDateInput = form.querySelector('#visit-date');
 	const followUpDateInput = form.querySelector('#follow-up-date');
@@ -1757,6 +1801,15 @@ function validateVisitDates(form) {
 
 	if (visitDateInput && visitDateInput.value && visitDateInput.value > todayIso()) {
 		setFieldError(visitDateInput, visitDateError, 'Visit date cannot be in the future.');
+		firstInvalid = firstInvalid || visitDateInput;
+		hasError = true;
+	}
+
+	const allowedFrom = manualEntryAllowedFrom();
+	if (visitDateInput && visitDateInput.value && allowedFrom && visitDateInput.value < allowedFrom) {
+		setFieldError(visitDateInput, visitDateError,
+			`That date is covered by an uploaded records file. Enter visits dated `
+			+ `${formatLongDate(allowedFrom)} onward.`);
 		firstInvalid = firstInvalid || visitDateInput;
 		hasError = true;
 	}

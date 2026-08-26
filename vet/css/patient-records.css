@@ -3110,3 +3110,14 @@ body {
     .pi-row { grid-template-columns: 1fr; }
     .pi-field-full { grid-column: span 1; }
 }
+/* Helper text under the visit-date field, explaining the uploaded-dataset
+   boundary. Quieter than .field-error: this is guidance shown before the vet
+   types, not a failure after they did. */
+.field-hint {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #667a94;
+    line-height: 1.45;
+    margin-top: 5px;
+}
