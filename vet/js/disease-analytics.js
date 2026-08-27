@@ -695,11 +695,23 @@ function bindEvents() {
         document.getElementById('refreshSourcesBtn').textContent = 'Refreshed ' + new Date().toLocaleTimeString();
     });
 
+    document.getElementById('manageDatasetBtn')?.addEventListener('click', () => window.DatasetModal?.open());
+    // Uploading a workbook or switching back to an older version replaces the
+    // data every chart on this page is reading, so the modal re-runs the same
+    // reload the filter dropdowns use. Without it, a successful upload leaves
+    // superseded figures on screen behind the modal.
+    window.DatasetModal?.init({ onChange: reloadWithCurrentFilters });
+
     document.getElementsByName('eventType').forEach(r => r.addEventListener('change', toggleVaccineField));
     document.getElementById('cancelCreateEventBtn')?.addEventListener('click', closeCreateEventModal);
     document.getElementById('confirmCreateEventBtn')?.addEventListener('click', submitCreateEvent);
     document.getElementById('createEventModal')?.addEventListener('click', (ev) => {
         if (ev.target.id === 'createEventModal') closeCreateEventModal();
+    });
+    document.addEventListener('keydown', (ev) => {
+        if (ev.key !== 'Escape') return;
+        const modal = document.getElementById('createEventModal');
+        if (modal && !modal.classList.contains('hidden')) closeCreateEventModal();
     });
 }
 

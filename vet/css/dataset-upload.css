@@ -1,7 +1,10 @@
-/* BVetter — Dataset Upload page.
+/* BVetter — Manage Dataset modal, opened from Disease Analytics.
    Deliberately close to report.css / patient-records.css in tone: same card
    radius, same navy, same Manrope weights, so it reads as part of the portal
-   rather than a bolted-on admin tool. */
+   rather than a bolted-on admin tool.
+
+   Every class is du- prefixed because this loads alongside
+   disease-analytics.css on the same page. */
 
 :root {
     --du-navy: #002A58;
@@ -19,39 +22,67 @@
     --du-red-bg: #fee2e2;
 }
 
-.du-app {
+/* ── Modal shell ────────────────────────────────────────────────── */
+/* Overrides .modal-card from disease-analytics.css, which is sized for the
+   small Create Event form — the history table alone has a 620px min-width. */
+.du-modal-card {
+    width: min(880px, 100%);
+    max-height: min(86vh, 780px);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     font-family: 'Manrope', system-ui, -apple-system, sans-serif;
-    background: var(--du-bg);
-    min-height: 100vh;
-    padding: 28px 32px 56px;
     color: var(--du-ink);
 }
 
-.du-hero { margin-bottom: 24px; }
-.du-hero h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; color: var(--du-navy); }
-.du-hero p { margin: 0; font-size: 14px; color: var(--du-muted); max-width: 70ch; line-height: 1.55; }
-
-.du-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-    gap: 20px;
-    align-items: start;
+.du-modal-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px 22px 14px;
+    border-bottom: 1px solid var(--du-line);
 }
-
-.du-card {
-    background: var(--du-card);
-    border: 1px solid var(--du-line);
-    border-radius: 14px;
-    padding: 20px 22px;
-    box-shadow: 0 1px 2px rgba(16, 39, 68, .04);
-}
-.du-card + .du-card { margin-top: 20px; }
-
-.du-card h2 {
-    font-size: 15px; font-weight: 800; margin: 0 0 4px;
+.du-modal-card h2 {
+    font-size: 17px; font-weight: 800; margin: 0 0 5px;
     color: var(--du-navy); letter-spacing: .01em;
 }
-.du-card .du-sub { font-size: 12.5px; color: var(--du-muted); margin: 0 0 16px; line-height: 1.5; }
+.du-modal-sub {
+    margin: 0; font-size: 12.5px; line-height: 1.55;
+    color: var(--du-muted); max-width: 68ch;
+}
+.du-modal-close {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    font-size: 24px; line-height: 1; color: var(--du-muted);
+    padding: 2px 7px; border-radius: 7px; margin-left: auto; flex-shrink: 0;
+}
+.du-modal-close:hover { background: #f1f5f9; color: var(--du-ink); }
+
+.du-tabs {
+    display: flex; gap: 4px;
+    padding: 10px 22px 0;
+    border-bottom: 1px solid var(--du-line);
+}
+.du-tab {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    font-family: inherit; font-size: 13px; font-weight: 700;
+    color: var(--du-muted); padding: 9px 14px;
+    /* Pulled onto the container's border so the active tab's underline
+       replaces it rather than stacking a second line beneath it. */
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.du-tab:hover { color: var(--du-navy); }
+.du-tab.is-active { color: var(--du-navy); border-bottom-color: var(--du-navy); }
+
+/* The only scrolling region: the head and tabs stay put. */
+.du-modal-body { padding: 18px 22px 22px; overflow-y: auto; }
+
+.du-section-title {
+    font-size: 13px; font-weight: 800; margin: 0 0 4px;
+    color: var(--du-navy); letter-spacing: .01em;
+}
+.du-tabpanel > .du-section-title:not(:first-child) { margin-top: 22px; }
+.du-sub { font-size: 12.5px; color: var(--du-muted); margin: 0 0 14px; line-height: 1.5; }
 
 /* ── Active dataset summary ─────────────────────────────────────── */
 .du-active-empty {
@@ -91,6 +122,12 @@
     cursor: pointer;
 }
 .du-dropzone.is-over { border-color: var(--du-navy); background: #eef4fb; }
+/* Plain :focus, not :focus-visible — the modal moves focus here on open, and
+   the UA default ring is a hard black box against the dashed border. */
+.du-dropzone:focus {
+    outline: 2px solid rgba(0, 42, 88, .30); outline-offset: 2px;
+    border-color: var(--du-navy);
+}
 .du-dropzone .du-dz-title { font-size: 13.5px; font-weight: 700; color: var(--du-navy); }
 .du-dropzone .du-dz-hint { font-size: 12px; color: var(--du-muted); margin-top: 4px; }
 .du-dropzone .du-dz-file { font-size: 13px; font-weight: 700; color: var(--du-green); margin-top: 8px; word-break: break-all; }
@@ -150,6 +187,21 @@
     background: #eef2f7; padding: 1px 5px; border-radius: 4px; font-size: 11.5px; color: var(--du-ink);
 }
 
+/* Collapsed by default so the modal opens on the dropzone rather than on a
+   column spec — it is wanted at the moment an upload is rejected, not before. */
+.du-details { margin-top: 16px; }
+.du-details summary {
+    cursor: pointer; list-style: none;
+    font-size: 12.5px; font-weight: 700; color: var(--du-navy); padding: 6px 0;
+}
+.du-details summary::-webkit-details-marker { display: none; }
+.du-details summary::before {
+    content: '\25B8'; display: inline-block; width: 14px;
+    color: var(--du-muted); transition: transform .15s;
+}
+.du-details[open] summary::before { transform: rotate(90deg); }
+.du-details .du-note { margin-top: 4px; }
+
 .du-spinner {
     display: inline-block; width: 13px; height: 13px; margin-right: 7px;
     border: 2px solid rgba(255, 255, 255, .45); border-top-color: #fff;
@@ -157,10 +209,10 @@
 }
 @keyframes du-spin { to { transform: rotate(360deg); } }
 
-@media (max-width: 1024px) {
-    .du-grid { grid-template-columns: minmax(0, 1fr); }
-}
 @media (max-width: 640px) {
-    .du-app { padding: 20px 16px 44px; }
+    .du-modal-card { max-height: 92vh; }
+    .du-modal-head { padding: 16px 16px 12px; }
+    .du-tabs { padding: 8px 16px 0; }
+    .du-modal-body { padding: 16px; }
     .du-stat-row { grid-template-columns: minmax(0, 1fr); }
 }

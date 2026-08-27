@@ -16,7 +16,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260824-tz">
-    <link rel="stylesheet" href="../../vet/css/disease-analytics.css?v=20260826-sort">
+    <link rel="stylesheet" href="../../vet/css/disease-analytics.css?v=20260828-ds">
+    <link rel="stylesheet" href="../../vet/css/dataset-upload.css?v=20260828-ds">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 
@@ -48,10 +49,6 @@
                 <a href="../../vet/html/disease-analytics.html" class="nav-item" title="Disease Analytics">
                     <img src="../../shared/images/sidebar/disease-analytics.svg" class="nav-icon" alt="Disease Analytics">
                     <span class="nav-label">Disease Analytics</span>
-                </a>
-                <a href="../../vet/html/dataset-upload.html" class="nav-item" title="Dataset Upload">
-                    <img src="../../shared/images/sidebar/report.svg" class="nav-icon" alt="Dataset Upload">
-                    <span class="nav-label">Dataset Upload</span>
                 </a>
                 <a href="../../vet/html/lost-and-found.html" class="nav-item" title="Lost and Found">
                     <img src="../../shared/images/sidebar/lost-found.svg" class="nav-icon" alt="Lost and Found">
@@ -114,7 +111,10 @@
                     <aside class="data-sources card">
                         <h3>Data Sources</h3>
                         <ul id="sourceList"></ul>
-                        <button class="btn btn-secondary" id="refreshSourcesBtn">Refresh All Sources</button>
+                        <div class="data-sources-actions">
+                            <button type="button" class="btn btn-secondary" id="refreshSourcesBtn">Refresh All Sources</button>
+                            <button type="button" class="btn btn-primary" id="manageDatasetBtn">Manage Dataset</button>
+                        </div>
                     </aside>
                 </section>
 
@@ -164,6 +164,104 @@
                     <div class="modal-actions">
                         <button class="btn btn-soft" id="cancelCreateEventBtn" type="button">Cancel</button>
                         <button class="btn btn-primary" id="confirmCreateEventBtn" type="button">Create</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="datasetModal" class="modal hidden" role="dialog" aria-modal="true"
+                 aria-labelledby="datasetModalTitle">
+                <div class="modal-card du-modal-card">
+                    <div class="du-modal-head">
+                        <div>
+                            <h2 id="datasetModalTitle">Manage Dataset</h2>
+                            <p class="du-modal-sub">
+                                Upload the clinic's consultation workbook to replace the data behind
+                                Disease Analytics, the reports and the forecasts. Every upload is kept,
+                                so you can switch back to an earlier one at any time.
+                            </p>
+                        </div>
+                        <button type="button" class="du-modal-close" id="du-close" aria-label="Close">&times;</button>
+                    </div>
+
+                    <div class="du-tabs" role="tablist" aria-label="Dataset">
+                        <button type="button" class="du-tab is-active" id="du-tab-upload" role="tab"
+                                aria-selected="true" aria-controls="du-panel-upload"
+                                data-du-tab="upload">Upload</button>
+                        <button type="button" class="du-tab" id="du-tab-history" role="tab"
+                                aria-selected="false" aria-controls="du-panel-history"
+                                data-du-tab="history">History</button>
+                    </div>
+
+                    <div class="du-modal-body">
+                        <section class="du-tabpanel" id="du-panel-upload" role="tabpanel"
+                                 aria-labelledby="du-tab-upload">
+                            <h3 class="du-section-title">Currently in use</h3>
+                            <p class="du-sub">The dataset every chart, report and forecast is reading right now.</p>
+                            <div id="du-active"></div>
+
+                            <h3 class="du-section-title">Upload a workbook</h3>
+                            <p class="du-sub">
+                                Use the same sheet layout the clinic already fills in. Nothing changes until
+                                the file passes every check &mdash; if anything is wrong, the upload is
+                                rejected and the current dataset is left exactly as it is.
+                            </p>
+
+                            <form id="du-form" novalidate>
+                                <div class="du-field">
+                                    <span class="du-label">Workbook</span>
+                                    <div class="du-dropzone" id="du-dropzone" role="button" tabindex="0"
+                                         aria-label="Choose or drop an .xlsx workbook">
+                                        <div class="du-dz-title">Drop your .xlsx file here, or click to choose</div>
+                                        <div class="du-dz-hint">Excel workbook, up to 25&nbsp;MB</div>
+                                        <div class="du-dz-file" id="du-dz-file"></div>
+                                    </div>
+                                    <input type="file" id="du-file" name="file" accept=".xlsx"
+                                           style="display:none" aria-hidden="true">
+                                </div>
+
+                                <div class="du-field">
+                                    <label class="du-label" for="du-note">Note (optional)</label>
+                                    <input class="du-input" type="text" id="du-note" maxlength="255"
+                                           placeholder="e.g. records through August 2026">
+                                </div>
+
+                                <button type="submit" class="du-btn" id="du-submit">Upload dataset</button>
+                            </form>
+
+                            <details class="du-details">
+                                <summary>What the file needs</summary>
+                                <div class="du-note">
+                                    One row per consultation, with at least these columns:
+                                    <ul class="du-cols">
+                                        <li><code>consultation_id</code> &mdash; unique for each consultation</li>
+                                        <li><code>year</code> and <code>month_no</code></li>
+                                        <li><code>barangay</code></li>
+                                        <li><code>diagnosis</code></li>
+                                    </ul>
+                                    <p style="margin:10px 0 0">
+                                        Other columns such as <code>disease_category</code>,
+                                        <code>symptom_cluster</code>, <code>animal_group</code> and
+                                        <code>cases_reported</code> are used when present. Because each
+                                        consultation carries an id, uploading the same file twice is safe
+                                        &mdash; nothing gets counted twice.
+                                    </p>
+                                </div>
+                            </details>
+                        </section>
+
+                        <section class="du-tabpanel" id="du-panel-history" role="tabpanel"
+                                 aria-labelledby="du-tab-history" hidden>
+                            <h3 class="du-section-title">Upload history</h3>
+                            <p class="du-sub">
+                                Every version is kept. Switching back does not delete anything &mdash;
+                                it just changes which one the system reads.
+                            </p>
+                            <div id="du-versions"></div>
+                        </section>
+
+                        <!-- Deliberately outside the tab panels: a version switch is started
+                             from History, but its result has to stay readable from either tab. -->
+                        <div class="du-msg" id="du-message" hidden></div>
                     </div>
                 </div>
             </div>
@@ -231,7 +329,8 @@
     <script>VBetterAuth.requireAuth(['vet']);</script>
     <script src="../../shared/js/sidebar.js?v=20260824-tz"></script>
     <script src="../../vet/js/vet-api.js?v=20260819-idor"></script>
-    <script src="../../vet/js/disease-analytics.js?v=20260826-sort"></script>
+    <script src="../../vet/js/dataset-upload.js?v=20260828-ds"></script>
+    <script src="../../vet/js/disease-analytics.js?v=20260828-ds"></script>
 
 </body>
 

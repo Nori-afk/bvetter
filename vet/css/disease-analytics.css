@@ -380,6 +380,13 @@ select option { background: #0D2040; color: #fff; }
     flex: 1;
 }
 
+/* Stacked rather than side-by-side: the card is the narrow column of the
+   overview grid, and both labels are too long to sit on one row there. */
+.data-sources-actions {
+    display: grid;
+    gap: 8px;
+}
+
 .data-sources li {
     display: flex;
     align-items: flex-start;
