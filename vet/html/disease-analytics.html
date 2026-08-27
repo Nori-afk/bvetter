@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260824-tz">
-    <link rel="stylesheet" href="../../vet/css/disease-analytics.css?v=20260826-topdown">
+    <link rel="stylesheet" href="../../vet/css/disease-analytics.css?v=20260826-sort">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 
@@ -204,12 +204,12 @@
                     <div class="map-stage">
                         <div class="map-metrics" id="mapMetricCards"></div>
                         <div id="baliwagMap"></div>
-                        <div class="map-footer-legend">
-                            <span>Disease Intensity</span>
-                            <span class="dot critical"></span>Critical
-                            <span class="dot monitor"></span>Monitor
-                            <span class="dot stable"></span>Stable
-                        </div>
+                        <!-- Built by renderMapLegend(). Was a static list reading
+                             "Disease Intensity / Critical / Monitor / Stable" -- the
+                             heading described the removed heat layer, and the three
+                             words were the old vocabulary the rest of the page no
+                             longer uses. -->
+                        <div class="map-footer-legend" id="mapLegend"></div>
                     </div>
                     <aside class="map-side" id="mapSidePanel">
                         <div class="map-side-header">
@@ -224,12 +224,14 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <!-- leaflet.heat removed: the map uses proportional symbols now, not a
+         kernel density layer. One less CDN dependency, and one less script
+         that has to be allowed through the CSP. -->
     <script src="../../shared/js/auth.js?v=20260816-sec"></script>
     <script>VBetterAuth.requireAuth(['vet']);</script>
     <script src="../../shared/js/sidebar.js?v=20260824-tz"></script>
     <script src="../../vet/js/vet-api.js?v=20260819-idor"></script>
-    <script src="../../vet/js/disease-analytics.js?v=20260826-topdown"></script>
+    <script src="../../vet/js/disease-analytics.js?v=20260826-sort"></script>
 
 </body>
 

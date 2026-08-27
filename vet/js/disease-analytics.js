@@ -865,9 +865,26 @@ function renderOverview() {
 }
 
 /* ── Bar chart ──────────────────────────────────────────────── */
-function renderBarChart(targetId, rows, chartType) {
+function renderBarChart(targetId, sourceRows, chartType) {
     const root = document.getElementById(targetId);
-    if (!root || !rows?.length) { if (root) root.innerHTML = '<p class="no-data">No data available.</p>'; return; }
+    if (!root || !sourceRows?.length) { if (root) root.innerHTML = '<p class="no-data">No data available.</p>'; return; }
+
+    // HIGHEST FIRST. There was no ordering anywhere before this -- not in
+    // dashboard.php, which appends barangays in whatever order the aggregation
+    // produced, and not here. That order is not stable either: the Excel path,
+    // the live-DB path and each disease filter group their rows differently, so
+    // the same barangay moved around the chart as the filters changed and the
+    // top of the chart meant nothing.
+    //
+    // Sorted on a COPY: diseaseAnalyticsData.actualCases and .predictedCases are
+    // read elsewhere to look barangays up, and reordering the shared arrays
+    // underneath those readers would be a nasty way to save an allocation.
+    //
+    // Each chart sorts by its OWN values, so "Predicted" genuinely ranks by
+    // predicted cases. The trade-off is that a barangay sits at different
+    // heights in the two charts, so they read as two rankings rather than as a
+    // row-by-row comparison.
+    const rows = [...sourceRows].sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0));
 
     const allDiseases  = diseaseAnalyticsData.isAllDiseases;
     const maxValue     = Math.max(...rows.map(r => r.value), 1);
@@ -1083,9 +1100,24 @@ function renderMapPanel() {
     renderHotspotList();
 }
 
+/* Needs Action first, then Watch, then Normal -- and within each, the busiest
+   barangay first.
+   The list used to render in whatever order the API returned, so a vet opening
+   the page scanned 27 rows to find the two that mattered. Ordering is the
+   cheapest thing this page can do to turn a data dump into a worklist. */
+const TIER_ORDER = { critical: 0, monitor: 1, stable: 2 };
+
+function sortedHotspots() {
+    return [...(diseaseAnalyticsData.map?.hotspots || [])].sort((a, b) => {
+        const ta = TIER_ORDER[a.risk] ?? 3, tb = TIER_ORDER[b.risk] ?? 3;
+        if (ta !== tb) return ta - tb;
+        return (Number(b.cases) || 0) - (Number(a.cases) || 0);
+    });
+}
+
 function renderHotspotList() {
     const list = document.getElementById('hotspotList');
-    list.innerHTML = (diseaseAnalyticsData.map?.hotspots || []).map(hotspot => {
+    list.innerHTML = sortedHotspots().map(hotspot => {
         const src = (hotspot.pred_source || '').toLowerCase();
         let badge = '';
         if (src.includes('sarima') || src.includes('arima')) {
@@ -1099,7 +1131,7 @@ function renderHotspotList() {
             <article class="hotspot-item" data-hotspot-id="${hotspot.id}">
                 <h4>
                     ${hotspot.barangay}
-                    <span class="risk-chip risk-${hotspot.risk}">${hotspot.risk.toUpperCase()}</span>
+                    <span class="risk-chip risk-${hotspot.risk}">${tierWord(hotspot.risk)}</span>
                 </h4>
                 <p>${hotspot.disease}</p>
                 <small>Cases: ${hotspot.cases} | Predicted: ${hotspot.predicted} ${badge}</small>
@@ -1118,30 +1150,226 @@ function renderHotspotList() {
     });
 }
 
+/* ── Heat surface + barangay markers ─────────────────────────────
+   A continuous colour field interpolated from the 27 barangay values, with a
+   marker on each barangay on top.
+
+   The surface is inverse-distance weighting (IDW), drawn to a canvas and laid
+   over the map as an image overlay. That is what produces a filled field
+   rather than the isolated glowing blobs a kernel-density heat layer gives on
+   sparse points -- every pixel gets a value from all 27 barangays, weighted by
+   1/distance^2, so the colour is continuous everywhere instead of fading to
+   nothing between markers.
+
+   HONEST LABEL, and the legend says so: the colour BETWEEN barangays is
+   interpolated, not measured. Only the 27 marker positions carry real counts.
+   Interpolation is standard for surface estimation, but it should never be
+   read as "this street had this many cases". */
+
+const SYMBOL_MIN_RADIUS = 6;
+const SYMBOL_MAX_RADIUS = 20;
+
+/* Sampling grid for the surface. 160x160 over the municipality is far finer
+   than 27 source points can justify, so the limit on detail is the data, not
+   the raster -- this size just keeps the gradient smooth when scaled up. */
+const HEAT_GRID = 160;
+
+/* How far the surface reaches beyond a barangay before fading out, in degrees
+   of lat/lng. ~0.010 deg is roughly 1.1 km, about the spacing between
+   neighbouring barangays here, so the field stays continuous across the built-up
+   area and fades over open ground rather than at a rectangle edge. */
+const FADE_INNER = 0.009;
+const FADE_OUTER = 0.026;
+
+/* Cool-to-hot ramp matching the reference: deep green through yellow and
+   orange to red, with a white peak. Stops are on 0..1 of the value range. */
+const HEAT_STOPS = [
+    [0.00, [ 16,  78,  92]],   // deep teal — quietest
+    [0.18, [ 34, 128,  62]],
+    [0.38, [ 96, 176,  50]],   // green
+    [0.55, [201, 219,  62]],   // yellow-green
+    [0.68, [255, 221,  64]],   // yellow
+    [0.80, [255, 150,  40]],   // orange
+    [0.91, [226,  46,  40]],   // red
+    [1.00, [255, 245, 245]],   // white peak
+];
+
+function heatColor(t) {
+    t = Math.max(0, Math.min(1, t));
+    for (let i = 1; i < HEAT_STOPS.length; i++) {
+        const [p1, c1] = HEAT_STOPS[i - 1];
+        const [p2, c2] = HEAT_STOPS[i];
+        if (t <= p2) {
+            const k = (t - p1) / (p2 - p1 || 1);
+            return [
+                Math.round(c1[0] + (c2[0] - c1[0]) * k),
+                Math.round(c1[1] + (c2[1] - c1[1]) * k),
+                Math.round(c1[2] + (c2[2] - c1[2]) * k),
+            ];
+        }
+    }
+    return HEAT_STOPS[HEAT_STOPS.length - 1][1];
+}
+
+function symbolRadius(value, maxValue) {
+    const v = Math.max(0, Number(value) || 0);
+    if (v <= 0 || maxValue <= 0) return SYMBOL_MIN_RADIUS;
+    // Area proportional to the value, not radius: doubling a radius quadruples
+    // the visible circle, so scaling radius directly overstates big barangays.
+    return SYMBOL_MIN_RADIUS + (SYMBOL_MAX_RADIUS - SYMBOL_MIN_RADIUS)
+         * Math.sqrt(Math.min(1, v / maxValue));
+}
+
+/* Builds the interpolated surface as a data URL sized to `bounds`. */
+function buildHeatCanvas(points, bounds) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = HEAT_GRID;
+    const ctx = canvas.getContext('2d');
+    const img = ctx.createImageData(HEAT_GRID, HEAT_GRID);
+
+    const south = bounds.getSouth(), north = bounds.getNorth();
+    const west  = bounds.getWest(),  east  = bounds.getEast();
+    const values = points.map(p => p.value);
+    const lo = Math.min(...values), hi = Math.max(...values);
+    const span = (hi - lo) || 1;
+
+    for (let y = 0; y < HEAT_GRID; y++) {
+        // Row 0 is the top of the image, which is the NORTH edge.
+        const lat = north - (y / (HEAT_GRID - 1)) * (north - south);
+        for (let x = 0; x < HEAT_GRID; x++) {
+            const lng = west + (x / (HEAT_GRID - 1)) * (east - west);
+
+            let num = 0, den = 0, exact = null, nearest = Infinity;
+            for (const pt of points) {
+                const dLat = lat - pt.lat, dLng = lng - pt.lng;
+                const d2 = dLat * dLat + dLng * dLng;
+                if (d2 < nearest) nearest = d2;
+                if (d2 < 1e-10) { exact = pt.value; break; }
+                const w = 1 / d2;                              // 1/d^2
+                num += w * pt.value;
+                den += w;
+            }
+            const v = exact !== null ? exact : (den ? num / den : lo);
+
+            // ALPHA FALLS OFF WITH DISTANCE FROM THE NEAREST BARANGAY.
+            //
+            // A flat alpha painted the whole bounding box, so the overlay ended
+            // in two hard vertical lines down the map -- the rectangle edge,
+            // not anything in the data. Fading by distance removes that edge
+            // and is the more honest rendering besides: colour stops where
+            // there is no nearby barangay to support it, instead of implying a
+            // measured value out in empty farmland.
+            const d = Math.sqrt(exact !== null ? 0 : nearest);
+            const fade = 1 - Math.min(1, Math.max(0, (d - FADE_INNER) / (FADE_OUTER - FADE_INNER)));
+
+            const [r, g, b] = heatColor((v - lo) / span);
+            const i = (y * HEAT_GRID + x) * 4;
+            img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b;
+            img.data[i + 3] = Math.round(255 * fade * fade);   // squared = softer tail
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return canvas.toDataURL();
+}
+
 function refreshMapLayers() {
     if (!state.map || !diseaseAnalyticsData.map) return;
     state.hotspotMarkers.forEach(m => m.remove());
     state.hotspotMarkers = [];
-    if (state.heatLayer) state.heatLayer.remove();
+    if (state.heatLayer) { state.heatLayer.remove(); state.heatLayer = null; }
 
-    const hotspots   = diseaseAnalyticsData.map.hotspots || [];
-    const heatPoints = hotspots.map(s => [s.lat, s.lng, s.intensity]);
+    const hotspots = (diseaseAnalyticsData.map.hotspots || [])
+        .filter(h => Number.isFinite(h.lat) && Number.isFinite(h.lng));
+    if (!hotspots.length) { renderMapLegend(null); return; }
 
-    state.heatLayer = L.heatLayer(heatPoints, {
-        radius: 65, blur: 40, minOpacity: 0.5,
-        gradient: { 0.3: '#6ec7ff', 0.55: '#fff27a', 0.75: '#ff9248', 1.0: '#e53030' },
+    const values = hotspots.map(h => Number(h.cases) || 0);
+    const maxValue = Math.max(...values, 1);
+    const minValue = Math.min(...values);
+
+    // Padded so the surface reaches past the outermost barangays instead of
+    // stopping at them with a visible straight edge.
+    const lats = hotspots.map(h => h.lat), lngs = hotspots.map(h => h.lng);
+    const padLat = ((Math.max(...lats) - Math.min(...lats)) * 0.18 || 0.01) + FADE_OUTER;
+    const padLng = ((Math.max(...lngs) - Math.min(...lngs)) * 0.18 || 0.01) + FADE_OUTER;
+    const bounds = L.latLngBounds(
+        [Math.min(...lats) - padLat, Math.min(...lngs) - padLng],
+        [Math.max(...lats) + padLat, Math.max(...lngs) + padLng]);
+
+    const url = buildHeatCanvas(
+        hotspots.map(h => ({ lat: h.lat, lng: h.lng, value: Number(h.cases) || 0 })), bounds);
+    state.heatLayer = L.imageOverlay(url, bounds, {
+        opacity: 0.82, interactive: false, className: 'da-heat-surface',
     }).addTo(state.map);
 
-    hotspots.forEach(spot => {
-        const color  = getRiskColor(spot.risk);
+    // Least urgent first, so a Needs Action marker is never buried under a
+    // Normal one where barangays overlap in the town centre.
+    [...hotspots]
+        .sort((a, b) => (TIER_ORDER[b.risk] ?? 3) - (TIER_ORDER[a.risk] ?? 3))
+        .forEach(spot => {
+        const actual    = Number(spot.cases) || 0;
+        const predicted = Number(spot.predicted) || 0;
+        const needsAction = spot.risk === 'critical';
+
+        // Solid tier colour, as the original design had it: red for Needs
+        // Action, amber for Watch, green for Normal.
+        //
+        // This does put two colour systems on one map -- the surface uses red
+        // for "many cases", a marker uses red for "needs action". A neutral
+        // scheme was tried and rejected on the look. The white outline and drop
+        // shadow below are what keep the markers legible against the field, so
+        // the two never visually merge even though they share hues.
         const marker = L.circleMarker([spot.lat, spot.lng], {
-            radius: 6, color, fillColor: color, fillOpacity: 0.9, weight: 1,
-        }).addTo(state.map).bindTooltip(`${spot.barangay} | ${spot.disease}`);
+            radius: symbolRadius(actual, maxValue),
+            color: '#ffffff',
+            fillColor: getRiskColor(spot.risk),
+            fillOpacity: 0.95,
+            weight: needsAction ? 2.5 : 1.8,
+            className: needsAction ? 'da-marker da-marker-urgent' : 'da-marker',
+        }).addTo(state.map);
+
+        const direction = predicted > actual ? 'expected to rise'
+                        : predicted < actual ? 'expected to ease' : 'expected to hold';
+        marker.bindTooltip(
+            `<strong>${vbEscapeHtml(spot.barangay)}</strong><br>` +
+            `<span style="opacity:.8">${tierWord(spot.risk)}</span><br>` +
+            `${actual} recorded &middot; ${predicted.toFixed(0)} forecast<br>` +
+            `<span style="opacity:.75">${direction}</span>`,
+            { direction: 'top', offset: [0, -4] });
         marker.on('click', () => { showHotspotAction(spot); toggleMapActionMode(true); });
         state.hotspotMarkers.push(marker);
     });
 
+    renderMapLegend({ min: minValue, max: maxValue });
     fitMapToHotspots();
+}
+
+/* Vertical colour bar, like the reference. Reads bottom-to-top so the hottest
+   value sits at the top, which is the convention people expect from a scale. */
+function renderMapLegend(range) {
+    const host = document.getElementById('mapLegend');
+    if (!host) return;
+    if (!range) { host.innerHTML = ''; return; }
+
+    const ramp = HEAT_STOPS
+        .map(([p, c]) => `rgb(${c[0]},${c[1]},${c[2]}) ${(p * 100).toFixed(0)}%`)
+        .join(', ');
+    const mid = Math.round((range.min + range.max) / 2);
+
+    host.innerHTML = `
+        <div class="heat-scale">
+            <div class="heat-scale-bar" style="background:linear-gradient(to top, ${ramp})"></div>
+            <div class="heat-scale-ticks">
+                <span>${Math.round(range.max)}</span>
+                <span>${mid}</span>
+                <span>${Math.round(range.min)}</span>
+            </div>
+        </div>
+        <div class="heat-scale-caption">
+            <strong>Cases</strong>
+            <span>Circle = barangay, sized by cases</span>
+            <span>Colour = Needs Action / Watch / Normal</span>
+            <span class="heat-scale-note">Shading between barangays is estimated</span>
+        </div>`;
 }
 
 function fitMapToHotspots() {
@@ -1159,6 +1387,16 @@ function initMap() {
     refreshMapLayers();
 }
 
+/* One vocabulary across the whole page. The tiers arrive from the API as
+   critical/monitor/stable -- internal wire values that were being printed
+   straight to the vet as "CRITICAL" and "STABLE", which is neither the wording
+   the rest of the panel uses nor something a reader can act on. */
+function tierWord(risk) {
+    return risk === 'critical' ? 'Needs Action'
+         : risk === 'monitor'  ? 'Watch'
+                               : 'Normal';
+}
+
 function getRiskColor(risk) {
     return risk === 'critical' ? '#c31d1d' : risk === 'monitor' ? '#a4851f' : '#1e8a47';
 }
@@ -1168,7 +1406,9 @@ function toggleMapActionMode(forceOn) {
     document.getElementById('toggleActionBtn').textContent =
         state.mapActionMode ? 'Close Action Tab' : 'Action Tab';
     if (!state.mapActionMode) { renderHotspotList(); return; }
-    const defaultHotspot = diseaseAnalyticsData.map.hotspots?.[0];
+    // The most urgent barangay, not whichever the API happened to return
+    // first -- opening the action tab should land on what needs attention.
+    const defaultHotspot = sortedHotspots()[0];
     if (defaultHotspot) showHotspotAction(defaultHotspot);
 }
 
@@ -1180,7 +1420,7 @@ function showHotspotAction(hotspot) {
     );
 
     let steps = [], protocolTitle = 'Barangay Response Protocol: ' + hotspot.barangay;
-    let protocolDesc = '', classification = 'Case volume: ' + hotspot.risk.toUpperCase(), modelBadge = '';
+    let protocolDesc = '', classification = tierWord(hotspot.risk), modelBadge = '';
 
     if (insight?.protocol) {
         steps          = insight.protocol.steps    || [];

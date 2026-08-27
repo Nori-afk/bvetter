@@ -711,11 +711,16 @@ function disease_analytics_data($pdo)
                 ['label' => 'Current Load',   'value' => $loadPct, 'color' => '#3d6670'],
             ],
             'protocol'       => [
-                'classification' => $spot['risk'] === 'critical' ? 'Grade 4 — High Risk'
-                                 : ($spot['risk'] === 'monitor'  ? 'Grade 3 — Medium Risk'
-                                                                 : 'Grade 2 — Low Risk'),
-                'title'       => 'Response Protocol: ' . $spot['barangay'],
-                'description' => 'Awaiting prediction from analytics service.',
+                // Plain words, and the same three the panel uses everywhere
+                // else. This used to read "Grade 4 — High Risk", a three-tier
+                // scale that never reached Grade 1 and looked like an official
+                // public-health grading that does not exist. Nobody outside
+                // this file could say what a Grade 3 was.
+                'classification' => $spot['risk'] === 'critical' ? 'Needs Action'
+                                 : ($spot['risk'] === 'monitor'  ? 'Watch'
+                                                                 : 'Normal'),
+                'title'       => 'What to do: ' . $spot['barangay'],
+                'description' => 'Checking the latest cases…',
                 'steps'       => [],
             ],
         ];

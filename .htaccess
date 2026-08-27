@@ -55,5 +55,23 @@ ServerSignature Off
     # CDNs (jsdelivr, cdnjs, unpkg), Google Fonts for CSS and font files, and
     # via.placeholder.com for images. Adding a library from anywhere else
     # means adding it here too, or it will silently fail to load.
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://via.placeholder.com; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; object-src 'none'"
+    #
+    # THE DISEASE MAP NEEDS TWO HOSTS THAT WERE MISSING, and their absence is
+    # why it rendered as coloured blobs floating on nothing:
+    #
+    #   style-src  https://unpkg.com
+    #     leaflet.css was blocked. Leaflet's own stylesheet positions the tile
+    #     grid, the zoom controls and the attribution, so without it the map
+    #     has no layout at all -- only the canvas overlays survive.
+    #
+    #   img-src    https://*.tile.openstreetmap.org
+    #     Every basemap tile is an <img> fetched from a.tile / b.tile /
+    #     c.tile.openstreetmap.org. All of them were refused, so there was no
+    #     map underneath the data.
+    #
+    # leaflet.js itself always loaded, because script-src already allowed
+    # unpkg -- which is exactly why this looked like a broken heatmap rather
+    # than a missing library: the markers and heat layer are drawn by JS onto a
+    # canvas and needed no blocked resource.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://via.placeholder.com https://*.tile.openstreetmap.org https://unpkg.com; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; object-src 'none'"
 </IfModule>

@@ -3240,34 +3240,34 @@ def _build_disease_protocol_steps(barangay, disease, current, future, fc, curren
     model = _friendly_model_label(fc["model_type"])
     if future_risk == "High":
         return [
-            {"level":"red",   "title":"Immediate: Field Deployment",
+            {"level":"red",   "title":"Visit this barangay",
              "detail":f"{model} predicts {future:.0f} {disease} cases next month in {barangay}. Deploy veterinary field team."},
             {"level":"blue",  "title":"Within 24 hrs: Report to MHO",
              "detail":f"Escalate {disease} cluster. Likely range: {fc['lower_ci'][0]:.0f}\u2013{fc['upper_ci'][0]:.0f} cases. Trend: {trend}."},
             {"level":"green", "title":"Preventive: Targeted Treatment Drive",
              "detail":f"Schedule mass treatment for {disease} in {barangay}. Current: {current:.0f} vs avg {avg:.1f}."},
-            {"level":"gray",  "title":"Monitoring: Weekly Review",
+            {"level":"gray",  "title":"Check again next week",
              "detail":f"Track until rule-based risk falls. 3-month forecast: {fc['forecast'][:3]}."},
         ]
     elif future_risk == "Medium":
         return [
-            {"level":"red",   "title":"Priority: Cluster Validation",
+            {"level":"red",   "title":"Confirm these cases",
              "detail":f"{model} predicts {future:.0f} {disease} in {barangay}. Confirm active clusters."},
-            {"level":"blue",  "title":"Within 72 hrs: Vet Coordination",
+            {"level":"blue",  "title":"Coordinate with the vet team",
              "detail":f"Schedule district vet visit. Trend: {trend}. Likely range: {fc['lower_ci'][0]:.0f}\u2013{fc['upper_ci'][0]:.0f} cases."},
-            {"level":"green", "title":"Preventive: Community Briefing",
+            {"level":"green", "title":"Send an advisory to residents",
              "detail":f"Run barangay broadcast for {disease} in {barangay}."},
-            {"level":"gray",  "title":"Monitoring: Bi-Weekly Review",
+            {"level":"gray",  "title":"Check again in two weeks",
              "detail":f"Escalate if threshold exceeded. Forecast: {future:.0f} cases."},
         ]
     return [
-        {"level":"red",   "title":"No Immediate Action Required",
+        {"level":"red",   "title":"Nothing needed right now",
          "detail":f"{model} predicts {future:.0f} {disease} — LOW case volume. Trend: {trend}."},
-        {"level":"blue",  "title":"Routine: Monthly Reporting",
+        {"level":"blue",  "title":"Include in the monthly report",
          "detail":f"Maintain standard cadence. Current: {current:.0f} in {barangay}."},
-        {"level":"green", "title":"Preventive: Quarterly Campaign",
+        {"level":"green", "title":"Include in the next campaign",
          "detail":f"Include {barangay} in next {disease} campaign."},
-        {"level":"gray",  "title":"Monitoring: Standard Surveillance",
+        {"level":"gray",  "title":"Keep the usual monitoring",
          "detail":f"Alert if cases exceed {round(avg * 1.3, 1)} (30% above avg)."},
     ]
 
@@ -3325,37 +3325,37 @@ def _build_all_disease_protocol(barangay, pred, avg_cases, models):
     if risk == "high":
         tier = "critical"
         steps = [
-            {"level":"red",  "title":"Immediate: Field Deployment",
+            {"level":"red",  "title":"Visit this barangay",
              "detail":f"{reason}. Expected {fused:.0f} cases next month (likely {lo:.0f}-{hi:.0f}, trend: {trend}). Deploy to {barangay}. {an}"},
-            {"level":"blue", "title":"Within 24 hrs: Regulatory Reporting",
-             "detail":f"Escalate to MHO. {basis}. Current: {current:.0f} cases vs this barangay's usual {avg_cases:.1f}."},
-            {"level":"green","title":"Preventive: Targeted Sanitation",
+            {"level":"blue", "title":"Report to the Municipal Health Office",
+             "detail":f"Within 24 hours. {basis}. Current: {current:.0f} cases vs this barangay's usual {avg_cases:.1f}."},
+            {"level":"green","title":"Run a clean-up and prevention drive",
              "detail":f"Focus on {barangay}. Expected case volume next month: {volume}."},
-            {"level":"gray", "title":"Monitoring: Weekly Review",
+            {"level":"gray", "title":"Check again next week",
              "detail":f"Review weekly until the level returns to Normal. 3-month forecast: {fc}."},
         ]
     elif risk == "medium":
         tier = "monitor"
         steps = [
-            {"level":"red",  "title":"Priority: Cluster Validation",
+            {"level":"red",  "title":"Confirm these cases",
              "detail":f"{reason}. Expected {fused:.0f} cases next month (likely {lo:.0f}-{hi:.0f}). Confirm clusters in {barangay}. {an}"},
-            {"level":"blue", "title":"Within 72 hrs: Vet Coordination",
-             "detail":f"{basis}. Current: {current:.0f} cases vs usual {avg_cases:.1f}."},
-            {"level":"green","title":"Preventive: Community Briefing",
+            {"level":"blue", "title":"Coordinate with the vet team",
+             "detail":f"Within 3 days. {basis}. Current: {current:.0f} cases vs usual {avg_cases:.1f}."},
+            {"level":"green","title":"Send an advisory to residents",
              "detail":f"Advisory for {barangay}. Expected case volume next month: {volume}."},
-            {"level":"gray", "title":"Monitoring: Bi-Weekly Review",
+            {"level":"gray", "title":"Check again in two weeks",
              "detail":f"Escalate if cases exceed the likely range ({lo:.0f}-{hi:.0f})."},
         ]
     else:
         tier = "stable"
         steps = [
-            {"level":"red",  "title":"No Immediate Action Required",
+            {"level":"red",  "title":"Nothing needed right now",
              "detail":f"{reason}. Expected {fused:.0f} cases next month (likely {lo:.0f}-{hi:.0f}, trend: {trend}). {an}"},
-            {"level":"blue", "title":"Routine: Monthly Reporting",
+            {"level":"blue", "title":"Include in the monthly report",
              "detail":f"Maintain the usual cadence for {barangay}."},
-            {"level":"green","title":"Preventive: Quarterly Campaign",
+            {"level":"green","title":"Include in the next campaign",
              "detail":f"Include {barangay} in the next scheduled campaign."},
-            {"level":"gray", "title":"Monitoring: Standard Surveillance",
+            {"level":"gray", "title":"Keep the usual monitoring",
              "detail":f"Revisit if cases exceed {hi:.0f}, or if a reportable disease is seen."},
         ]
     return tier, steps
