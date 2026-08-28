@@ -103,6 +103,22 @@ function setupPatientTables($pdo)
         // runner covers that case.
     }
 
+    /* The symptom pattern, as one of the differential-diagnosis classifier's ten
+       trained clusters. Stored ALONGSIDE the free-text `symptoms` column, not in
+       place of it: the vet's own words are the clinical record, while this is a
+       controlled value the model can actually read.
+
+       Without it live visits were invisible to the classifier — arriving with a
+       null cluster, which pandas' groupby drops silently, so the barangay
+       differential was computed from the workbook alone no matter how many
+       visits the clinic encoded. Nullable and never backfilled: existing rows
+       have no cluster to recover, and guessing one from free text is exactly
+       the unvalidated input the model refuses. */
+    if (!$pdo->query("SHOW COLUMNS FROM patient_visit_records LIKE 'symptom_cluster'")->fetch()) {
+        $pdo->exec("ALTER TABLE patient_visit_records
+                    ADD COLUMN symptom_cluster VARCHAR(160) NULL AFTER symptoms");
+    }
+
     $barangayAtVisitCheck = $pdo->query("SHOW COLUMNS FROM patient_visit_records LIKE 'barangay_at_visit'")->fetch();
     if (!$barangayAtVisitCheck) {
         $pdo->exec("ALTER TABLE patient_visit_records ADD COLUMN barangay_at_visit VARCHAR(120) NULL AFTER patient_status_at_visit");

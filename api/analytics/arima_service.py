@@ -2668,7 +2668,11 @@ def _hybrid_predict_one_alldisease(
         "rf_future_risk": str(tier),
         "rf_future_proba": proba_dict,
         "rf_confidence": confidence,
-        "rf_model_type": "RandomForestClassifier",
+        # Named for what actually produces this value. It said
+        # "RandomForestClassifier" over a threshold rule, which the UI believed:
+        # it took the branch written for a model's prediction and printed the
+        # null confidence above as "(0% confidence)" on every barangay.
+        "rf_model_type": "ActionTierRule",
         "model_agreement": agreement,
         "fused_predicted": arima_next,
         # SCALE-1: period-correct display value for bar chart
@@ -2676,7 +2680,7 @@ def _hybrid_predict_one_alldisease(
         "predicted_lower":  lo_display,
         "predicted_upper":  hi_display,
         "predicted_period": period,
-        "model_type": f"AllDisease{arima_result['model_type']}+RandomForestClassifier",
+        "model_type": f"AllDisease{arima_result['model_type']}+ActionTierRule",
     }
 
 
@@ -2752,7 +2756,7 @@ def load_db_consult_rows(after_year: int, after_month: int) -> pd.DataFrame:
     # silently disabling the one signal the action rule depends on, for exactly
     # the half of the data that matters going forward.
     cols = ["barangay", "year", "month_no", "diagnosis", "disease_category",
-            "cases_reported", "is_db_sourced"]
+            "symptom_cluster", "animal_group", "cases_reported", "is_db_sourced"]
     empty = pd.DataFrame(columns=cols)
 
     try:
@@ -2775,7 +2779,22 @@ def load_db_consult_rows(after_year: int, after_month: int) -> pd.DataFrame:
                     -- the old bucket value, and the catalog is the definition.
                     COALESCE(NULLIF(d.display_category, ''),
                              NULLIF(pvr.disease_category, ''),
-                             'General/Other') AS disease_category
+                             'General/Other') AS disease_category,
+                    -- Carried so live visits can reach the differential-diagnosis
+                    -- classifier. Left NULL when the vet skipped the picker:
+                    -- groupby drops those rows, which is the correct outcome —
+                    -- better absent than guessed from free text.
+                    NULLIF(pvr.symptom_cluster, '') AS symptom_cluster,
+                    -- The classifier's animal_group vocabulary, mapped from the
+                    -- species recorded at the visit. Anything unmapped stays NULL
+                    -- rather than defaulting to Dogs, which would silently file
+                    -- every exotic case under the commonest group.
+                    CASE pvr.species_at_visit
+                        WHEN 'Canine' THEN 'Dogs'
+                        WHEN 'Feline' THEN 'Cats'
+                        WHEN 'Avian'  THEN 'Chickens'
+                        ELSE NULL
+                    END AS animal_group
                 FROM patient_visit_records pvr
                 LEFT JOIN pets ON pets.id = pvr.pet_id
                 LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id
@@ -3412,7 +3431,8 @@ def disease_predict():
                 "arima_order": pred["arima_order"], "seasonal_order": None,
                 "rf_current_risk": pred["rf_current_risk"], "rf_future_risk": pred["rf_future_risk"],
                 "risk_class": pred["rf_future_risk"], "risk_proba": pred["rf_future_proba"],
-                "confidence": pred["rf_confidence"], "rf_model_type": "RandomForestClassifier",
+                "confidence": pred["rf_confidence"],
+                "rf_model_type": pred.get("rf_model_type", "ActionTierRule"),
                 "risk_note": models.get("risk_note_short", ""),
                 # ── Top-down output, surfaced for the UI ────────────────────
                 # The action tier is a rule over observed cases; the quarter
@@ -3424,7 +3444,14 @@ def disease_predict():
                 "action_tier":        pred.get("action_tier"),
                 "action_tier_label":  pred.get("action_tier_label"),
                 "action_reason":      pred.get("action_reason"),
+                "action_basis":       pred.get("action_basis"),
                 "action_is_rule":     pred.get("action_is_rule", False),
+                # How MANY cases, as opposed to what to DO about them. Computed
+                # here since v3 but never forwarded, so the UI had nothing to put
+                # in its "case volume" line and printed the action tier there
+                # instead — "Case volume level: ESCALATE".
+                "volume_band":        pred.get("volume_band"),
+                "volume_basis":       pred.get("volume_basis"),
                 "quarter_total":      pred.get("quarter_total"),
                 "quarter_lower":      pred.get("quarter_lower"),
                 "quarter_upper":      pred.get("quarter_upper"),
@@ -3558,6 +3585,98 @@ def diagnosis_predict():
             month_no=int(data.get("month_no", 0) or 0),
             top_n=int(data.get("top_n", 3) or 3),
         )
+        return jsonify({"success": True, "data": result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/barangay-differential", methods=["POST"])
+def barangay_differential():
+    """
+    The differential-diagnosis classifier, applied to one barangay.
+
+    Body: {barangay, symptom_cluster?, animal_group?}
+
+    Disease Analytics asks a barangay-shaped question, so the model's inputs come
+    from that barangay's OWN consultations rather than from a form: which symptom
+    pattern do its cases actually present as, and in which animals. Either can be
+    overridden to explore a different pattern.
+
+    Also returns what was actually DIAGNOSED for that pattern in that barangay, so
+    the shortlist can be read against the record instead of taken on trust. The two
+    agreeing is the useful signal; the two disagreeing is worth a vet's attention,
+    and neither is visible if only the model's own numbers are shown.
+    """
+    data = request.json or {}
+    barangay = str(data.get("barangay", "")).strip()
+    if barangay == "":
+        return jsonify({"success": False, "error": "barangay is required"}), 400
+    try:
+        raw = _load_consult_diagnosis_raw()
+        sub = raw[raw["barangay"].astype(str).str.strip().str.lower() == barangay.lower()].copy()
+        if sub.empty:
+            return jsonify({"success": True, "data": {
+                "available": False,
+                "reason": f"No consultations on record for {barangay}."}})
+
+        sub["_cases"] = pd.to_numeric(sub["cases_reported"], errors="coerce").fillna(1)
+
+        # What this barangay's cases actually look like, highest volume first.
+        patterns = sub.groupby("symptom_cluster")["_cases"].sum().sort_values(ascending=False)
+        total = float(patterns.sum()) or 1.0
+        pattern_list = [{"symptom_cluster": str(name), "cases": int(value),
+                         "share": round(100.0 * value / total, 1)}
+                        for name, value in patterns.head(6).items()]
+
+        # The disease filter selects WHICH pattern to open on, not what to count.
+        # Filtering the whole subset to the disease would make the observed column
+        # circular — asked about rabies, it could only ever answer "rabies" — and
+        # the point of that column is to be checkable against the prediction.
+        disease = str(data.get("disease", "")).strip()
+        is_all_diseases = disease.lower() in ("", "all diseases", "all")
+
+        cluster = str(data.get("symptom_cluster", "")).strip()
+        pattern_basis = "the barangay's overall case mix"
+
+        if not cluster and not is_all_diseases:
+            only = sub[sub["diagnosis"].astype(str).str.strip().str.lower() == disease.lower()]
+            by_cluster = only.groupby("symptom_cluster")["_cases"].sum() if not only.empty else pd.Series(dtype=float)
+            if len(by_cluster):
+                cluster = str(by_cluster.idxmax())
+                pattern_basis = f"how {disease} presents here"
+            else:
+                # Says WHY it fell back. Filtering to a disease this barangay has
+                # never recorded and getting its unrelated top pattern with no
+                # explanation reads as the filter being ignored — which is the
+                # bug this parameter was added to fix.
+                pattern_basis = (f"the barangay's overall case mix — no {disease} "
+                                 f"has been recorded here")
+
+        if not cluster:
+            cluster = pattern_list[0]["symptom_cluster"] if pattern_list else ""
+
+        here = sub[sub["symptom_cluster"].astype(str).str.strip() == cluster]
+
+        groups = (here.groupby("animal_group")["_cases"].sum().sort_values(ascending=False)
+                  if not here.empty else pd.Series(dtype=float))
+        group = str(data.get("animal_group", "")).strip() \
+            or (str(groups.index[0]) if len(groups) else "")
+
+        observed = (here.groupby("diagnosis")["_cases"].sum().sort_values(ascending=False).head(3)
+                    if not here.empty else pd.Series(dtype=float))
+
+        result = predict_diagnosis(symptom_cluster=cluster, animal_group=group, top_n=3)
+        result.update({
+            "barangay":           barangay,
+            "patterns":           pattern_list,
+            "animal_groups_here": [str(g) for g in list(groups.index)[:6]],
+            "selected":           {"symptom_cluster": cluster, "animal_group": group},
+            "disease_filter":     None if is_all_diseases else disease,
+            "pattern_basis":      pattern_basis,
+            "observed_top":       [{"diagnosis": str(name), "cases": int(value)}
+                                   for name, value in observed.items()],
+            "cases_for_pattern":  int(here["_cases"].sum()) if not here.empty else 0,
+        })
         return jsonify({"success": True, "data": result})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

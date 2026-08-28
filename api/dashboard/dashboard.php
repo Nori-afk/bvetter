@@ -1492,6 +1492,57 @@ if ($scope === 'rf_model_info' || $scope === 'rf-model-info') {
     bv_json_response($result['success'] ? 200 : 502, $result);
 }
 
+/* ── Differential diagnosis (RandomForestClassifier) ──────────────────
+   The forest's one legitimate job in this system. It is CROSS-SECTIONAL —
+   given these symptoms and this species, which diagnosis? — so none of the
+   temporal problems that got a forest removed from the barangay tier apply
+   here (lag-1 autocorrelation 0.018 there; nothing time-dependent here).
+
+   Both scopes existed on the Python side from the start and were reachable
+   by nothing: no PHP proxy, no JS caller. The model trained on every boot
+   and answered no one. */
+if ($scope === 'diagnosis_options' || $scope === 'diagnosis-options') {
+    $out = analytics_post('/diagnosis-options', [], 20);
+    bv_json_response($out['success'] ? 200 : 502, $out);
+}
+
+if ($scope === 'diagnosis_predict' || $scope === 'diagnosis-predict') {
+    $cluster = bv_clean($input['symptom_cluster'] ?? '');
+    if ($cluster === '') {
+        bv_json_response(422, ['success' => false,
+                               'error'   => 'symptom_cluster is required.']);
+    }
+    // top_n is fixed at 3 rather than caller-supplied. A differential is used
+    // as a shortlist; letting a caller ask for 1 would present a 57%-accurate
+    // guess as though it were an answer.
+    $out = analytics_post('/diagnosis-predict', [
+        'symptom_cluster' => $cluster,
+        'animal_group'    => bv_clean($input['animal_group'] ?? ''),
+        'top_n'           => 3,
+    ], 20);
+    bv_json_response($out['success'] ? 200 : 502, $out);
+}
+
+/* The same classifier, asked a barangay-shaped question. Inputs default to what
+   that barangay's own consultations look like, so Disease Analytics shows a
+   finding rather than an empty picker. */
+if ($scope === 'barangay_differential' || $scope === 'barangay-differential') {
+    $barangay = bv_clean($input['barangay'] ?? '');
+    if ($barangay === '') {
+        bv_json_response(422, ['success' => false, 'error' => 'barangay is required.']);
+    }
+    $out = analytics_post('/barangay-differential', [
+        'barangay'        => $barangay,
+        'symptom_cluster' => bv_clean($input['symptom_cluster'] ?? ''),
+        'animal_group'    => bv_clean($input['animal_group'] ?? ''),
+        // Selects which pattern the panel opens on, so the block follows the
+        // page's disease filter instead of always showing the barangay's
+        // overall top pattern regardless of what is being looked at.
+        'disease'         => bv_clean($input['disease'] ?? ''),
+    ], 20);
+    bv_json_response($out['success'] ? 200 : 502, $out);
+}
+
 bv_json_response(200, ['success' => true, 'data' => vet_dashboard(
     $pdo,
     strtolower(bv_clean($input['patient_range'] ?? $input['range'] ?? 'monthly')),

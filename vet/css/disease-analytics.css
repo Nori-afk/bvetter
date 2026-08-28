@@ -380,6 +380,133 @@ select option { background: #0D2040; color: #fff; }
     flex: 1;
 }
 
+/* ── Differential diagnosis (RandomForestClassifier) ─────────────
+   Sits inside the insight panel, below the response protocol. Styled as a
+   distinct block rather than another protocol step: the steps are what to do,
+   this is what the case is likely to be, and conflating them would read as an
+   instruction rather than a shortlist. */
+.rf-diff {
+    margin-top: 18px;
+    padding: 16px 18px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+}
+
+.rf-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.rf-head h4 {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.rf-tag {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--border-mid);
+    border-radius: 99px;
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+
+.rf-lede {
+    margin: 0 0 12px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--ink-2);
+}
+
+.rf-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.rf-controls select {
+    background-color: var(--surface);
+    color: var(--ink);
+    border-color: var(--border-mid);
+}
+
+.rf-cols {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.rf-col-title {
+    margin: 0 0 7px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.rf-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--ink);
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.rf-row:last-child { border-bottom: 0; }
+.rf-row b { font-variant-numeric: tabular-nums; color: var(--ink-2); }
+
+.rf-note, .rf-muted {
+    margin: 12px 0 0;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--muted);
+}
+
+@media (max-width: 720px) {
+    .rf-controls, .rf-cols { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Sits above both charts rather than in .header-actions, which already carries
+   four selects and a button and wraps to three rows on mobile. */
+.chart-sort-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 22px 0 -4px;
+}
+
+.chart-sort-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.chart-sort-hint {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+@media (max-width: 640px) {
+    .chart-sort-hint { flex-basis: 100%; }
+}
+
 /* Stacked rather than side-by-side: the card is the narrow column of the
    overview grid, and both labels are too long to sit on one row there. */
 .data-sources-actions {
@@ -1291,6 +1418,13 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 .risk-critical { background: var(--red); }
 .risk-monitor  { background: var(--amber); }
 .risk-stable   { background: var(--green); }
+
+/* The chip is keyed off the normalised level from actionStatus() rather than
+   the raw wire value. Scoped to .risk-chip so it cannot collide with
+   .insight-card.risk-low, which sets a border colour on a different element. */
+.risk-chip.risk-high   { background: var(--red); }
+.risk-chip.risk-medium { background: var(--amber); }
+.risk-chip.risk-low    { background: var(--green); }
 
 .forecast {
     padding: 12px;

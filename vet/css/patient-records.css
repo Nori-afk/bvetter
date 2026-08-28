@@ -3121,3 +3121,89 @@ body {
     line-height: 1.45;
     margin-top: 5px;
 }
+
+/* ── Differential diagnosis suggestion ──────────────────────────────
+   Deliberately quieter than the fields around it: this is an aid beside
+   the DIAGNOSIS control, not a peer of it. If it looked like a form field
+   a vet could reasonably read the suggestion as the recorded value. */
+.dx-block {
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+
+.dx-optional {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #94a3b8;
+    text-transform: none;
+}
+
+.dx-lede {
+    margin: 0 0 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #667a94;
+}
+
+.dx-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 8px;
+}
+
+.dx-result { margin-top: 12px; }
+
+.dx-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dx-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.dx-pick {
+    flex: 1;
+    text-align: left;
+    appearance: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: #12263f;
+    background: #fff;
+    border: 1px solid #dbe3ec;
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+.dx-pick:hover { background: #eef4fb; border-color: #002A58; }
+.dx-pick.is-chosen { background: #dcfce7; border-color: #15803d; color: #15803d; }
+
+.dx-prob {
+    font-size: 12px;
+    font-weight: 700;
+    color: #667a94;
+    min-width: 38px;
+    text-align: right;
+}
+
+.dx-note, .dx-muted {
+    margin: 10px 0 0;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: #667a94;
+}
+
+@media (max-width: 640px) {
+    .dx-controls { grid-template-columns: minmax(0, 1fr); }
+}

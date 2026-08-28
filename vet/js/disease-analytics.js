@@ -44,6 +44,8 @@ let diseaseAnalyticsData = {
 
 const state = {
     selectedInsightId: null,
+    // Which column drives the order BOTH bar charts are drawn in.
+    chartSort: 'actual',
     mapActionMode: false,
     loadRequestId: 0,
     map: null,
@@ -117,11 +119,40 @@ function countUp(el, duration) {
     requestAnimationFrame(tick);
 }
 
-function getRiskLevel(insight) {
-    var cls = (insight.rf_risk_class || '').toLowerCase();
-    if (cls.includes('high') || cls === 'critical') return 'high';
-    if (cls.includes('medium') || cls.includes('med') || cls === 'monitor') return 'medium';
-    return 'low';
+/* ── One status vocabulary ───────────────────────────────────────
+   The API speaks three dialects for a single idea. The all-disease
+   pipeline returns ESCALATE/MONITOR/ROUTINE, the map layer returns
+   critical/monitor/stable, and the disease-specific pipeline returns
+   High/Medium/Low. All three were reaching the screen: mapped in some
+   places, raw in others, so one barangay read "ESCALATE" on its card,
+   "Immediate Response" in the panel and "Needs Action" on the map.
+
+   The colour was worse. The CSS class came from string-matching those
+   raw values, and "escalate" contains neither "high" nor "medium", so
+   the MOST urgent state fell through to risk-low and rendered green.
+
+   One translation, used at every surface. `level` drives colour,
+   `label` is the only wording a vet ever sees. */
+const ACTION_STATUS = {
+    escalate: 'high',   critical: 'high',   high:   'high',
+    monitor:  'medium', medium:   'medium', med:    'medium',
+    routine:  'low',    stable:   'low',    low:    'low', normal: 'low',
+};
+const ACTION_LABEL = { high: 'Needs Action', medium: 'Watch', low: 'Normal' };
+
+function actionStatus(value) {
+    const key = String(value ?? '').trim().toLowerCase();
+    let level = ACTION_STATUS[key];
+    if (!level) {
+        // Unknown wire value: bias toward the LOUDER reading. A spurious
+        // alarm costs the clinic a phone call; a missed one costs more.
+        // Deliberately not matching a bare "med" -- it is a substring of
+        // "immediate", which would file "Immediate Response" as a Watch.
+        level = /escalat|critical|urgent|high/.test(key) ? 'high'
+              : /monitor|watch|medium/.test(key)         ? 'medium'
+              :                                            'low';
+    }
+    return { level, label: ACTION_LABEL[level] };
 }
 
 /* ── API calls ──────────────────────────────────────────────── */
@@ -471,21 +502,49 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
         const arimaUpperCi  = rf.arima_upper_ci  || [];
 
         const modelType   = rf.model_type || (allDiseases ? 'AllDiseaseARIMA+RF' : 'DiseaseMovingAverageFallback');
-        const isRuleBased = rf.rf_model_type === 'RuleBasedThreshold';
+        // action_is_rule is the all-disease pipeline's own flag; the string
+        // check covers the disease-specific "RuleBasedThreshold". Neither
+        // path has a model behind its status, and both used to be routed
+        // through the branch written for one that does.
+        const isRuleBased = rf.action_is_rule === true ||
+                            String(rf.rf_model_type || '').toLowerCase().includes('rule');
+        // Volume and action level answer different questions. The all-disease
+        // response carries the volume in volume_band and the action level in
+        // risk_class; the disease-specific response has only risk_class, where
+        // it genuinely IS a volume band. Reading risk_class for both is what
+        // produced "Case volume level: ESCALATE".
+        const volumeBand = rf.volume_band || rf.risk_class || 'N/A';
+        const nextMonth  = arimaForecast[0] ?? '?';
 
         let protocolDesc;
-        if (isRuleBased) {
+        if (rf.action_is_rule) {
+            // Reports the threshold the barangay crossed. Python sets
+            // confidence to null here on purpose -- "presenting a made-up
+            // confidence beside a deterministic threshold is how the old panel
+            // came to show High: 100%, Low: 0%" -- and the UI used to coerce
+            // that null to 0 and print "(0% confidence)" anyway.
+            protocolDesc = (
+                `Our ${friendlyModelLabel(modelType)} predicts ${nextMonth} cases next month. ` +
+                `Case volume level: ${volumeBand}. ` +
+                (rf.action_basis ? `Action level from ${rf.action_basis}. ` : '') +
+                (rf.municipality_accuracy?.mape != null
+                    ? `The municipality-wide forecast this is split from is usually within `
+                      + `${rf.municipality_accuracy.mape}% of the actual total; a single barangay varies more.`
+                    : '')
+            );
+        } else if (isRuleBased) {
             const thr = rf.risk_thresholds || {};
             protocolDesc = (
-                `Our ${friendlyModelLabel(modelType)} predicts ${arimaForecast[0] ?? '?'} cases next month. ` +
-                `Case volume level: ${rf.risk_class || 'N/A'} ` +
+                `Our ${friendlyModelLabel(modelType)} predicts ${nextMonth} cases next month. ` +
+                `Case volume level: ${volumeBand} ` +
                 `(Low: under ${thr.low_max ?? '?'} · Medium: up to ${thr.med_max ?? '?'}). ` +
                 `${rf.eval_note || ''}`
             );
         } else {
             protocolDesc = (
-                `Our Advanced Forecast predicts ${arimaForecast[0] ?? '?'} cases next month. ` +
-                `Case volume level: ${rf.risk_class || 'N/A'} (${rf.confidence || 0}% confidence). ` +
+                `Our Advanced Forecast predicts ${nextMonth} cases next month. ` +
+                `Case volume level: ${volumeBand}` +
+                (rf.confidence != null ? ` (${rf.confidence}% confidence)` : '') + '. ' +
                 (rf.municipality_accuracy?.mape != null
                     ? `The municipality-wide forecast this is split from is usually within `
                       + `${rf.municipality_accuracy.mape}% of the actual total; a single barangay varies more.`
@@ -501,6 +560,11 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
             avg:             rf.avg_cases || 0,
             recommendation:  rf.recommendation,
             rf_risk_class:   rf.risk_class,
+            // The single field every status surface reads. action_tier is the
+            // all-disease rule, tier is the disease-specific one, risk_class is
+            // the last resort; actionStatus() normalises whichever arrives.
+            action_level:    rf.action_tier || rf.tier || rf.risk_class,
+            volume_band:     volumeBand,
             rf_confidence:   rf.confidence,
             // Top-down output. action_* is a RULE over observed cases, not a
             // forecast; quarter_* is the barangay figure that can actually be
@@ -520,7 +584,11 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
             interval_coverage: rf.interval_coverage,
             municipality_accuracy: rf.municipality_accuracy,
             rf_risk_proba:   rf.risk_proba || rf.rf_future_proba,
-            rf_model_type:   rf.rf_model_type || 'RandomForestClassifier',
+            // No default. Claiming "RandomForestClassifier" for a missing field
+            // is how a rule-based status ended up described as a model's
+            // prediction, complete with a confidence it never reported.
+            rf_model_type:   rf.rf_model_type || '',
+            action_is_rule:  rf.action_is_rule === true,
             risk_thresholds: rf.risk_thresholds || null,
             model_type:      modelType,
             model_mae:       rf.model_mae,
@@ -549,9 +617,10 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
                 // The action the tier calls for, not an invented severity grade.
                 // "Grade 4/3/2" implied a calibrated four-level public-health
                 // scale; there are only three tiers and they never reach 1.
-                classification: rf.tier === 'critical' ? 'Immediate Response'
-                               : rf.tier === 'monitor'  ? 'Monitor'
-                               :                          'Routine',
+                // Uses the shared vocabulary: this used to be a third set of
+                // words ("Immediate Response"/"Monitor") for the same value the
+                // card and the map already labelled two other ways.
+                classification: actionStatus(rf.action_tier || rf.tier).label,
                 title:       (isRuleBased ? 'Response Plan: ' : 'Advanced Response Plan: ') + rf.barangay,
                 description: protocolDesc,
                 steps:       rf.steps || [],
@@ -595,7 +664,7 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
     diseaseAnalyticsData.kpis[2] = {
         label: 'High Case Volume Barangays',
         value: String(critical),
-        trend: `${critical} critical · ${monitor} monitoring`,
+        trend: `${critical} need action · ${monitor} to watch`,
     };
 
     // Average error margin across every barangay shown, not just whichever
@@ -693,6 +762,14 @@ function bindEvents() {
     });
     document.getElementById('refreshSourcesBtn')?.addEventListener('click', () => {
         document.getElementById('refreshSourcesBtn').textContent = 'Refreshed ' + new Date().toLocaleTimeString();
+    });
+
+    // Ordering only — the data for both charts is already loaded, so this
+    // re-draws rather than re-fetching.
+    document.getElementById('chartSortFilter')?.addEventListener('change', (ev) => {
+        state.chartSort = ev.target.value === 'predicted' ? 'predicted' : 'actual';
+        renderBarChart('actualChart',    diseaseAnalyticsData.actualCases,    'actual');
+        renderBarChart('predictedChart', diseaseAnalyticsData.predictedCases, 'predicted');
     });
 
     document.getElementById('manageDatasetBtn')?.addEventListener('click', () => window.DatasetModal?.open());
@@ -856,16 +933,18 @@ function renderOverview() {
 
     const insightRoot = document.getElementById('insightCards');
     insightRoot.innerHTML = diseaseAnalyticsData.insights
-        .map((insight, idx) => `
-            <article class="insight-card risk-${getRiskLevel(insight)}" style="animation-delay:${idx * 55}ms">
+        .map((insight, idx) => {
+            const status = actionStatus(insight.action_level);
+            return `
+            <article class="insight-card risk-${status.level}" style="animation-delay:${idx * 55}ms">
                 <div class="insight-card-top">
                     <span class="chip">${insight.barangay}</span>
-                    ${insight.rf_risk_class ? `<span class="risk-indicator">${insight.rf_risk_class}</span>` : ''}
+                    <span class="risk-indicator">${status.label}</span>
                 </div>
                 <p>${insight.recommendation || 'No recommendation yet.'}</p>
                 <button class="action-link" data-insight-id="${insight.id}">View Action <span class="arrow">→</span></button>
-            </article>
-        `).join('');
+            </article>`;
+        }).join('');
 
     insightRoot.querySelectorAll('.action-link').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -877,6 +956,20 @@ function renderOverview() {
 }
 
 /* ── Bar chart ──────────────────────────────────────────────── */
+/* The one ranking both charts are drawn in. Ranks by whichever column the
+   Sort by control names, so the two charts stay row-aligned and a barangay
+   can be compared across them without hunting for it twice. */
+function sharedBarangayOrder() {
+    const source = state.chartSort === 'predicted'
+        ? diseaseAnalyticsData.predictedCases
+        : diseaseAnalyticsData.actualCases;
+    const rank = {};
+    [...(source || [])]
+        .sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0))
+        .forEach((row, index) => { rank[normalizeBarangayName(row.barangay)] = index; });
+    return rank;
+}
+
 function renderBarChart(targetId, sourceRows, chartType) {
     const root = document.getElementById(targetId);
     if (!root || !sourceRows?.length) { if (root) root.innerHTML = '<p class="no-data">No data available.</p>'; return; }
@@ -892,11 +985,19 @@ function renderBarChart(targetId, sourceRows, chartType) {
     // read elsewhere to look barangays up, and reordering the shared arrays
     // underneath those readers would be a nasty way to save an allocation.
     //
-    // Each chart sorts by its OWN values, so "Predicted" genuinely ranks by
-    // predicted cases. The trade-off is that a barangay sits at different
-    // heights in the two charts, so they read as two rankings rather than as a
-    // row-by-row comparison.
-    const rows = [...sourceRows].sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0));
+    // BOTH charts now take the SAME order, from sharedBarangayOrder(). Sorting
+    // each chart by its own values made either ranking honest on its own but
+    // put a barangay at two different heights, so reading "is San Jose worse
+    // than forecast?" meant finding it twice and comparing positions by eye.
+    // The Sort by control decides which column drives the shared order.
+    const order = sharedBarangayOrder();
+    const rows  = [...sourceRows].sort((a, b) => {
+        const ra = order[normalizeBarangayName(a.barangay)] ?? Number.MAX_SAFE_INTEGER;
+        const rb = order[normalizeBarangayName(b.barangay)] ?? Number.MAX_SAFE_INTEGER;
+        // Ties and barangays missing from the ordering column fall back to this
+        // chart's own value, so a row never lands in an arbitrary spot.
+        return ra !== rb ? ra - rb : (Number(b.value) || 0) - (Number(a.value) || 0);
+    });
 
     const allDiseases  = diseaseAnalyticsData.isAllDiseases;
     const maxValue     = Math.max(...rows.map(r => r.value), 1);
@@ -1044,13 +1145,16 @@ function renderInsightPanel() {
     }
 
     // ── Risk tier chip ────────────────────────────────────────────
-    const protocol  = insight.protocol;
-    const classText = (protocol.classification || '').toLowerCase();
-    const tierClass = classText.includes('high') ? 'high' : classText.includes('medium') ? 'medium' : 'low';
+    const protocol = insight.protocol;
+    // Derived from the status value, not from string-matching the displayed
+    // words. The old test looked for "high"/"medium" inside a classification
+    // that read "Immediate Response", matched neither, and painted the most
+    // urgent chip in the calm green of ip-risk-low.
+    const status = actionStatus(insight.action_level);
 
     document.getElementById('protocolPanel').innerHTML = `
         <div class="ip-risk-header">
-            <span class="ip-risk-chip ip-risk-${tierClass}">${protocol.classification}</span>
+            <span class="ip-risk-chip ip-risk-${status.level}">${status.label}</span>
         </div>
         ${offlineWarningHtml}
         ${modelBadgeHtml}
@@ -1070,6 +1174,7 @@ function renderInsightPanel() {
                 </div>
             `).join('')}
         </div>
+        <div class="rf-diff" id="rfDifferential" data-barangay="${esc(insight.barangay)}"></div>
         <div class="ip-actions">
             <button class="ip-btn-primary" id="createEventBtn">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/></svg>Create Event
@@ -1084,6 +1189,116 @@ function renderInsightPanel() {
         openCreateEventModal(insight.barangay, insight.disease, Array.isArray(insight.forecast) ? insight.forecast[0] : null);
     });
     document.getElementById('backOverviewBtn2').addEventListener('click', () => switchPanel('overviewPanel'));
+    loadBarangayDifferential(insight.barangay);
+}
+
+/* ── Differential diagnosis for this barangay (RandomForestClassifier) ──
+   The one place a forest belongs in this pipeline. Barangay-month case counts
+   have a lag-1 autocorrelation of 0.018, which is why the action tier above is
+   a rule and not a model; "given these symptoms in this species, which disease
+   is it?" is cross-sectional, so none of that applies.
+
+   Inputs default to what this barangay's own consultations actually look like,
+   so the panel opens on a finding rather than an empty picker. The observed
+   column beside the prediction is deliberate: a shortlist that cannot be read
+   against the record is a claim, not evidence. */
+async function loadBarangayDifferential(barangay, symptomCluster, animalGroup) {
+    const host = document.getElementById('rfDifferential');
+    if (!host) return;
+    host.innerHTML = '<p class="rf-muted">Reading this barangay’s case patterns…</p>';
+
+    let payload;
+    try {
+        const response = await fetch('/api/dashboard/dashboard.php?scope=barangay_differential', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                barangay,
+                symptom_cluster: symptomCluster || '',
+                animal_group:    animalGroup || '',
+                // Follows the page's disease filter. Without it this block sat
+                // on the barangay's overall top pattern while every other panel
+                // showed the selected disease — filter to Rabies and the
+                // differential still discussed mange.
+                disease: diseaseAnalyticsData.selectedDisease || '',
+            }),
+        });
+        const result = await response.json();
+        payload = result?.data;
+        if (!result?.success || !payload?.available) {
+            // Never blocks the panel: the protocol above stands on its own.
+            host.innerHTML = `<p class="rf-muted">${esc(payload?.reason
+                || 'Differential unavailable — the analytics service is not responding.')}</p>`;
+            return;
+        }
+    } catch (error) {
+        host.innerHTML = '<p class="rf-muted">Differential unavailable — the analytics service is not responding.</p>';
+        return;
+    }
+
+    const selected = payload.selected || {};
+    const predictions = payload.predictions || [];
+    const observed = payload.observed_top || [];
+
+    host.innerHTML = `
+        <div class="rf-head">
+            <h4>Likely diagnoses here</h4>
+            <span class="rf-tag">Random Forest classifier</span>
+        </div>
+        <p class="rf-lede">
+            ${esc(payload.cases_for_pattern)} of this barangay’s cases present as
+            <strong>${esc(selected.symptom_cluster)}</strong>${payload.pattern_basis
+                ? ` — chosen from ${esc(payload.pattern_basis)}` : ''}.
+            For that pattern the classifier’s shortlist is:
+        </p>
+        <div class="rf-controls">
+            <select id="rfCluster" aria-label="Symptom pattern">
+                ${(payload.patterns || []).map(p => `
+                    <option value="${esc(p.symptom_cluster)}" ${p.symptom_cluster === selected.symptom_cluster ? 'selected' : ''}>
+                        ${esc(p.symptom_cluster)} — ${esc(p.share)}%
+                    </option>`).join('')}
+            </select>
+            <select id="rfAnimal" aria-label="Animal group">
+                ${(payload.animal_groups_here || []).map(g => `
+                    <option ${g === selected.animal_group ? 'selected' : ''}>${esc(g)}</option>`).join('')}
+            </select>
+        </div>
+        <div class="rf-cols">
+            <div class="rf-col">
+                <p class="rf-col-title">Model shortlist</p>
+                ${predictions.length ? predictions.map(p => `
+                    <div class="rf-row">
+                        <span>${esc(p.diagnosis)}</span>
+                        <b>${Math.round((p.probability || 0) * 100)}%</b>
+                    </div>`).join('') : '<p class="rf-muted">No prediction for this combination.</p>'}
+            </div>
+            <div class="rf-col">
+                <p class="rf-col-title">Actually recorded here</p>
+                ${observed.length ? observed.map(o => `
+                    <div class="rf-row">
+                        <span>${esc(o.diagnosis)}</span>
+                        <b>${esc(o.cases)}</b>
+                    </div>`).join('') : '<p class="rf-muted">No cases on record.</p>'}
+            </div>
+        </div>
+        <p class="rf-note">
+            A differential, not a diagnosis: right first choice ${esc(payload.top1_accuracy)}% of the
+            time and in the top three ${esc(payload.top3_accuracy)}% of the time, against a
+            most-common-for-this-pattern baseline of ${esc(payload.lookup_baseline)}%.
+            The classifier reads symptoms and species only — not location — so two barangays
+            showing the same pattern get the same shortlist. What differs here is which pattern
+            dominates, and what was recorded against it.
+        </p>`;
+
+    ['rfCluster', 'rfAnimal'].forEach((id) => {
+        document.getElementById(id)?.addEventListener('change', () => {
+            // Changing the pattern clears the animal group so the barangay's own
+            // dominant group for the NEW pattern is picked, not the stale one.
+            const cluster = document.getElementById('rfCluster')?.value || '';
+            const group   = id === 'rfCluster' ? '' : (document.getElementById('rfAnimal')?.value || '');
+            loadBarangayDifferential(barangay, cluster, group);
+        });
+    });
 }
 
 function renderMiniBars(targetId, rows) {
@@ -1143,7 +1358,7 @@ function renderHotspotList() {
             <article class="hotspot-item" data-hotspot-id="${hotspot.id}">
                 <h4>
                     ${hotspot.barangay}
-                    <span class="risk-chip risk-${hotspot.risk}">${tierWord(hotspot.risk)}</span>
+                    <span class="risk-chip risk-${actionStatus(hotspot.risk).level}">${actionStatus(hotspot.risk).label}</span>
                 </h4>
                 <p>${hotspot.disease}</p>
                 <small>Cases: ${hotspot.cases} | Predicted: ${hotspot.predicted} ${badge}</small>
@@ -1343,7 +1558,7 @@ function refreshMapLayers() {
                         : predicted < actual ? 'expected to ease' : 'expected to hold';
         marker.bindTooltip(
             `<strong>${vbEscapeHtml(spot.barangay)}</strong><br>` +
-            `<span style="opacity:.8">${tierWord(spot.risk)}</span><br>` +
+            `<span style="opacity:.8">${actionStatus(spot.risk).label}</span><br>` +
             `${actual} recorded &middot; ${predicted.toFixed(0)} forecast<br>` +
             `<span style="opacity:.75">${direction}</span>`,
             { direction: 'top', offset: [0, -4] });
@@ -1399,18 +1614,11 @@ function initMap() {
     refreshMapLayers();
 }
 
-/* One vocabulary across the whole page. The tiers arrive from the API as
-   critical/monitor/stable -- internal wire values that were being printed
-   straight to the vet as "CRITICAL" and "STABLE", which is neither the wording
-   the rest of the panel uses nor something a reader can act on. */
-function tierWord(risk) {
-    return risk === 'critical' ? 'Needs Action'
-         : risk === 'monitor'  ? 'Watch'
-                               : 'Normal';
-}
-
+/* Map fill colours, keyed off the same normalised level as every other
+   status surface -- see actionStatus(). */
 function getRiskColor(risk) {
-    return risk === 'critical' ? '#c31d1d' : risk === 'monitor' ? '#a4851f' : '#1e8a47';
+    const level = actionStatus(risk).level;
+    return level === 'high' ? '#c31d1d' : level === 'medium' ? '#a4851f' : '#1e8a47';
 }
 
 function toggleMapActionMode(forceOn) {
@@ -1432,7 +1640,7 @@ function showHotspotAction(hotspot) {
     );
 
     let steps = [], protocolTitle = 'Barangay Response Protocol: ' + hotspot.barangay;
-    let protocolDesc = '', classification = tierWord(hotspot.risk), modelBadge = '';
+    let protocolDesc = '', classification = actionStatus(hotspot.risk).label, modelBadge = '';
 
     if (insight?.protocol) {
         steps          = insight.protocol.steps    || [];
@@ -1445,7 +1653,7 @@ function showHotspotAction(hotspot) {
             modelBadge = `
                 <div class="rule-based-note">
                     ⚠ Rule-Based Case Volume —
-                    ${insight.rf_risk_class || 'N/A'} case volume
+                    ${insight.volume_band || 'N/A'} case volume
                     ${insight.pred_source?.includes('fallback')
                         ? '<span class="source-badge fallback">Estimate</span>'
                         : `<span class="source-badge model">${friendlyModelLabel(insight.model_type)}</span>`}

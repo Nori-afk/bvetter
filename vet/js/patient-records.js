@@ -32,6 +32,140 @@ async function loadDiagnosisOptions() {
 	}
 }
 
+/* ── Differential diagnosis (RandomForestClassifier) ────────────────────
+   The forest's one legitimate job in this system. It is CROSS-SECTIONAL —
+   given these symptoms and this species, which diagnosis? — so none of the
+   timing problems that got a forest removed from the barangay action tier
+   apply (lag-1 autocorrelation 0.018 there; nothing time-dependent here).
+
+   Its input vocabulary is CLOSED: 10 symptom clusters x 6 animal groups, all
+   observed dozens of times in training. Both are therefore CHOSEN from lists,
+   never typed. An unrecognised string encodes to -1, lands in an arbitrary
+   leaf and comes back confident — measured, a made-up rabies-shaped phrase
+   returned 94% Pyometra. The service refuses that input; this form makes it
+   unreachable in the first place.
+
+   Non-fatal by design: if the analytics service is down the visit form behaves
+   exactly as it did before, minus the suggestion block. */
+let DIAGNOSIS_MODEL = { available: false, symptomClusters: [], animalGroups: [] };
+
+async function loadDiagnosisModel() {
+	try {
+		const res = await fetch('/api/dashboard/dashboard.php?scope=diagnosis_options', { cache: 'no-store' });
+		const result = await res.json();
+		if (!result?.success || !result.data) return;
+		DIAGNOSIS_MODEL = {
+			available:       true,
+			symptomClusters: result.data.symptom_clusters || [],
+			animalGroups:    result.data.animal_groups || [],
+			top1:            result.data.top1_accuracy,
+			top3:            result.data.top3_accuracy,
+			baseline:        result.data.lookup_baseline,
+		};
+	} catch (err) {
+		console.warn('Diagnosis model unavailable; suggestions are hidden.', err);
+	}
+}
+
+/* The pet form offers 4 species; the model knows 6 animal groups. Only three
+   map without inventing something — "Exotic" covers rabbits, goats and more,
+   so it prefills nothing and the vet chooses. */
+const SPECIES_TO_ANIMAL_GROUP = { Canine: 'Dogs', Feline: 'Cats', Avian: 'Chickens' };
+
+/* Renders nothing at all when the model is unavailable, rather than an empty
+   control the vet would wonder about. */
+function diagnosisSuggestBlock(data) {
+	if (!DIAGNOSIS_MODEL.available || !DIAGNOSIS_MODEL.symptomClusters.length) return '';
+	const prefill = SPECIES_TO_ANIMAL_GROUP[data.species] || '';
+	return `
+		<div class="field span-3 dx-block">
+			<label class="field-label" for="dx-cluster">
+				SUGGEST A DIAGNOSIS <span class="dx-optional">optional</span>
+			</label>
+			<p class="dx-lede">
+				Pick the closest symptom pattern and the animal group. The suggestion is a
+				shortlist to consider — the diagnosis recorded is the one you choose below.
+			</p>
+			<div class="dx-controls">
+				<select class="form-input" id="dx-cluster" name="symptomCluster">
+					<option value="" selected>Symptom pattern…</option>
+					${DIAGNOSIS_MODEL.symptomClusters
+						.map((cluster) => `<option>${escapeHtml(cluster)}</option>`).join('')}
+				</select>
+				<select class="form-input" id="dx-animal">
+					<option value="">Animal group…</option>
+					${DIAGNOSIS_MODEL.animalGroups.map((group) =>
+						`<option ${group === prefill ? 'selected' : ''}>${escapeHtml(group)}</option>`).join('')}
+				</select>
+			</div>
+			<div class="dx-result" id="dx-result" hidden></div>
+		</div>`;
+}
+
+async function runDiagnosisSuggestion() {
+	const cluster = document.getElementById('dx-cluster')?.value || '';
+	const group   = document.getElementById('dx-animal')?.value || '';
+	const host    = document.getElementById('dx-result');
+	if (!host) return;
+
+	if (!cluster) { host.hidden = true; host.innerHTML = ''; return; }
+	host.hidden = false;
+	host.innerHTML = '<p class="dx-muted">Checking…</p>';
+
+	try {
+		const res = await fetch('/api/dashboard/dashboard.php?scope=diagnosis_predict', {
+			method:  'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body:    JSON.stringify({ symptom_cluster: cluster, animal_group: group }),
+		});
+		const result = await res.json();
+		const payload = result?.data || {};
+
+		if (!result?.success || payload.unknown_symptom_cluster || !(payload.predictions || []).length) {
+			host.innerHTML = `<p class="dx-muted">${escapeHtml(
+				payload.message || 'No suggestion for that combination.')}</p>`;
+			return;
+		}
+
+		host.innerHTML = `
+			<ol class="dx-list">
+				${payload.predictions.map((p) => `
+					<li>
+						<button type="button" class="dx-pick" data-dx="${escapeHtml(p.diagnosis)}">
+							${escapeHtml(p.diagnosis)}
+						</button>
+						<span class="dx-prob">${Math.round((p.probability || 0) * 100)}%</span>
+					</li>`).join('')}
+			</ol>
+			<p class="dx-note">
+				Right first choice ${payload.top1_accuracy}% of the time, in the top three
+				${payload.top3_accuracy}% of the time, across ${DIAGNOSIS_MODEL.symptomClusters.length}
+				symptom patterns and 42 diagnoses. Treat it as a differential, not an answer.
+			</p>`;
+
+		host.querySelectorAll('.dx-pick').forEach((button) => {
+			button.addEventListener('click', () => applySuggestedDiagnosis(button.dataset.dx));
+		});
+	} catch (err) {
+		host.innerHTML = '<p class="dx-muted">Suggestion service unavailable.</p>';
+	}
+}
+
+/* Fills the DIAGNOSIS select the vet already uses. Never auto-submits, and the
+   choice stays visible as chosen so it is clear what was applied. */
+function applySuggestedDiagnosis(name) {
+	const select = document.getElementById('diagnosis');
+	if (!select) return;
+	const match = [...select.options].find(
+		(option) => option.value === name || option.textContent.trim() === name);
+	if (!match) return;
+	select.value = match.value || match.textContent.trim();
+	select.dispatchEvent(new Event('change', { bubbles: true }));
+	document.querySelectorAll('.dx-pick').forEach((button) => {
+		button.classList.toggle('is-chosen', button.dataset.dx === name);
+	});
+}
+
 // The barangay catalog, loaded once. The clinic serves Baliwag, so this table
 // holds only Baliwag barangays.
 let BARANGAY_OPTIONS = [];
@@ -1367,6 +1501,7 @@ function renderAdd(record) {
 							<label class="field-label" for="symptoms">SYMPTOMS / CHIEF COMPLAINT</label>
 							<textarea class="form-textarea" id="symptoms" name="symptoms" placeholder="Describe observed clinical signs and symptoms...">${escapeHtml(data.symptoms)}</textarea>
 						</div>
+						${diagnosisSuggestBlock(data)}
 						<div class="field span-3">
 							<label class="field-label" for="diagnosis">DIAGNOSIS</label>
 							<select class="form-input" id="diagnosis" name="diagnosis">
@@ -1724,6 +1859,10 @@ function getFormData(form) {
 		visitDate: String(formData.get('visitDate') || '').trim(),
 		followUpDate: String(formData.get('followUpDate') || '').trim(),
 		symptoms: String(formData.get('symptoms') || '').trim(),
+		// Saved alongside the free-text symptoms so live visits can reach the
+		// differential-diagnosis classifier at all. Blank when the vet skipped
+		// the picker; the server stores NULL rather than an empty string.
+		symptomCluster: String(formData.get('symptomCluster') || '').trim(),
 		diagnosis,
 		treatment: String(formData.get('treatment') || '').trim(),
 		medications,
@@ -1924,6 +2063,10 @@ function bindModeSpecificHandlers() {
 			if (!diagnosisOther.hidden) diagnosisOther.focus();
 		});
 	}
+
+	['dx-cluster', 'dx-animal'].forEach((id) => {
+		document.getElementById(id)?.addEventListener('change', runDiagnosisSuggestion);
+	});
 
 	const addVaccineTypeBtn = document.getElementById('add-vaccine-type-btn');
 	if (addVaccineTypeBtn) {
@@ -2409,7 +2552,8 @@ function bindGlobalEvents() {
 async function bootstrap() {
 	routeFromUrl();
 	app.innerHTML = '<section class="records-shell"><div class="empty-state">Loading patient records...</div></section>';
-	await Promise.all([loadRecords(), loadDiagnosisOptions(), loadBarangayOptions(), loadCoverage()]);
+	await Promise.all([loadRecords(), loadDiagnosisOptions(), loadBarangayOptions(),
+	                   loadCoverage(), loadDiagnosisModel()]);
 	render();
 	bindGlobalEvents();
 }
