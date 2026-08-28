@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260824-tz"/>
-    <link rel="stylesheet" href="../css/account-management.css?v=20260819-deactivate"/>
+    <link rel="stylesheet" href="../css/account-management.css?v=20260828-walkin"/>
 </head>
 <body>
 
@@ -446,6 +446,21 @@
                         <span id="verify-id-pdf-name">Document.pdf</span>
                     </div>
                 </div>
+
+                <!--
+                    Shown only when this registrant might already exist as a
+                    clinic walk-in record. Sits directly under the uploaded
+                    document on purpose: the document is the evidence, the
+                    match is only a suggestion, and the two have to be read
+                    together. Nothing here is pre-selected.
+                -->
+                <div class="am-walkin-wrap" id="verify-walkin-wrap" hidden>
+                    <div class="am-walkin-head">
+                        <span class="am-walkin-title">Possible existing clinic record</span>
+                        <span class="am-walkin-hint">Link only if the ID above shows the same person</span>
+                    </div>
+                    <div class="am-walkin-list" id="verify-walkin-list"></div>
+                </div>
             </div>
 
             <div class="am-verify-footer">
@@ -465,8 +480,8 @@
     <script src="../../shared/js/auth.js?v=20260816-sec"></script>
     <script>VBetterAuth.requireAuth(['admin']);</script>
     <script src="../../shared/js/sidebar.js?v=20260824-tz"></script>
-    <script src="../../public/js/api.js?v=20260818-notif"></script>
+    <script src="../../public/js/api.js?v=20260828-walkin"></script>
     <script src="../../public/js/password-policy.js?v=20260816-sec"></script>
-    <script src="../js/account-management.js?v=20260819-deactivate"></script>
+    <script src="../js/account-management.js?v=20260828-walkin"></script>
 </body>
 </html>

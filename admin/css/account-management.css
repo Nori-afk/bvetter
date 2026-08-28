@@ -1351,3 +1351,116 @@ body {
     .dash-form-row { grid-template-columns: 1fr; }
     .dash-modal { border-radius: var(--radius-md); }
 }
+/* ── Walk-in records ────────────────────────────────────────────
+   A walk-in is someone a vet entered at the counter during a visit: a real
+   person with real clinical history who has never signed in, and whose
+   users.email is usually a synthetic owner_<hash>@vbetter.local placeholder
+   minted only to satisfy the UNIQUE constraint. Before these styles existed
+   such rows were indistinguishable from self-registered members, so the
+   member count read as app users when most of it was clinic patients. */
+
+.am-walkin-tag {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: #FEF3C7;
+    color: #92400E;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+/* Italic and muted so it reads as an absence rather than as an address. */
+.am-email-none {
+    font-style: italic;
+    color: var(--text-tertiary);
+    opacity: 0.75;
+}
+
+.am-walkin-wrap {
+    margin-top: 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.am-walkin-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--bg-page);
+    border-bottom: 1px solid var(--border);
+}
+
+.am-walkin-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+.am-walkin-hint {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+}
+
+.am-walkin-list {
+    display: flex;
+    flex-direction: column;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.am-walkin-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+}
+
+.am-walkin-card:last-child { border-bottom: none; }
+.am-walkin-card:hover      { background: var(--bg-page); }
+
+/* Selection is deliberately loud. Linking cannot be undone, so which row is
+   armed must never be something the admin has to squint at. */
+.am-walkin-card.selected {
+    background: #F0FDF4;
+    box-shadow: inset 3px 0 0 var(--secondary-light-green);
+}
+
+.am-walkin-card input { margin-top: 3px; flex-shrink: 0; }
+
+.am-walkin-body { display: flex; flex-direction: column; gap: 2px; }
+
+.am-walkin-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.am-walkin-meta {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+/* The consequence line: what actually transfers if this row is chosen. */
+.am-walkin-detail {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.am-walkin-why {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    font-style: italic;
+}

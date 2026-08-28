@@ -899,9 +899,27 @@ forgotPassword: (email) => {
     }).then(r => r.json());
   },
 
-  approveUser: (userId) => {
+  // linkUserId folds this pending registration into an existing clinic
+  // walk-in record instead of leaving the person with two accounts. Optional:
+  // omitted, this behaves exactly as it always has.
+  approveUser: (userId, linkUserId = 0, reviewNotes = '') => {
     const formData = new FormData();
     formData.append('action', 'approve');
+    formData.append('user_id', userId);
+    if (linkUserId) formData.append('link_user_id', linkUserId);
+    if (reviewNotes) formData.append('review_notes', reviewNotes);
+    return fetch(`${API_BASE_REG}/admin/account-management.php`, {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json());
+  },
+
+  // Walk-in records that might be the same person as this registrant.
+  // Suggestions for an admin to judge against the uploaded ID — never a
+  // decision on their own.
+  walkInCandidates: (userId) => {
+    const formData = new FormData();
+    formData.append('action', 'walkin_candidates');
     formData.append('user_id', userId);
     return fetch(`${API_BASE_REG}/admin/account-management.php`, {
       method: 'POST',

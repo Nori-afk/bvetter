@@ -18,6 +18,7 @@ require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/security_settings.php';
 require_once __DIR__ . '/../config/input_validation.php';
 require_once __DIR__ . '/../config/notifications.php';
+require_once __DIR__ . '/../config/walk_in_accounts.php';
 
 function respond($statusCode, $payload)
 {
@@ -70,6 +71,37 @@ if (!preg_match('/^(?:\+63|63|0)9\d{9}$/', preg_replace('/[\s-]/', '', $phoneNum
     respond(422, [
         'success' => false,
         'message' => 'Please enter a valid Philippine mobile number (e.g. 09171234567).'
+    ]);
+}
+
+// Deliberately ahead of the proof-of-residence upload below: someone the
+// clinic already holds a record for is not going to finish this form, and
+// making them upload an ID first only to be turned away is pointless.
+//
+// A walk-in row is a real person a vet entered at the counter -- see
+// findOrCreateOwner() in api/patient-records/patient_records.php. They have
+// never logged in and their password is a random string that was hashed and
+// discarded, so the plain "Email is already registered." further down would be
+// actively misleading: there is no password for them to have forgotten, and
+// registering again would fork their pet history across two accounts.
+//
+// Forgot Password is the way in, and control of the mailbox is stronger
+// evidence of identity than anything this form collects. The disclosure that
+// an address belongs to a clinic walk-in is accepted for the same reason
+// forgotPassword() in api/admin/verify-contact.php rejects unknown addresses
+// outright: this form already reveals which addresses are registered.
+ensureWalkInSchema($pdo);
+
+$existing = $pdo->prepare('SELECT is_walk_in FROM users WHERE email = :email LIMIT 1');
+$existing->execute([':email' => $email]);
+$existingRow = $existing->fetch();
+
+if ($existingRow && (int) $existingRow['is_walk_in'] === 1) {
+    respond(409, [
+        'success' => false,
+        'claim' => true,
+        'message' => 'The clinic already has a record under this email address from an earlier visit. You have not set a password yet, so use "Forgot Password" on the login page to create one. Your pet records will already be there.',
+        'title' => 'Record Already Exists'
     ]);
 }
 

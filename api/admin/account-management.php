@@ -18,9 +18,15 @@ require_once __DIR__ . '/../config/auth_guard.php';
 require_once __DIR__ . '/../config/security_settings.php';
 require_once __DIR__ . '/../config/veterinarian_profile.php';
 require_once __DIR__ . '/../config/input_validation.php';
+require_once __DIR__ . '/../config/walk_in_accounts.php';
 
 requireRole($pdo, ['admin']);
 ensureLoginSecuritySchema($pdo);
+
+// listUsers() selects users.is_walk_in, so the column has to exist before any
+// action runs -- not just before the linking ones. Placed here, above every
+// beginTransaction() in this file, because it can run DDL.
+ensureWalkInSchema($pdo);
 
 function respond($statusCode, $payload)
 {
@@ -80,6 +86,7 @@ function listUsers($pdo)
             users.profile_photo,
             users.account_status,
             users.blocked_reason,
+            users.is_walk_in,
             users.created_at,
             roles.name AS role_name,
             owner_profiles.verification_status,
@@ -127,6 +134,12 @@ function listUsers($pdo)
             'accountStatus' => $row['account_status'],
             'blockedReason' => $row['blocked_reason'],
             'verificationStatus' => $row['verification_status'],
+            // Walk-ins are people a vet entered at the counter, not app
+            // members: they have never logged in and their address is usually
+            // a synthetic placeholder. Rendering them identically to a
+            // self-registered owner is what made 44 rows read as 44 users.
+            'isWalkIn' => (bool) $row['is_walk_in'],
+            'emailIsPlaceholder' => str_ends_with((string) $row['email'], '@vbetter.local'),
             'barangay' => $row['barangay_name'],
             'created' => $row['created_at'],
             'idImage' => $row['proof_path'] ? '/' . $row['proof_path'] : '',
@@ -222,6 +235,204 @@ function updateOwnerVerification($pdo, $userId, $decision, $notes)
         'success' => true,
         'message' => $decision === 'approved' ? 'Account approved.' : 'Account rejected.'
     ]);
+}
+
+/**
+ * Walk-in rows that might be the same person as a pending registrant.
+ *
+ * Suggestions only. Shown in the verification modal beside the ID document the
+ * admin is already reading, because that document is the actual evidence --
+ * a name and a phone number are not proof of identity, and this list must
+ * never be allowed to decide anything on its own.
+ */
+function walkInCandidates($pdo)
+{
+    ensureWalkInSchema($pdo);
+
+    $userId = (int) (isset($_POST['user_id']) ? $_POST['user_id'] : 0);
+    if ($userId <= 0) {
+        respond(422, ['success' => false, 'message' => 'Invalid user id.']);
+    }
+
+    $stmt = $pdo->prepare('
+        SELECT users.full_name, users.phone_number, users.is_walk_in, roles.name AS role_name
+        FROM users
+        INNER JOIN roles ON roles.id = users.role_id
+        WHERE users.id = :id
+        LIMIT 1
+    ');
+    $stmt->execute([':id' => $userId]);
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        respond(404, ['success' => false, 'message' => 'User not found.']);
+    }
+
+    // A walk-in is never a registrant, so it has nothing to be linked to.
+    if ($user['role_name'] !== 'pet_owner' || (int) $user['is_walk_in'] === 1) {
+        respond(200, ['success' => true, 'data' => []]);
+    }
+
+    respond(200, [
+        'success' => true,
+        'data' => findWalkInCandidates($pdo, $user['full_name'], $user['phone_number'], $userId),
+    ]);
+}
+
+/**
+ * Folds a pending registration into the walk-in row that is the same person.
+ *
+ * The walk-in row SURVIVES and the registration row is destroyed, which is the
+ * opposite of what reads naturally -- but the walk-in row is the one carrying
+ * pets and patient_visit_records, and those are irreplaceable. The registration
+ * row carries an email, a password hash, a profile and one uploaded document,
+ * all of which copy across in a few statements. Moving the small side means
+ * pets.owner_id, patient_visit_records.owner_id and appointments.owner_id are
+ * never rewritten, so the silent-orphan failure the de-identify comment in
+ * deleteUser() describes cannot arise here at all.
+ *
+ * Returns a sentence describing the merge; the caller stamps it onto the
+ * document row through updateOwnerVerification() as the audit trail.
+ */
+function linkWalkInAccount($pdo, $registrantId, $walkInId)
+{
+    // Both of these run DDL, and DDL forces an implicit commit in MySQL, which
+    // would silently end the transaction opened below. They must run BEFORE
+    // beginTransaction(), never inside it -- the same trap deleteUser()
+    // documents further down this file.
+    require_once __DIR__ . '/../includes/patient_tables.php';
+    setupPatientTables($pdo);
+    ensureWalkInSchema($pdo);
+
+    if ($registrantId <= 0 || $walkInId <= 0 || $registrantId === $walkInId) {
+        respond(422, ['success' => false, 'message' => 'Invalid accounts to link.']);
+    }
+
+    $load = $pdo->prepare('
+        SELECT users.id, users.full_name, users.email, users.password_hash,
+               users.phone_number, users.is_walk_in, roles.name AS role_name,
+               owner_profiles.verification_status, owner_profiles.barangay_id,
+               owner_profiles.is_outside_baliwag, owner_profiles.complete_address
+        FROM users
+        INNER JOIN roles ON roles.id = users.role_id
+        LEFT JOIN owner_profiles ON owner_profiles.user_id = users.id
+        WHERE users.id = :id
+        LIMIT 1
+    ');
+
+    $load->execute([':id' => $registrantId]);
+    $registrant = $load->fetch();
+    $load->execute([':id' => $walkInId]);
+    $walkIn = $load->fetch();
+
+    if (!$registrant || !$walkIn) {
+        respond(404, ['success' => false, 'message' => 'One of these accounts no longer exists.']);
+    }
+
+    if ($registrant['role_name'] !== 'pet_owner' || $walkIn['role_name'] !== 'pet_owner') {
+        respond(422, ['success' => false, 'message' => 'Only pet owner accounts can be linked.']);
+    }
+
+    if ((int) $walkIn['is_walk_in'] !== 1) {
+        respond(422, ['success' => false, 'message' => 'That account is not a clinic walk-in record.']);
+    }
+
+    if ((int) $registrant['is_walk_in'] === 1) {
+        respond(422, ['success' => false, 'message' => 'A walk-in record cannot be linked into another one.']);
+    }
+
+    // Only a fresh, still-pending registration may be absorbed. An account that
+    // has already been approved has been logged into and used, and may own pets
+    // and appointments of its own -- destroying it here would take those with
+    // it. Refusing is the safe answer, and nothing in this flow needs it.
+    if ($registrant['verification_status'] !== 'pending') {
+        respond(422, [
+            'success' => false,
+            'message' => 'Only a pending registration can be linked to a walk-in record.'
+        ]);
+    }
+
+    // Belt and braces on the guard above. pets and appointments are NO ACTION
+    // rather than CASCADE, so if either somehow exists the DELETE below fails
+    // on the constraint anyway -- far better to say why than to throw 23000.
+    $petCount = $pdo->prepare('SELECT COUNT(*) FROM pets WHERE owner_id = :id');
+    $petCount->execute([':id' => $registrantId]);
+    $apptCount = $pdo->prepare('SELECT COUNT(*) FROM appointments WHERE owner_id = :id');
+    $apptCount->execute([':id' => $registrantId]);
+
+    if ((int) $petCount->fetchColumn() > 0 || (int) $apptCount->fetchColumn() > 0) {
+        respond(422, [
+            'success' => false,
+            'message' => 'This registration already has pets or appointments of its own and cannot be merged.'
+        ]);
+    }
+
+    $pdo->beginTransaction();
+
+    // 1. Move the ID document onto the surviving row and record which
+    //    registration was absorbed. This is the audit trail: the admin, the
+    //    timestamp, the decision and the document that justified it all land on
+    //    one row rather than two joined by a timestamp.
+    $pdo->prepare('
+        UPDATE user_verification_documents
+        SET user_id = :walk_in_id,
+            merged_from_user_id = :registrant_id
+        WHERE user_id = :from_id
+    ')->execute([
+        ':walk_in_id' => $walkInId,
+        ':registrant_id' => $registrantId,
+        ':from_id' => $registrantId,
+    ]);
+
+    // 2. Fold the registration's self-declared address into the survivor. The
+    //    owner picked their own barangay on a form; the vet picked one at the
+    //    counter. The owner is the better authority on where they live.
+    $pdo->prepare('
+        UPDATE owner_profiles
+        SET barangay_id = :barangay_id,
+            is_outside_baliwag = :is_outside,
+            complete_address = :address
+        WHERE user_id = :walk_in_id
+    ')->execute([
+        ':barangay_id' => $registrant['barangay_id'],
+        ':is_outside' => (int) $registrant['is_outside_baliwag'],
+        ':address' => $registrant['complete_address'],
+        ':walk_in_id' => $walkInId,
+    ]);
+
+    // 3. Destroy the registration row BEFORE copying its address across:
+    //    users.email is UNIQUE and this row still holds the address that is
+    //    about to move. notifications cascade; owner_profiles does not.
+    $pdo->prepare('DELETE FROM owner_profiles WHERE user_id = :id')->execute([':id' => $registrantId]);
+    $pdo->prepare('DELETE FROM users WHERE id = :id')->execute([':id' => $registrantId]);
+
+    // 4. Credentials last, so the owner signs in with exactly the address and
+    //    password they just chose. full_name is deliberately NOT overwritten:
+    //    it is the name the clinic's own patient records are filed under, and
+    //    rewriting it here would quietly change how the vet finds this patient.
+    $pdo->prepare("
+        UPDATE users
+        SET email = :email,
+            password_hash = :password_hash,
+            phone_number = COALESCE(NULLIF(:phone_number, ''), phone_number),
+            is_walk_in = 0
+        WHERE id = :id
+    ")->execute([
+        ':email' => $registrant['email'],
+        ':password_hash' => $registrant['password_hash'],
+        ':phone_number' => (string) $registrant['phone_number'],
+        ':id' => $walkInId,
+    ]);
+
+    $pdo->commit();
+
+    return sprintf(
+        'Linked to clinic walk-in record #%d (%s). Absorbed registration #%d (%s).',
+        $walkInId,
+        (string) $walkIn['full_name'],
+        $registrantId,
+        (string) $registrant['email']
+    );
 }
 
 function createUser($pdo)
@@ -570,9 +781,28 @@ try {
         deleteUser($pdo);
     }
 
+    if ($action === 'walkin_candidates') {
+        walkInCandidates($pdo);
+    }
+
     if ($action === 'approve') {
         $userId = (int) (isset($_POST['user_id']) ? $_POST['user_id'] : 0);
-        updateOwnerVerification($pdo, $userId, 'approved', '');
+        $linkId = (int) (isset($_POST['link_user_id']) ? $_POST['link_user_id'] : 0);
+        $notes = trim(isset($_POST['review_notes']) ? $_POST['review_notes'] : '');
+
+        // Linking changes which row survives, so the approval that follows has
+        // to be aimed at the walk-in record -- the registration row no longer
+        // exists by then. linkWalkInAccount() commits before returning, so a
+        // failure in the approval leaves the merge standing; that is benign,
+        // because a walk-in row is already active and approved from the moment
+        // findOrCreateOwner() creates it.
+        if ($linkId > 0) {
+            $mergeNote = linkWalkInAccount($pdo, $userId, $linkId);
+            $notes = $notes === '' ? $mergeNote : $mergeNote . ' ' . $notes;
+            updateOwnerVerification($pdo, $linkId, 'approved', $notes);
+        }
+
+        updateOwnerVerification($pdo, $userId, 'approved', $notes);
     }
 
     if ($action === 'reject') {

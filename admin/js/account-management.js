@@ -184,14 +184,26 @@ function renderTable() {
                 ${actionsEl}`;
         }
 
+        // A walk-in is someone a vet entered at the counter, not an app member:
+        // never logged in, and usually carrying a synthetic owner_<hash>
+        // address that exists only to satisfy the UNIQUE constraint on
+        // users.email. Rendering that hash as if it were a real contact
+        // address is what made 44 rows read as 44 registered users.
+        const walkInTag = u.isWalkIn
+            ? '<span class="am-walkin-tag" title="Added by a vet from a clinic visit. This person has never signed in.">Walk-in</span>'
+            : '';
+        const emailEl = u.emailIsPlaceholder
+            ? '<span class="am-email-none">No email on file</span>'
+            : esc(u.email);
+
         return `
             <tr data-id="${u.id}">
                 <td>
                     <div class="am-user-cell">
                         ${avatarEl}
                         <div>
-                            <span class="am-user-name">${esc(u.name)}</span>
-                            <span class="am-user-email">${esc(u.email)}</span>
+                            <span class="am-user-name">${esc(u.name)}${walkInTag}</span>
+                            <span class="am-user-email">${emailEl}</span>
                         </div>
                     </div>
                 </td>
@@ -473,15 +485,116 @@ function openDeleteModal(id) {
 }
 
 /* ── VERIFY MODAL ───────────────────────────────────────────── */
+
+/*
+ * Walk-in linking.
+ *
+ * pendingWalkIns holds the candidates last fetched for the open modal, and
+ * selectedWalkInId the one the admin has picked. Both reset every time the
+ * modal opens: a selection left over from the previous applicant is exactly
+ * the mistake that would attach a stranger's medical history to the wrong
+ * person.
+ */
+let pendingWalkIns    = [];
+let selectedWalkInId  = '';
+
+async function loadWalkInCandidates(userId) {
+    pendingWalkIns = [];
+    selectedWalkInId = '';
+
+    const wrap = document.getElementById('verify-walkin-wrap');
+    const list = document.getElementById('verify-walkin-list');
+    if (!wrap || !list) return;
+
+    wrap.hidden = true;
+    list.innerHTML = '';
+
+    const result = await api.walkInCandidates(userId).catch(() => ({ success: false }));
+    // A registrant with no match is the normal case, so silence is correct
+    // here -- the section simply stays hidden.
+    if (!result.success || !Array.isArray(result.data) || result.data.length === 0) return;
+
+    pendingWalkIns = result.data;
+    renderWalkInCandidates();
+    wrap.hidden = false;
+}
+
+function renderWalkInCandidates() {
+    const esc = window.vbEscapeHtml;
+    const list = document.getElementById('verify-walkin-list');
+    if (!list) return;
+
+    // Every card spells out what linking would actually transfer -- pets by
+    // name, how many visits, when the last one was. This is the whole defence
+    // against a mis-link: there is no unlink, so the mistake has to be caught
+    // before the admin commits, not afterwards.
+    const cards = pendingWalkIns.map((c) => {
+        const pets = c.pets && c.pets.length
+            ? c.pets.map(esc).join(', ')
+            : 'no pets on file';
+        const visits = c.visitCount === 1 ? '1 visit' : `${c.visitCount} visits`;
+        const last = c.lastVisit ? `, last ${formatDate(c.lastVisit)}` : '';
+        const checked = selectedWalkInId === c.id ? ' checked' : '';
+
+        return `
+            <label class="am-walkin-card${selectedWalkInId === c.id ? ' selected' : ''}">
+                <input type="radio" name="walkin-pick" value="${esc(c.id)}"${checked}>
+                <span class="am-walkin-body">
+                    <span class="am-walkin-name">${esc(c.name)}</span>
+                    <span class="am-walkin-meta">${esc(c.phone || 'no phone')} &middot; ${esc(c.barangay || 'no barangay')}</span>
+                    <span class="am-walkin-detail">${pets} &middot; ${visits}${last}</span>
+                    <span class="am-walkin-why">matched on ${esc(c.matchedOn)}</span>
+                </span>
+            </label>`;
+    }).join('');
+
+    // "None of these" is checked by default and is never removed. Linking must
+    // always be a deliberate act, so the safe option is the resting state.
+    list.innerHTML = cards + `
+        <label class="am-walkin-card${selectedWalkInId === '' ? ' selected' : ''}">
+            <input type="radio" name="walkin-pick" value=""${selectedWalkInId === '' ? ' checked' : ''}>
+            <span class="am-walkin-body">
+                <span class="am-walkin-name">None of these</span>
+                <span class="am-walkin-meta">Approve as a brand-new account</span>
+            </span>
+        </label>`;
+
+    list.querySelectorAll('input[name="walkin-pick"]').forEach((input) => {
+        input.addEventListener('change', () => {
+            selectedWalkInId = input.value;
+            renderWalkInCandidates();
+        });
+    });
+}
+
 function wireVerifyModal() {
     document.getElementById('verify-approve-btn')?.addEventListener('click', async () => {
         if (!pendingVerifyId) return;
-        const result = await api.approveUser(pendingVerifyId).catch(() => ({ success: false }));
+
+        const linkTo = pendingWalkIns.find(c => c.id === selectedWalkInId);
+
+        if (linkTo) {
+            const pets = linkTo.pets && linkTo.pets.length ? ` (${linkTo.pets.join(', ')})` : '';
+            const ok = await vbConfirm(
+                `Link this application to clinic record #${linkTo.id} for ${linkTo.name}? `
+                + `The new account takes over ${linkTo.pets.length} pet(s)${pets} and `
+                + `${linkTo.visitCount} visit record(s). This cannot be undone.`,
+                'Link & Approve'
+            );
+            if (!ok) return;
+        }
+
+        const result = await api
+            .approveUser(pendingVerifyId, linkTo ? linkTo.id : 0)
+            .catch(() => ({ success: false }));
+
         if (!result.success) {
             await vbAlert(result.message || 'Could not approve this account.');
             return;
         }
         pendingVerifyId = null;
+        pendingWalkIns = [];
+        selectedWalkInId = '';
         document.getElementById('modal-verify').hidden = true;
         await loadUsers();
     });
@@ -507,6 +620,8 @@ function openVerifyModal(id) {
     setEl('verify-name',     user.name);
     setEl('verify-email',    user.email);
     setEl('verify-barangay', user.barangay || '—');
+
+    loadWalkInCandidates(id);
 
     const idImg     = document.getElementById('verify-id-img');
     const pdfBox     = document.getElementById('verify-id-pdf');

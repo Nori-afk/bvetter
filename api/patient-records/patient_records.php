@@ -7,6 +7,7 @@ require_once __DIR__ . '/../includes/patient_tables.php';
 require_once __DIR__ . '/../includes/dataset_versions.php';
 require_once __DIR__ . '/../config/input_validation.php';
 require_once __DIR__ . '/../config/auth_guard.php';
+require_once __DIR__ . '/../config/walk_in_accounts.php';
 
 requireRole($pdo, ['veterinarian', 'admin']);
 
@@ -154,9 +155,21 @@ function findOrCreateOwner($pdo, $data)
         $roleId = getRoleId($pdo, 'owner');
     }
 
+    // is_walk_in = 1 whether or not an email was supplied. The flag records how
+    // the row was created, not what its address looks like: a vet who types a
+    // real email for a brand-new patient still produces someone who never
+    // registered and whose password is the discarded random one below. Keying
+    // off the '@vbetter.local' suffix instead would miss exactly those rows --
+    // see api/config/walk_in_accounts.php.
+    //
+    // The column is guaranteed by the ensureWalkInSchema() call in the router
+    // below, NOT here: saveRecord() and saveBatch() both call this function
+    // from inside an open transaction, and ensureWalkInSchema() can run DDL,
+    // which forces an implicit commit in MySQL and would silently end that
+    // transaction on the first save after a deploy.
     $stmt = $pdo->prepare("
-        INSERT INTO users (role_id, full_name, email, password_hash, phone_number, account_status)
-        VALUES (:role_id, :full_name, :email, :password_hash, :phone_number, 'active')
+        INSERT INTO users (role_id, full_name, email, password_hash, phone_number, account_status, is_walk_in)
+        VALUES (:role_id, :full_name, :email, :password_hash, :phone_number, 'active', 1)
     ");
     $stmt->execute([
         ':role_id' => $roleId ?: null,
@@ -187,6 +200,22 @@ function upsertOwnerProfile($pdo, $ownerId, $data)
     $phone = clean($data['phone'] ?? '');
     $email = clean($data['email'] ?? '');
     $address = clean($data['address'] ?? '');
+
+    // users.email is UNIQUE, so typing an address that already belongs to
+    // someone else throws SQLSTATE 23000 and lands in the catch-all at the
+    // bottom of this file as "Patient records request failed." -- which tells
+    // the vet nothing and looks like an outage. Checked up front instead so
+    // the real reason reaches them.
+    if ($email !== '') {
+        $clash = $pdo->prepare('SELECT id FROM users WHERE email = :email AND id <> :id LIMIT 1');
+        $clash->execute([':email' => $email, ':id' => $ownerId]);
+        if ($clash->fetch()) {
+            respond(409, [
+                'success' => false,
+                'message' => 'That email address already belongs to another account. Leave the field blank to keep this record as it is.',
+            ]);
+        }
+    }
 
     if ($ownerName !== '' || $phone !== '' || $email !== '') {
         $stmt = $pdo->prepare("
@@ -685,9 +714,9 @@ function insertVisit($pdo, $petId, $ownerId, $data)
 {
     $stmt = $pdo->prepare("
         INSERT INTO patient_visit_records
-            (pet_id, owner_id, visit_title, visit_date, follow_up_date, symptoms, diagnosis, treatment, medications_json, category, disease_category, patient_status_at_visit, barangay_at_visit, species_at_visit, attending_vet, vaccination_status, vaccine_brand)
+            (pet_id, owner_id, visit_title, visit_date, follow_up_date, symptoms, symptom_cluster, diagnosis, treatment, medications_json, category, disease_category, patient_status_at_visit, barangay_at_visit, species_at_visit, attending_vet, vaccination_status, vaccine_brand)
         VALUES
-            (:pet_id, :owner_id, :visit_title, :visit_date, :follow_up_date, :symptoms, :diagnosis, :treatment, :medications_json, :category, :disease_category, :patient_status_at_visit, :barangay_at_visit, :species_at_visit, :attending_vet, :vaccination_status, :vaccine_brand)
+            (:pet_id, :owner_id, :visit_title, :visit_date, :follow_up_date, :symptoms, :symptom_cluster, :diagnosis, :treatment, :medications_json, :category, :disease_category, :patient_status_at_visit, :barangay_at_visit, :species_at_visit, :attending_vet, :vaccination_status, :vaccine_brand)
     ");
     $visitDate = clean($data['visitDate'] ?? '');
     $followUpDate = clean($data['followUpDate'] ?? '');
@@ -699,6 +728,11 @@ function insertVisit($pdo, $petId, $ownerId, $data)
         ':visit_date' => $visitDate ?: date('Y-m-d'),
         ':follow_up_date' => $followUpDate ?: null,
         ':symptoms' => clean($data['symptoms'] ?? ''),
+        // NULL rather than '' when the vet skipped the picker: the analytics
+        // pipeline drops null clusters, and an empty string would instead reach
+        // the classifier as an unrecognised value.
+        ':symptom_cluster' => clean($data['symptomCluster'] ?? '') !== ''
+            ? clean($data['symptomCluster']) : null,
         ':diagnosis' => clean($data['diagnosis'] ?? ''),
         ':treatment' => clean($data['treatment'] ?? ''),
         ':medications_json' => medicationsJson($data),
@@ -1099,7 +1133,10 @@ $input = inputData();
 $action = clean($input['action'] ?? 'list');
 
 try {
+    // Both of these can run DDL, so they belong here -- before any action
+    // opens a transaction -- and never inside one.
     setupPatientTables($pdo);
+    ensureWalkInSchema($pdo);
 
     if ($action === 'list') listRecords($pdo);
     if ($action === 'diseases') listDiseases($pdo);
@@ -1117,6 +1154,18 @@ try {
 } catch (PDOException $e) {
     error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     if ($pdo->inTransaction()) $pdo->rollBack();
+
+    // Backstop for the same UNIQUE-email clash upsertOwnerProfile() checks for
+    // up front. That check is the one that normally fires; this covers the race
+    // where the address is taken between the check and the write, and any other
+    // path that reaches a duplicate key.
+    if ($e->getCode() === '23000') {
+        respond(409, [
+            'success' => false,
+            'message' => 'That email address already belongs to another account.',
+        ]);
+    }
+
     respond(500, [
         'success' => false,
         'message' => 'Patient records request failed.',
