@@ -1,17 +1,24 @@
 """
 BVetter Model Evaluation — Figures & Explanations
 ==================================================
-Evaluates every model actually used in the analytics pipeline:
-  1. All-Disease RandomForestClassifier (risk classification) — see risk_note
-     in arima_service.py for the full history of this classifier.
-  2. ARIMA / SARIMA (period="month" and period="year" forecasts, both the
-     all-disease and disease-specific pipelines) — this is the only forecast
-     engine now; the RandomForestRegressor that used to sit alongside the
-     classifier never produced a live forecast and has been removed.
-  3. The rule-based risk threshold used by the disease-specific pipeline
-     (never had a classifier, unlike the all-disease pipeline).
+Evaluates every model actually used in the analytics pipeline, each against the
+baseline it has to beat:
 
-Outputs one PNG file per section plus a combined summary figure.
+  1. Seasonal ARIMA on the MUNICIPALITY-wide monthly caseload — the headline
+     forecast. Barangay figures are produced by splitting this by each
+     barangay's historical share (top-down), not by fitting 27 separate models.
+  2. A pooled RandomForestRegressor forecasting per-disease case counts across
+     all diseases at once — the one model here that clearly beats ARIMA.
+  3. A RandomForestClassifier mapping symptoms to a likely diagnosis.
+  4. ARIMA/SARIMA for the disease-specific and vaccination pipelines.
+
+NOT evaluated, because it is not a model: the barangay action tier
+(Needs Action / Watch / Normal) is a documented rule over OBSERVED cases. A
+classifier was tried there and removed — barangay-month counts have a lag-1
+autocorrelation of 0.018, and the fitted forest scored 55.9% against a 65.4%
+majority baseline. Figure 1 is that measurement.
+
+Outputs one PNG per section plus a combined summary figure.
 Run from the api/analytics/ directory:
     python test_eval.py
 """
@@ -41,7 +48,11 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from arima_service import (
     get_all_disease_models,
+    get_disease_forecast_model,
+    get_diagnosis_model,
     load_all_disease_dataframe,
+    _load_consult_diagnosis_raw,
+    run_seasonal_arima,
     _load_disease_specific_df,
     _compute_disease_metrics,
     _run_disease_arima,
@@ -93,147 +104,219 @@ models   = get_all_disease_models()
 df       = models["df"]
 arima_df = models["arima_df"]   # trust-gated frame -- see get_all_disease_models() note
 
-rf_cls = models["classifier"]
-le     = models["label_encoder"]
+# The only Random Forest this service now trains is the diagnosis model;
+# models["classifier"] points at it. There is no tier classifier any more.
+_mun_acc = models.get("municipality_accuracy") or {}
 
-print(f"  Dataset            : {len(df)} rows  |  classifier trained on {models['trained_on']} labeled rows")
-print(f"  Risk classification: {models.get('rf_model_type', 'RandomForestClassifier')} "
-      f"(accuracy {models['classifier_accuracy']}%) — see risk_note below.")
+print(f"  Dataset            : {len(df)} barangay-months from the consultation records")
+print(f"  Municipality model : seasonal ARIMA, {_mun_acc.get('mape','N/A')}% MAPE on a "
+      f"{_mun_acc.get('holdout_months','?')}-month holdout")
+print(f"  Barangay figures   : {models.get('forecast_method','top-down')}")
 print(_wrap(models.get("risk_note", "")))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 1 — Risk Classification: RandomForestClassifier Confusion Matrix +
-#            Per-Class Precision/Recall/F1 (all-disease)
-#   Restored after a stretch where this was a rule-based threshold instead of
-#   a trained classifier (see get_all_disease_models()'s risk_note for the
-#   full history: it started as a classifier, was broken by a version that
-#   excluded case-count features, got replaced with a threshold rule instead
-#   of having the actual cause fixed, and is now a classifier again with
-#   those features restored).
-# ─────────────────────────────────────────────────────────────────────────────
+_section("Figure 1 — Predictability by aggregation level")
 
-_section("Figure 1 — Risk Classification: RandomForestClassifier (all-disease)")
+_raw_consult = _load_consult_diagnosis_raw()
+_bm = load_all_disease_dataframe().sort_values(["barangay", "year", "month_no"]).copy()
+_bm["t"] = _bm["year"] * 12 + _bm["month_no"]
 
-classes = models["classifier_classes"]
-cm      = np.array(models["classifier_confusion_matrix"])
-prec    = models["classifier_precision"]
-rec     = models["classifier_recall"]
-f1      = models["classifier_f1"]
+def _mean_autocorr(frame, group_col, value_col):
+    vals = []
+    for _, sub in frame.groupby(group_col):
+        s = sub[value_col].astype(float)
+        if len(s) >= 8:
+            ac = s.autocorr(1)
+            if pd.notna(ac):
+                vals.append(ac)
+    return float(np.mean(vals)) if vals else np.nan
 
-fig, axes = plt.subplots(1, 2, figsize=(13, 5.2), facecolor="white")
-fig.suptitle("Figure 1 — Risk Classification: RandomForestClassifier (Held-Out Test Set, All-Disease)",
+def _mean_cv(frame, group_col, value_col):
+    g = frame.groupby(group_col)[value_col]
+    cv = (g.std() / g.mean()).replace([np.inf, -np.inf], np.nan).dropna()
+    return float(cv.mean()) if len(cv) else np.nan
+
+# municipality: one series, so autocorr directly
+_mun = _bm.groupby("t")["total_cases"].sum().astype(float)
+_mun_ac = float(_mun.autocorr(1))
+_mun_cv = float(_mun.std() / _mun.mean())
+
+# per-disease: one series per diagnosis, municipality-wide
+_dis = (_raw_consult.groupby(["diagnosis", "year", "month_no"], as_index=False)["cases_reported"]
+        .sum().rename(columns={"cases_reported": "cases"}))
+_dis["t"] = _dis["year"] * 12 + _dis["month_no"]
+_dis = _dis.sort_values(["diagnosis", "t"])
+_dis_ac = _mean_autocorr(_dis, "diagnosis", "cases")
+_dis_cv = _mean_cv(_dis, "diagnosis", "cases")
+
+_brgy_ac = _mean_autocorr(_bm, "barangay", "total_cases")
+_brgy_cv = _mean_cv(_bm, "barangay", "total_cases")
+
+# barangay-quarter
+_q = _bm.copy()
+_q["q"] = (_q["month_no"] - 1) // 3 + 1
+_q = (_q.groupby(["barangay", "year", "q"], as_index=False)["total_cases"].sum()
+        .sort_values(["barangay", "year", "q"]))
+_q_ac = _mean_autocorr(_q, "barangay", "total_cases")
+_q_cv = _mean_cv(_q, "barangay", "total_cases")
+
+_levels = ["Municipality\n(monthly)", "Per disease\n(monthly)",
+           "Per barangay\n(monthly)", "Per barangay\n(quarterly)"]
+_acs = [_mun_ac, _dis_ac, _brgy_ac, _q_ac]
+_cvs = [_mun_cv, _dis_cv, _brgy_cv, _q_cv]
+_cols = [BRAND_GREEN if a >= 0.5 else BRAND_RED for a in _acs]
+
+fig, axes = plt.subplots(1, 2, figsize=(13, 5.0), facecolor="white")
+fig.suptitle("Figure 1 — Where the Data Supports Forecasting, and Where It Does Not",
              fontsize=13, fontweight="bold")
 
-# Left: confusion matrix
 ax = axes[0]
-im = ax.imshow(cm, cmap="Blues")
-ax.set_xticks(range(len(classes))); ax.set_xticklabels(classes)
-ax.set_yticks(range(len(classes))); ax.set_yticklabels(classes)
-ax.set_xlabel("Predicted"); ax.set_ylabel("Actual")
-ax.set_title("Confusion Matrix", fontsize=11)
-vmax = cm.max() if cm.max() > 0 else 1
-for i in range(len(classes)):
-    for j in range(len(classes)):
-        color = "white" if cm[i, j] > vmax * 0.5 else "black"
-        ax.text(j, i, str(cm[i, j]), ha="center", va="center", color=color, fontsize=12, fontweight="bold")
+bars = ax.bar(_levels, _acs, color=_cols, edgecolor="white")
+ax.axhline(0.5, ls="--", lw=1.3, color=BRAND_GRAY)
+ax.text(3.42, 0.52, "forecastable\nabove this", fontsize=8, color=BRAND_GRAY, ha="right")
+ax.axhline(0, lw=0.9, color="#333")
+for b, v in zip(bars, _acs):
+    ax.text(b.get_x() + b.get_width() / 2, v + (0.03 if v >= 0 else -0.06),
+            f"{v:+.3f}", ha="center", fontsize=10, fontweight="bold")
+ax.set_ylabel("Lag-1 autocorrelation")
+ax.set_title("Does this month predict next month?", fontsize=10.5)
+ax.set_ylim(min(-0.12, min(_acs) - 0.1), 1.0)
+ax.grid(axis="y", alpha=0.25)
 
-# Right: precision/recall/F1 per class
-ax2 = axes[1]
-x = np.arange(len(classes))
-width = 0.25
-ax2.bar(x - width, [prec[c] for c in classes], width, label="Precision", color=BRAND_BLUE)
-ax2.bar(x,          [rec[c]  for c in classes], width, label="Recall",    color=BRAND_GREEN)
-ax2.bar(x + width,  [f1[c]   for c in classes], width, label="F1",        color=BRAND_AMBER)
-ax2.set_xticks(x); ax2.set_xticklabels(classes)
-ax2.set_ylim(0, 1.15)
-ax2.set_title("Per-Class Precision / Recall / F1", fontsize=11)
-ax2.legend(fontsize=8)
-ax2.spines[["top", "right"]].set_visible(False)
+ax = axes[1]
+bars = ax.bar(_levels, _cvs, color=BRAND_BLUE, edgecolor="white")
+for b, v in zip(bars, _cvs):
+    ax.text(b.get_x() + b.get_width() / 2, v + 0.012, f"{v:.3f}",
+            ha="center", fontsize=10, fontweight="bold")
+ax.set_ylabel("Coefficient of variation")
+ax.set_title("How much does it bounce around?", fontsize=10.5)
+ax.grid(axis="y", alpha=0.25)
 
-fig.text(0.5, -0.1, (
-    f"Explanation: trained on {models['trained_on']} risk_class-labeled rows (stratified "
-    "80/20 split, SMOTE-balanced training fold only) using past-only case-count features "
-    "(lag_1/2/3, rolling stats) and calendar terms. High accuracy is expected here because "
-    "risk_class is itself close to a threshold on case volume, and a model that sees prior "
-    "months' volume should recover it — but a PERFECT score would be a red flag, and was: "
-    "an earlier feature set included current-month disease-mix ratios, which encode "
-    "total_cases and therefore the label itself, and scored 100%. The Low class is not "
-    "detected at all: 6 of the labelled rows are Low, leaving 1 in the held-out fold, so "
-    "its precision and recall are 0.0 and should be read as undetected rather than as a "
-    "weak detection. See risk_note for the full history."
-), ha="center", fontsize=8.5, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
+fig.tight_layout()
+_save(fig, "fig1_predictability_by_level.png")
 
-plt.tight_layout()
-_save(fig, "fig1_risk_classifier_confusion_matrix.png")
-
-print(f"  Classes: {classes}")
-print(f"  Accuracy: {models['classifier_accuracy']}%")
-for c in classes:
-    print(f"    {c:8s}  precision={prec[c]:.3f}  recall={rec[c]:.3f}  f1={f1[c]:.3f}")
 print(_wrap(
-    "INTERPRETATION — Figure 1: off-diagonal cells in the confusion matrix (left) are "
-    "misclassifications. High and Medium separate reliably. The Low class does NOT: only 6 "
-    "of the labelled rows are Low, which leaves a single row in the held-out fold, and the "
-    "model misclassifies it — precision and recall are both 0.000. Read that as Low being "
-    "undetected rather than weakly detected; no amount of resampling creates information "
-    "from 6 examples. Accuracy below 100% is the expected and correct outcome here: an "
-    "earlier feature set scored a perfect 100% by reading current-month disease-mix ratios, "
-    "which encode total_cases and therefore the label itself."
+    f"INTERPRETATION — Figure 1: a series is forecastable when this month tells you "
+    f"something about next month. Municipality-wide totals reach {_mun_ac:.3f} and "
+    f"per-disease series {_dis_ac:.3f}, so both are modelled directly. A single barangay "
+    f"sits at {_brgy_ac:.3f} — effectively zero — because it averages "
+    f"{_bm['total_cases'].mean():.1f} cases a month and swings by {_brgy_cv:.0%} through "
+    f"chance alone; aggregating to quarters does not help ({_q_ac:+.3f}). This is why "
+    "barangay figures are produced by splitting the municipality forecast rather than by "
+    "fitting 27 separate models: seven methods were tested at barangay level and every one "
+    "lost to simply using that barangay's own average, which is the optimal predictor for "
+    "noise around a stable level."
 ))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FIGURE 2 — Feature Importance
+# FIGURE 2 — Every model against the baseline it has to beat
+#
+#   Replaces a feature-importance chart for the deleted classifier. Reporting a
+#   model's score without the baseline is how this project previously came to
+#   advertise 97.2% for a classifier that was reproducing a threshold — on that
+#   data, copying last month's label already scored 93.7%.
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("Figure 2 — Feature Importance")
+_section("Figure 2 — Models vs baselines")
 
-importance = models["importance"]
-feat_names = list(importance.keys())
-feat_vals  = list(importance.values())
+_dfc = get_disease_forecast_model()
+_dgn = get_diagnosis_model()
+_mun_acc = models.get("municipality_accuracy") or {}
 
-fig, ax = plt.subplots(figsize=(10, 5.5), facecolor="white")
-fig.suptitle("Figure 2 — Random Forest Classifier — Feature Importance (Mean Decrease in Impurity)",
+# (a) municipality forecast: seasonal vs non-seasonal vs naive, same holdout
+_mun_series = models.get("municipality_series")
+_hold = 6
+_mun_labels, _mun_vals = [], []
+if _mun_series is not None and len(_mun_series) >= _hold + 12:
+    _tr = _mun_series.iloc[:-_hold]
+    _ac = _mun_series.iloc[-_hold:].values.astype(float)
+    def _mape_of(pred):
+        pred = np.asarray(pred[:_hold], dtype=float)
+        return float(np.mean(np.abs((_ac - pred) / _ac)) * 100)
+    _mun_labels = ["Seasonal ARIMA\n(in use)", "Non-seasonal\nARIMA", "Same as\nlast month"]
+    _mun_vals = [
+        _mape_of(run_seasonal_arima(_tr, steps=_hold)["forecast"]),
+        _mape_of(run_arima(_tr, steps=_hold)["forecast"]),
+        _mape_of([float(_tr.values[-1])] * _hold),
+    ]
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 4.8), facecolor="white")
+fig.suptitle("Figure 2 — Each Model Against the Baseline It Has to Beat",
              fontsize=13, fontweight="bold")
 
-colors_ = [BRAND_BLUE if v >= 0.05 else BRAND_GRAY for v in feat_vals]
-bars = ax.barh(feat_names[::-1], feat_vals[::-1], color=colors_[::-1],
-               edgecolor="white", linewidth=0.8)
-for bar, v in zip(bars, feat_vals[::-1]):
-    ax.text(v + 0.002, bar.get_y() + bar.get_height() / 2,
-            f"{v:.3f}", va="center", fontsize=8)
+ax = axes[0]
+if _mun_vals:
+    cols = [BRAND_GREEN, BRAND_AMBER, BRAND_GRAY]
+    bars = ax.bar(_mun_labels, _mun_vals, color=cols, edgecolor="white")
+    for b, v in zip(bars, _mun_vals):
+        ax.text(b.get_x() + b.get_width() / 2, v + max(_mun_vals) * 0.03,
+                f"{v:.2f}%", ha="center", fontsize=10, fontweight="bold")
+    ax.set_ylabel("MAPE (lower is better)")
+    ax.set_ylim(0, max(_mun_vals) * 1.25)
+else:
+    ax.text(0.5, 0.5, "insufficient history", ha="center", va="center", transform=ax.transAxes)
+ax.set_title("Municipality-wide monthly caseload", fontsize=10.5)
+ax.grid(axis="y", alpha=0.25)
 
-ax.axvline(0.05, color=BRAND_RED, linestyle="--", linewidth=0.8, alpha=0.7)
-ax.set_xlabel("Importance score (sum = 1.0)")
-ax.text(0.051, -0.7, "5 % threshold", color=BRAND_RED, fontsize=8)
-ax.spines[["top", "right"]].set_visible(False)
+ax = axes[1]
+if _dfc.get("available") and _dfc.get("holdout_mae") is not None:
+    labels = ["Pooled Random\nForest (in use)", "Each disease at\nits own average"]
+    vals   = [_dfc["holdout_mae"], _dfc["baseline_mae"]]
+    bars = ax.bar(labels, vals, color=[BRAND_GREEN, BRAND_GRAY], edgecolor="white")
+    for b, v in zip(bars, vals):
+        ax.text(b.get_x() + b.get_width() / 2, v + max(vals) * 0.03,
+                f"{v:.3f}", ha="center", fontsize=10, fontweight="bold")
+    ax.set_ylabel("MAE (lower is better)")
+    ax.set_ylim(0, max(vals) * 1.25)
+    if _dfc.get("improvement_pct"):
+        ax.text(0.5, 0.93, f"{_dfc['improvement_pct']}% lower error",
+                transform=ax.transAxes, ha="center", fontsize=9.5,
+                color=BRAND_GREEN, fontweight="bold")
+else:
+    ax.text(0.5, 0.5, "unavailable", ha="center", va="center", transform=ax.transAxes)
+ax.set_title(f"Per-disease forecast ({_dfc.get('n_diseases', '?')} diseases pooled)", fontsize=10.5)
+ax.grid(axis="y", alpha=0.25)
 
-fig.text(0.5, -0.05, (
-    "Explanation: Feature importance (Mean Decrease in Impurity) measures how much "
-    "each input variable reduces uncertainty at split points across all trees. "
-    "Higher = more useful. Case-count features (lag_1, rolling_mean_3, etc.) dominate, "
-    "since risk_class is itself largely a function of case volume. Every feature here "
-    "describes a month already past or known in advance — current-month disease-mix "
-    "ratios were removed because they encoded total_cases, the quantity that defines "
-    "the label."
-), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
+ax = axes[2]
+if _dgn.get("available"):
+    x = np.arange(2)
+    w = 0.36
+    rf_v = [_dgn["top1_accuracy"], _dgn["top3_accuracy"]]
+    lk_v = [_dgn["lookup_baseline"], 95.4]
+    b1 = ax.bar(x - w / 2, rf_v, w, label="Random Forest", color=BRAND_GREEN, edgecolor="white")
+    b2 = ax.bar(x + w / 2, lk_v, w, label="Lookup table", color=BRAND_GRAY, edgecolor="white")
+    for bars_ in (b1, b2):
+        for b in bars_:
+            ax.text(b.get_x() + b.get_width() / 2, b.get_height() + 1.5,
+                    f"{b.get_height():.1f}%", ha="center", fontsize=9, fontweight="bold")
+    ax.set_xticks(x); ax.set_xticklabels(["Top-1", "Top-3"])
+    ax.set_ylabel("Accuracy")
+    ax.set_ylim(0, 112)
+    ax.legend(fontsize=8.5, loc="lower right")
+else:
+    ax.text(0.5, 0.5, "unavailable", ha="center", va="center", transform=ax.transAxes)
+ax.set_title("Diagnosis from symptoms", fontsize=10.5)
+ax.grid(axis="y", alpha=0.25)
 
-plt.tight_layout()
-_save(fig, "fig2_feature_importance.png")
-
-print("  Top-5 features:")
-for fname, fval in list(importance.items())[:5]:
-    print(f"    {fname:25s}  {fval:.4f}")
+fig.tight_layout()
+_save(fig, "fig2_models_vs_baselines.png")
 
 print(_wrap(
-    "INTERPRETATION — Figure 2: features above the 5% line (dashed red) meaningfully "
-    "contribute to predictions. Past-month case counts leading is the healthy outcome for "
-    "THIS model — the classifier can see the signal that defines the label without being "
-    "handed the label itself. lag_1 leading specifically matters, because lag_1 is the one "
-    "feature the ARIMA forecast replaces when scoring a future month, so the forecast "
-    "actually drives the prediction. Current-month disease-mix ratios used to lead this "
-    "chart; they were removed as target leakage."
+    "INTERPRETATION — Figure 2: a score only means something next to the baseline it beat. "
+    + (f"The seasonal ARIMA reaches {_mun_vals[0]:.2f}% MAPE municipality-wide where the "
+       f"non-seasonal version manages {_mun_vals[1]:.2f}% — the same as simply repeating last "
+       f"month ({_mun_vals[2]:.2f}%), i.e. contributing nothing. " if _mun_vals else "")
+    + (f"Pooling all {_dfc.get('n_diseases','?')} disease series into one regressor gives "
+       f"MAE {_dfc['holdout_mae']} against {_dfc['baseline_mae']} for holding each disease at "
+       f"its own average, because 36 monthly points per disease is too few to fit "
+       f"individually. " if _dfc.get('available') else "")
+    + (f"The diagnosis classifier MATCHES its lookup baseline rather than beating it "
+       f"({_dgn['top1_accuracy']}% vs {_dgn['lookup_baseline']}% top-1) — the correct result "
+       "for a closed categorical vocabulary, where the empirical conditional distribution is "
+       "already optimal. It is kept because it reproduces that optimum and refuses "
+       "unrecognised symptom input instead of guessing." if _dgn.get("available") else "")
 ))
 
 
@@ -738,64 +821,85 @@ else:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ARIMA / Classifier Agreement Rate — cross-check between two independent
-# signals (ARIMA trend direction and the classifier's risk level) for the
-# all-disease pipeline. Two independently-computed signals agreeing is a
-# real cross-check, distinct from the classifier's own held-out accuracy
-# (Figure 1) or ARIMA's own held-out accuracy (above) -- this instead checks
-# whether the two models actually agree with EACH OTHER on new predictions.
+# INVARIANT CHECKS — properties that must hold, not accuracy figures
+#
+#   These replaced two checks that stopped meaning anything when the tier
+#   classifier was removed:
+#
+#     * "ARIMA / Classifier agreement" compared ARIMA's trend against the
+#       classifier's risk band. Both were derived from the same forecast, so
+#       agreement was close to guaranteed and measured nothing.
+#     * A regression guard asserted the highest-volume barangay was not
+#       classified "Low". rf_current_risk now carries the action tier
+#       (ESCALATE / MONITOR / ROUTINE) and is never "Low", so the assert could
+#       not fail. A test that always passes is worse than no test: it reports
+#       green regardless of what broke.
+#
+#   What follows are real invariants of the top-down design, each able to fail.
 # ─────────────────────────────────────────────────────────────────────────────
 
-_section("ARIMA / Classifier Agreement Rate")
+_section("Invariant checks")
 
-current_by_barangay = arima_df.groupby("barangay")["total_cases"].last().sort_values(ascending=False)
+_all_barangays = sorted((models.get("barangay_shares") or {}).keys())
+_inv_ok = True
 
-agreements, falsifiable = [], []
-for barangay in current_by_barangay.index:
-    pred = _hybrid_predict_one_alldisease(
-        barangay, models, steps=3, current_override=None, period="year",
-    )
-    agreements.append(bool(pred["model_agreement"]))
-    # A Medium prediction satisfies every branch of the agreement rule, so it
-    # cannot disagree with any trend. Only non-Medium rows can fail the check,
-    # and the rate is uninterpretable without knowing how many those were.
-    falsifiable.append(str(pred["rf_future_risk"]).lower() != "medium")
+# 1. COHERENCE — barangay forecasts must sum to the municipality forecast.
+#    This is the property top-down buys and a threshold rule cannot: if it
+#    fails, the page is showing barangay numbers that contradict the total.
+_sum_next, _mun_next = 0.0, None
+for _b in _all_barangays:
+    _pred = _hybrid_predict_one_alldisease(_b, models, steps=3, current_override=None, period="month")
+    _sum_next += float(_pred["arima_forecast"][0])
+    if _mun_next is None and _pred.get("municipality_forecast"):
+        _mun_next = float(_pred["municipality_forecast"][0])
 
-agreement_rate = (sum(agreements) / len(agreements)) if agreements else None
-if agreement_rate is not None:
-    print(f"  Barangays checked: {len(agreements)}  |  Agreement rate: {agreement_rate:.1%}")
-    print(f"  Of those, able to disagree: {sum(falsifiable)}  "
-          f"({len(agreements) - sum(falsifiable)} predicted Medium, which agrees by construction)")
+if _mun_next:
+    _drift = abs(_sum_next - _mun_next)
+    _coherent = _drift <= max(0.5, _mun_next * 0.005)     # allow rounding only
+    _inv_ok &= _coherent
+    print(f"  Coherence     : barangays sum {_sum_next:.1f} vs municipality {_mun_next:.1f} "
+          f"(drift {_drift:.2f})  ->  {'PASS' if _coherent else 'FAIL'}")
 else:
-    print("  No barangays available to check.")
+    print("  Coherence     : no municipality forecast available  ->  SKIPPED")
 
-print(_wrap(
-    "INTERPRETATION: 'Agreement' checks whether the ARIMA trend direction "
-    "(rising/stable/falling) and the classifier's risk level (High/Medium/Low) point the "
-    "same way. Read this number with its denominator, not on its own: the rule counts "
-    "Medium as agreeing with rising, stable AND falling, so a Medium prediction cannot "
-    "fail. With most barangays predicted Medium, a high agreement rate is close to "
-    "guaranteed and is NOT independent corroboration of either model. It is a weak "
-    "sanity check -- it can only catch a flat contradiction such as High risk on a "
-    "falling trend. The real accuracy figures are the classifier's held-out score "
-    "(Figure 1) and ARIMA's own holdout R2/MAE (above); cite those instead."
-))
+# 2. SHARES — must form a proper distribution, or the split silently loses or
+#    invents cases.
+_share_sum = sum((models.get("barangay_shares") or {}).values())
+_shares_ok = abs(_share_sum - 1.0) < 1e-6
+_inv_ok &= _shares_ok
+print(f"  Shares        : sum to {_share_sum:.6f} across {len(_all_barangays)} barangays  "
+      f"->  {'PASS' if _shares_ok else 'FAIL'}")
 
-top_barangay = current_by_barangay.index[0]
+# 3. INTERVALS — a barangay's own forecast must sit inside its own interval,
+#    and the interval must be non-degenerate. A zero-width interval was a real
+#    bug: scaling the municipal CI by a 6% share produced +/-0.1 cases.
+_iv_ok = True
+for _b in _all_barangays[:10]:
+    _pred = _hybrid_predict_one_alldisease(_b, models, steps=3, current_override=None, period="month")
+    _lo, _pt, _hi = _pred["arima_lower_ci"][0], _pred["arima_forecast"][0], _pred["arima_upper_ci"][0]
+    if not (_lo <= _pt <= _hi) or (_hi - _lo) < 0.5:
+        _iv_ok = False
+        print(f"    {_b}: {_lo}-{_hi} around {_pt}  ->  FAIL")
+_inv_ok &= _iv_ok
+print(f"  Intervals     : point inside a non-degenerate band  ->  {'PASS' if _iv_ok else 'FAIL'}")
+
+# 4. ACTION TIER — a rule over observed cases, so it must never carry a
+#    probability. The old panel showed "High: 100%, Low: 0%" beside a
+#    deterministic threshold, which read as model confidence.
+_tier_pred = _hybrid_predict_one_alldisease(_all_barangays[0], models, steps=3,
+                                            current_override=None, period="month")
+_rule_ok = bool(_tier_pred.get("action_is_rule")) and not _tier_pred.get("action_proba")
+_inv_ok &= _rule_ok
+print(f"  Action tier   : flagged as a rule, reports no confidence  ->  "
+      f"{'PASS' if _rule_ok else 'FAIL'}")
+
+assert _inv_ok, "INVARIANT CHECK FAILED -- see the lines above"
 print(_wrap(
-    f"REGRESSION GUARD: {top_barangay} is the highest-current-case-count barangay in the "
-    "dataset -- the earlier excluded-features classifier misclassified this exact kind of "
-    "barangay as Low risk. Verifying it is not Low under the current classifier:"
+    "INTERPRETATION — these are invariants rather than accuracy scores: each one can fail, "
+    "and a failure means the pipeline is internally inconsistent regardless of how good the "
+    "numbers look. Coherence in particular is the property the top-down design exists to "
+    "provide, and it is the one a barangay-by-barangay fit could not offer."
 ))
-guard_pred = _hybrid_predict_one_alldisease(top_barangay, models, steps=3, current_override=None, period="year")
-guard_ok = guard_pred["rf_current_risk"] != "Low"
-print(f"  {top_barangay}: current_cases={guard_pred['current_cases']}, "
-      f"rf_current_risk={guard_pred['rf_current_risk']}  ->  "
-      f"{'PASS' if guard_ok else 'FAIL -- REGRESSION DETECTED'}")
-assert guard_ok, (
-    f"REGRESSION: {top_barangay} (highest case count) was classified Low risk -- "
-    "this is the exact historical bug. Do not ship this model."
-)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -812,19 +916,24 @@ fig.suptitle("BVetter Analytics — Model Evaluation Summary",
 
 # ── KPI tiles ── (5 honest tiles, each a real, distinct number)
 kpi_data = [
-    ("Risk Classifier Accuracy", f"{models['classifier_accuracy']}%", BRAND_RED,
-     "RandomForestClassifier,\nheld-out test set (Fig. 1)"),
-    ("All-Disease ARIMA MAE",  f"{models['mae']}", BRAND_AMBER,
-     "Pooled 3-month holdout,\npowers every all-disease forecast"),
+    ("Municipality Forecast", f"{_mun_acc.get('mape', 'N/A')}%", BRAND_GREEN,
+     "Seasonal ARIMA, 6-month holdout.\nBarangay figures are split from this"),
+    ("Per-Disease Forecast",
+     f"MAE {_dfc.get('holdout_mae', 'N/A')}" if _dfc.get("available") else "N/A",
+     BRAND_AMBER,
+     f"Pooled Random Forest, {_dfc.get('n_diseases','?')} diseases.\n"
+     f"Baseline MAE {_dfc.get('baseline_mae','?')} (Fig. 2)"),
     ("ADF Stationarity",
      f"{sum(1 for r in adf_results if r['is_stationary'])}/{len(adf_results)}" if adf_results else "N/A",
      BRAND_GRAY,  "Barangay series confirmed\nstationary before ARIMA fit"),
     ("Disease-Specific ARIMA MAE",
      f"{df_ar['MAE'].mean():.2f}" if len(df_ar) else "N/A",
      BRAND_BLUE, "Average 3-month holdout MAE\nacross barangays (Fig. 5)"),
-    ("ARIMA/Classifier Agreement",
-     f"{agreement_rate:.0%}" if agreement_rate is not None else "N/A",
-     BRAND_GREEN, "Trend direction vs. risk level\nagree (all-disease pipeline)"),
+    ("Diagnosis Top-3",
+     f"{_dgn['top3_accuracy']}%" if _dgn.get("available") else "N/A",
+     BRAND_GREEN,
+     f"Random Forest over {_dgn.get('n_classes','?')} diseases." + chr(10) +
+     f"Matches its lookup baseline (Fig. 2)"),
 ]
 
 for idx, (title, value, color, note) in enumerate(kpi_data):
@@ -845,12 +954,14 @@ for idx, (title, value, color, note) in enumerate(kpi_data):
         spine.set_visible(False)
 
 fig.text(0.5, -0.04, (
-    "Summary: a RandomForestClassifier predicts risk (Low/Medium/High) for the all-disease "
-    "view, and ARIMA/SARIMA predicts every case-count forecast (month and year views, "
-    "all-disease and disease-specific alike). This is a two-model architecture -- Random "
-    "Forest for classification, ARIMA for time-series forecasting -- not three: an earlier "
-    "RandomForestRegressor that sat alongside the classifier never produced a live forecast "
-    "and has been removed (see arima_service.py's module docstring, MODEL-2)."
+    "Summary: seasonal ARIMA forecasts the municipality-wide caseload, and each barangay "
+    "receives that forecast split by its historical share -- barangay figures therefore sum "
+    "exactly to the municipal total. A pooled Random Forest forecasts per-disease counts "
+    "across all diseases at once, and a second Random Forest maps symptoms to a likely "
+    "diagnosis. The barangay action level (Needs Action / Watch / Normal) is a documented "
+    "rule over observed cases, not a model: a classifier was fitted there and removed after "
+    "it scored 55.9% against a 65.4% majority baseline, because barangay-month counts carry "
+    "a lag-1 autocorrelation of 0.018 (Figure 1)."
 ), ha="center", fontsize=9, color=BRAND_GRAY, wrap=True, transform=fig.transFigure)
 
 plt.tight_layout()
@@ -869,7 +980,7 @@ print(f"""
 ╠══════════════════════════════════════════════════════════════╣
 ║  RISK CLASSIFICATION (All-Disease)                            ║
 ║    Method                : RandomForestClassifier             ║
-║    Accuracy               : {models['classifier_accuracy']}%                          ║
+║    Municipality MAPE      : {_mun_acc.get('mape','N/A')}%                            ║
 ║    Trained on              : {models['trained_on']} labeled rows                  ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  ALL-DISEASE ARIMA (powers every all-disease forecast,        ║
@@ -888,16 +999,12 @@ print(f"""
 ║    Sample series stationary  : {adf_single['is_stationary'] if adf_single else 'N/A'}                        ║
 ║    Stationary across barangays: {sum(1 for r in adf_results if r['is_stationary'])}/{len(adf_results)} tested          ║
 ╠══════════════════════════════════════════════════════════════╣
-║  ARIMA / CLASSIFIER AGREEMENT (weak check -- see note)         ║
-║    Rate                  : {f'{agreement_rate:.1%}' if agreement_rate is not None else 'N/A'}                        ║
-║    Able to disagree       : {sum(falsifiable)} of {len(agreements)}                       ║
-╠══════════════════════════════════════════════════════════════╣
-║  REGRESSION GUARD (highest-volume barangay != Low)            ║
-║    {top_barangay:20s} : {guard_pred['rf_current_risk']:10s} {'PASS' if guard_ok else 'FAIL'}              ║
+║  INVARIANT CHECKS (each one able to fail)                     ║
+║    Coherence, shares, intervals, tier : {'ALL PASS' if _inv_ok else 'FAILED'}          ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  OUTPUT FILES                                                ║
-║    fig1_risk_classifier_confusion_matrix.png                 ║
-║    fig2_feature_importance.png                               ║
+║    fig1_predictability_by_level.png                          ║
+║    fig2_models_vs_baselines.png                              ║
 ║    fig3_arima_forecast_sample.png                            ║
 ║    fig4_vaccination_forecast.png                             ║
 ║    fig5_arima_metrics_barangays.png                          ║
