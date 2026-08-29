@@ -3266,7 +3266,7 @@ def _build_disease_protocol_steps(barangay, disease, current, future, fc, curren
             {"level":"green", "title":"Preventive: Targeted Treatment Drive",
              "detail":f"Schedule mass treatment for {disease} in {barangay}. Current: {current:.0f} vs avg {avg:.1f}."},
             {"level":"gray",  "title":"Check again next week",
-             "detail":f"Track until rule-based risk falls. 3-month forecast: {fc['forecast'][:3]}."},
+             "detail":f"Track until rule-based risk falls. Expect {_forecast_phrase(fc['forecast'])}."},
         ]
     elif future_risk == "Medium":
         return [
@@ -3322,6 +3322,33 @@ def patient_volume_predict():
 # UNIFIED /disease-predict
 # ════════════════════════════════════════════════════════════════════════
 
+def _forecast_phrase(forecast, quarter_total=None):
+    """
+    The monthly forecast as a sentence rather than a raw Python list.
+
+    Printed straight, this read "3-month forecast: [11.4, 11.4, 11.4]" for every
+    barangay -- the same number three times. That is structural: the top-down
+    forecast multiplies one municipal figure by a barangay share that does not
+    change month to month, so month 2 is never distinct from month 1. Three
+    identical values look like a bug to a reader and imply three separate
+    predictions that were never made.
+
+    Says it once when the months are flat, names the quarter total (the figure
+    that is actually reliable at this scale), and falls back to the trajectory
+    when the months genuinely differ.
+    """
+    values = [round(float(v), 1) for v in (forecast or [])[:3]]
+    if not values:
+        return "no monthly forecast available"
+    if len(set(values)) == 1:
+        flat = f"{values[0]:g}"
+        if quarter_total is not None:
+            return (f"about {flat} cases a month, "
+                    f"{round(float(quarter_total), 1):g} over three months")
+        return f"about {flat} cases a month for the next three"
+    return "next three months: " + ", ".join(f"{v:g}" for v in values)
+
+
 def _build_all_disease_protocol(barangay, pred, avg_cases, models):
     action  = str(pred.get("action_tier", "ROUTINE")).upper()
     reason  = pred.get("action_reason", "")
@@ -3336,6 +3363,7 @@ def _build_all_disease_protocol(barangay, pred, avg_cases, models):
           else f"Note: cases are '{trend}' while the action level reads "
                f"{ACTION_TIER_LABELS.get(action, action)}.")
     fc = pred["arima_forecast"]
+    fc_phrase = _forecast_phrase(fc, pred.get("quarter_total"))
 
     # Both models speak here, but to different points: ARIMA supplies the case
     # NUMBERS (forecast, likely range), the classifier supplies the DECISION
@@ -3351,7 +3379,7 @@ def _build_all_disease_protocol(barangay, pred, avg_cases, models):
             {"level":"green","title":"Run a clean-up and prevention drive",
              "detail":f"Focus on {barangay}. Expected case volume next month: {volume}."},
             {"level":"gray", "title":"Check again next week",
-             "detail":f"Review weekly until the level returns to Normal. 3-month forecast: {fc}."},
+             "detail":f"Review weekly until the level returns to Normal. Expect {fc_phrase}."},
         ]
     elif risk == "medium":
         tier = "monitor"
