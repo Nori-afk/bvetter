@@ -1021,22 +1021,37 @@ function renderBarChart(targetId, sourceRows, chartType) {
                 : `<div class="fallback-warning">Showing a ${friendlyModelLabel(modelType).toLowerCase()} estimate.</div>`;
     }
 
+    /* 'rfmonthly' alongside sarima/arima so the RF-based monthly forecast (both
+       all-disease and per-disease) is recognised as a model rather than falling
+       through to the generic "Estimate". */
+    const sourceOf = (item) => {
+        if (chartType !== 'predicted') return null;
+        const src = (item.source || '').toLowerCase();
+        if (src.includes('sarima') || src.includes('arima') || src.includes('rfmonthly')) {
+            return src.includes('alldisease')
+                ? { text: 'Advanced Forecast', kind: 'model' }
+                : { text: 'Smart Forecast',    kind: 'model' };
+        }
+        if (src.includes('moving') || src.includes('wma')) return { text: 'Basic Estimate', kind: 'wma' };
+        return { text: 'Estimate', kind: 'fallback' };
+    };
+
+    // The chart's usual source. The badge used to repeat on every one of the 27
+    // rows, restating the card's own heading ("Advanced Forecast — Projected
+    // Annual"), and it wrapped under the number — so predicted rows stood taller
+    // than actual ones and the two charts drifted apart down the page despite
+    // being in the same order. It now marks only the rows that DIFFER, which is
+    // the only case where it ever carried information.
+    const tally = {};
+    rows.forEach((r) => { const s = sourceOf(r); if (s) tally[s.text] = (tally[s.text] || 0) + 1; });
+    const usualSource = Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0] || null;
+
     root.innerHTML = warning + rows.map((item, index) => {
         const width = Math.max((item.value / maxValue) * 100, 3);
-        let badge = '';
-        if (chartType === 'predicted') {
-            const src = (item.source || '').toLowerCase();
-            // 'rfmonthly' alongside sarima/arima so the RF-based monthly forecast
-            // (both all-disease and per-disease) still gets a model badge instead
-            // of falling through to the generic "Estimate" badge below.
-            if (src.includes('sarima') || src.includes('arima') || src.includes('rfmonthly')) {
-                badge = src.includes('alldisease')
-                    ? `<span class="source-badge model">Advanced Forecast</span>`
-                    : `<span class="source-badge model">Smart Forecast</span>`;
-            }
-            else if (src.includes('moving') || src.includes('wma')) badge = `<span class="source-badge wma">Basic Estimate</span>`;
-            else                                                 badge = `<span class="source-badge fallback">Estimate</span>`;
-        }
+        const source = sourceOf(item);
+        const badge = (source && source.text !== usualSource)
+            ? `<span class="source-badge ${source.kind}">${source.text}</span>`
+            : '';
         // JS-FIX-3: likely-range tooltip on predicted bars
         const ciAttr = (chartType === 'predicted' && item.upper > 0)
             ? ` title="Likely Range: ${item.lower ?? '?'} – ${item.upper ?? '?'}"` : '';
@@ -1076,6 +1091,7 @@ function renderInsightPanel() {
 
     renderMiniBars('comparisonBars', insight.comparisons);
     renderMiniBars('predictionBars', insight.predicted);
+    // Filled further down, once forecastHtml is built.
 
     // ── 3-Month Forecast ─────────────────────────────────────────
     let forecastHtml = '';
@@ -1110,6 +1126,11 @@ function renderInsightPanel() {
             </div>
         `;
     }
+
+    // Left column: the figures for this barangay. Right column: what to do
+    // about them. Splitting by kind rather than by whatever fitted.
+    const forecastHost = document.getElementById('insightForecast');
+    if (forecastHost) forecastHost.innerHTML = forecastHtml;
 
     // ── Model badge ───────────────────────────────────────────────
     // insight.model_type is only ever set once a real prediction (from
@@ -1158,7 +1179,6 @@ function renderInsightPanel() {
         </div>
         ${offlineWarningHtml}
         ${modelBadgeHtml}
-        ${forecastHtml}
         <div class="ip-protocol-block">
             <p class="ip-protocol-title">${protocol.title}</p>
             <p class="ip-protocol-desc">${protocol.description}</p>

@@ -650,7 +650,13 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     font-size: 12px;
 }
 
+/* Fixed minimum so the value column is the SAME width in both charts. It was
+   `auto`, and the predicted chart's per-row badge widened it — which moved the
+   bar track's start and end, so two charts drawn in the same order still could
+   not be read across. */
 .bar-row > span:last-child {
+    min-width: 52px;
+    text-align: right;
     color: var(--ink-2);
     font-size: 12px;
     font-weight: 600;
@@ -973,8 +979,23 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 /* ── Insight drill-down ──────────────────────────────────────── */
 .insight-layout {
     display: grid;
-    grid-template-columns: 1fr 1.4fr;
+    /* Narrower left: it holds a name, two figures and five short bars, while
+       the right holds the protocol, four steps and the differential. At 1fr
+       it was given 42% of the width for a fraction of the content. */
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.7fr);
+    /* The default `stretch` forced the short left card to the full height of
+       the right one, which is what produced the large empty panel. */
+    align-items: start;
     gap: 16px;
+}
+
+/* Follows the reader down the long right column instead of scrolling away.
+   No ancestor sets overflow, so this holds. */
+@media (min-width: 900px) {
+    .insight-left {
+        position: sticky;
+        top: 16px;
+    }
 }
 
 .insight-left,
