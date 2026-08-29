@@ -485,7 +485,18 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
         sourceByBarangay[normalizeBarangayName(r.barangay)]    = r.source || 'fallback';
     });
 
-    const maxCases = Math.max(...Object.values(actualByBarangay), 1);
+    /* One scale for every mini-bar, covering predicted values as well as
+       recorded ones. Scaling by the largest RECORDED count alone meant any
+       forecast above it hit Math.min(100, ...) and drew a full bar, so
+       "Expected 87.1" and the busiest barangay looked identical and a forecast
+       could never be seen to exceed anything. Reading predicted_cases from the
+       API rows rather than diseaseAnalyticsData.predictedCases because the
+       latter is not rebuilt until further down this function. */
+    const maxActual = Math.max(...Object.values(actualByBarangay), 1);
+    const maxScale  = Math.max(
+        maxActual,
+        ...rfData.map(r => Number(r.predicted_cases ?? r.fused_predicted ?? 0)),
+        1);
 
     diseaseAnalyticsData.insights = rfData.map(rf => {
         const key            = normalizeBarangayName(rf.barangay);
@@ -493,9 +504,10 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
         const predictedCases = predictedByBarangay[key] ?? (rf.predicted_cases ?? 0);
         const source         = sourceByBarangay[key]    ?? rf.model_type     ?? 'fallback';
 
-        const loadPct = Math.min(100, Math.round((actualCases           / maxCases) * 100));
-        const avgPct  = Math.min(100, Math.round(((rf.avg_cases || 0)   / maxCases) * 100));
-        const predPct = Math.min(100, Math.round((predictedCases        / maxCases) * 100));
+        const loadPct = Math.min(100, Math.round((actualCases         / maxScale) * 100));
+        const avgPct  = Math.min(100, Math.round(((rf.avg_cases || 0) / maxScale) * 100));
+        const predPct = Math.min(100, Math.round((predictedCases      / maxScale) * 100));
+        const peakPct = Math.min(100, Math.round((maxActual           / maxScale) * 100));
 
         const arimaForecast = rf.arima_forecast || [];
         const arimaLowerCi  = rf.arima_lower_ci  || [];
@@ -598,14 +610,17 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
             n_obs:           rf.n_obs || 0,
             pred_source:     source,
             eval_note:       rf.eval_note || rf.split_method || '',
+            /* Plain words and real counts. "Load" is not a word a vet uses for
+               a case count, and "Peak Barangay" was a full bar by definition
+               with no number to say what the peak was. */
             comparisons: [
-                { label: 'This Barangay',    value: loadPct, color: '#002A58' },
-                { label: 'Barangay Average', value: avgPct,  color: '#5B8DB8' },
-                { label: 'Peak Barangay',    value: 100,     color: '#CBD5E1' },
+                { label: 'This barangay',    value: loadPct, count: actualCases,          color: '#002A58' },
+                { label: 'Average barangay', value: avgPct,  count: rf.avg_cases || 0,    color: '#5B8DB8' },
+                { label: 'Busiest barangay', value: peakPct, count: maxActual,            color: '#CBD5E1' },
             ],
             predicted: [
-                { label: 'Predicted Load', value: predPct, color: '#002A58' },
-                { label: 'Current Load',   value: loadPct, color: '#94A3B8' },
+                { label: 'Expected', value: predPct, count: predictedCases, color: '#002A58' },
+                { label: 'Recorded', value: loadPct, count: actualCases,    color: '#94A3B8' },
             ],
             forecast:       arimaForecast,
             lower_ci:       arimaLowerCi,
@@ -1301,9 +1316,10 @@ async function loadBarangayDifferential(barangay, symptomCluster, animalGroup) {
             </div>
         </div>
         <p class="rf-note">
-            A differential, not a diagnosis: right first choice ${esc(payload.top1_accuracy)}% of the
-            time and in the top three ${esc(payload.top3_accuracy)}% of the time, against a
-            most-common-for-this-pattern baseline of ${esc(payload.lookup_baseline)}%.
+            A shortlist to consider, not a diagnosis. It names the right disease first
+            ${esc(payload.top1_accuracy)}% of the time and has it among these three
+            ${esc(payload.top3_accuracy)}% of the time — against ${esc(payload.lookup_baseline)}%
+            for simply always picking the commonest disease for this symptom pattern.
             The classifier reads symptoms and species only — not location — so two barangays
             showing the same pattern get the same shortlist. What differs here is which pattern
             dominates, and what was recorded against it.
@@ -1320,15 +1336,27 @@ async function loadBarangayDifferential(barangay, symptomCluster, animalGroup) {
     });
 }
 
+/* The bar length is a share of the busiest barangay; the number beside it is
+   the case count. Without the count these were three bars against an unlabelled
+   maximum -- a vet could see that one bar was longer than another but not
+   whether it meant four cases or four hundred. And when the barangay being
+   viewed IS the busiest, every bar pins to 100% and the shape alone says
+   nothing at all. */
 function renderMiniBars(targetId, rows) {
     const el = document.getElementById(targetId);
     if (!el || !rows?.length) return;
+    const show = (n) => {
+        const value = Number(n);
+        if (!isFinite(value)) return '—';
+        return Number.isInteger(value) ? String(value) : value.toFixed(1);
+    };
     el.innerHTML = rows.map(item => `
         <div class="bar-row">
-            <span>${item.label}</span>
+            <span>${esc(item.label)}</span>
             <div class="bar-track">
                 <span class="bar-fill" style="width:${item.value}%; background:${item.color};"></span>
             </div>
+            <span>${item.count != null ? show(item.count) : ''}</span>
         </div>
     `).join('');
 }

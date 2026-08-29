@@ -2580,8 +2580,13 @@ def _hybrid_predict_one_alldisease(
         tier = "ROUTINE"
         reason = "Nothing unusual in this barangay's recent cases"
 
-    tier_basis = ("observed cases and disease mix for the latest complete month, "
-                  f"against this barangay's own history (p75 {own_p75_obs:.0f}, p90 {own_p90_obs:.0f})")
+    # Written for the vet reading the response plan, not for the model. "p75"
+    # and "p90" are the thresholds this rule uses, but printing them raw put
+    # statistics notation in front of a clinician; the same two numbers said
+    # plainly carry the whole meaning.
+    tier_basis = ("the cases already recorded this month, against what is normal "
+                  f"for this barangay: a usual month runs up to {own_p75_obs:.0f} cases, "
+                  f"and above {own_p90_obs:.0f} is unusually high")
     # No probability to report: this is a rule, and presenting a made-up
     # confidence beside a deterministic threshold is how the old panel came to
     # show "High: 100%, Low: 0%".
@@ -2660,8 +2665,8 @@ def _hybrid_predict_one_alldisease(
         # Case volume band from the threshold rule above, kept separate so the
         # two are never mistaken for one another.
         "volume_band": volume_band,
-        "volume_basis": (f"threshold on the forecast against this barangay's own history "
-                         f"(p75 {own_p75:.0f}, p90 {own_p90:.0f})"),
+        "volume_basis": (f"the forecast against what is normal here: up to {own_p75:.0f} "
+                         f"cases is a usual month, above {own_p90:.0f} is unusually high"),
         # Legacy keys, still emitted so older front-end builds keep rendering
         # while the UI catches up. rf_future_risk now carries the ACTION TIER.
         "rf_current_risk": str(tier),
@@ -3375,7 +3380,7 @@ def _build_all_disease_protocol(barangay, pred, avg_cases, models):
             {"level":"red",  "title":"Visit this barangay",
              "detail":f"{reason}. Expected {fused:.0f} cases next month (likely {lo:.0f}-{hi:.0f}, trend: {trend}). Deploy to {barangay}. {an}"},
             {"level":"blue", "title":"Report to the Municipal Health Office",
-             "detail":f"Within 24 hours. {basis}. Current: {current:.0f} cases vs this barangay's usual {avg_cases:.1f}."},
+             "detail":f"Within 24 hours. Based on {basis}. Current: {current:.0f} cases vs this barangay's usual {avg_cases:.1f}."},
             {"level":"green","title":"Run a clean-up and prevention drive",
              "detail":f"Focus on {barangay}. Expected case volume next month: {volume}."},
             {"level":"gray", "title":"Check again next week",
@@ -3387,7 +3392,7 @@ def _build_all_disease_protocol(barangay, pred, avg_cases, models):
             {"level":"red",  "title":"Confirm these cases",
              "detail":f"{reason}. Expected {fused:.0f} cases next month (likely {lo:.0f}-{hi:.0f}). Confirm clusters in {barangay}. {an}"},
             {"level":"blue", "title":"Coordinate with the vet team",
-             "detail":f"Within 3 days. {basis}. Current: {current:.0f} cases vs usual {avg_cases:.1f}."},
+             "detail":f"Within 3 days. Based on {basis}. Current: {current:.0f} cases vs usual {avg_cases:.1f}."},
             {"level":"green","title":"Send an advisory to residents",
              "detail":f"Advisory for {barangay}. Expected case volume next month: {volume}."},
             {"level":"gray", "title":"Check again in two weeks",

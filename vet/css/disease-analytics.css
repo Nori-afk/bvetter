@@ -1058,7 +1058,9 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     margin: 8px 0 22px;
 }
 
-.mini-bars .bar-row { grid-template-columns: 140px 1fr; }
+/* Three columns, matching .bar-row: label, track, count. With only two the
+   count span landed on an implicit second row under each bar. */
+.mini-bars .bar-row { grid-template-columns: 140px minmax(0, 1fr) auto; }
 
 /* ── Protocol panel ──────────────────────────────────────────── */
 .protocol-alert {
@@ -1572,7 +1574,7 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 .bar-track { height: 5px; }
 
 .mini-bars .bar-row {
-    grid-template-columns: 130px 1fr;
+    grid-template-columns: 130px minmax(0, 1fr) auto;
 }
 
 .mini-bars .bar-row > span:first-child {
