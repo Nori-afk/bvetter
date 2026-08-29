@@ -978,10 +978,21 @@ print(f"""
 ╔══════════════════════════════════════════════════════════════╗
 ║           BVetter — MODEL EVALUATION RESULTS                ║
 ╠══════════════════════════════════════════════════════════════╣
-║  RISK CLASSIFICATION (All-Disease)                            ║
-║    Method                : RandomForestClassifier             ║
-║    Municipality MAPE      : {_mun_acc.get('mape','N/A')}%                            ║
-║    Trained on              : {models['trained_on']} labeled rows                  ║
+║  BARANGAY ACTION TIER (All-Disease)  — a RULE, not a model    ║
+║    Method                : documented threshold               ║
+║    Basis                  : observed cases vs own p75/p90     ║
+║    Rows it labelled       : {models['trained_on']}                            ║
+║    Why not a classifier   : 55.9% vs 65.4% majority baseline  ║
+╠══════════════════════════════════════════════════════════════╣
+║  DIFFERENTIAL DIAGNOSIS  — RandomForestClassifier             ║
+║    Top-1 accuracy         : {_dgn.get('top1_accuracy','N/A')}%                          ║
+║    Top-3 accuracy         : {_dgn.get('top3_accuracy','N/A')}%                          ║
+║    Lookup baseline        : {_dgn.get('lookup_baseline','N/A')}%                          ║
+║    Trained on             : {_dgn.get('trained_on','N/A')} consultations, {_dgn.get('n_classes','N/A')} classes  ║
+╠══════════════════════════════════════════════════════════════╣
+║  PER-DISEASE FORECAST  — pooled RandomForestRegressor         ║
+║    Holdout MAE            : {_dfc.get('holdout_mae','N/A')}                           ║
+║    Baseline MAE           : {_dfc.get('baseline_mae','N/A')}                           ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  ALL-DISEASE ARIMA (powers every all-disease forecast,        ║
 ║  both month and year views)                                   ║
