@@ -1094,43 +1094,38 @@ function renderInsightPanel() {
     // Filled further down, once forecastHtml is built.
 
     // ── 3-Month Forecast ─────────────────────────────────────────
-    let forecastHtml = '';
-    if (insight.forecast?.length) {
-        const months    = ['Next Month', 'Month 2', 'Month 3'];
-        const modelLabel = friendlyModelLabel(insight.model_type);
-        // Municipality-wide figure, named as such -- see the KPI note above.
-        const metaParts = insight.municipality_accuracy?.mape != null
-            ? `Municipality forecast usually within ${insight.municipality_accuracy.mape}%`
-            : '';
+    /* The month-by-month grid that used to sit here has gone.
+       Measured across every barangay, it printed the SAME number three times
+       (Poblacion 11.4/11.4/11.4, San Jose 13.5/13.5/13.5, ...) with three
+       identical ranges: the top-down forecast multiplies one municipal figure
+       by a share that does not change month to month, so there was never a
+       month 2 distinct from month 1. It carried one number's worth of
+       information as three, implied three predictions that do not exist, and
+       repeated the right column's monthly figure WITHOUT the caveat that makes
+       it safe to read.
 
-        const trend     = (insight.trend || 'stable').toLowerCase();
-        const trendIcon = trend === 'rising' ? '↑' : trend === 'falling' ? '↓' : '→';
+       The top-down panel below says the same thing once and honestly: the
+       monthly figure with its warning, the quarter total to actually plan on,
+       and the share it was split by. */
+    const trend     = (insight.trend || 'stable').toLowerCase();
+    const trendIcon = trend === 'rising' ? '↑' : trend === 'falling' ? '↓' : '→';
+    const modelLabel = friendlyModelLabel(insight.model_type);
+    const mape = insight.municipality_accuracy?.mape;
 
-        forecastHtml = `
-            <div class="ip-forecast">
-                <div class="ip-forecast-header">
-                    <span class="ip-forecast-title">${modelLabel} — 3-Month Forecast</span>
-                    ${metaParts ? `<span class="ip-forecast-meta">${metaParts}</span>` : ''}
-                </div>
-                <div class="ip-forecast-grid">
-                    ${insight.forecast.map((val, i) => `
-                        <div class="ip-fc-card">
-                            <span class="ip-fc-label">${months[i] || 'Month ' + (i + 1)}</span>
-                            <span class="ip-fc-val">${val}</span>
-                            <span class="ip-fc-range">${insight.lower_ci?.[i] ?? '–'} – ${insight.upper_ci?.[i] ?? '–'}</span>
-                            <span class="ip-fc-ci">Likely Range</span>
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="ip-trend ip-trend-${trend}">${trendIcon} Trend: ${trend.toUpperCase()}</div>
-            </div>
-        `;
-    }
-
-    // Left column: the figures for this barangay. Right column: what to do
-    // about them. Splitting by kind rather than by whatever fitted.
+    // Left column: every figure for this barangay, each one once.
+    // Right column: what to do about them.
     const forecastHost = document.getElementById('insightForecast');
-    if (forecastHost) forecastHost.innerHTML = forecastHtml;
+    if (forecastHost) {
+        forecastHost.innerHTML = `
+            <div class="ip-forecast-header">
+                <span class="ip-forecast-title">${modelLabel}</span>
+                ${mape != null
+                    ? `<span class="ip-forecast-meta">Municipality forecast usually within ${mape}%</span>`
+                    : ''}
+            </div>
+            ${topDownPanelHtml(insight)}
+            <div class="ip-trend ip-trend-${trend}">${trendIcon} Trend: ${trend.toUpperCase()}</div>`;
+    }
 
     // ── Model badge ───────────────────────────────────────────────
     // insight.model_type is only ever set once a real prediction (from
@@ -1162,7 +1157,11 @@ function renderInsightPanel() {
                     : `Split from the municipality-wide forecast${insight.municipality_accuracy?.mape != null
                         ? ` (usually within ${insight.municipality_accuracy.mape}% municipality-wide)` : ''}`}</span>
             </div>
-        ` + actionTierHtml(insight) + topDownPanelHtml(insight);
+        `
+        // topDownPanelHtml is deliberately NOT appended here any more: it moved
+        // to the left column, where the figures live. Leaving it would draw the
+        // same three tiles twice on one screen.
+        + actionTierHtml(insight);
     }
 
     // ── Risk tier chip ────────────────────────────────────────────
