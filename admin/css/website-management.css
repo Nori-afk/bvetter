@@ -365,20 +365,24 @@ body {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+/* Height is set in JS to the scaled viewport's height (sizeLivePreview), so
+   the shell hugs the preview exactly and never runs a second scrollbar
+   alongside the embedded page's own. The 460px here is only what shows
+   before that first call. */
 .wm-browser-content {
   width: 100%; height: 460px; background: #F0F2F5;
   transition: height 0.3s ease; position: relative;
-  overflow-y: auto; overflow-x: hidden;
+  overflow: hidden;
 }
-.wm-browser-shell.mobile-mode .wm-browser-content { height: 540px; }
+/* A phone renders at life size and is centred, so the shell shows either
+   side of it — make that read as deliberate letterboxing, not dead space. */
+.wm-browser-shell.mobile-mode .wm-browser-content { background: #1A1D27; }
 
-/* Live iframe preview — real landing.html scaled to the shell's width.
-   The wrap's height is set in JS to match the scaled page height, and
-   .wm-browser-content (fixed height, overflow-y:auto) scrolls natively
-   over it — the iframe itself never scrolls internally, since a CSS
-   transform on the iframe breaks wheel-event routing into its document. */
+/* Live iframe preview — the frame gets a real device viewport (1440x900
+   desktop, 390x844 mobile) and the embedded page scrolls itself. Width,
+   height and the centring margin are all set in JS by sizeLivePreview(). */
 .wm-preview-frame-wrap {
-  width: 100%; position: relative;
+  position: relative;
 }
 .wm-preview-iframe {
   border: 0; display: block;
@@ -386,10 +390,7 @@ body {
   background: #fff;
   /* Clickable — links/buttons inside the preview navigate the iframe
      in place, so admins can click through modules and see settings
-     apply everywhere, not just on the first page loaded. The embedded
-     page forwards wheel events back out to .wm-browser-content (see
-     site-settings.js) since the CSS transform above would otherwise
-     swallow them without chaining the scroll back out. */
+     apply everywhere, not just on the first page loaded. */
   pointer-events: auto;
 }
 

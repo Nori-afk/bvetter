@@ -91,26 +91,3 @@ window.addEventListener('message', (event) => {
 });
 
 document.addEventListener('DOMContentLoaded', loadSiteSettings);
-
-/* Preview wheel-forwarding — only relevant when this page is embedded
-   (Website Management's Quick Preview iframe). The preview scales the
-   iframe down with a CSS transform so it fits the panel, which breaks
-   the browser's normal wheel-scroll routing into the iframe's own
-   document. Forward wheel deltas out to the parent instead, which
-   scrolls the actual preview viewport on our behalf — see the matching
-   'vbetter-preview-scroll' listener in admin/js/website-management.js. */
-if (window.self !== window.top) {
-  let sameOriginParent = false;
-  try {
-    sameOriginParent = window.top.location.origin === window.location.origin;
-  } catch (e) {
-    sameOriginParent = false;
-  }
-
-  if (sameOriginParent) {
-    window.addEventListener('wheel', (event) => {
-      event.preventDefault();
-      window.parent.postMessage({ type: 'vbetter-preview-scroll', deltaY: event.deltaY }, window.location.origin);
-    }, { passive: false });
-  }
-}

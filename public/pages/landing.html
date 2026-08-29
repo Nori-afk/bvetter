@@ -19,9 +19,16 @@
   <link rel="stylesheet" href="../css/landing.css"/>
   <!-- Loaded in <head>, not at the end of <body>: requireOwnerOrGuest()
        redirects a logged-in vet/admin to their own dashboard, and that has
-       to happen before first paint or they see this page flash past. -->
+       to happen before first paint or they see this page flash past.
+
+       Skipped when framed: Website Management's Quick Preview embeds this
+       page same-origin, so the guard saw the admin's own session and
+       replaced the preview with the admin dashboard - the panel labelled
+       "Pet Owner" was showing anything but. Nothing is protected here (this
+       is the public page), so the guard is routing convenience only and
+       costs nothing to skip inside a frame. -->
   <script src="../../shared/js/auth.js?v=20260819-entryguard"></script>
-  <script>requireOwnerOrGuest();</script>
+  <script>if (window.self === window.top) requireOwnerOrGuest();</script>
 </head>
 <body>
 
@@ -311,10 +318,10 @@
     </div>
   </footer>
   
-  <script src="../js/nav.js?v=20260820-notif-type"></script>
+  <script src="../js/nav.js?v=20260829-preview"></script>
   <script src="../js/api.js?v=20260819-authfix"></script>
   <script src="../js/landing.js"></script>
-  <script src="../js/site-settings.js"></script>
+  <script src="../js/site-settings.js?v=20260829-preview"></script>
   <script src="../js/chatbot.js"></script>
 </body>
 </html>

@@ -25,6 +25,20 @@ function toggleUserMenu() {
   if (panel) panel.classList.remove('open');
 }
 
+/* True when this page is embedded in Website Management's Quick Preview.
+   The panel promises a "Pet Owner" view, so the nav must render as a visitor
+   sees it: Login/Sign Up, and the full owner menu intact. Without this the
+   admin's own session leaks in - their name and "Administrator" in the pill,
+   and stripOwnerOnlyNav() deleting the very links the preview exists to show. */
+function inSitePreview() {
+  if (window.self === window.top) return false;
+  try {
+    return window.top.location.origin === window.location.origin;
+  } catch (e) {
+    return false;   // cross-origin framing - not our preview
+  }
+}
+
 /* =============================================
    NAV USER PILL — fills in the real logged-in
    name/role/avatar over the placeholder markup.
@@ -32,7 +46,9 @@ function toggleUserMenu() {
    no longer depend on landing.js being present.
    ============================================= */
 function hydrateNavUser() {
-  const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  const user = inSitePreview()
+    ? null
+    : (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
   const navGuest = document.getElementById('navGuest');
   const navAuth = document.getElementById('navAuth');
 
@@ -376,7 +392,9 @@ async function refreshNotifDot() {
   if (!getNotifDotElements().length) return;
   if (typeof api === 'undefined' || !api.getUnreadNotificationCount) return;
 
-  const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  const user = inSitePreview()
+    ? null
+    : (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
   if (!user) {
     setNotifDotVisible(false);
     return;

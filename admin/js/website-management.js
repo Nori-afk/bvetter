@@ -438,39 +438,54 @@ document.getElementById('btn-preview-owner').addEventListener('click', () => set
 document.getElementById('btn-preview-vet').addEventListener('click',   () => setPreviewRole('vet'));
 
 /* ── Live preview iframe ──
-   The iframe is scaled down (CSS transform) to fit the shell's width, but a
-   transform on an <iframe> breaks native wheel-event routing into its
-   document. So the iframe is sized to its full (unclipped) content height,
-   and the *outer* .wm-browser-content — a plain element with overflow-y:auto —
-   does the scrolling natively over the scaled-down wrap. */
+   The iframe is given a real device viewport and the embedded page scrolls
+   itself, exactly as it would on that device. Desktop is scaled down to fit
+   the panel's width; a phone renders at life size and is centred, because
+   scaling a 390px viewport up to panel width is a magnifying glass, not a
+   preview.
+
+   This replaced a measure-the-content-and-grow-the-iframe approach, which
+   could not work here: every staff page is a 100vh app shell (see
+   .MainContainer/.mainContent in vet/css/index.css), so its scrollHeight is
+   only ever the iframe's own height. The measurement fed itself and the
+   frame stayed at the 150px HTML default — a sliver of page above a grey
+   void. */
+const PREVIEW_VIEWPORTS = {
+  desktop: { width: 1440, height: 900 },
+  mobile:  { width: 390,  height: 844 }
+};
+
 function sizeLivePreview() {
-  const wrap = document.getElementById('wm-preview-frame-wrap');
-  const iframe = document.getElementById('wm-live-preview-iframe');
-  const shell = document.getElementById('browser-shell');
-  if (!wrap || !iframe || !shell) return;
+  const wrap    = document.getElementById('wm-preview-frame-wrap');
+  const iframe  = document.getElementById('wm-live-preview-iframe');
+  const shell   = document.getElementById('browser-shell');
+  const content = shell && shell.querySelector('.wm-browser-content');
+  if (!wrap || !iframe || !shell || !content) return;
 
   const isMobile = shell.classList.contains('mobile-mode');
-  const deviceWidth = isMobile ? 390 : 1440;
-  const fallbackHeight = isMobile ? 3600 : 2800;
-  const containerWidth = wrap.clientWidth || 1;
-  const scale = containerWidth / deviceWidth;
+  const vp = isMobile ? PREVIEW_VIEWPORTS.mobile : PREVIEW_VIEWPORTS.desktop;
+  const containerWidth = content.clientWidth || vp.width;
 
-  iframe.style.width = deviceWidth + 'px';
+  // A phone is never upscaled; the desktop view always fits the panel.
+  const scale = isMobile
+    ? Math.min(1, containerWidth / vp.width)
+    : containerWidth / vp.width;
 
-  let contentHeight = fallbackHeight;
-  try {
-    const doc = iframe.contentDocument;
-    const measured = doc && doc.documentElement
-      ? Math.max(doc.documentElement.scrollHeight, doc.body ? doc.body.scrollHeight : 0)
-      : 0;
-    if (measured > 0) contentHeight = measured;
-  } catch (e) {
-    /* Cross-origin or not-yet-loaded — fall back to a generous fixed height. */
-  }
+  iframe.style.width     = vp.width + 'px';
+  iframe.style.height    = vp.height + 'px';
+  iframe.style.transform = 'scale(' + scale + ')';
 
-  iframe.style.height = contentHeight + 'px';
-  iframe.style.transform = `scale(${scale})`;
-  wrap.style.height = (contentHeight * scale) + 'px';
+  const scaledWidth  = vp.width * scale;
+  const scaledHeight = vp.height * scale;
+
+  wrap.style.width  = scaledWidth + 'px';
+  wrap.style.height = scaledHeight + 'px';
+  // Letterbox a phone against the dark shell rather than pinning it left.
+  wrap.style.marginLeft = Math.max(0, (containerWidth - scaledWidth) / 2) + 'px';
+
+  // The shell hugs the scaled viewport, so the page's own scrollbar is the
+  // only one — no outer scrollbar running alongside it.
+  content.style.height = scaledHeight + 'px';
 }
 
 function sendLivePreviewUpdate() {
@@ -499,24 +514,12 @@ if (livePreviewFrame) {
   livePreviewFrame.addEventListener('load', () => {
     sizeLivePreview();
     sendLivePreviewUpdate();
-    // Images inside the preview can finish loading after 'load' fires and
-    // grow the page height — remeasure once they've had a chance to settle.
-    setTimeout(sizeLivePreview, 400);
   });
+  // The viewport no longer depends on what loaded, so size it straight away
+  // instead of leaving the frame at its 150px default until 'load' fires.
+  sizeLivePreview();
 }
 window.addEventListener('resize', sizeLivePreview);
-
-/* Receives wheel deltas forwarded from inside the preview iframe (see
-   site-settings.js) — the iframe is clickable so links/navigation work,
-   but that means it also now captures wheel events its scaled-down
-   content can't actually scroll with, so it hands them back to us. */
-window.addEventListener('message', (event) => {
-  if (event.origin !== window.location.origin) return;
-  const msg = event.data;
-  if (!msg || msg.type !== 'vbetter-preview-scroll') return;
-  const content = document.querySelector('.wm-browser-content');
-  if (content) content.scrollBy(0, msg.deltaY);
-});
 
 /* ── Preview mode toggle ── */
 document.getElementById('btn-preview-desktop').addEventListener('click', () => {
