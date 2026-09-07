@@ -35,7 +35,7 @@
 require_once __DIR__ . '/mailer.php';
 require_once __DIR__ . '/security_settings.php';
 
-const MAX_FAILED_LOGIN_ATTEMPTS = 3;
+const MAX_FAILED_LOGIN_ATTEMPTS = 10;
 
 function ensureLoginSecuritySchema(PDO $pdo): void
 {

@@ -440,9 +440,6 @@ def run_arima(series: pd.Series, steps: int = 3) -> dict:
         return _fallback_forecast(series, steps)
 
 
-# ════════════════════════════════════════════════════════════════════════
-# VACCINATION FORECAST  (unchanged)
-# ════════════════════════════════════════════════════════════════════════
 
 def _year_totals(series: pd.Series) -> dict:
     if not isinstance(series.index, pd.PeriodIndex):
