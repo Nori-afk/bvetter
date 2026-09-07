@@ -74,8 +74,16 @@ function attemptLogin(PDO $pdo, string $email, string $password, string $otpCode
         // which addresses have accounts. The owner learns about the block
         // from the email sent inside recordFailedLoginAttempt().
         if ($user) {
-            recordFailedLoginAttempt($pdo, $user);
+            $wasblocked= recordFailedLoginAttempt($pdo, $user);
+
+            if($wasblocked){
+                return [403, [
+                'success' => false,
+                'message' => 'Your account has been blocked due to multiple failed login attempts. Please contact the Baliwag City Veterinary Office to restore access.'
+            ]];
         }
+            }
+        
         return [401, [
             'success' => false,
             'message' => 'Invalid email or password.'
