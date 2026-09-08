@@ -470,3 +470,31 @@ function bv_latest_dataset_year()
     $years = array_map(fn($row) => (int) ($row['year'] ?? 0), bv_sheet_rows('Dashboard'));
     return max($years ?: [(int) date('Y')]);
 }
+
+/**
+ * The latest year present in the CONSULTATION data specifically.
+ *
+ * WHY THIS IS SEPARATE FROM bv_latest_dataset_year(). That one reads the
+ * Dashboard sheet, which is right for the views that also read the workbook --
+ * annual_dashboard(), the rabies panel, mass vaccination -- because those need
+ * the latest year their OWN sheet carries.
+ *
+ * The disease views do not. Consult_Diagnosis_3Y is the one sheet an upload
+ * replaces (see bv_sheet_rows()), so once a clinic uploads, its years and the
+ * bundled Dashboard sheet's years are no longer the same set. Pinning the
+ * disease case counts to the Dashboard year meant an upload covering any other
+ * year got filtered away to nothing: the "Actual Cases" chart went empty and
+ * still titled itself with the workbook's year, while the Python forecast --
+ * which derives its period from the uploaded rows -- kept rendering normally.
+ *
+ * Falls back to bv_latest_dataset_year() when the consultation source is empty,
+ * so a fresh install with no upload behaves exactly as it did before.
+ */
+function bv_latest_consult_year()
+{
+    $years = array_filter(array_map(
+        fn($row) => (int) ($row['year'] ?? 0),
+        bv_sheet_rows('Consult_Diagnosis_3Y')
+    ));
+    return $years ? max($years) : bv_latest_dataset_year();
+}

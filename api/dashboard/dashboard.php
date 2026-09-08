@@ -230,7 +230,7 @@ function disease_case_series($pdo, string $selected, string $period = 'year', st
             $counts[$b] = ($counts[$b] ?? 0) + $cases;
         }
     } else {
-        $latestYear  = bv_latest_dataset_year();
+        $latestYear  = bv_latest_consult_year();
         $consultRows = bv_sheet_rows('Consult_Diagnosis_3Y');
         $latestMonth = 12;
 
@@ -534,7 +534,7 @@ function disease_analytics_data($pdo)
     $currentMonth = bv_clean($input['current_month'] ?? $_GET['current_month'] ?? '');
     if (!preg_match('/^\d{4}-\d{2}$/', $currentMonth)) $currentMonth = date('Y-m');
 
-    $latestYear    = bv_latest_dataset_year();
+    $latestYear    = bv_latest_consult_year();
     $isAllDiseases = $selected === '';
 
     /* ── Actual case counts from the correct source per disease ──────── */
