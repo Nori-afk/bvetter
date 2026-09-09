@@ -17,6 +17,7 @@
  *   versions — list every upload, newest first
  *   activate — roll back / forward to a specific version id
  *   delete   — remove an inactive version and its rows (POST only, never the active one)
+ *   revert   — stand every version down; read the bundled workbook again (POST only)
  */
 
 header('Content-Type: application/json');
@@ -176,6 +177,35 @@ function actionDelete(PDO $pdo, $versionId)
     ]);
 }
 
+/**
+ * Stands every version down, so the portal reads the bundled workbook again.
+ *
+ * WHY THIS EXISTS. Uploads merge: each one carries the previous version's rows
+ * forward, so a version can only ever grow. Once a year has entered the active
+ * dataset there is no upload that removes it again, and deleting the version it
+ * arrived in does not help -- the rows were copied into every version since.
+ * Without this, "put the system back to the shipped 2023-2025 records" was
+ * simply unreachable, which is a bad place for a demo or a bad import to leave
+ * someone.
+ *
+ * Non-destructive on purpose: nothing is deleted, is_active is just cleared, and
+ * any version can be switched back on from the History tab afterwards. An empty
+ * active set is the same state a fresh install runs in, not a broken one --
+ * bv_active_consult_rows() returns null and every reader falls back to the
+ * workbook.
+ */
+function actionRevert(PDO $pdo)
+{
+    setupDatasetVersionTables($pdo);
+    $pdo->exec("UPDATE dataset_versions SET is_active = 0 WHERE is_active = 1");
+    bv_analytics_invalidate_disease();
+    respond(200, [
+        'success' => true,
+        'message' => 'The system is now reading the bundled 2023-2025 workbook. '
+                   . 'Nothing was deleted — switch any upload back on from the History tab.',
+    ]);
+}
+
 $action = bv_clean($_POST['action'] ?? $_GET['action'] ?? 'versions');
 
 try {
@@ -190,6 +220,12 @@ try {
             respond(405, ['success' => false, 'message' => 'Deleting a dataset version requires POST.']);
         }
         actionDelete($pdo, $_POST['versionId'] ?? 0);
+    }
+    if ($action === 'revert') {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+            respond(405, ['success' => false, 'message' => 'Reverting to the bundled workbook requires POST.']);
+        }
+        actionRevert($pdo);
     }
     respond(400, ['success' => false, 'message' => 'Unknown action: ' . $action]);
 } catch (Throwable $e) {

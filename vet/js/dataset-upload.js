@@ -140,7 +140,17 @@
                     <span class="du-stat-value" style="font-size:13px;word-break:break-all">${vbEscapeHtml(active.filename || '—')}</span>
                     ${active.note ? `<span class="du-stat-note">${vbEscapeHtml(active.note)}</span>` : ''}
                 </div>
+            </div>
+            <div class="du-revert-row">
+                <button type="button" class="du-btn du-btn-ghost" id="du-revert">Use the bundled 2023-2025 workbook instead</button>
+                <span class="du-dim">Stands every upload down without deleting anything. Switch one back on any time.</span>
             </div>`;
+
+        // Bound here rather than once at init: this element is re-created every
+        // time the panel re-renders, so a listener attached to the old node
+        // would be thrown away with it.
+        const revert = el('du-revert');
+        if (revert) revert.addEventListener('click', () => revertToBundled(revert));
     }
 
     function renderVersions(versions) {
@@ -267,6 +277,30 @@
             message('error', `Could not delete version. ${vbEscapeHtml(error.message)}`);
             button.disabled = false;
             button.textContent = 'Delete';
+        }
+    }
+
+    // The way back to the shipped records. Uploads only ever add, so without
+    // this there is no route from "a year I did not want is in the dataset"
+    // back to the bundled workbook.
+    async function revertToBundled(button) {
+        if (!window.confirm(
+            'Switch the system back to the bundled 2023-2025 workbook?\n\n' +
+            'Every chart, report and forecast will read the shipped records again. ' +
+            'No upload is deleted — the History tab can switch any of them back on.')) {
+            return;
+        }
+        button.disabled = true;
+        button.textContent = 'Switching…';
+        try {
+            const result = await datasetRequest('revert', new FormData());
+            message('ok', `<strong>Done.</strong> ${vbEscapeHtml(result.message)}`);
+            await loadVersions();
+            notifyChange();
+        } catch (error) {
+            message('error', `Could not switch back. ${vbEscapeHtml(error.message)}`);
+            button.disabled = false;
+            button.textContent = 'Use the bundled 2023-2025 workbook instead';
         }
     }
 
