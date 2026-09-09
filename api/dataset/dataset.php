@@ -16,6 +16,7 @@
  *   upload   (multipart, field `file`) — parse, validate, merge, activate
  *   versions — list every upload, newest first
  *   activate — roll back / forward to a specific version id
+ *   delete   — remove an inactive version and its rows (POST only, never the active one)
  */
 
 header('Content-Type: application/json');
@@ -142,12 +143,54 @@ function actionActivate(PDO $pdo, $versionId)
     respond(200, ['success' => true, 'message' => 'Dataset version ' . $versionId . ' is now active.']);
 }
 
+/**
+ * Deletes an old upload. Refuses the active one.
+ *
+ * The refusal is not squeamishness: because each version carries its own full
+ * copy of the data, deleting an INACTIVE version is genuinely inert -- no other
+ * version reads from it. Deleting the ACTIVE one is a different act entirely,
+ * silently dropping every chart back to the bundled workbook, so it is made to
+ * go through an explicit switch instead.
+ */
+function actionDelete(PDO $pdo, $versionId)
+{
+    $versionId = (int) $versionId;
+    $result    = bv_delete_dataset_version($pdo, $versionId);
+
+    if (!$result['ok']) {
+        if (($result['reason'] ?? '') === 'missing') {
+            respond(404, ['success' => false, 'message' => 'That dataset version does not exist.']);
+        }
+        respond(409, [
+            'success' => false,
+            'message' => 'That version is in use right now. Switch to a different version first, '
+                       . 'then delete this one.',
+        ]);
+    }
+
+    respond(200, [
+        'success' => true,
+        'message' => 'Deleted version ' . $versionId . ' (' . $result['filename'] . ') and its '
+                   . number_format($result['rows']) . ' consultations. '
+                   . 'The original file is kept on the server.',
+    ]);
+}
+
 $action = bv_clean($_POST['action'] ?? $_GET['action'] ?? 'versions');
 
 try {
     if ($action === 'upload')   actionUpload($pdo, $session);
     if ($action === 'versions') actionVersions($pdo);
     if ($action === 'activate') actionActivate($pdo, $_POST['versionId'] ?? $_GET['versionId'] ?? 0);
+    // POST-only, unlike activate: this is the one action here that destroys
+    // data, and a destructive GET is a link away from being fired by something
+    // that was only trying to read.
+    if ($action === 'delete') {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+            respond(405, ['success' => false, 'message' => 'Deleting a dataset version requires POST.']);
+        }
+        actionDelete($pdo, $_POST['versionId'] ?? 0);
+    }
     respond(400, ['success' => false, 'message' => 'Unknown action: ' . $action]);
 } catch (Throwable $e) {
     error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());

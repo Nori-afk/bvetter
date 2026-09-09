@@ -216,3 +216,13 @@
     .du-modal-body { padding: 16px; }
     .du-stat-row { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ── Delete (history rows) ──────────────────────────────────────── */
+/* Outlined rather than filled: it sits in a table cell beside a routine
+   "Switch back to this", and a solid red block there reads as an error state
+   rather than an action that is available. */
+.du-btn-danger {
+    background: #fff; color: #b42318; border: 1px solid #fecdca;
+    padding: 7px 13px; font-size: 12.5px; border-radius: 8px; margin-left: 6px;
+}
+.du-btn-danger:hover:not(:disabled) { background: #fef3f2; border-color: #f97066; }

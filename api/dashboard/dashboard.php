@@ -15,6 +15,7 @@
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../includes/dataset.php';
+require_once __DIR__ . '/../includes/dataset_versions.php';
 require_once __DIR__ . '/../config/auth_guard.php';
 
 // Captured, not discarded: the ROUTER at the bottom needs the authenticated
@@ -739,18 +740,41 @@ function disease_analytics_data($pdo)
      * disease_case_series), so their source lists say so plainly instead of
      * describing one blended pipeline.
      */
+    /* What the consultation source actually IS right now.
+     *
+     * These lines used to be fixed strings naming "Excel 2023-2025 municipal
+     * records" whatever was loaded, so an uploaded dataset was invisible here:
+     * the panel went on naming the bundled workbook while every chart on the
+     * page was already reading the upload. That is exactly how a successful
+     * 2026 upload came to look like it had not registered at all. Derived from
+     * the active version now, so this panel cannot name a source the page is
+     * not using.
+     */
+    $activeVersion = bv_active_dataset_version($pdo);
+    if ($activeVersion) {
+        $fromYear = substr((string) ($activeVersion['covers_from_date'] ?? ''), 0, 4);
+        $toYear   = substr((string) ($activeVersion['covers_through_date'] ?? ''), 0, 4);
+        $spanLabel = ($fromYear !== '' && $toYear !== '')
+            ? ($fromYear === $toYear ? $fromYear : $fromYear . '-' . $toYear)
+            : 'uploaded records';
+        $consultLabel = 'Uploaded file · ' . (string) $activeVersion['filename'] . ' · ' . $spanLabel;
+    } else {
+        $spanLabel    = '2023-2025';
+        $consultLabel = 'Bundled workbook · BaliwagVet_2023-2025.xlsx · 2023-2025';
+    }
+
     if ($isCurrent) {
         $sources = [
             ['name' => 'patient_visit_records', 'status' => 'Case counts · live clinic entries (used)'],
             ['name' => 'diseases catalog',      'status' => 'Validates diagnosis before it counts as a case (used)'],
-            ['name' => 'Consult_Diagnosis_3Y',  'status' => 'Historical training data · not used in Current view'],
+            ['name' => 'Consult_Diagnosis_3Y',  'status' => $consultLabel . ' · not used in Current view'],
         ];
     } else {
         $sources = [
-            ['name' => 'Consult_Diagnosis_3Y',      'status' => 'Case counts · Excel 2023-2025 municipal records (used)'],
-            // Both labels were stale. Barangay_Disease_Monthly no longer trains
-            // anything -- the pipeline is single-source on the consultations --
-            // and the disease filter is now built from those consultations too.
+            ['name' => 'Consult_Diagnosis_3Y',      'status' => 'Case counts · ' . $consultLabel . ' (used)'],
+            // Barangay_Disease_Monthly no longer trains anything -- the pipeline
+            // is single-source on the consultations -- and the disease filter is
+            // built from those consultations too.
             ['name' => 'Barangay_Disease_Monthly',  'status' => 'No longer used · superseded by the consultation records'],
             ['name' => 'diseases catalog',          'status' => 'Diagnosis list and categories (used)'],
         ];
@@ -770,7 +794,7 @@ function disease_analytics_data($pdo)
         // carries one period label and no card restates the year on its own.
         'baselineLabel'   => $isCurrent
             ? 'Live Clinic Records · ' . $periodLabel
-            : 'Historical Baseline · 2023-' . $latestYear . ' municipal records (training data)',
+            : 'Historical Baseline · ' . $spanLabel . ' consultation records (training data)',
         'liveCoverage'    => $liveCoverage,
         'kpis'            => [
             [

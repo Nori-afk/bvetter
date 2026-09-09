@@ -95,12 +95,25 @@
         if (!host) return;
 
         if (!active) {
+            // The warning matters more than it looks. Every LATER upload merges
+            // into whatever is active (bv_consult_ingest carries the previous
+            // version's rows forward), but the FIRST one has nothing to carry,
+            // so a single-year file silently becomes the clinic's entire
+            // history -- which is how a 2026-only upload ended up replacing
+            // three years of records instead of extending them.
             host.innerHTML = `
                 <div class="du-active-empty">
-                    No dataset has been uploaded yet. The system is reading the bundled
-                    workbook (<code>BaliwagVet_2023-2025.xlsx</code>) as a fallback.
-                    Uploading a file here replaces it as the source for the charts,
-                    reports and forecasts.
+                    <strong>No dataset has been uploaded yet.</strong> The system is reading the
+                    bundled workbook (<code>BaliwagVet_2023-2025.xlsx</code>) as a fallback.
+                    <br><br>
+                    Because there is no dataset to build on, <strong>this first upload becomes the
+                    whole history on its own</strong> — nothing is carried forward into it. Later
+                    uploads are different: they merge into whatever is active, so a monthly or
+                    yearly top-up adds to the records rather than replacing them.
+                    <br><br>
+                    If your file covers only part of your records, upload your full history first —
+                    or upload <code>BaliwagVet_2023-2025.xlsx</code> to set a 2023-2025 baseline,
+                    then top it up.
                 </div>`;
             return;
         }
@@ -152,7 +165,8 @@
                     <td class="du-dim">${formatDate(v.uploaded_at)}<br>${vbEscapeHtml(v.uploaded_by || '')}</td>
                     <td>${isActive
                         ? '<span class="du-pill">In use</span>'
-                        : `<button type="button" class="du-btn du-btn-ghost" data-activate="${v.id}">Switch back to this</button>`}
+                        : `<button type="button" class="du-btn du-btn-ghost" data-activate="${v.id}">Switch back to this</button>
+                           <button type="button" class="du-btn du-btn-danger" data-delete="${v.id}">Delete</button>`}
                     </td>
                 </tr>`;
         }).join('');
@@ -169,6 +183,12 @@
 
         host.querySelectorAll('[data-activate]').forEach((button) => {
             button.addEventListener('click', () => activateVersion(button.dataset.activate, button));
+        });
+
+        // Only inactive versions are given a Delete button, so this listener
+        // never has to guard against removing the dataset the portal is reading.
+        host.querySelectorAll('[data-delete]').forEach((button) => {
+            button.addEventListener('click', () => deleteVersion(button.dataset.delete, button));
         });
     }
 
@@ -218,6 +238,35 @@
             message('error', `Could not switch version. ${vbEscapeHtml(error.message)}`);
             button.disabled = false;
             button.textContent = 'Switch back to this';
+        }
+    }
+
+    // Deleting is offered only for versions that are NOT in use. The server
+    // refuses the active one as well (409), because a button is not a security
+    // boundary -- this only keeps the UI from asking for something it knows
+    // will fail.
+    async function deleteVersion(versionId, button) {
+        const row = button.closest('tr');
+        const name = row ? row.querySelector('.du-file-name')?.textContent?.trim() : '';
+        if (!window.confirm(
+            `Permanently delete dataset version ${versionId}${name ? ` (${name})` : ''}?\n\n` +
+            'Its consultation records are removed from the database. Every other version keeps ' +
+            'its own full copy, so nothing else loses data, and the dataset in use is unaffected.\n\n' +
+            'The original uploaded file stays on the server. This cannot be undone from here.')) {
+            return;
+        }
+        button.disabled = true;
+        button.textContent = 'Deleting…';
+        try {
+            const body = new FormData();
+            body.set('versionId', versionId);
+            const result = await datasetRequest('delete', body);
+            message('ok', `<strong>Deleted.</strong> ${vbEscapeHtml(result.message)}`);
+            await loadVersions();
+        } catch (error) {
+            message('error', `Could not delete version. ${vbEscapeHtml(error.message)}`);
+            button.disabled = false;
+            button.textContent = 'Delete';
         }
     }
 

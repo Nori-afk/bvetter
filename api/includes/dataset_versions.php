@@ -434,3 +434,48 @@ function bv_consult_ingest(PDO $pdo, array $rows, $filename, $uploadedBy = '', $
         'previousId'    => $previousId,
     ];
 }
+
+/**
+ * Removes a stored version and every consultation row belonging to it.
+ *
+ * SAFE ON ANY VERSION EXCEPT THE ACTIVE ONE. Each version owns a complete copy
+ * of the data -- bv_consult_ingest() carries the previous version's rows forward
+ * into the new one rather than referencing them -- so version 7 reads nothing
+ * out of version 6, and deleting an old version can never leave a newer one
+ * short of rows.
+ *
+ * The active version is refused rather than handled. Deleting it would drop the
+ * whole system back to the bundled workbook with no other signal, which is a
+ * different operation from "tidy up an old upload" and deserves to be an
+ * explicit switch first.
+ *
+ * The uploaded .xlsx is deliberately LEFT on disk. bv_upload_store_file() keeps
+ * the original so a figure questioned months later can be traced to the file
+ * that produced it, and dropping the parsed rows does not retire that argument.
+ *
+ * @return array{ok:bool,reason?:string,filename?:string,rows?:int}
+ */
+function bv_delete_dataset_version(PDO $pdo, $versionId)
+{
+    setupDatasetVersionTables($pdo);
+    $versionId = (int) $versionId;
+
+    $stmt = $pdo->prepare("SELECT id, filename, row_count, is_active
+                           FROM dataset_versions WHERE id = :v");
+    $stmt->execute([':v' => $versionId]);
+    $version = $stmt->fetch();
+
+    if (!$version)                        return ['ok' => false, 'reason' => 'missing'];
+    if ((int) $version['is_active'] === 1) return ['ok' => false, 'reason' => 'active'];
+
+    // One statement, not two: historical_consultations.dataset_version_id is
+    // ON DELETE CASCADE, so the rows go with the version and there is no window
+    // where the version is gone but its rows are not.
+    $pdo->prepare("DELETE FROM dataset_versions WHERE id = :v")->execute([':v' => $versionId]);
+
+    return [
+        'ok'       => true,
+        'filename' => (string) ($version['filename'] ?? ''),
+        'rows'     => (int) ($version['row_count'] ?? 0),
+    ];
+}
