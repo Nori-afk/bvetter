@@ -498,3 +498,44 @@ function bv_latest_consult_year()
     ));
     return $years ? max($years) : bv_latest_dataset_year();
 }
+
+/**
+ * How the latest year should be NAMED, given how much of it the data covers.
+ *
+ * "Full Year 2026" over seven encoded months is a claim the chart used to make
+ * while sitting beside three complete years, inviting a comparison the numbers
+ * cannot support. Any clinic that uploads mid-year hits this, not just a demo.
+ *
+ * Reports the span AND the count rather than a bare "partial": a vet reading
+ * "Jan-Jul 2026 (7 of 12 months)" knows both what is in the figure and how much
+ * is missing from it.
+ *
+ * Reads the same cached rows every other caller uses, so naming the period
+ * costs no extra query or file parse.
+ */
+function bv_consult_year_label($year)
+{
+    $year   = (int) $year;
+    $months = [];
+    foreach (bv_sheet_rows('Consult_Diagnosis_3Y') as $row) {
+        if ((int) ($row['year'] ?? 0) !== $year) continue;
+        $month = (int) ($row['month_no'] ?? 0);
+        if ($month >= 1 && $month <= 12) $months[$month] = true;
+    }
+
+    // No rows at all falls back to the old wording rather than inventing a
+    // span: an empty year is a different problem, and mislabelling it here
+    // would hide it.
+    if (!$months || count($months) >= 12) return 'Full Year ' . $year;
+
+    ksort($months);
+    $names = [1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr',  5 => 'May',  6 => 'Jun',
+              7 => 'Jul', 8 => 'Aug', 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec'];
+    $present = array_keys($months);
+    $first   = $names[$present[0]];
+    $last    = $names[end($present)];
+
+    return sprintf('%s %d (%d of 12 months)',
+        $first === $last ? $first : $first . '-' . $last,
+        $year, count($months));
+}

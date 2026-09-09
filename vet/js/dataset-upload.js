@@ -328,6 +328,13 @@
                 <li>Forecasts and charts ${data.analyticsNotified
                     ? 'have been refreshed'
                     : 'will refresh on their next load'}</li>
+                ${data.casesPerRowMismatch ? `<li class="du-warn">
+                    <strong>Check the cases_reported column.</strong>
+                    This file records ${data.casesPerRowFile} cases per consultation, but the
+                    records already in the dataset average ${data.casesPerRowPrior}. The two
+                    halves will count cases differently, so a trend across the join may be an
+                    artefact of the encoding rather than a real change.
+                </li>` : ''}
             </ul>`;
     }
 

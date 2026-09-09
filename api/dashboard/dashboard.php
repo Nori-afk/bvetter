@@ -732,7 +732,7 @@ function disease_analytics_data($pdo)
     if ($isCurrent) {
         $periodLabel = date('F Y', strtotime("$currentMonth-01"));
     } else {
-        $periodLabel = $period === 'month' ? 'Latest Month' : 'Full Year ' . $latestYear;
+        $periodLabel = $period === 'month' ? 'Latest Month' : bv_consult_year_label($latestYear);
     }
 
     /* ── Source labels ───────────────────────────────────────────────────

@@ -330,6 +330,43 @@ function bv_consult_ingest(PDO $pdo, array $rows, $filename, $uploadedBy = '', $
     $previous = bv_active_dataset_version($pdo);
     $previousId = $previous ? (int) $previous['id'] : null;
 
+    /* Cases per consultation, on each side of the merge.
+     *
+     * WHY THIS IS MEASURED. cases_reported is not a required column, so a file
+     * can omit it or fill it with a constant and still validate -- and every
+     * blank silently becomes 1 in the loop below. That is not hypothetical: a
+     * year's upload arrived with a flat 1 on all 2,638 rows against real
+     * records averaging 1.53, which understated that year's case counts by
+     * about a third and flattened the merged series exactly where it should
+     * have continued. Nothing on screen said so, and it took two days to find.
+     *
+     * Reported rather than rejected. A clinic may legitimately change how it
+     * encodes multiplicity, and refusing the upload would be wrong; the caller
+     * shows the two figures so a person can tell which it is.
+     */
+    $fileCases = 0;
+    foreach ($rows as $row) {
+        $raw = bv_clean($row['cases_reported'] ?? '');
+        $fileCases += max(0, (int) ($raw === '' ? 1 : $raw));
+    }
+    $fileRatio = $rows ? $fileCases / count($rows) : 0.0;
+
+    $priorRatio = null;
+    if ($previousId) {
+        $prior = $pdo->prepare("SELECT COUNT(*) AS n, COALESCE(SUM(cases_reported), 0) AS c
+                                FROM historical_consultations WHERE dataset_version_id = :v");
+        $prior->execute([':v' => $previousId]);
+        $priorRow = $prior->fetch();
+        if ((int) ($priorRow['n'] ?? 0) > 0) {
+            $priorRatio = (float) $priorRow['c'] / (int) $priorRow['n'];
+        }
+    }
+    // 15%: the real years sit within 1% of each other (1.53-1.54), so this
+    // clears normal variation comfortably while catching the 1.00-vs-1.53 case.
+    $ratioMismatch = $priorRatio !== null && $priorRatio > 0
+        && abs($fileRatio - $priorRatio) / $priorRatio > 0.15;
+
+
     $pdo->beginTransaction();
     try {
         $pdo->prepare("INSERT INTO dataset_versions (filename, uploaded_by, source_row_count, note, is_active)
@@ -432,6 +469,9 @@ function bv_consult_ingest(PDO $pdo, array $rows, $filename, $uploadedBy = '', $
         'coversFrom'    => $summary['from_date'],
         'coversThrough' => $summary['through_date'],
         'previousId'    => $previousId,
+        'casesPerRowFile'  => round($fileRatio, 2),
+        'casesPerRowPrior' => $priorRatio === null ? null : round($priorRatio, 2),
+        'casesPerRowMismatch' => $ratioMismatch,
     ];
 }
 
