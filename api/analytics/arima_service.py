@@ -80,14 +80,38 @@ _load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
 
 EXCEL_PATH = os.path.join(os.path.dirname(__file__), "../../database/BaliwagVet_2023-2025.xlsx")
 
-# Same DB this app's PHP layer connects to (api/config/connection.php) — kept
-# overridable via env vars for deployments where the DB isn't local XAMPP.
+def _db_setting(name, default):
+    """One DB setting, resolved the way connection.php resolves it.
+
+    VBETTER_DB_* wins, for a deployment that genuinely needs this service
+    pointed at a different database. Otherwise the plain DB_* names are used --
+    the ones _load_dotenv() above has just read out of the shared .env, and the
+    ones the PHP layer reads -- so by default both halves of the app
+    authenticate as the same user against the same database.
+
+    Consulting DB_* is the whole point, and it used to be missing. This block
+    read VBETTER_* only, so a deployment that configured the app properly in
+    .env (the droplet does, with its own bvetter_app user) still left this
+    service trying root/root. The connection failed, load_active_dataset_version()
+    swallowed the error and returned None, and the service quietly served the
+    bundled workbook while PHP served the uploaded dataset -- two readers giving
+    two different answers for the same page, with nothing logged anywhere.
+
+    `or` rather than an is-None check on purpose: it mirrors connection.php's
+    `getenv(...) ?: default` exactly, so an empty value falls through to the
+    default in both readers instead of in only one of them.
+    """
+    return (os.environ.get("VBETTER_DB_" + name)
+            or os.environ.get("DB_" + name)
+            or default)
+
+
 DB_CONFIG = {
-    "host":     os.environ.get("VBETTER_DB_HOST", "localhost"),
-    "port":     int(os.environ.get("VBETTER_DB_PORT", "3306")),
-    "user":     os.environ.get("VBETTER_DB_USER", "root"),
-    "password": os.environ.get("VBETTER_DB_PASS", "root"),
-    "database": os.environ.get("VBETTER_DB_NAME", "bvetter"),
+    "host":     _db_setting("HOST", "localhost"),
+    "port":     int(_db_setting("PORT", "3306")),
+    "user":     _db_setting("USER", "root"),
+    "password": _db_setting("PASS", "root"),
+    "database": _db_setting("NAME", "bvetter"),
     "charset":  "utf8mb4",
 }
 
@@ -143,12 +167,33 @@ def cache_set(key, data):
 _active_dataset_version = None   # version id the current caches were built from
 
 
+_db_connect_warned = False   # so a broken DB config is reported once, not per request
+
+
 def load_active_dataset_version() -> int:
     """Active dataset_versions.id, or None when nothing has been uploaded yet."""
+    global _db_connect_warned
     try:
         conn = db_connect()
-    except Exception:
+    except Exception as e:
+        # NOT silent any more. This used to return None with nothing printed,
+        # which is indistinguishable from the legitimate "nothing uploaded yet"
+        # answer -- so a service that simply could not authenticate went on
+        # serving the bundled workbook indefinitely while the PHP pages served
+        # the uploaded dataset. The only symptom was a forecast that disagreed
+        # with the actual case counts on the same screen, which reads as a
+        # modelling problem rather than a connection one.
+        #
+        # Printed once per broken run rather than per request: this is called
+        # before every consultation read, and a per-request log would bury it.
+        if not _db_connect_warned:
+            _db_connect_warned = True
+            print(f"[dataset] CANNOT REACH THE DATABASE as {DB_CONFIG['user']}@"
+                  f"{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}: {e}")
+            print("[dataset] Falling back to the bundled workbook. Uploaded datasets will be "
+                  "IGNORED by every forecast until this is fixed, while the PHP pages keep using them.")
         return None
+    _db_connect_warned = False
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT id FROM dataset_versions WHERE is_active = 1 LIMIT 1")
@@ -3823,8 +3868,21 @@ def invalidate_vaccination_cache():
 
 @app.route("/health", methods=["GET"])
 def health():
+    # Resolved once: this opens a connection, and asking twice for one payload
+    # would double every health check's DB cost for no extra information.
+    active_version = load_active_dataset_version()
     return jsonify({
         "status": "ok", "service": "BVetter Analytics v3.1",
+        # Which consultation source this service is ACTUALLY on, which is the
+        # one thing /health could not previously answer. When the DB is
+        # unreachable the fallback to the bundled workbook is invisible from
+        # outside -- forecasts keep coming, they are just built on different
+        # data from the one the PHP pages are showing. Reported here so the two
+        # can be compared without reading the service log.
+        "consult_source": ("uploaded dataset" if active_version is not None
+                           else "bundled workbook (no active upload, or DB unreachable)"),
+        "active_dataset_version": active_version,
+        "db": f"{DB_CONFIG['user']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}",
         # This list previously advertised "CACHE_TTL 300->600" long after the
         # constant had been raised to 21600. Reported from the constant now, so
         # it cannot drift out of date again.
