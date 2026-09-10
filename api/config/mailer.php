@@ -124,8 +124,19 @@ function sendViaBrevo(string $apiKey, string $toEmail, string $toName, string $s
         'htmlContent' => $htmlBody,
     ];
 
-    $ch = curl_init('https://api.brevo.com/v3/smtp/email');
+    // The handle is kept for the life of the request, for the same reason
+    // SMTPKeepAlive is set on the other transport: these flows send more than
+    // one notification, and a fresh handle means a fresh TCP connect and TLS
+    // handshake to Brevo for each one, in series, while the user waits. Reusing
+    // it lets curl keep the connection alive, so only the first send pays for
+    // the handshake.
+    static $ch = null;
+    if ($ch === null) {
+        $ch = curl_init();
+    }
+
     curl_setopt_array($ch, [
+        CURLOPT_URL => 'https://api.brevo.com/v3/smtp/email',
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => json_encode($payload),
@@ -139,7 +150,8 @@ function sendViaBrevo(string $apiKey, string $toEmail, string $toName, string $s
     $response = curl_exec($ch);
     $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curlError = curl_error($ch);
-    curl_close($ch);
+    // Deliberately not closed: PHP frees it at the end of the request, and
+    // closing here would throw away the connection the next send wants.
 
     if ($curlError !== '' || $statusCode < 200 || $statusCode >= 300) {
         error_log('[BVetter Mailer] Brevo send failed (' . $statusCode . '): ' . ($curlError ?: $response));
@@ -150,20 +162,47 @@ function sendViaBrevo(string $apiKey, string $toEmail, string $toName, string $s
 
 function sendViaSmtp(string $toEmail, string $toName, string $subject, string $htmlBody): bool
 {
-    try {
-        $mail = new PHPMailer(true);
-        $mail->CharSet    = PHPMailer::CHARSET_UTF8;
-        $mail->isSMTP();
-        $mail->Host       = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
-        $mail->SMTPAuth   = true;
-        $mail->Username   = getenv('SMTP_USER') ?: '';
-        $mail->Password   = getenv('SMTP_PASS') ?: '';
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = (int) (getenv('SMTP_PORT') ?: 587);
+    // ONE SMTP SESSION PER REQUEST, not one per email.
+    //
+    // PHPMailer opens a fresh session on every send() by default, and these
+    // flows send more than one: a booking notifies the staff and then the
+    // owner, and a lost-and-found report does the same. So the connect, the
+    // STARTTLS handshake and the AUTH round-trip were paid once per recipient,
+    // in series, inside the user's request. Measured by the Selenium
+    // performance suite: 14.1s of a 14.65s booking was spent inside the API
+    // call, against a 3s budget.
+    //
+    // SMTPKeepAlive holds the session open across sends in the same request.
+    // PHPMailer closes it when the script ends, so nothing leaks between
+    // requests.
+    static $mail = null;
 
-        $mail->setFrom(getenv('SMTP_FROM') ?: $mail->Username, getenv('MAIL_FROM_NAME') ?: 'BVetter');
+    try {
+        if ($mail === null) {
+            $mail = new PHPMailer(true);
+            $mail->CharSet       = PHPMailer::CHARSET_UTF8;
+            $mail->isSMTP();
+            $mail->Host          = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
+            $mail->SMTPAuth      = true;
+            $mail->Username      = getenv('SMTP_USER') ?: '';
+            $mail->Password      = getenv('SMTP_PASS') ?: '';
+            $mail->SMTPSecure    = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port          = (int) (getenv('SMTP_PORT') ?: 587);
+            $mail->SMTPKeepAlive = true;
+            // Bounded, like the Brevo path's CURLOPT_TIMEOUT. PHPMailer
+            // defaults to 300s, so a mail host that accepts the connection and
+            // then stalls would hold a user's request open for five minutes --
+            // the notification is not worth that, and failing fast still logs.
+            $mail->Timeout       = 8;
+            $mail->setFrom(getenv('SMTP_FROM') ?: $mail->Username, getenv('MAIL_FROM_NAME') ?: 'BVetter');
+            $mail->isHTML(true);
+        }
+
+        // Reused instance, so the previous recipient has to go before the next
+        // one is added -- otherwise every message after the first is delivered
+        // to everyone before it.
+        $mail->clearAddresses();
         $mail->addAddress($toEmail, $toName);
-        $mail->isHTML(true);
         $mail->Subject = $subject;
         $mail->Body    = $htmlBody;
 
@@ -171,6 +210,10 @@ function sendViaSmtp(string $toEmail, string $toName, string $subject, string $h
         return true;
     } catch (MailException $e) {
         error_log('[BVetter Mailer] SMTP send failed: ' . $e->getMessage());
+        // A failed send can leave the kept-alive session in an unusable state,
+        // and every later send in this request would fail behind it. Dropping
+        // the instance means the next one reconnects instead.
+        $mail = null;
         return false;
     }
 }
