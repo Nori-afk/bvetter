@@ -2132,6 +2132,45 @@ def build_municipality_series(df: pd.DataFrame) -> pd.Series:
     return pd.Series(monthly["total_cases"].values.astype(float), index=idx).asfreq("M", fill_value=0)
 
 
+def _trim_partial_tail(series: pd.Series, keep_min: int = 24) -> pd.Series:
+    """
+    Drop trailing months too small to be complete.
+
+    WHY THE PER-BARANGAY GATE IS NOT ENOUGH. _arima_safe_frame() already removes
+    implausibly thin live barangay-months, but it removes them ONE BARANGAY AT A
+    TIME. Summing what is left still yields a row for that month, now holding
+    only the few barangays that passed -- so a month that was 20% encoded does
+    not disappear from the municipality series, it appears as a collapse.
+
+    Measured on the real series (2023-2025, ~212 cases a month), appending a
+    single trailing month of 10 cases moves the 3-month forecast from
+    [211.6, 212.2, 212.3] to [0.0, 0.0, 9.6]. Every barangay figure is that
+    forecast times a share, so all 27 of them read zero -- which is exactly what
+    reached the chart after an upload whose dataset ended in July and whose live
+    August rows were still being entered.
+
+    Same threshold and the same reasoning as the per-barangay gate, so the two
+    levels cannot disagree about what "too thin to trust" means. Trailing months
+    only: a genuinely quiet month in the middle of the series is data, and the
+    model should see it. The rows stay in df for the regressor and for display;
+    only the series ARIMA is fitted on is trimmed.
+    """
+    if len(series) <= keep_min:
+        return series
+
+    trimmed = series
+    while len(trimmed) > keep_min:
+        reference = float(trimmed.iloc[:-1].median())
+        if reference <= 0 or float(trimmed.iloc[-1]) >= reference * MIN_PLAUSIBLE_SHARE_OF_MEDIAN:
+            break
+        dropped = trimmed.index[-1]
+        print(f"[coverage] municipality {dropped}: {float(trimmed.iloc[-1]):.0f} cases is below "
+              f"{MIN_PLAUSIBLE_SHARE_OF_MEDIAN:.0%} of the {reference:.0f} monthly median; "
+              "month is still being encoded, so it is left out of the forecast series")
+        trimmed = trimmed.iloc[:-1]
+    return trimmed
+
+
 def build_barangay_spread(df: pd.DataFrame, shares: dict) -> dict:
     """
     How far each barangay's ACTUAL monthly count historically lands from its
@@ -2311,7 +2350,7 @@ def get_all_disease_models():
     # Honest limit, stated wherever this is surfaced: barangay-month figures
     # still carry ~91% MAPE. The trustworthy numbers are the municipality total
     # (1.54%) and the 3-month barangay total (~36%).
-    municipality_series = build_municipality_series(arima_df)
+    municipality_series = _trim_partial_tail(build_municipality_series(arima_df))
     barangay_shares     = build_barangay_shares(arima_df)
     barangay_spread     = build_barangay_spread(arima_df, barangay_shares)
     municipality_acc    = _municipality_holdout_accuracy(municipality_series)
