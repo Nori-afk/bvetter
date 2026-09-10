@@ -515,6 +515,33 @@ function bv_latest_consult_year()
  */
 function bv_consult_year_label($year)
 {
+    $months = bv_consult_year_months($year);
+
+    // No rows at all falls back to the old wording rather than inventing a
+    // span: an empty year is a different problem, and mislabelling it here
+    // would hide it.
+    if (!$months || count($months) >= 12) return 'Full Year ' . (int) $year;
+
+    $names = [1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr',  5 => 'May',  6 => 'Jun',
+              7 => 'Jul', 8 => 'Aug', 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec'];
+    $first = $names[$months[0]];
+    $last  = $names[end($months)];
+
+    return sprintf('%s %d (%d of 12 months)',
+        $first === $last ? $first : $first . '-' . $last,
+        (int) $year, count($months));
+}
+
+/**
+ * Which calendar months of $year the consultation data actually holds, ascending.
+ *
+ * Separate from the label because two callers need the COUNT rather than the
+ * wording: the label itself, and the pace comparison that tells a reader what a
+ * part-year total is on track to become. Both must agree about how much of the
+ * year is encoded, so both read it from here.
+ */
+function bv_consult_year_months($year)
+{
     $year   = (int) $year;
     $months = [];
     foreach (bv_sheet_rows('Consult_Diagnosis_3Y') as $row) {
@@ -522,20 +549,6 @@ function bv_consult_year_label($year)
         $month = (int) ($row['month_no'] ?? 0);
         if ($month >= 1 && $month <= 12) $months[$month] = true;
     }
-
-    // No rows at all falls back to the old wording rather than inventing a
-    // span: an empty year is a different problem, and mislabelling it here
-    // would hide it.
-    if (!$months || count($months) >= 12) return 'Full Year ' . $year;
-
     ksort($months);
-    $names = [1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr',  5 => 'May',  6 => 'Jun',
-              7 => 'Jul', 8 => 'Aug', 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec'];
-    $present = array_keys($months);
-    $first   = $names[$present[0]];
-    $last    = $names[end($present)];
-
-    return sprintf('%s %d (%d of 12 months)',
-        $first === $last ? $first : $first . '-' . $last,
-        $year, count($months));
+    return array_keys($months);
 }

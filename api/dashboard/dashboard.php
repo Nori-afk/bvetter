@@ -787,6 +787,12 @@ function disease_analytics_data($pdo)
         'selectedDisease' => $selected !== '' ? ucwords($selected) : 'All Diseases',
         'period'          => $period,
         'periodLabel'     => $periodLabel,
+        // How much of the latest year the figures actually cover, so the page can
+        // say what a part-year total is on track to become instead of leaving a
+        // 7-month bar to be read against a 12-month forecast beside it.
+        'periodMonths'    => (!$isCurrent && $period !== 'month')
+            ? count(bv_consult_year_months($latestYear))
+            : null,
         'isAllDiseases'   => $isAllDiseases,
         'dataView'        => $dataView,
         'currentMonth'    => $currentMonth,

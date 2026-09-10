@@ -1983,3 +1983,19 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 .da-marker-urgent {
     filter: drop-shadow(0 1px 3px rgba(15,23,42,0.6));
 }
+
+/* ── Part-year pace comparison (under the two charts) ───────────── */
+/* Sits between the charts and the insight panel, styled as a caption rather
+   than a warning: nothing is wrong, the two charts simply cover different
+   spans and the reader needs that stated once. */
+.pace-note {
+    margin: 10px 2px 0;
+    padding: 10px 13px;
+    background: #f8fafc;
+    border-left: 3px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: #475569;
+}
+.pace-note strong { color: #0f172a; }

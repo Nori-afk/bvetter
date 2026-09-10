@@ -946,6 +946,35 @@ function renderOverview() {
     renderBarChart('actualChart',    diseaseAnalyticsData.actualCases,    'actual');
     renderBarChart('predictedChart', diseaseAnalyticsData.predictedCases, 'predicted');
 
+    /* Part-year actuals sit beside a 12-month forecast, so every forecast bar
+       runs proportionally longer for arithmetic reasons alone and the whole
+       right-hand chart reads as a jump. Stating the pace removes the misread
+       without touching either chart.
+
+       Compared at MUNICIPALITY level deliberately: that is where the model is
+       accurate (1.5% MAPE against ~91% for a single barangay-month), so
+       annualising each bar would put the page's least reliable figure beside
+       its most prominent one. */
+    const paceNote = document.getElementById('partialPaceNote');
+    if (paceNote) {
+        const months    = Number(diseaseAnalyticsData.periodMonths) || 0;
+        const sumValues = rows => (rows || []).reduce((total, r) => total + (Number(r.value) || 0), 0);
+        const actual    = sumValues(diseaseAnalyticsData.actualCases);
+        const predicted = sumValues(diseaseAnalyticsData.predictedCases);
+
+        if (months > 0 && months < 12 && actual > 0 && predicted > 0) {
+            const pace = Math.round((actual * 12) / months);
+            paceNote.hidden = false;
+            paceNote.innerHTML =
+                `Actuals cover <strong>${months} of 12 months</strong> (${actual.toLocaleString()} cases). ` +
+                `At this pace the year would total about <strong>${pace.toLocaleString()}</strong>; ` +
+                `the forecast projects about <strong>${Math.round(predicted).toLocaleString()}</strong>. ` +
+                `The bars are not directly comparable — the left chart shows ${months} months, the right projects 12.`;
+        } else {
+            paceNote.hidden = true;
+        }
+    }
+
     const insightRoot = document.getElementById('insightCards');
     insightRoot.innerHTML = diseaseAnalyticsData.insights
         .map((insight, idx) => {
