@@ -1369,16 +1369,11 @@
     const vaccineSelect     = document.getElementById('event-vaccine');
     const addVaccineTypeBtn = document.getElementById('add-vaccine-type-btn');
 
-    function todayIso() {
-        const d = new Date();
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    }
-
     // Upper bound for the picker: no drive is planned more than a year out,
-    // so past this the date is a typo. Built from the same local-time parts as
-    // todayIso() rather than toISOString(), which converts to UTC first -- in
-    // Manila (UTC+8) that rolled the limit back a day for anyone using the
-    // form between midnight and 8am, and made the cap disagree with the
+    // so past this the date is a typo. Assembled from local-time parts rather
+    // than toISOString(), which converts to UTC first -- in Manila (UTC+8)
+    // that rolled the limit back a day for anyone using the form between
+    // midnight and 8am, and made the cap disagree with the
     // MASS_VACC_HORIZON_YEARS check in api/mass-vaccination/events.php.
     function horizonIso() {
         const d = new Date();
@@ -1386,16 +1381,33 @@
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
+    // Earliest date an encoder may enter by hand. Mirrors
+    // MASS_VACC_MANUAL_ENTRY_FROM in api/mass-vaccination/events.php -- change
+    // one and you must change the other, or the form and the server disagree
+    // about what is enterable.
+    //
+    // Note this is BEFORE today: past dates are meant to be allowed here.
+    // Encoders record drives that have already run (the Jan-Aug 2026 backlog),
+    // so the picker has to reach back into the year, not start at today.
+    const MANUAL_ENTRY_FROM = '2026-01-01';
+
+    function manualEntryFromLabel() {
+        const [y, m, d] = MANUAL_ENTRY_FROM.split('-').map(Number);
+        return new Date(y, m - 1, d).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
     // The ONE date rule for this form, applied as the field is filled in and
     // again on submit. It deliberately mirrors the guard in
     // api/mass-vaccination/events.php -- the server is what actually enforces
     // this, since anything can POST to that endpoint; this copy exists so the
-    // staff member finds out at the moment of typing instead of after a
-    // round trip. Keeping it in one function is what stops the two checks
-    // here drifting apart from each other.
+    // encoder finds out at the moment of typing instead of after a round trip.
+    // Keeping it in one function is what stops the two checks here drifting
+    // apart from each other.
     function dateFieldError(value) {
         if (!value) return 'Please select a date.';
-        if (value < todayIso()) return 'Date cannot be in the past.';
+        if (value < MANUAL_ENTRY_FROM) {
+            return `Events before ${manualEntryFromLabel()} come from the uploaded workbook and cannot be entered here.`;
+        }
         if (value > horizonIso()) return 'Events can only be scheduled up to a year ahead.';
         return '';
     }
@@ -1472,12 +1484,12 @@
 
     /* Check the date the moment it is entered, not only on submit.
        The form carries novalidate, so the browser never enforces the min/max
-       set above on its own: Chrome greys out earlier days in the calendar
+       set above on its own: Chrome greys out out-of-range days in the calendar
        popup, but a date typed straight into the field segments -- 01/01/2020
-       -- was accepted into the box and sat there looking fine until the user
-       pressed Create. That is the "it let me pick a past date" everyone hits.
-       Validating on input/change means it is rejected visibly as it is typed.
-       The submit check still runs; this does not replace it. */
+       -- lands in the box and sits there looking accepted until Create is
+       pressed. Validating on input/change surfaces the problem while the
+       encoder is still looking at the field. The submit check still runs;
+       this does not replace it. */
     ['input', 'change'].forEach((evt) => {
         dateInput.addEventListener(evt, () => {
             // Empty is not an error WHILE typing -- only on submit. Nagging
@@ -1538,7 +1550,7 @@
     });
 
     const openModal  = () => {
-        dateInput.min = todayIso();
+        dateInput.min = MANUAL_ENTRY_FROM;
         dateInput.max = horizonIso();
         rebuildVaccineOptions();
         document.getElementById('create-event-modal').classList.remove('hidden');

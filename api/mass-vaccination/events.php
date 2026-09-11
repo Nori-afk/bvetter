@@ -13,6 +13,31 @@ require_once __DIR__ . '/../includes/analytics_client.php';
    past it, the date is a typo. */
 define('MASS_VACC_HORIZON_YEARS', 1);
 
+/* The earliest date an encoder may enter a drive by hand.
+
+   Past dates are ALLOWED and expected: encoders backfill drives that have
+   already run -- the Jan-Aug 2026 records are entered after the fact, not
+   scheduled. So this is a floor, not a ban on backdating.
+
+   It stops at 2026 because the uploaded vaccination workbook
+   (Combined_Rabies_3Years) owns everything before that, and 2025 in it is an
+   annual summary allocated across months rather than real per-drive rows.
+   mass_vaccination_dataset_data() in api/dashboard/dashboard.php REPLACES a
+   workbook month with the live DB sum as soon as any event exists for it, so
+   a hand-entered 2025 drive would silently overwrite part of that allocation
+   with a single barangay's numbers.
+
+   NOT derived from bv_manual_entry_allowed_from(): that reads the consult
+   dataset's coverage, which gates patient visit records. It returns the same
+   2026-01-01 today by coincidence, and wiring vaccination entry to it would
+   mean a future consult upload started rejecting vaccination dates for no
+   reason the encoder could see. Related, but a different dataset.
+
+   See also MASS_VACC_CURRENT_CUTOFF ('2025-01-01') in dashboard.php, which
+   splits the Historical and Current views. This floor sits a year later on
+   purpose: 2025 is readable, it just is not hand-editable. */
+define('MASS_VACC_MANUAL_ENTRY_FROM', '2026-01-01');
+
 function respond($statusCode, $payload)
 {
     http_response_code($statusCode);
@@ -101,8 +126,8 @@ function createEvent($pdo, $data)
     }
 
     /* Date rules, mirroring the ones the Create Event form already applies
-       client-side (mass-vaccination.js sets min=today, max=today+1y, and
-       refuses a past date on submit). Until now the server enforced NONE of
+       client-side (mass-vaccination.js sets the same floor and +1y ceiling on
+       the picker, and re-checks on submit). Until now the server enforced NONE of
        them: this function validated barangay and vaccine but took $date on
        trust, so anything that skipped the form -- curl, Postman, a stale
        cached copy of the JS, a replayed request -- could write any string at
@@ -114,16 +139,20 @@ function createEvent($pdo, $data)
        Sundays, but barangay drives are not -- events already on the books fall
        on Saturdays, and blocking them would reject real campaigns.
 
-       Past dates are refused outright, with no backfill escape hatch. History
-       does not enter through this form: the Historical view is workbook-backed
-       via the Disease Analytics dataset upload, and this form only ever
-       schedules drives that are still ahead. Existing past-dated rows are
-       untouched -- submit_report never rewrites event_date, so reporting on a
-       drive that has already happened still works.
+       Backdating is allowed on purpose, down to MASS_VACC_MANUAL_ENTRY_FROM.
+       This form is not only for scheduling: encoders enter drives that have
+       already run, which is how the Jan-Aug 2026 records get in. A rule that
+       simply refused every past date would have made that impossible. What it
+       refuses is entry into the range the uploaded workbook already owns --
+       see the constant for why that boundary is where it is.
 
-       date() here is Philippine time: api/config/connection.php pins PHP and
-       MySQL to Asia/Manila, so "today" means the same thing on the server as
-       it does in the browser of the staff member filling in the form. */
+       Existing rows are untouched either way: submit_report never rewrites
+       event_date, so reporting on a drive that has already happened keeps
+       working regardless of how old it is.
+
+       The horizon is measured in Philippine time: api/config/connection.php
+       pins PHP and MySQL to Asia/Manila, so "a year from today" means the same
+       thing on the server as in the browser of the person filling in the form. */
     /* checkdate() as well as the regex, because strtotime() alone is too
        forgiving to validate with: it reads '2027-02-30' as 2 March and returns
        a perfectly good timestamp, so the shape check passes, the range checks
@@ -136,8 +165,13 @@ function createEvent($pdo, $data)
     ) {
         respond(422, ['success' => false, 'message' => 'A valid date is required.']);
     }
-    if (strtotime($date) < strtotime(date('Y-m-d'))) {
-        respond(422, ['success' => false, 'message' => 'Cannot schedule a mass vaccination on a past date.']);
+    if ($date < MASS_VACC_MANUAL_ENTRY_FROM) {
+        respond(422, [
+            'success' => false,
+            'message' => 'Events dated before ' . date('F j, Y', strtotime(MASS_VACC_MANUAL_ENTRY_FROM))
+                       . ' come from the uploaded vaccination workbook and cannot be entered by hand.',
+            'allowedFrom' => MASS_VACC_MANUAL_ENTRY_FROM,
+        ]);
     }
     $horizon = strtotime('+' . MASS_VACC_HORIZON_YEARS . ' year', strtotime(date('Y-m-d')));
     if (strtotime($date) > $horizon) {
