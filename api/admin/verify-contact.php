@@ -11,8 +11,14 @@
  */
 
 header('Content-Type: application/json');
-define('APP_URL', getenv('APP_BASE_URL') ?: 'http://68.183.182.176');
-header('Content-Type: application/json');
+// APP_URL is NOT defined here. It comes from config/mailer.php (required
+// below), which is the single source of truth for every emailed URL.
+//
+// This file used to define it itself, unguarded, ABOVE that require -- so
+// its copy always won on the forgot-password path and mailer.php's guarded
+// define was dead code. Two copies of one constant, and the one that looked
+// redundant was the one that mattered: the reset email kept pointing at the
+// plaintext IP long after bvetter.me had a certificate.
 ini_set('display_errors', 0);  // ADD THIS
 error_reporting(E_ALL);   
 

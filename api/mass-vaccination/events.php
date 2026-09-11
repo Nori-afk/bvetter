@@ -8,6 +8,11 @@ require_once __DIR__ . '/../config/input_validation.php';
 // forecast, instead of waiting out its 6-hour TTL.
 require_once __DIR__ . '/../includes/analytics_client.php';
 
+/* Matches the max the Create Event form puts on the date picker
+   (vet/js/mass-vaccination.js). No drive is planned further out than this;
+   past it, the date is a typo. */
+define('MASS_VACC_HORIZON_YEARS', 1);
+
 function respond($statusCode, $payload)
 {
     http_response_code($statusCode);
@@ -93,6 +98,53 @@ function createEvent($pdo, $data)
     $vaccine = clean($data['vaccine'] ?? '');
     if ($date === '' || $barangay === '' || $vaccine === '') {
         respond(422, ['success' => false, 'message' => 'Date, barangay, and vaccine are required.']);
+    }
+
+    /* Date rules, mirroring the ones the Create Event form already applies
+       client-side (mass-vaccination.js sets min=today, max=today+1y, and
+       refuses a past date on submit). Until now the server enforced NONE of
+       them: this function validated barangay and vaccine but took $date on
+       trust, so anything that skipped the form -- curl, Postman, a stale
+       cached copy of the JS, a replayed request -- could write any string at
+       all into event_date. Those rows feed the ARIMA vaccination forecast, so
+       a bad date is not just a cosmetic bug in the list view.
+
+       Deliberately NO weekend rule, unlike assertSchedulableDate() in
+       api/appointments/appointment.php: the clinic is closed on Saturdays and
+       Sundays, but barangay drives are not -- events already on the books fall
+       on Saturdays, and blocking them would reject real campaigns.
+
+       Past dates are refused outright, with no backfill escape hatch. History
+       does not enter through this form: the Historical view is workbook-backed
+       via the Disease Analytics dataset upload, and this form only ever
+       schedules drives that are still ahead. Existing past-dated rows are
+       untouched -- submit_report never rewrites event_date, so reporting on a
+       drive that has already happened still works.
+
+       date() here is Philippine time: api/config/connection.php pins PHP and
+       MySQL to Asia/Manila, so "today" means the same thing on the server as
+       it does in the browser of the staff member filling in the form. */
+    /* checkdate() as well as the regex, because strtotime() alone is too
+       forgiving to validate with: it reads '2027-02-30' as 2 March and returns
+       a perfectly good timestamp, so the shape check passes, the range checks
+       pass, and MySQL is the one that finally rejects the impossible date --
+       turning what should be a 422 into a 500. The picker cannot produce such
+       a date, but the whole point of validating here is the callers that never
+       touch the picker. */
+    if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $ymd)
+        || !checkdate((int) $ymd[2], (int) $ymd[3], (int) $ymd[1])
+    ) {
+        respond(422, ['success' => false, 'message' => 'A valid date is required.']);
+    }
+    if (strtotime($date) < strtotime(date('Y-m-d'))) {
+        respond(422, ['success' => false, 'message' => 'Cannot schedule a mass vaccination on a past date.']);
+    }
+    $horizon = strtotime('+' . MASS_VACC_HORIZON_YEARS . ' year', strtotime(date('Y-m-d')));
+    if (strtotime($date) > $horizon) {
+        respond(422, [
+            'success' => false,
+            'message' => 'Events can only be scheduled up to ' . MASS_VACC_HORIZON_YEARS . ' year ahead.'
+        ]);
     }
 
     /* Both of these render on the public landing page for logged-out visitors

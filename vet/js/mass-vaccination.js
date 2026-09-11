@@ -1374,6 +1374,32 @@
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
+    // Upper bound for the picker: no drive is planned more than a year out,
+    // so past this the date is a typo. Built from the same local-time parts as
+    // todayIso() rather than toISOString(), which converts to UTC first -- in
+    // Manila (UTC+8) that rolled the limit back a day for anyone using the
+    // form between midnight and 8am, and made the cap disagree with the
+    // MASS_VACC_HORIZON_YEARS check in api/mass-vaccination/events.php.
+    function horizonIso() {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() + 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    // The ONE date rule for this form, applied as the field is filled in and
+    // again on submit. It deliberately mirrors the guard in
+    // api/mass-vaccination/events.php -- the server is what actually enforces
+    // this, since anything can POST to that endpoint; this copy exists so the
+    // staff member finds out at the moment of typing instead of after a
+    // round trip. Keeping it in one function is what stops the two checks
+    // here drifting apart from each other.
+    function dateFieldError(value) {
+        if (!value) return 'Please select a date.';
+        if (value < todayIso()) return 'Date cannot be in the past.';
+        if (value > horizonIso()) return 'Events can only be scheduled up to a year ahead.';
+        return '';
+    }
+
     function setFieldError(input, errorEl, message) {
         input.classList.toggle('invalid', Boolean(message));
         if (errorEl) {
@@ -1444,6 +1470,22 @@
         return { syncLabel, closePanel };
     }
 
+    /* Check the date the moment it is entered, not only on submit.
+       The form carries novalidate, so the browser never enforces the min/max
+       set above on its own: Chrome greys out earlier days in the calendar
+       popup, but a date typed straight into the field segments -- 01/01/2020
+       -- was accepted into the box and sat there looking fine until the user
+       pressed Create. That is the "it let me pick a past date" everyone hits.
+       Validating on input/change means it is rejected visibly as it is typed.
+       The submit check still runs; this does not replace it. */
+    ['input', 'change'].forEach((evt) => {
+        dateInput.addEventListener(evt, () => {
+            // Empty is not an error WHILE typing -- only on submit. Nagging
+            // "Please select a date." at someone clearing the field is noise.
+            setFieldError(dateInput, dateError, dateInput.value ? dateFieldError(dateInput.value) : '');
+        });
+    });
+
     const barangaySelectUI = enhanceSelect(barangaySelect, 'barangay-select-wrap', 'barangay-trigger', 'barangay-panel');
     const vaccineSelectUI  = enhanceSelect(vaccineSelect, 'vaccine-select-wrap', 'vaccine-trigger', 'vaccine-panel');
 
@@ -1497,10 +1539,7 @@
 
     const openModal  = () => {
         dateInput.min = todayIso();
-        // No event is planned more than a year out — past this is a typo.
-        const horizon = new Date();
-        horizon.setFullYear(horizon.getFullYear() + 1);
-        dateInput.max = horizon.toISOString().slice(0, 10);
+        dateInput.max = horizonIso();
         rebuildVaccineOptions();
         document.getElementById('create-event-modal').classList.remove('hidden');
     };
@@ -1547,11 +1586,9 @@
 
         let hasError = false;
 
-        if (!dateInput.value) {
-            setFieldError(dateInput, dateError, 'Please select a date.');
-            hasError = true;
-        } else if (dateInput.value < todayIso()) {
-            setFieldError(dateInput, dateError, 'Date cannot be in the past.');
+        const dateProblem = dateFieldError(dateInput.value);
+        if (dateProblem) {
+            setFieldError(dateInput, dateError, dateProblem);
             hasError = true;
         }
 

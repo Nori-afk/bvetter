@@ -7,8 +7,22 @@ require_once __DIR__ . '/../phpMailer/PHPMailer-master/src/Exception.php';
 require_once __DIR__ . '/../phpMailer/PHPMailer-master/src/PHPMailer.php';
 require_once __DIR__ . '/../phpMailer/PHPMailer-master/src/SMTP.php';
 
+/* Base URL for every link and image the app puts in an email.
+
+   The fallback is the PRODUCTION origin on purpose. It is what actually runs
+   when APP_BASE_URL is unset -- which is the state the droplet was in, and why
+   reset emails shipped a plaintext http://68.183.182.176 link. That bare IP is
+   the one address on the server that misses the name-based vhost's 80->443
+   redirect, so it served over plain HTTP and the browser flagged it Not secure.
+   (The IP over HTTPS is no better: the certificate is issued for bvetter.me,
+   so it fails the name check outright.)
+
+   Local dev sets APP_BASE_URL in .env to point back at XAMPP -- see .env.example.
+   Deliberately NOT derived from $_SERVER['HTTP_HOST']: these URLs include
+   password-reset tokens, and trusting the request's Host header would let an
+   attacker mail a victim a reset link aimed at their own server. */
 if (!defined('APP_URL')) {
-    define('APP_URL', getenv('APP_BASE_URL') ?: 'http://68.183.182.176');
+    define('APP_URL', getenv('APP_BASE_URL') ?: 'https://bvetter.me');
 }
 
 define('EMAIL_LOGO_URL', rtrim(APP_URL, '/') . '/public/images/logos/logo-color-email.png');
