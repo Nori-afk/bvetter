@@ -153,16 +153,10 @@ function createEvent($pdo, $data)
        The horizon is measured in Philippine time: api/config/connection.php
        pins PHP and MySQL to Asia/Manila, so "a year from today" means the same
        thing on the server as in the browser of the person filling in the form. */
-    /* checkdate() as well as the regex, because strtotime() alone is too
-       forgiving to validate with: it reads '2027-02-30' as 2 March and returns
-       a perfectly good timestamp, so the shape check passes, the range checks
-       pass, and MySQL is the one that finally rejects the impossible date --
-       turning what should be a 422 into a 500. The picker cannot produce such
-       a date, but the whole point of validating here is the callers that never
-       touch the picker. */
-    if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $ymd)
-        || !checkdate((int) $ymd[2], (int) $ymd[3], (int) $ymd[1])
-    ) {
+    // Shape and calendar validity both live in isValidYmd()
+    // (api/config/input_validation.php) -- see there for why strtotime() on
+    // its own lets '2027-02-30' through.
+    if (!isValidYmd($date)) {
         respond(422, ['success' => false, 'message' => 'A valid date is required.']);
     }
     if ($date < MASS_VACC_MANUAL_ENTRY_FROM) {

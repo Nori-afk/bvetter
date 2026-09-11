@@ -77,7 +77,7 @@ function assertValidPHMobile($phone)
 
 function assertSchedulableDate($date, $pastMessage)
 {
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || strtotime($date) === false) {
+    if (!isValidYmd($date)) {
         respond(422, ['success' => false, 'message' => 'A valid date is required.']);
     }
     if (strtotime($date) < strtotime(date('Y-m-d'))) {

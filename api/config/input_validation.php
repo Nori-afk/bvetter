@@ -105,3 +105,31 @@ function apiSafeText(?string $value): string
 {
     return str_replace(['<', '>'], ['&lt;', '&gt;'], (string) $value);
 }
+
+/**
+ * True when a string is a real calendar date in Y-m-d form.
+ *
+ * WHY NOT strtotime() ALONE. Every date rule in this codebase used to be
+ * shaped `preg_match('/^\d{4}-\d{2}-\d{2}$/') || strtotime() === false`, and
+ * that pair looks airtight but is not: strtotime('2027-02-30') does not fail,
+ * it rolls the value over to 2 March and returns a perfectly good timestamp.
+ * So the shape check passed, the range checks passed, the impossible date went
+ * into the INSERT, and MySQL was the first thing to object -- turning what
+ * should have been a 422 with a clear message into a 500 and a logged
+ * PDOException. checkdate() is the part that actually rejects February 30th,
+ * September 31st and friends.
+ *
+ * The regex is still needed alongside it: it pins the format (so '2026-9-11'
+ * and 'next tuesday' are refused rather than silently reinterpreted) and it
+ * supplies the three integer parts checkdate() needs.
+ *
+ * Date pickers cannot produce these values. Everything that posts to an
+ * endpoint without going through one can.
+ */
+function isValidYmd(?string $date): bool
+{
+    if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', (string) $date, $parts)) {
+        return false;
+    }
+    return checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1]);
+}

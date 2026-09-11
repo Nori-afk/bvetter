@@ -547,7 +547,7 @@ function createProgram($pdo, $data)
     $allowedStatuses = ['planning', 'open', 'scheduled', 'completed', 'cancelled'];
     $status = in_array($data['status'] ?? '', $allowedStatuses, true) ? $data['status'] : 'planning';
 
-    if ($date !== '' && (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || strtotime($date) === false)) {
+    if ($date !== '' && !isValidYmd($date)) {
         respond(422, ['success' => false, 'message' => 'A valid program date is required.']);
     }
     if ($date !== '' && strtotime($date) < strtotime(date('Y-m-d'))) {
@@ -599,7 +599,7 @@ function updateProgram($pdo, $data)
     $allowedStatuses = ['planning', 'open', 'scheduled', 'completed', 'cancelled'];
     if (!in_array($status, $allowedStatuses, true)) $status = $program['status'];
 
-    if ($date !== '' && $date !== null && (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || strtotime($date) === false)) {
+    if ($date !== '' && $date !== null && !isValidYmd($date)) {
         respond(422, ['success' => false, 'message' => 'A valid program date is required.']);
     }
     if ($date && strtotime($date) < strtotime(date('Y-m-d')) && $status !== 'completed') {
