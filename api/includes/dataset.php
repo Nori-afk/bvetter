@@ -552,3 +552,22 @@ function bv_consult_year_months($year)
     ksort($months);
     return array_keys($months);
 }
+
+/**
+ * The last month of $year the consultation data actually reaches, which is what
+ * "Monthly" means on Disease Analytics.
+ *
+ * Callers used to derive this with a max-scan seeded at 12. Twelve is already
+ * the largest month there is, so the scan could never move it: on any workbook
+ * whose latest year stops short of December -- every mid-year upload, which the
+ * Manage Dataset flow exists to accept -- "Monthly" filtered to a December that
+ * held no rows and the Actual chart came back empty while Yearly was fine.
+ *
+ * Falls back to 12 only when the year holds nothing at all, so an empty year
+ * behaves as it did before rather than silently becoming January.
+ */
+function bv_consult_latest_month($year)
+{
+    $months = bv_consult_year_months($year);
+    return $months ? (int) end($months) : 12;
+}

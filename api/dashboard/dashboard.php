@@ -233,16 +233,9 @@ function disease_case_series($pdo, string $selected, string $period = 'year', st
     } else {
         $latestYear  = bv_latest_consult_year();
         $consultRows = bv_sheet_rows('Consult_Diagnosis_3Y');
-        $latestMonth = 12;
-
-        if ($period === 'month') {
-            foreach ($consultRows as $r) {
-                if ((int)($r['year'] ?? 0) === $latestYear) {
-                    $m = (int)($r['month_no'] ?? 0);
-                    if ($m > $latestMonth) $latestMonth = $m;
-                }
-            }
-        }
+        // Which month "Monthly" means. Shared with the period label below so the
+        // chart heading names the month the bars were actually filtered to.
+        $latestMonth = $period === 'month' ? bv_consult_latest_month($latestYear) : 12;
 
         foreach ($consultRows as $r) {
             // An empty $selected means "All Diseases", which is every row rather
@@ -425,6 +418,58 @@ function db_live_coverage_stats($pdo, string $exactMonth): array
 }
 
 /**
+ * Which calendar months actually hold live clinic records, newest first.
+ *
+ * Current mode's month picker used to be built entirely in the browser from
+ * `new Date()` -- January through today, this calendar year -- so it offered a
+ * dozen months without knowing whether a single visit had been logged in any of
+ * them, and opened on today's month whether or not it held anything. On a clinic
+ * that has logged a handful of visits that is an empty chart, a 0 total and an
+ * "N/A" top disease on first paint, which reads as a broken page rather than as
+ * "nothing recorded this month yet".
+ *
+ * Reported disease-agnostically on purpose: this answers "where are there
+ * records at all", and a picker that reshuffled itself every time the disease
+ * filter changed would be its own confusion. `cases` is the subset that counts
+ * epidemiologically (the diseases-catalog rule the charts use), so the client
+ * can tell "no visits" apart from "visits, none of them a listed diagnosis".
+ */
+function db_live_record_months($pdo): array
+{
+    if (!bv_table_exists($pdo, 'patient_visit_records')) return [];
+
+    $catalogOnly = bv_table_exists($pdo, 'diseases')
+        ? 'diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)'
+        : 'COALESCE(diagnosis, "") <> ""';
+
+    try {
+        $stmt = $pdo->query("
+            SELECT DATE_FORMAT(COALESCE(visit_date, created_at), '%Y-%m') AS ym,
+                   COUNT(*) AS visits,
+                   SUM(CASE WHEN {$catalogOnly} THEN 1 ELSE 0 END) AS cases
+            FROM patient_visit_records
+            WHERE COALESCE(visit_date, created_at) IS NOT NULL
+            GROUP BY ym
+            ORDER BY ym DESC
+        ");
+        $months = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $ym = (string) ($row['ym'] ?? '');
+            if (!preg_match('/^\d{4}-\d{2}$/', $ym)) continue;
+            $months[] = [
+                'month'  => $ym,
+                'visits' => (int) ($row['visits'] ?? 0),
+                'cases'  => (int) ($row['cases']  ?? 0),
+            ];
+        }
+        return $months;
+    } catch (Throwable $e) {
+        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
+        return [];
+    }
+}
+
+/**
  * Top diagnosis for a live month, mirroring the Excel-era "Most Common
  * Disease" KPI but sourced from patient_visit_records instead of
  * Consult_Diagnosis_3Y. Same catalog rule as db_disease_barangay_counts.
@@ -579,16 +624,10 @@ function disease_analytics_data($pdo)
     } else {
         $consultRows   = bv_sheet_rows('Consult_Diagnosis_3Y');
         $latestConsult = [];
-        $latestMonth   = 12;
-
-        if ($period === 'month') {
-            foreach ($consultRows as $r) {
-                if ((int)($r['year'] ?? 0) === $latestYear) {
-                    $m = (int)($r['month_no'] ?? 0);
-                    if ($m > $latestMonth) $latestMonth = $m;
-                }
-            }
-        }
+        // Same month disease_case_series() counts, from the same helper -- a
+        // second copy of the max-scan here had the same seeded-at-12 flaw, so
+        // Most Common Disease read N/A on Monthly whenever the chart was empty.
+        $latestMonth   = $period === 'month' ? bv_consult_latest_month($latestYear) : 12;
 
         foreach ($consultRows as $r) {
             $rowYear = (int)($r['year'] ?? 0);
@@ -731,8 +770,13 @@ function disease_analytics_data($pdo)
 
     if ($isCurrent) {
         $periodLabel = date('F Y', strtotime("$currentMonth-01"));
+    } elseif ($period === 'month') {
+        // Named, not "Latest Month". Which month the bars cover is the one thing
+        // that tells a reader whether a low total is a quiet month or a partly
+        // encoded one, and it is the same month disease_case_series filtered to.
+        $periodLabel = date('F Y', mktime(0, 0, 0, bv_consult_latest_month($latestYear), 1, $latestYear));
     } else {
-        $periodLabel = $period === 'month' ? 'Latest Month' : bv_consult_year_label($latestYear);
+        $periodLabel = bv_consult_year_label($latestYear);
     }
 
     /* ── Source labels ───────────────────────────────────────────────────
@@ -781,6 +825,7 @@ function disease_analytics_data($pdo)
     }
 
     $liveCoverage = $isCurrent ? db_live_coverage_stats($pdo, $currentMonth) : null;
+    $liveMonths   = $isCurrent ? db_live_record_months($pdo) : null;
 
     return [
         'filters'         => $filters,
@@ -802,6 +847,10 @@ function disease_analytics_data($pdo)
             ? 'Live Clinic Records · ' . $periodLabel
             : 'Historical Baseline · ' . $spanLabel . ' consultation records (training data)',
         'liveCoverage'    => $liveCoverage,
+        // Which months the month picker should offer and which of them hold
+        // anything, so Current mode opens on a month with records instead of a
+        // guaranteed-empty one. Null outside Current mode, where it has no use.
+        'liveMonths'      => $liveMonths,
         'kpis'            => [
             [
                 'label' => 'Total Cases',

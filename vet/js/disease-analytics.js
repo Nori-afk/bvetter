@@ -720,25 +720,79 @@ function bindEvents() {
         filterEl.appendChild(opt);
     });
 
-    // Current mode's month picker: January of this calendar year through the
-    // current month, defaulting to the current month ("assuming August" when
-    // today is August). Populated once; the months that exist don't change
-    // within a page load.
-    function populateMonthPicker() {
-        const sel = document.getElementById('currentMonthFilter');
-        if (!sel || sel.options.length) return;
-        const now      = new Date();
-        const year     = now.getFullYear();
-        const thisIdx  = now.getMonth();
-        for (let m = 0; m <= thisIdx; m++) {
-            const opt = document.createElement('option');
-            opt.value = `${year}-${String(m + 1).padStart(2, '0')}`;
-            opt.textContent = new Date(year, m, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
-            sel.appendChild(opt);
-        }
-        sel.value = `${year}-${String(thisIdx + 1).padStart(2, '0')}`;
+    // Current mode's month picker.
+    //
+    // This used to be built from `new Date()` alone -- January of this calendar
+    // year through today -- and defaulted to today's month. It therefore offered
+    // a dozen months without knowing whether any of them held a single visit,
+    // could not reach a record from any earlier year at all, and on a clinic
+    // with a handful of entries opened on an empty month: 0 cases, "N/A" top
+    // disease, an empty Actual chart. Nothing was broken, but the page had no
+    // way to say so.
+    //
+    // Now the server reports which months actually hold records (`liveMonths`),
+    // and this merges those with the plain calendar so an empty month is still
+    // browsable -- just labelled as empty rather than silently blank.
+
+    /* `known` is false before Current mode has ever been loaded, when the page
+       genuinely does not know what each month holds. Bare month names then --
+       labelling every month "no records" on a guess would be worse than the
+       silence it replaces. */
+    function monthOptionLabel(value, byMonth, known) {
+        const [y, m] = value.split('-').map(Number);
+        const name   = new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+        if (!known) return name;
+        const row = byMonth[value];
+        if (!row || !row.visits) return `${name} — no records`;
+        if (!row.cases)          return `${name} — ${row.visits} visit${row.visits === 1 ? '' : 's'}, no diagnosis`;
+        return `${name} — ${row.cases} case${row.cases === 1 ? '' : 's'}`;
     }
-    populateMonthPicker();
+
+    function syncMonthPicker() {
+        const sel = document.getElementById('currentMonthFilter');
+        if (!sel) return;
+
+        const live    = diseaseAnalyticsData.liveMonths;
+        const known   = Array.isArray(live);
+        const byMonth = {};
+        (live || []).forEach(r => { if (r && r.month) byMonth[r.month] = r; });
+
+        // Calendar months of this year up to today, plus every month that has
+        // records (which may predate this year). Newest first: the month a vet
+        // wants is almost always the most recent one.
+        const values = new Set(Object.keys(byMonth));
+        const now    = new Date();
+        for (let m = 0; m <= now.getMonth(); m++) {
+            values.add(`${now.getFullYear()}-${String(m + 1).padStart(2, '0')}`);
+        }
+        const ordered = [...values].sort().reverse();
+
+        // Rebuilt rather than appended to: logging a visit changes these labels,
+        // and the old "populate once" guard left them stale for the page's life.
+        sel.replaceChildren(...ordered.map(value => {
+            const opt = document.createElement('option');
+            opt.value = value;
+            opt.textContent = monthOptionLabel(value, byMonth, known);
+            return opt;
+        }));
+
+        const loaded = diseaseAnalyticsData.currentMonth;
+        sel.value = ordered.includes(loaded)
+            ? loaded
+            : (ordered[0] || '');
+    }
+
+    /* The newest month worth opening on: one with countable cases, else one with
+       visits logged but no listed diagnosis, else nothing. `liveMonths` is
+       already newest-first from SQL. */
+    function bestLiveMonth() {
+        const live = diseaseAnalyticsData.liveMonths || [];
+        return (live.find(r => r.cases  > 0)
+             || live.find(r => r.visits > 0)
+             || null)?.month || null;
+    }
+
+    syncMonthPicker();
 
     function applyDataViewVisibility() {
         const isCurrent = (document.getElementById('dataViewFilter')?.value || 'historical') === 'current';
@@ -749,7 +803,8 @@ function bindEvents() {
     }
     applyDataViewVisibility();
 
-    function reloadWithCurrentFilters() {
+    function reloadWithCurrentFilters(opts) {
+        const { jumpToLatestRecords = false } = opts || {};
         const disease      = document.getElementById('diseaseFilter').value      || 'All Diseases';
         const period       = document.getElementById('periodFilter')?.value      || 'year';
         const dataView     = document.getElementById('dataViewFilter')?.value    || 'historical';
@@ -758,22 +813,45 @@ function bindEvents() {
             const el = document.getElementById(id);
             if (el) el.innerHTML = '<div class="chart-loading">Updating…</div>';
         });
-        loadDiseaseAnalytics(disease, period, dataView, currentMonth).then(applied => {
-            if (!applied) return;
+        return loadDiseaseAnalytics(disease, period, dataView, currentMonth).then(applied => {
+            if (!applied) return false;
+
+            // Entering Current mode lands on the newest month that actually has
+            // records instead of on today's, which on most clinics is empty.
+            // Only on the switch INTO Current, never after an explicit pick --
+            // overriding a month the vet chose would make the picker unusable.
+            // The reload it triggers renders on its own, so this returns early.
+            if (jumpToLatestRecords) {
+                const sel  = document.getElementById('currentMonthFilter');
+                const best = bestLiveMonth();
+                const here = diseaseAnalyticsData.liveMonths?.find(
+                    r => r.month === diseaseAnalyticsData.currentMonth);
+                if (sel && best && !here?.visits) {
+                    syncMonthPicker();
+                    sel.value = best;
+                    reloadWithCurrentFilters();
+                    return false;
+                }
+            }
+
+            syncMonthPicker();
             state.mapActionMode = false;
             if (state.map) refreshMapLayers();
             renderOverview();
             renderInsightPanel();
             renderMapPanel();
+            return true;
         });
     }
 
-    filterEl.addEventListener('change', reloadWithCurrentFilters);
-    document.getElementById('periodFilter')?.addEventListener('change', reloadWithCurrentFilters);
-    document.getElementById('currentMonthFilter')?.addEventListener('change', reloadWithCurrentFilters);
-    document.getElementById('dataViewFilter')?.addEventListener('change', () => {
+    // Wrapped rather than passed directly: these handlers receive the change
+    // Event, and reloadWithCurrentFilters' first argument is its options bag.
+    filterEl.addEventListener('change', () => reloadWithCurrentFilters());
+    document.getElementById('periodFilter')?.addEventListener('change', () => reloadWithCurrentFilters());
+    document.getElementById('currentMonthFilter')?.addEventListener('change', () => reloadWithCurrentFilters());
+    document.getElementById('dataViewFilter')?.addEventListener('change', (ev) => {
         applyDataViewVisibility();
-        reloadWithCurrentFilters();
+        reloadWithCurrentFilters({ jumpToLatestRecords: ev.target.value === 'current' });
     });
     document.getElementById('refreshSourcesBtn')?.addEventListener('click', () => {
         document.getElementById('refreshSourcesBtn').textContent = 'Refreshed ' + new Date().toLocaleTimeString();
@@ -912,11 +990,29 @@ function renderOverview() {
         const SPARSE_THRESHOLD = 5;
         if (isCurrentView && cov && cov.with_diagnosis < SPARSE_THRESHOLD) {
             coverageNote.hidden = false;
-            coverageNote.textContent = cov.total_visits === 0
-                ? `No clinic visits recorded yet for ${periodLabel}.`
-                : `${cov.total_visits} clinic visit${cov.total_visits === 1 ? '' : 's'} recorded in ${periodLabel} · `
+            if (cov.total_visits === 0) {
+                // An empty month is only half the answer. Saying which months DO
+                // hold records turns "this page is broken" into one click, and
+                // distinguishes "nothing logged yet this month" from "nothing
+                // has ever been logged", which need very different responses.
+                const elsewhere = (diseaseAnalyticsData.liveMonths || [])
+                    .filter(r => r.visits > 0)
+                    .slice(0, 3)
+                    .map(r => {
+                        const [y, m] = r.month.split('-').map(Number);
+                        return new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                    });
+                coverageNote.textContent = elsewhere.length
+                    ? `No clinic visits recorded for ${periodLabel}. Records exist for ${elsewhere.join(', ')} — `
+                      + `pick one of those months above, or switch to Historical for the 2023-2025 baseline.`
+                    : `No clinic visits have been recorded yet. This view fills in as visits are logged — `
+                      + `switch to Historical for the 2023-2025 baseline in the meantime.`;
+            } else {
+                coverageNote.textContent =
+                    `${cov.total_visits} clinic visit${cov.total_visits === 1 ? '' : 's'} recorded in ${periodLabel} · `
                   + `${cov.with_diagnosis} with a listed diagnosis. Case counts are just starting to build up — `
                   + `treat this chart as early, not a full picture yet.`;
+            }
         } else {
             coverageNote.hidden = true;
         }
