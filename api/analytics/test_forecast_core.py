@@ -51,6 +51,7 @@ from arima_service import (
     _disease_risk_thresholds,
     _disease_risk_label,
     _load_disease_specific_df,
+    run_seasonal_arima,
 )
 
 
@@ -145,6 +146,55 @@ def test_runaway_guard_allows_a_plausible_forecast():
 
     forecast = [3] * 12  # in line with historical pattern
     assert _forecast_is_runaway(history, forecast) is False
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# run_seasonal_arima — the municipality forecast and its band
+# ─────────────────────────────────────────────────────────────────────────
+
+def _three_seasonal_years(noise_sd, seed=3):
+    # Peaks in June, bottoms out in December, like the real caseload's shape.
+    months = np.tile(np.arange(1, 13), 3)
+    pattern = 100 + 20 * np.sin(2 * np.pi * (months - 3) / 12)
+    noise = np.random.default_rng(seed).normal(0, noise_sd, size=len(months))
+    index = pd.period_range("2023-01", periods=len(months), freq="M")
+    return pd.Series(pattern + noise, index=index)
+
+
+def test_seasonal_forecast_keeps_the_yearly_shape():
+    result = run_seasonal_arima(_three_seasonal_years(noise_sd=3), steps=12)
+
+    assert result["model_type"] == "SARIMA"
+    assert result["seasonal_order"] == [0, 1, 1, 12]
+    june, december = result["forecast"][5], result["forecast"][11]
+    assert june > december + 20
+
+
+def test_seasonal_band_holds_the_forecast_and_is_never_zero_width():
+    # 26 months: the previous order, (1,0,1)(1,1,0,12), returned lower == upper
+    # here on every seed tried -- a band that reads as a certain forecast. The
+    # real series did the same when forecasting May and June 2025.
+    result = run_seasonal_arima(_three_seasonal_years(noise_sd=3).iloc[:26], steps=6)
+
+    for lo, point, hi in zip(result["lower_ci"], result["forecast"], result["upper_ci"]):
+        assert lo <= point <= hi
+        assert hi - lo >= 1.0
+
+
+def test_seasonal_band_is_sized_from_past_misses():
+    # Same shape, noisier history: the band has to widen, because it is built
+    # from how far the model's earlier one-month forecasts actually landed.
+    quiet = run_seasonal_arima(_three_seasonal_years(noise_sd=2), steps=1)
+    noisy = run_seasonal_arima(_three_seasonal_years(noise_sd=12), steps=1)
+
+    quiet_width = quiet["upper_ci"][0] - quiet["lower_ci"][0]
+    noisy_width = noisy["upper_ci"][0] - noisy["lower_ci"][0]
+    assert noisy_width > 2 * quiet_width
+
+
+def test_seasonal_forecast_needs_two_full_years():
+    short = _three_seasonal_years(noise_sd=3).iloc[:20]
+    assert run_seasonal_arima(short, steps=3)["model_type"] != "SARIMA"
 
 
 # ─────────────────────────────────────────────────────────────────────────

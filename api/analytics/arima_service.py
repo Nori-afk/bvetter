@@ -2083,31 +2083,61 @@ def _build_arima_series_for_df(df: pd.DataFrame, value_col: str = "total_cases")
 
 def run_seasonal_arima(series: pd.Series, steps: int = 3) -> dict:
     """
-    SARIMA for the municipality-wide caseload.
+    SARIMA (0,0,0)(0,1,1,12) for the municipality-wide caseload, with an 80%
+    band sized from the model's own past misses.
 
-    The non-seasonal run_arima() scores 2.67% MAPE on this series -- exactly
-    tying a "same as last month" rule, i.e. contributing nothing. Adding the
-    annual term takes it to 1.54%, a 42% error reduction, because three full
-    years is enough to estimate a 12-month cycle and the municipality total is
-    where that cycle is actually visible (lag-1 autocorrelation 0.777).
+    WHAT THIS ORDER AMOUNTS TO. A seasonal difference plus a seasonal MA term is
+    exponential smoothing of each calendar month across years. On this data the
+    fitted MA coefficient settles at -1, which makes the forecast for a month the
+    average of that month over every past year: June is predicted from all past
+    Junes, not only last June.
 
-    Deliberately NOT used per barangay: measured there, seasonal orders score
-    62.6% against the plain mean's 41.3%. Seasonal terms need volume, and a
-    barangay averaging 7.6 cases a month does not have it.
+    WHY THIS ORDER. Measured on consult_2023-2026 (41 months, Mar 2023 - Jul
+    2026) with rolling forecasts from each of the 17 months that have two years
+    of history behind them:
+
+                                     1 ahead    3 ahead    6 ahead
+                                     MAPE       MAE        MAE
+        (0,0,0)(0,1,1,12)  <- this   7.8%       8.1        8.2
+        same month last year         9.3%       9.3        9.1
+        airline (0,1,1)(0,1,1,12)    9.0%
+        previous (1,0,1)(1,1,0,12)   11.5%      10.5       10.8
+
+    The previous order lost to simply copying last year's month: its AR and MA
+    terms chased the most recent year, while averaging three years smooths out
+    one unusual one. This order led in both halves of the window and at every
+    horizon. Four orders were compared on those same 17 months, which flatters
+    the winner somewhat; leading in both halves is what makes it more than luck.
+
+    WHY THE BAND IS NOT statsmodels' OWN INTERVAL. That interval assumes the
+    model is correctly specified, which three years cannot support: under the
+    previous order its "80%" band held the actual month only 53% of the time.
+    The band here is +/- the 80th percentile of the model's one-step-ahead
+    errors over the training months. Those are genuine out-of-sample misses --
+    a state-space residual is the error of a prediction made from earlier months
+    only. Measured coverage: 88% one month ahead, 82% three, 83% six.
+
+    Deliberately NOT used per barangay. Seasonal terms need volume, and a single
+    barangay does not have it; on the earlier 4,986-row workbook seasonal orders
+    scored 62.6% there against the plain mean's 41.3%.
     """
     if len(series) < 24:
         # Fewer than two full years cannot support an annual term.
         return run_arima(series, steps)
     try:
-        model = SARIMAX(series.astype(float), order=(1, 0, 1),
-                        seasonal_order=(1, 1, 0, 12),
+        model = SARIMAX(series.astype(float), order=(0, 0, 0),
+                        seasonal_order=(0, 1, 1, 12),
                         enforce_stationarity=False, enforce_invertibility=False)
-        res    = model.fit(disp=False)
-        fc_obj = res.get_forecast(steps=steps)
-        fc = [max(0.0, round(float(v), 1)) for v in fc_obj.predicted_mean.values]
-        ci = fc_obj.conf_int(alpha=0.2)
-        lo = [max(0.0, round(float(v), 1)) for v in ci.iloc[:, 0]]
-        hi = [max(0.0, round(float(v), 1)) for v in ci.iloc[:, 1]]
+        res = model.fit(disp=False)
+        fc  = [max(0.0, round(float(v), 1)) for v in res.get_forecast(steps=steps).predicted_mean.values]
+
+        # The first 12 residuals have no earlier season to difference against:
+        # they are the raw monthly values, not errors, so they are skipped.
+        errors = np.abs(np.asarray(res.resid, dtype=float)[12:])
+        errors = errors[np.isfinite(errors)]
+        margin = float(np.quantile(errors, 0.8)) if len(errors) else max(1.0, fc[0] * 0.2)
+        lo = [max(0.0, round(v - margin, 1)) for v in fc]
+        hi = [round(v + margin, 1) for v in fc]
 
         if _forecast_is_runaway(series, fc):
             return run_arima(series, steps)
@@ -2115,7 +2145,7 @@ def run_seasonal_arima(series: pd.Series, steps: int = 3) -> dict:
         slope = fc[-1] - fc[0]
         trend = "rising" if slope > 0.5 else ("falling" if slope < -0.5 else "stable")
         return {"forecast": fc, "lower_ci": lo, "upper_ci": hi,
-                "order": [1, 0, 1], "seasonal_order": [1, 1, 0, 12],
+                "order": [0, 0, 0], "seasonal_order": [0, 1, 1, 12],
                 "trend": trend, "model_type": "SARIMA"}
     except Exception:
         return run_arima(series, steps)
@@ -2338,18 +2368,23 @@ def get_all_disease_models():
     # a genuine annual cycle (autocorrelation 0.777). So the forecast is made
     # where the signal is, and distributed to where it is needed.
     #
-    # Measured on a 6-month holdout, this ties the theoretical optimum at
-    # barangay level (MAE 3.400 against the mean's 3.379) while adding four
-    # things the flat mean cannot give:
+    # (Those two figures, and the 39x / ~6% below, come from the earlier
+    # 4,986-row workbook. On consult_2023-2026 the municipality total has lag-1
+    # autocorrelation 0.561 and lag-12 0.705: the annual cycle is still there.)
+    #
+    # Measured on consult_2023-2026 with a 6-month holdout (Feb-Jul 2026),
+    # top-down edges each barangay's own mean (MAE 1.88 against 1.96 cases)
+    # while adding four things the flat mean cannot give:
     #   1. coherence  -- barangay figures sum EXACTLY to the municipal forecast
     #   2. seasonality reaches barangays that have none of their own
     #   3. one model fit instead of 27 (measured 39x faster)
     #   4. robustness -- one barangay missing a month moves the municipal total
     #      ~6% instead of destroying that barangay's own series
     #
-    # Honest limit, stated wherever this is surfaced: barangay-month figures
-    # still carry ~91% MAPE. The trustworthy numbers are the municipality total
-    # (1.54%) and the 3-month barangay total (~36%).
+    # Honest limit, stated wherever this is surfaced: a barangay-month figure is
+    # still about 52% off (WAPE) -- at ~3.7 cases a month it is mostly chance.
+    # The trustworthy numbers are the municipality total (7.8% MAPE) and the
+    # 3-month barangay total (about 29% off).
     municipality_series = _trim_partial_tail(build_municipality_series(arima_df))
     barangay_shares     = build_barangay_shares(arima_df)
     barangay_spread     = build_barangay_spread(arima_df, barangay_shares)
@@ -2439,23 +2474,24 @@ def get_all_disease_models():
         "risk_note": (
             "This service runs two models, answering two different questions.\n\n"
             "SARIMA forecasts HOW MANY cases, TOP-DOWN: a seasonal ARIMA "
-            "(1,0,1)(1,1,0,12) is fitted to the MUNICIPALITY-wide monthly caseload, and "
+            "(0,0,0)(0,1,1,12) is fitted to the MUNICIPALITY-wide monthly caseload, and "
             "each barangay receives that forecast multiplied by its long-run share. "
+            "That order predicts each month from the same month in every past year. "
             "The MAE/RMSE/MAPE below are that municipality model's own 6-month holdout "
-            "-- 1.54% MAPE. Barangay figures therefore sum exactly to the municipal "
-            "forecast.\n\n"
-            "This replaced 27 independent per-barangay ARIMA fits. Municipality totals "
-            "have a lag-1 autocorrelation of 0.777 and swing only 7.3% month to month; a "
-            "single barangay sits at 0.018 and swings 53%, so there is no per-barangay "
-            "time signal to fit. Seven methods were tested at barangay level and every "
-            "one lost to simply using that barangay's own mean, which is the optimal "
-            "predictor for noise around a stable level. Top-down ties that optimum "
-            "(MAE 3.400 against 3.379) while adding coherence, seasonality, and a 39x "
-            "faster build.\n\n"
-            "HONEST LIMIT: barangay-month figures still carry ~91% MAPE and must be "
+            "-- 7.8% MAPE, against 8.8% for copying the same month last year. Its 80% "
+            "band is sized from the model's own past one-month misses and held the "
+            "actual value 88% of the time in testing. Barangay figures sum exactly to "
+            "the municipal forecast.\n\n"
+            "This replaced 27 independent per-barangay ARIMA fits. The municipality "
+            "total carries a visible annual cycle (lag-12 autocorrelation 0.705); a "
+            "single barangay averages under 4 cases a month, which is mostly chance, so "
+            "there is no per-barangay time signal to fit. Top-down edges each "
+            "barangay's own mean (MAE 1.88 against 1.96 cases) while adding coherence "
+            "and seasonality.\n\n"
+            "HONEST LIMIT: a barangay-month figure is still about 52% off and must be "
             "shown with an interval. The trustworthy numbers are the municipality total "
-            "(1.54%) and the 3-month barangay total (~36%). Per-disease series sit at "
-            "0.518 autocorrelation and are forecast separately.\n\n"
+            "(7.8%) and the 3-month barangay total (about 29% off). Per-disease series "
+            "are forecast separately.\n\n"
             "A RandomForestClassifier answers WHICH DIAGNOSIS fits a presenting case "
             "(symptom cluster + animal group + barangay + month). This is cross-sectional "
             "rather than temporal. See diagnosis_note for its held-out scores and the "
@@ -2544,7 +2580,8 @@ def _hybrid_predict_one_alldisease(
         #
         # Scaling the municipal confidence interval by the share was the obvious
         # thing to write and it is wrong. The municipality forecast is precise
-        # (1.2% MAPE, roughly +/-2 cases on 212), so multiplying its interval by
+        # (on the earlier workbook, 1.2% MAPE and roughly +/-2 cases on 212; on
+        # consult_2023-2026, +/-12 on ~100), so multiplying its interval by
         # a 6% share produced +/-0.1 -- an implied precision of half a case for a
         # barangay whose real count swings +/-53% by chance alone. A vet reading
         # "13.5 (13-14)" would take it as near-certain.
@@ -2566,7 +2603,7 @@ def _hybrid_predict_one_alldisease(
 
         arima_result = {
             "forecast": point, "lower_ci": lower, "upper_ci": upper,
-            "order": mun_result.get("order", [1, 0, 1]),
+            "order": mun_result.get("order", [0, 0, 0]),
             "seasonal_order": mun_result.get("seasonal_order"),
             "trend": mun_result["trend"],
             "model_type": "TopDown" + mun_result.get("model_type", "SARIMA"),
