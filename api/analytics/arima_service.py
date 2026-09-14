@@ -3004,15 +3004,37 @@ def _load_disease_specific_df(disease_name: str) -> pd.DataFrame:
         subset.groupby(["barangay", "year", "month_no"])["cases_reported"]
         .sum().reset_index().rename(columns={"cases_reported": "cases"})
     )
-    if not agg.empty:
-        spine = pd.MultiIndex.from_product(
-            [agg["barangay"].unique(),
-             pd.RangeIndex(int(agg["year"].min()), int(agg["year"].max()) + 1),
-             pd.RangeIndex(1, 13)],
-            names=["barangay", "year", "month_no"],
-        ).to_frame(index=False)
-        agg = spine.merge(agg, on=["barangay", "year", "month_no"], how="left").fillna({"cases": 0})
-    return agg
+    if agg.empty:
+        return agg
+
+    # Zero-fill only the months the DATASET covers -- the same span rule as
+    # _densify_history() on the all-disease side.
+    #
+    # This used to fill January to December of every year present. Harmless
+    # while the data ended on a December, but a dataset running through July
+    # 2026 gained August-December 2026 as zero-case months that never happened:
+    # every disease series ended in five fabricated zeros, the forecast was
+    # fitted on them, and the holdout accuracy shown beside it was scored
+    # against three of them. Measured before this fix, Skin Infection's
+    # next-month total across barangays read 6.7 against 15.0 on real months.
+    #
+    # The end is the whole dataset's last month, not this disease's own last
+    # case: a disease nobody caught in July still had a genuine zero in July.
+    # Live months are left unfilled, as in _densify_history -- an empty live
+    # month is more likely "not encoded yet" than "no cases".
+    is_live = raw["is_db_sourced"].fillna(False).astype(bool)
+    historical = raw[~is_live]
+    if historical.empty:
+        return agg.sort_values(["barangay", "year", "month_no"]).reset_index(drop=True)
+
+    periods = list(_months_between((int(historical["year"].min()), 1), _latest_period(historical)))
+    spine = pd.DataFrame(
+        [(b, y, m) for b in agg["barangay"].unique() for (y, m) in periods],
+        columns=["barangay", "year", "month_no"],
+    )
+    # Outer, not left: a trusted live row past the historical span must survive.
+    agg = spine.merge(agg, on=["barangay", "year", "month_no"], how="outer").fillna({"cases": 0})
+    return agg.sort_values(["barangay", "year", "month_no"]).reset_index(drop=True)
 
 
 def _sarima_order_search(series: pd.Series, seasonal: bool = True) -> tuple:

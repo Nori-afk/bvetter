@@ -41,6 +41,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(__file__))
 
+import arima_service
 from arima_service import (
     rmse,
     mape,
@@ -49,6 +50,7 @@ from arima_service import (
     _forecast_is_runaway,
     _disease_risk_thresholds,
     _disease_risk_label,
+    _load_disease_specific_df,
 )
 
 
@@ -177,3 +179,59 @@ def test_mid_volume_barangay_is_classified_medium_risk():
 def test_risk_thresholds_with_no_data_default_to_safe_low():
     thresholds = _disease_risk_thresholds([])
     assert _disease_risk_label(0, thresholds) == "Low"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# _load_disease_specific_df — the disease series must stop where the data does
+# ─────────────────────────────────────────────────────────────────────────
+
+def _consult_rows(rows, live=False):
+    return pd.DataFrame(
+        [{"barangay": b, "year": y, "month_no": m, "diagnosis": d,
+          "cases_reported": c, "is_db_sourced": live} for b, y, m, d, c in rows])
+
+
+def _period_keys(agg, barangay):
+    sub = agg[agg["barangay"] == barangay]
+    return list(zip(sub["year"].astype(int), sub["month_no"].astype(int)))
+
+
+def test_partial_latest_year_is_not_padded_to_december(monkeypatch):
+    # Data runs January 2025 through July 2026. The old spine filled every year
+    # to December, so August-December 2026 became invented zero-case months.
+    rows = [("Tiaong", 2025, m, "Mange", 1) for m in range(1, 13)]
+    rows += [("Tiaong", 2026, m, "Mange", 2) for m in range(1, 8)]
+    monkeypatch.setattr(arima_service, "_load_consult_diagnosis_raw", lambda: _consult_rows(rows))
+
+    keys = _period_keys(_load_disease_specific_df("Mange"), "Tiaong")
+
+    assert keys[-1] == (2026, 7)
+    assert len(keys) == 19
+
+
+def test_quiet_months_inside_the_dataset_are_real_zeros(monkeypatch):
+    # Mange's last case is May 2026, but the dataset itself runs to July 2026,
+    # so June and July are genuine zeros for Mange -- not missing months.
+    rows = [("Tiaong", 2026, m, "Mange", 1) for m in range(1, 6)]
+    rows += [("Tangos", 2026, 7, "Gastroenteritis", 3)]
+    monkeypatch.setattr(arima_service, "_load_consult_diagnosis_raw", lambda: _consult_rows(rows))
+
+    agg = _load_disease_specific_df("Mange")
+    tiaong = agg[agg["barangay"] == "Tiaong"]
+
+    assert _period_keys(agg, "Tiaong")[-1] == (2026, 7)
+    assert tiaong.loc[tiaong["month_no"].isin([6, 7]), "cases"].tolist() == [0.0, 0.0]
+
+
+def test_live_rows_past_the_dataset_are_kept_but_not_padded(monkeypatch):
+    # A trusted live visit in September 2026 survives; August, which nobody
+    # has encoded, is not invented as a zero.
+    history = _consult_rows([("Tiaong", 2026, m, "Mange", 1) for m in range(1, 8)])
+    live = _consult_rows([("Tiaong", 2026, 9, "Mange", 4)], live=True)
+    monkeypatch.setattr(arima_service, "_load_consult_diagnosis_raw",
+                        lambda: pd.concat([history, live], ignore_index=True))
+
+    keys = _period_keys(_load_disease_specific_df("Mange"), "Tiaong")
+
+    assert (2026, 9) in keys
+    assert (2026, 8) not in keys
