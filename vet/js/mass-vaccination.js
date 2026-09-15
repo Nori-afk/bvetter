@@ -388,22 +388,39 @@
         const petsEl      = document.querySelector('[data-metric="petsVaccinated"]');
         const barangayEl  = document.querySelector('[data-metric="activeBarangay"]');
 
-        // DB events scoped to the active Historical/Current view -- these
-        // cards read the same split as the charts, not an all-time mix.
+        // DB events scoped to the active Historical/Current view -- the pets
+        // and barangay cards read the same split as the charts, not an
+        // all-time mix.
         const viewEvents = eventsInView();
 
-        // DB: pending + total events
-        const pending   = viewEvents.filter(e => e.status === 'Pending Report').length;
-        const completed = viewEvents.length - pending;
+        // Events and Pending Reports are the vet's to-do list, not training
+        // data, so they always count live events whichever Data View is
+        // selected. Scoped to the view, the page's default Historical view
+        // (pre-2025 only) showed "0 -- All caught up" and "No events recorded
+        // yet" directly above a table listing this year's pending event.
+        const liveEvents = (state.events || []).filter(function(e) {
+            var d = e.date ? new Date(e.date + 'T00:00:00') : null;
+            return !d || isNaN(d.getTime()) || d >= MASS_VACC_CUTOFF;
+        });
+        const thisYear = new Date().getFullYear();
+        const eventsThisYear = liveEvents.filter(function(e) {
+            var d = e.date ? new Date(e.date + 'T00:00:00') : null;
+            return d && !isNaN(d.getTime()) && d.getFullYear() === thisYear;
+        });
+
+        // DB: pending (any live event still awaiting its report) + this year's events
+        const pending   = liveEvents.filter(e => e.status === 'Pending Report').length;
+        const pendingThisYear   = eventsThisYear.filter(e => e.status === 'Pending Report').length;
+        const completedThisYear = eventsThisYear.length - pendingThisYear;
         if (pendingEl) pendingEl.textContent = pending;
-        if (totalEl)   totalEl.textContent   = viewEvents.length || '-';
+        if (totalEl)   totalEl.textContent   = eventsThisYear.length || '-';
 
         // These captions were left as permanent loading-skeleton placeholders
         // before — renderSkeletons() blanks them out, but nothing ever put
         // real text back in for these three cards.
         const totalNoteEl = totalEl?.nextElementSibling;
-        if (totalNoteEl) totalNoteEl.textContent = viewEvents.length
-            ? `${completed} completed, ${pending} pending`
+        if (totalNoteEl) totalNoteEl.textContent = eventsThisYear.length
+            ? `${completedThisYear} completed, ${pendingThisYear} pending`
             : 'No events recorded yet';
 
         const pendingNoteEl = pendingEl?.nextElementSibling;
