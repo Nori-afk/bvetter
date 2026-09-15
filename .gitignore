@@ -29,6 +29,12 @@ venv/
 # Database backups (contain real data — see database/backup.php)
 database/backups/
 
+# Consultation workbooks stay on the device that uploads them through Manage
+# Dataset; nothing in the app reads them from the repo. The bundled
+# BaliwagVet_2023-2025.xlsx is NOT covered: the server reads it directly for
+# the vaccination charts, reports and forecasts, so it must stay tracked.
+database/consult_*.xlsx
+
 # mPDF temp cache
 tmp/
 
