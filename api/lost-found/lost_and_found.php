@@ -469,6 +469,24 @@ function reportRowToArray($row)
     ];
 }
 
+// A logged-out visitor only ever sees reports through the landing page, which
+// shows the type, photo, pet name and barangay. Everything that identifies or
+// locates the person who posted -- their name, phone, email, account id and the
+// exact map pin -- is blanked for them. Fields are nulled rather than removed so
+// the response shape stays the same for every caller.
+function withoutPosterDetails(array $report)
+{
+    foreach (['owner_id', 'lat', 'lng', 'uploadedBy', 'uploader', 'contact', 'email'] as $field) {
+        $report[$field] = null;
+    }
+    return $report;
+}
+
+function isStaffViewer($viewer)
+{
+    return $viewer !== null && in_array($viewer['role_name'], ['veterinarian', 'admin'], true);
+}
+
 function reportSelectSql()
 {
     return "
@@ -478,12 +496,19 @@ function reportSelectSql()
     ";
 }
 
-function listReports($pdo, $data, $management = false)
+function listReports($pdo, $data, $management = false, $viewer = null)
 {
     $where = [];
     $params = [];
 
+    // The public board only ever shows active reports. The status filter used to
+    // be honoured for anyone, so a logged-out request for status=rejected or
+    // status=pending returned posts a vet had turned down or not yet reviewed,
+    // contact details included. Only staff may browse other statuses here.
     $status = clean($data['status'] ?? '');
+    if (!$management && !isStaffViewer($viewer)) {
+        $status = 'active';
+    }
     if ($status !== '' && $status !== 'all') {
         $where[] = 'lost_found_reports.status = :status';
         $params[':status'] = normalizeStatus($status, $management ? 'pending' : 'active');
@@ -527,6 +552,9 @@ function listReports($pdo, $data, $management = false)
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $reports = array_map('reportRowToArray', $stmt->fetchAll());
+    if (!$management && $viewer === null) {
+        $reports = array_map('withoutPosterDetails', $reports);
+    }
 
     respond(200, ['success' => true, 'data' => $reports]);
 }
@@ -561,7 +589,7 @@ function listMyReports($pdo, $data)
     respond(200, ['success' => true, 'data' => $reports]);
 }
 
-function getReport($pdo, $data)
+function getReport($pdo, $data, $viewer = null)
 {
     $id = (int) ($data['id'] ?? $data['report_id'] ?? 0);
     if ($id <= 0) respond(422, ['success' => false, 'message' => 'Invalid report id.']);
@@ -569,9 +597,18 @@ function getReport($pdo, $data)
     $stmt = $pdo->prepare(reportSelectSql() . ' WHERE lost_found_reports.id = :id LIMIT 1');
     $stmt->execute([':id' => $id]);
     $row = $stmt->fetch();
-    if (!$row) respond(404, ['success' => false, 'message' => 'Report not found.']);
 
-    respond(200, ['success' => true, 'data' => reportRowToArray($row)]);
+    // Same rule as the board: anyone may open an active report, the person who
+    // posted it may open it in any state, and only staff see the rest. Anything
+    // else answers exactly like a missing id, so ids can't be probed for
+    // pending or rejected posts.
+    $isOwnReport = $row && $viewer !== null && (int) $row['owner_id'] === (int) $viewer['user_id'];
+    if (!$row || ($row['status'] !== 'active' && !$isOwnReport && !isStaffViewer($viewer))) {
+        respond(404, ['success' => false, 'message' => 'Report not found.']);
+    }
+
+    $report = reportRowToArray($row);
+    respond(200, ['success' => true, 'data' => $viewer === null ? withoutPosterDetails($report) : $report]);
 }
 
 function createReport($pdo, $data)
@@ -1003,10 +1040,21 @@ function rebuildSightingMatches($pdo, $lostReportId)
     }
 }
 
-function listMatches($pdo, $data)
+function listMatches($pdo, $data, $viewer)
 {
     $reportId = (int) ($data['report_id'] ?? $data['id'] ?? 0);
     $includeResolved = (int) ($data['include_resolved'] ?? 0) === 1;
+
+    // Every match carries both sides' contact details, so a pet owner only gets
+    // the matches for a report of their own -- the My Reports panel is the one
+    // place they are shown. Without a report id, or with someone else's, the
+    // answer is an empty list. Staff review every match and keep seeing all.
+    if (!isStaffViewer($viewer)) {
+        $ownReport = $reportId > 0 ? fetchReportForMatch($pdo, $reportId) : null;
+        if (!$ownReport || (int) $ownReport['owner_id'] !== (int) $viewer['user_id']) {
+            respond(200, ['success' => true, 'data' => []]);
+        }
+    }
 
     // A "suggested" match is only actionable while every party involved is still
     // active. An "approved" match only ever exists once every party involved has
@@ -1594,19 +1642,39 @@ function getActiveReportCount($pdo)
 $input = inputData();
 $action = clean($input['action'] ?? 'list');
 
-// Management/moderation actions are staff-only. Public browsing (list, get,
-// matches, the landing-page counters) genuinely stays open. Owner actions are
-// authenticated separately, immediately below.
+// Management/moderation actions are staff-only. list_sightings belongs here too:
+// it returns every sighting in every state -- pending and rejected included --
+// with the reporter's name, phone, email and map pin, and only the vet portal's
+// review queue calls it. It used to answer anyone, logged in or not.
 $staffActions = [
     'management_list', 'management_claims', 'rebuild_image_features',
     'approve', 'approve_report', 'reject', 'reject_report', 'resolve', 'resolve_report',
     'approve_match', 'dismiss_match',
-    'approve_sighting', 'reject_sighting', 'resolve_sighting',
+    'list_sightings', 'approve_sighting', 'reject_sighting', 'resolve_sighting',
     'approve_claim', 'reject_claim', 'resolve_claim',
 ];
 if (in_array($action, $staffActions, true)) {
     require_once __DIR__ . '/../config/auth_guard.php';
     requireRole($pdo, ['veterinarian', 'admin']);
+}
+
+// Matches pair two people's reports and carry both sides' contact details, so
+// they need a login. listMatches() then narrows a pet owner to their own report.
+$viewer = null;
+if ($action === 'matches' || $action === 'list_matches') {
+    require_once __DIR__ . '/../config/auth_guard.php';
+    $viewer = requireRole($pdo, ['pet_owner', 'veterinarian', 'admin']);
+}
+
+// Browsing the board (list, get) stays open for the logged-out landing page, but
+// what comes back depends on who is asking: logged-out visitors get no poster
+// details, and only staff see reports that aren't active. A missing, unknown or
+// expired token simply means "logged out" here rather than a 401.
+if ($action === 'list' || $action === 'get') {
+    require_once __DIR__ . '/../config/session.php';
+    $token = bearerToken();
+    $session = $token !== null ? findSessionByToken($pdo, $token) : null;
+    $viewer = ($session !== null && $session['revoked_at'] === null) ? $session : null;
 }
 
 // Owner-side actions: anything that reads or writes one specific person's data.
@@ -1659,15 +1727,15 @@ try {
 
     if ($action === 'schema') respond(200, ['success' => true, 'message' => 'Lost and found schema is ready.']);
     if ($action === 'rebuild_image_features') rebuildImageFeatures($pdo);
-    if ($action === 'list') listReports($pdo, $input, false);
+    if ($action === 'list') listReports($pdo, $input, false, $viewer);
     if ($action === 'management_list') listReports($pdo, $input, true);
-    if ($action === 'get') getReport($pdo, $input);
+    if ($action === 'get') getReport($pdo, $input, $viewer);
     if ($action === 'my_reports') listMyReports($pdo, $input);
     if ($action === 'create' || $action === 'create_report') createReport($pdo, $input);
     if ($action === 'approve' || $action === 'approve_report') updateReportStatus($pdo, $input, 'active');
     if ($action === 'reject' || $action === 'reject_report') updateReportStatus($pdo, $input, 'rejected');
     if ($action === 'resolve' || $action === 'resolve_report') updateReportStatus($pdo, $input, 'resolved');
-    if ($action === 'matches' || $action === 'list_matches') listMatches($pdo, $input);
+    if ($action === 'matches' || $action === 'list_matches') listMatches($pdo, $input, $viewer);
     if ($action === 'approve_match') updateMatchStatus($pdo, $input, 'approved');
     if ($action === 'dismiss_match') updateMatchStatus($pdo, $input, 'dismissed');
     if ($action === 'resolve_own_report') resolveOwnReport($pdo, $input);
