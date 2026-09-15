@@ -24,6 +24,13 @@
  */
 
 /** Offset the whole app is being pinned to. Matches BV_TIMEZONE_OFFSET. */
+// Migrations change the live database. They are run by hand from a terminal;
+// opening one in a browser must never run it, so refuse anything but the CLI.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit('CLI only.');
+}
+
 const BV_TZ_TARGET_OFFSET_SECONDS = 8 * 3600;   // +08:00, Philippine time
 
 /** Marker table, so a re-run cannot double-shift the data. */

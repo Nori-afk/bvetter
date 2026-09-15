@@ -1,0 +1,12 @@
+# Nothing in database/ is meant for a browser: migration and backup scripts,
+# SQL dumps, backups and the research workbooks. The app reads the workbooks
+# from disk (api/analytics/arima_service.py) and runs the scripts from a
+# terminal, so web access is refused outright. The migration scripts also
+# refuse non-CLI runs themselves, in case this file is ever not honoured.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

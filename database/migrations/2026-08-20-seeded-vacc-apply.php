@@ -21,6 +21,13 @@
  *   php database/migrations/2026-08-20-seeded-vacc-apply.php
  */
 
+// Migrations change the live database. They are run by hand from a terminal;
+// opening one in a browser must never run it, so refuse anything but the CLI.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit('CLI only.');
+}
+
 require_once __DIR__ . '/../../api/config/connection.php';
 
 const SEEDED_CREATED_AT = '2026-07-12 20:49:17';

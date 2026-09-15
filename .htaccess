@@ -18,6 +18,13 @@ ServerSignature Off
     Deny from all
 </FilesMatch>
 
+# FilesMatch compares file NAMES only, so the \.git above never covered the
+# .git FOLDER: .git/HEAD and .git/config were downloadable on the live site,
+# and with them the whole repository history. Refuse the folder by path.
+<IfModule mod_alias.c>
+    RedirectMatch 404 /\.git(/|$)
+</IfModule>
+
 # Block PHP execution inside storage (prevent uploaded PHP files from running).
 # Static files (images, PDFs) are intentionally served directly — the frontend
 # references them as /bvetter/storage/... URLs in <img> src attributes.

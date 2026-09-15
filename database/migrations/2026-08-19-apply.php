@@ -21,6 +21,13 @@
  * PART 2 only touches rows still sitting on the default.
  */
 
+// Migrations change the live database. They are run by hand from a terminal;
+// opening one in a browser must never run it, so refuse anything but the CLI.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit('CLI only.');
+}
+
 require_once __DIR__ . '/../../api/config/connection.php';
 
 $part = null;

@@ -1,0 +1,9 @@
+# Test suites and their helpers run from a terminal (PHPUnit, pytest,
+# Selenium). None of it is part of the website, so web access is refused.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

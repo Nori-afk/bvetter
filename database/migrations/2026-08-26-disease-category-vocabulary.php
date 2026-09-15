@@ -24,6 +24,13 @@
  *   php database/migrations/2026-08-26-disease-category-vocabulary.php --apply    # write
  */
 
+// Migrations change the live database. They are run by hand from a terminal;
+// opening one in a browser must never run it, so refuse anything but the CLI.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit('CLI only.');
+}
+
 $root = dirname(__DIR__, 2);
 require $root . '/api/config/connection.php';
 
