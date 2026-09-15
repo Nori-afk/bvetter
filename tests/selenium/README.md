@@ -180,6 +180,14 @@ All fifteen cases, each checked at **both** layers: the page guard that
 redirects the browser, *and* the endpoint response. A redirect is what a user
 sees; it is not what protects the data.
 
+**TC-PO-S06 is not in the written plan.** It was added on 2026-09-15 after an
+audit found bvetter.me giving every Lost & Found sighting and suggested match
+(names, phones, emails, map pins) to logged-out visitors, while TC-PO-S05
+passed, because S05 only probes `my_reports`. S06 asserts that sightings and
+matches answer 401 without a token, and that the public board returns only
+active posts with no poster details, whatever `status` is requested. It is
+read-only and needs no account, so it runs against production too.
+
 Session-timeout cases (TC-**-S04) move `user_sessions.last_seen_at` backwards
 rather than idling for ten real minutes — the same state an abandoned tab
 reaches, arrived at in a second.

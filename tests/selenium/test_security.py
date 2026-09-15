@@ -306,6 +306,63 @@ def test_owner_cannot_read_other_owners_reports(driver, tc, owner_session, needs
 
 
 # ===========================================================================
+# TC-PO-S06  Lost and Found data a logged-out visitor can reach
+# ===========================================================================
+#
+# Not in the written test plan. Added 2026-09-15 after an audit found that
+# TC-PO-S05 passed while bvetter.me handed every sighting (pending and rejected
+# included) and every suggested match - names, phones, emails, map pins - to
+# anyone who asked. S05 probes my_reports only, so it could not see that.
+# Read-only and needs no account, so it also runs with --base-url against prod.
+
+POSTER_FIELDS = ("owner_id", "lat", "lng", "uploadedBy", "uploader", "contact", "email")
+
+
+@testcase(
+    "TC-PO-S06", "Lost and Found Anonymous Data Exposure",
+    "Without a login, sightings and matches are refused, and the public board "
+    "returns only active posts with no poster name, contact or map pin",
+    category="security", role="owner",
+)
+def test_lost_found_hides_personal_data_from_anonymous(driver, tc):
+    auth.clear_session(driver)
+    driver.get(auth.NEUTRAL_PAGE)
+
+    for action in ("list_sightings", "matches", "list_matches"):
+        response = js_fetch(driver, pages.API_LOST_FOUND, "POST", {"action": action}, token=None)
+        tc.measure(f"{action}_api", response["status"])
+        assert response["status"] == 401, (
+            f"lost_and_found.php {action} should answer 401 without a token; "
+            f"it answered {response['status']}"
+        )
+
+    checked = 0
+    # The status filter is the other way in: it used to be honoured for anyone.
+    for status in (None, "pending", "rejected", "resolved", "all"):
+        body = {"action": "list"}
+        if status:
+            body["status"] = status
+        response = js_fetch(driver, pages.API_LOST_FOUND, "POST", body, token=None)
+        assert response["status"] == 200, \
+            f"The public board errored ({response['status']}) for status={status!r}"
+        reports = json.loads(response["text"]).get("data") or []
+        checked += len(reports)
+
+        states = {r.get("status") for r in reports}
+        assert states <= {"active"}, \
+            f"status={status!r} returned non-active posts to a logged-out visitor: {states}"
+
+        exposed = sorted({field for r in reports for field in POSTER_FIELDS
+                          if r.get(field) not in (None, "")})
+        assert not exposed, \
+            f"status={status!r} returned poster details to a logged-out visitor: {exposed}"
+
+    tc.measure("public_rows_checked", checked)
+    tc.note("Logged-in visitors still receive poster details on active posts; "
+            "a pet owner only receives matches for their own reports.")
+
+
+# ===========================================================================
 # TC-VT-S02 / TC-AD-S02 / TC-AD-S03  Vet cannot reach admin-only modules
 # ===========================================================================
 
