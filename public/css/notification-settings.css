@@ -286,22 +286,39 @@ body {
   flex-shrink: 0;
 }
 
-.hist-dot-icon {
+/* The glyph is inline SVG drawn with stroke="currentColor", reusing nav.js's
+   NOTIF_ICONS set so a history row and the same notification in the bell show
+   the same picture. Sized by a descendant selector and coloured by the wrapper,
+   which is exactly how .notif-badge in components.css drives the bell — the
+   wrapper therefore has to set `color`, not just a background, or the stroke
+   falls back to inherited body text and the status colour is lost. */
+.hist-dot-wrap svg {
   width: 16px;
   height: 16px;
-  object-fit: contain;
 }
 
 .green-dot {
   background: var(--color-green-pale);
+  color: var(--color-green-dark);
 }
 
 .blue-dot {
   background: #E8EEF8;
+  color: var(--color-navy);
 }
 
 .red-dot {
   background: var(--color-red-pale);
+  color: var(--color-red);
+}
+
+/* Covers loading, empty and failed-to-load alike. All three are one short line
+   in the same place, so the card never collapses to nothing while it waits. */
+.hist-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 16px 0;
+  text-align: center;
 }
 
 .hist-content {

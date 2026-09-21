@@ -1208,10 +1208,20 @@
         renderSessionTimeoutCard();
     }
 
+    /* Both switches confirm in BOTH directions now. Turning one off drops a
+       protection, which was already guarded; turning one on is just as
+       consequential and was not — enabling 2FA starts emailing a code to every
+       admin at every sign-in, so anyone whose address on file is stale is
+       locked out, and enabling auto-lockout can block dormant accounts on the
+       next sweep. A toggle is a one-click control, and one click was the whole
+       distance to either outcome. */
     document.getElementById('toggle-2fa')?.addEventListener('change', async function () {
         const wanted = this.checked;
-        if (!wanted && !(await vbConfirm('Turn off two-factor authentication for ALL admin logins?', 'Turn Off'))) {
-            this.checked = true;
+        const question = wanted
+            ? 'Require two-factor authentication for ALL admin logins? Every admin will be emailed a 6-digit code at every sign-in.'
+            : 'Turn off two-factor authentication for ALL admin logins?';
+        if (!(await vbConfirm(question, wanted ? 'Turn On' : 'Turn Off'))) {
+            this.checked = !wanted;
             return;
         }
 
@@ -1227,12 +1237,15 @@
 
     document.getElementById('toggle-inactivity-lockout')?.addEventListener('change', async function () {
         const wanted = this.checked;
-        if (!wanted && !(await vbConfirm('Turn off inactivity auto-lockout? Accounts already blocked by it stay blocked until manually restored.', 'Turn Off'))) {
-            this.checked = true;
+        const days = securitySettings?.inactivityLockout?.days || 90;
+        const question = wanted
+            ? `Turn on inactivity auto-lockout? Accounts with no sign-in for ${days} days will be blocked automatically.`
+            : 'Turn off inactivity auto-lockout? Accounts already blocked by it stay blocked until manually restored.';
+        if (!(await vbConfirm(question, wanted ? 'Turn On' : 'Turn Off'))) {
+            this.checked = !wanted;
             return;
         }
 
-        const days = securitySettings?.inactivityLockout?.days || 90;
         const result = await api.updateInactivityLockout({ enabled: wanted, days }).catch(() => ({ success: false }));
         if (!result.success) {
             await vbAlert(result.message || 'Could not update the inactivity lockout setting.');

@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260824-tz"/>
-    <link rel="stylesheet" href="../css/account-management.css?v=20260828-walkin"/>
+    <link rel="stylesheet" href="../css/account-management.css?v=20260919-confirm"/>
 </head>
 <body>
 
@@ -397,11 +397,22 @@
 
             <div class="am-delete-modal-body">
                 <h3 id="delete-modal-title">Delete User</h3>
-                <p>Are you sure you want to delete <strong id="delete-user-name">User</strong>?<br>This action is permanent and cannot be undone.</p>
+                <p>You are about to permanently delete <strong id="delete-user-name">User</strong>.</p>
+                <p class="am-delete-user-meta" id="delete-user-meta">&mdash;</p>
+                <p class="am-delete-warning">This removes the account and everything filed under it. It cannot be undone.</p>
+
+                <label class="am-delete-confirm-label" for="delete-confirm-input">
+                    To confirm, retype this person's full name
+                </label>
+                <input type="text" id="delete-confirm-input" class="am-delete-confirm-input"
+                       autocomplete="off" autocapitalize="off" spellcheck="false"
+                       placeholder="Type the name shown above"
+                       aria-describedby="delete-confirm-hint">
+                <span class="am-delete-confirm-hint" id="delete-confirm-hint">DELETE USER stays locked until this matches.</span>
             </div>
 
             <div class="am-delete-modal-footer">
-                <button class="am-btn-delete-confirm" id="delete-confirm-btn" type="button">DELETE USER</button>
+                <button class="am-btn-delete-confirm" id="delete-confirm-btn" type="button" disabled>DELETE USER</button>
                 <button class="am-btn-cancel-outline" data-close="modal-delete" type="button">CANCEL</button>
             </div>
         </div>
@@ -482,6 +493,6 @@
     <script src="../../shared/js/sidebar.js?v=20260824-tz"></script>
     <script src="../../public/js/api.js?v=20260828-walkin"></script>
     <script src="../../public/js/password-policy.js?v=20260816-sec"></script>
-    <script src="../js/account-management.js?v=20260828-walkin"></script>
+    <script src="../js/account-management.js?v=20260919-confirm"></script>
 </body>
 </html>

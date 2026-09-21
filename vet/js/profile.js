@@ -85,6 +85,10 @@
 			notificationForm.elements.quietHoursStart.value = profile.notifications?.quietHoursStart || "22:00";
 			notificationForm.elements.quietHoursEnd.value = profile.notifications?.quietHoursEnd || "07:00";
 		}
+
+		// Driven by the server, so a reload no longer contradicts what the
+		// toggle just reported.
+		applyTwoFactorBadge(Boolean(profile.twoFactorEnabled));
 	}
 
 	async function loadProfile() {
@@ -160,15 +164,46 @@
 		if (pwOverlay) pwOverlay.hidden = true;
 	}
 
+	/* Two-factor.
+
+	   This button used to flip the badge in the DOM and nothing else: it
+	   announced "Two-factor authentication enabled." while users.two_factor_enabled
+	   stayed 0, so a vet who believed they had switched it on was still signing in
+	   behind a password alone -- and a reload silently put the badge back to
+	   DISABLED. It now goes through the same api/users/profile.php "two_factor"
+	   action the admin and resident screens use, behind a confirmation in both
+	   directions: turning it on changes every future sign-in, turning it off
+	   gives up a protection. */
 	const btnManage2FA = document.getElementById("btnManage2FA");
-	const twofaBadge = document.getElementById("twofaBadge");
-	btnManage2FA?.addEventListener("click", () => {
-		if (!twofaBadge) return;
-		const isEnabled = twofaBadge.classList.contains("enabled");
-		twofaBadge.classList.toggle("enabled", !isEnabled);
-		twofaBadge.classList.toggle("disabled", isEnabled);
-		twofaBadge.textContent = isEnabled ? "DISABLED" : "ENABLED";
-		setMessage(isEnabled ? "Two-factor authentication disabled." : "Two-factor authentication enabled.", "success");
+
+	function applyTwoFactorBadge(enabled) {
+		const badge = document.getElementById("twofaBadge");
+		if (!badge) return;
+		badge.classList.toggle("enabled", enabled);
+		badge.classList.toggle("disabled", !enabled);
+		badge.textContent = enabled ? "ENABLED" : "DISABLED";
+	}
+
+	btnManage2FA?.addEventListener("click", async () => {
+		const badge = document.getElementById("twofaBadge");
+		if (!badge) return;
+
+		const turningOn = !badge.classList.contains("enabled");
+		const question = turningOn
+			? "Enable two-factor authentication? You'll be emailed a 6-digit code every time you sign in."
+			: "Disable two-factor authentication? Your account will be protected by your password alone.";
+		if (!(await vbConfirm(question, turningOn ? "Enable" : "Disable"))) return;
+
+		btnManage2FA.disabled = true;
+		try {
+			const profile = await profileRequest("two_factor", { enabled: turningOn });
+			fillProfile(profile);
+			setMessage(turningOn ? "Two-factor authentication enabled." : "Two-factor authentication disabled.", "success");
+		} catch (error) {
+			setMessage(error.message, "error");
+		} finally {
+			btnManage2FA.disabled = false;
+		}
 	});
 
 	document.getElementById("update-password-btn")?.addEventListener("click", openPasswordModal);

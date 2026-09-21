@@ -898,6 +898,67 @@ body {
 
 .am-btn-delete-confirm:hover { background: #9B2C2C; }
 
+/* Typed-confirmation block. Deleting an account is the one action on this
+   page with no undo and no audit trail to walk back, and the modal alone was
+   defeated by a single mis-aimed click on a table row -- the admin never had
+   to read WHICH account was in the dialog. Retyping the name makes that
+   reading mandatory, so the failure being guarded against is picking the
+   wrong row, not misunderstanding what delete means. */
+.am-delete-modal-body .am-delete-user-meta {
+    margin-top: 4px;
+    color: var(--text-tertiary);
+    font-size: 12px;
+}
+
+.am-delete-modal-body .am-delete-warning {
+    margin-top: 10px;
+    color: #9B2C2C;
+    font-weight: 600;
+}
+
+.am-delete-confirm-label {
+    display: block;
+    margin-top: 18px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: left;
+}
+
+.am-delete-confirm-input {
+    width: 100%;
+    margin-top: 6px;
+    padding: 10px 12px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 13px;
+    color: var(--text-primary);
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.am-delete-confirm-input:focus {
+    outline: none;
+    border-color: #C53030;
+}
+
+.am-delete-confirm-input.am-match { border-color: #2F855A; }
+
+.am-delete-confirm-hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text-tertiary);
+    text-align: left;
+}
+
+.am-btn-delete-confirm:disabled {
+    background: #E9B8B8;
+    cursor: not-allowed;
+}
+
+.am-btn-delete-confirm:disabled:hover { background: #E9B8B8; }
+
 .am-btn-cancel-outline {
     flex: 1;
     background: none;

@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
-  <link rel="stylesheet" href="../css/notification-settings.css"/>
+  <link rel="stylesheet" href="../css/notification-settings.css?v=20260919-notifhistory"/>
 </head>
 <body>
 
@@ -166,30 +166,8 @@
           <button class="btn-clear-all">Clear All</button>
         </div>
 
-        <div class="history-list">
-
-          <div class="history-item">
-            <div class="hist-dot-wrap green-dot">
-              <img src="../images/icons/notif-report-found.svg" alt="" class="hist-dot-icon"/>
-            </div>
-            <div class="hist-content">
-              <div class="hist-title">Lost Pet Found Near Sector 4</div>
-              <div class="hist-desc">A Border Collie matching your watch profile was found.</div>
-              <div class="hist-time">2 HOURS AGO</div>
-            </div>
-          </div>
-
-          <div class="history-item">
-            <div class="hist-dot-wrap blue-dot">
-              <img src="../images/icons/notif-appointment-confirmed.svg" alt="" class="hist-dot-icon"/>
-            </div>
-            <div class="hist-content">
-              <div class="hist-title">Appointment Confirmed</div>
-              <div class="hist-desc">Dr. Aris will see 'Max' tomorrow at 10:30 AM.</div>
-              <div class="hist-time">YESTERDAY</div>
-            </div>
-          </div>
-
+        <div class="history-list" id="historyList">
+          <p class="hist-empty">Loading recent notifications…</p>
         </div>
       </div>
 
@@ -310,7 +288,7 @@
   </script>
   <script src="../js/nav.js?v=20260829-preview"></script>
   <script src="../js/api.js?v=20260819-authfix"></script>
-  <script src="../js/notification-settings.js"></script>
+  <script src="../js/notification-settings.js?v=20260919-notifhistory"></script>
   <script src="../js/site-settings.js?v=20260829-preview"></script>
 </body>
 </html>

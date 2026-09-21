@@ -659,6 +659,49 @@ body {
     opacity: 0.85;
 }
 
+/* Typed confirmation on deactivation. Unlike every other control on this page
+   this one cannot be walked back by the person clicking it: the server revokes
+   every session and blocks the account, and only the vet office can reopen it.
+   A single red button one click away from that is the wrong shape of control,
+   so the word has to be typed. It is a fixed word rather than the account's
+   own name because the risk here is a reflexive click, not picking the wrong
+   record — there is only ever one account in this dialog. */
+.deact-confirm-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-body);
+    text-align: left;
+}
+
+.deact-confirm-input {
+    width: 100%;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.deact-confirm-input.deact-match {
+    border-color: var(--color-red);
+}
+
+.deact-confirm-hint {
+    display: block;
+    margin: 6px 0 20px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: left;
+}
+
+.btn-modal-danger:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.btn-modal-danger:disabled:hover {
+    opacity: 0.45;
+}
+
 
 /* ── TOAST ─────────────────────────────────── */
 .toast {

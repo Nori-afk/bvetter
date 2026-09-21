@@ -1005,5 +1005,15 @@ forgotPassword: (email) => {
       body: JSON.stringify({ action: 'dismiss', id })
     }).then(r => r.json()),
 
+  // Clears the caller's whole feed in one call. The per-id dismiss above is
+  // still what the bell's × uses; this is for "Clear All", which must not
+  // depend on how many rows the page happened to fetch.
+  dismissAllNotifications: () =>
+    fetch(NOTIFICATIONS_ENDPOINT, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ action: 'dismiss_all' })
+    }).then(r => r.json()),
+
 };
 

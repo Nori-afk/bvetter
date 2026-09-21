@@ -1,0 +1,3758 @@
+{
+  "dataset": {
+    "version": 17,
+    "filename": "consult_2023-2026.xlsx",
+    "rows": 2792,
+    "from": "2023-01-01",
+    "through": "2026-07-31"
+  },
+  "municipal": {
+    "model": "SARIMA(0, 0, 0)(0, 1, 1, 12)",
+    "train_from": "2023-03",
+    "train_to": "2026-01",
+    "test_from": "2026-02",
+    "test_to": "2026-07",
+    "months": [
+      {
+        "month": "Feb 2026",
+        "actual": 80.0,
+        "predicted": 86.5,
+        "lower": 73.1,
+        "upper": 99.9,
+        "error": 6.5,
+        "pct_error": 8.1,
+        "inside_band": true
+      },
+      {
+        "month": "Mar 2026",
+        "actual": 78.0,
+        "predicted": 77.5,
+        "lower": 64.1,
+        "upper": 90.9,
+        "error": -0.5,
+        "pct_error": 0.6,
+        "inside_band": true
+      },
+      {
+        "month": "Apr 2026",
+        "actual": 92.0,
+        "predicted": 80.3,
+        "lower": 66.9,
+        "upper": 93.7,
+        "error": -11.7,
+        "pct_error": 12.7,
+        "inside_band": true
+      },
+      {
+        "month": "May 2026",
+        "actual": 87.0,
+        "predicted": 92.7,
+        "lower": 79.3,
+        "upper": 106.1,
+        "error": 5.7,
+        "pct_error": 6.6,
+        "inside_band": true
+      },
+      {
+        "month": "Jun 2026",
+        "actual": 117.0,
+        "predicted": 105.0,
+        "lower": 91.6,
+        "upper": 118.4,
+        "error": -12.0,
+        "pct_error": 10.3,
+        "inside_band": true
+      },
+      {
+        "month": "Jul 2026",
+        "actual": 130.0,
+        "predicted": 118.7,
+        "lower": 105.3,
+        "upper": 132.1,
+        "error": -11.3,
+        "pct_error": 8.7,
+        "inside_band": true
+      }
+    ],
+    "metrics": {
+      "mae": 7.95,
+      "rmse": 8.98,
+      "mape": 7.8,
+      "wape": 8.2,
+      "n": 6
+    },
+    "baseline_same_month_last_year": {
+      "mae": 8.833,
+      "rmse": 10.73,
+      "mape": 8.8,
+      "wape": 9.1,
+      "n": 6
+    },
+    "baseline_non_seasonal_arima": {
+      "mae": 16.333,
+      "rmse": 17.82,
+      "mape": 16.8,
+      "wape": 16.8,
+      "n": 6
+    },
+    "history": [
+      {
+        "month": "2023-03",
+        "cases": 85.0
+      },
+      {
+        "month": "2023-04",
+        "cases": 78.0
+      },
+      {
+        "month": "2023-05",
+        "cases": 91.0
+      },
+      {
+        "month": "2023-06",
+        "cases": 108.0
+      },
+      {
+        "month": "2023-07",
+        "cases": 130.0
+      },
+      {
+        "month": "2023-08",
+        "cases": 113.0
+      },
+      {
+        "month": "2023-09",
+        "cases": 97.0
+      },
+      {
+        "month": "2023-10",
+        "cases": 130.0
+      },
+      {
+        "month": "2023-11",
+        "cases": 106.0
+      },
+      {
+        "month": "2023-12",
+        "cases": 86.0
+      },
+      {
+        "month": "2024-01",
+        "cases": 90.0
+      },
+      {
+        "month": "2024-02",
+        "cases": 87.0
+      },
+      {
+        "month": "2024-03",
+        "cases": 76.0
+      },
+      {
+        "month": "2024-04",
+        "cases": 80.0
+      },
+      {
+        "month": "2024-05",
+        "cases": 86.0
+      },
+      {
+        "month": "2024-06",
+        "cases": 94.0
+      },
+      {
+        "month": "2024-07",
+        "cases": 115.0
+      },
+      {
+        "month": "2024-08",
+        "cases": 121.0
+      },
+      {
+        "month": "2024-09",
+        "cases": 124.0
+      },
+      {
+        "month": "2024-10",
+        "cases": 120.0
+      },
+      {
+        "month": "2024-11",
+        "cases": 115.0
+      },
+      {
+        "month": "2024-12",
+        "cases": 102.0
+      },
+      {
+        "month": "2025-01",
+        "cases": 102.0
+      },
+      {
+        "month": "2025-02",
+        "cases": 86.0
+      },
+      {
+        "month": "2025-03",
+        "cases": 79.0
+      },
+      {
+        "month": "2025-04",
+        "cases": 83.0
+      },
+      {
+        "month": "2025-05",
+        "cases": 101.0
+      },
+      {
+        "month": "2025-06",
+        "cases": 113.0
+      },
+      {
+        "month": "2025-07",
+        "cases": 111.0
+      },
+      {
+        "month": "2025-08",
+        "cases": 118.0
+      },
+      {
+        "month": "2025-09",
+        "cases": 93.0
+      },
+      {
+        "month": "2025-10",
+        "cases": 119.0
+      },
+      {
+        "month": "2025-11",
+        "cases": 107.0
+      },
+      {
+        "month": "2025-12",
+        "cases": 87.0
+      },
+      {
+        "month": "2026-01",
+        "cases": 100.0
+      },
+      {
+        "month": "2026-02",
+        "cases": 80.0
+      },
+      {
+        "month": "2026-03",
+        "cases": 78.0
+      },
+      {
+        "month": "2026-04",
+        "cases": 92.0
+      },
+      {
+        "month": "2026-05",
+        "cases": 87.0
+      },
+      {
+        "month": "2026-06",
+        "cases": 117.0
+      },
+      {
+        "month": "2026-07",
+        "cases": 130.0
+      }
+    ],
+    "live": {
+      "fitted_to": "2026-07",
+      "n_months": 41,
+      "months": [
+        {
+          "month": "Aug 2026",
+          "forecast": 117.3,
+          "lower": 105.1,
+          "upper": 129.5,
+          "same_month": {
+            "2023": 113.0,
+            "2024": 121.0,
+            "2025": 118.0,
+            "2026": null
+          }
+        },
+        {
+          "month": "Sep 2026",
+          "forecast": 104.7,
+          "lower": 92.5,
+          "upper": 116.9,
+          "same_month": {
+            "2023": 97.0,
+            "2024": 124.0,
+            "2025": 93.0,
+            "2026": null
+          }
+        },
+        {
+          "month": "Oct 2026",
+          "forecast": 123.0,
+          "lower": 110.8,
+          "upper": 135.2,
+          "same_month": {
+            "2023": 130.0,
+            "2024": 120.0,
+            "2025": 119.0,
+            "2026": null
+          }
+        }
+      ],
+      "margin": 12.2
+    }
+  },
+  "barangay": {
+    "last_month": "July 2026",
+    "rows": [
+      {
+        "barangay": "Sta. Barbara",
+        "share_pct": 4.19,
+        "p75": 6.0,
+        "p90": 7.0,
+        "pred_total": 23.5,
+        "actual_total": 14.0,
+        "mae_month": 1.58,
+        "pred_last": 5.0,
+        "actual_last": 5.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Bagong Nayon",
+        "share_pct": 4.13,
+        "p75": 5.5,
+        "p90": 9.2,
+        "pred_total": 23.1,
+        "actual_total": 14.0,
+        "mae_month": 2.25,
+        "pred_last": 4.9,
+        "actual_last": 3.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Concepcion",
+        "share_pct": 4.1,
+        "p75": 5.0,
+        "p90": 7.0,
+        "pred_total": 23.1,
+        "actual_total": 27.0,
+        "mae_month": 2.92,
+        "pred_last": 4.9,
+        "actual_last": 2.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Paitan",
+        "share_pct": 4.08,
+        "p75": 5.5,
+        "p90": 9.2,
+        "pred_total": 22.9,
+        "actual_total": 20.0,
+        "mae_month": 0.95,
+        "pred_last": 4.8,
+        "actual_last": 4.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Sto. Cristo",
+        "share_pct": 4.02,
+        "p75": 5.5,
+        "p90": 7.0,
+        "pred_total": 22.5,
+        "actual_total": 30.0,
+        "mae_month": 2.55,
+        "pred_last": 4.8,
+        "actual_last": 5.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Needs Action",
+        "action_reason_last": "reportable disease in last 3 months"
+      },
+      {
+        "barangay": "Tibag",
+        "share_pct": 3.96,
+        "p75": 6.0,
+        "p90": 8.6,
+        "pred_total": 22.3,
+        "actual_total": 35.0,
+        "mae_month": 2.15,
+        "pred_last": 4.7,
+        "actual_last": 5.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Sabang",
+        "share_pct": 3.91,
+        "p75": 5.0,
+        "p90": 8.0,
+        "pred_total": 21.8,
+        "actual_total": 34.0,
+        "mae_month": 2.6,
+        "pred_last": 4.6,
+        "actual_last": 12.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "High",
+        "action_tier_last": "Needs Action",
+        "action_reason_last": "cases above usual high (p90)"
+      },
+      {
+        "barangay": "Poblacion",
+        "share_pct": 3.88,
+        "p75": 5.0,
+        "p90": 8.0,
+        "pred_total": 21.8,
+        "actual_total": 30.0,
+        "mae_month": 2.17,
+        "pred_last": 4.6,
+        "actual_last": 6.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Medium",
+        "action_tier_last": "Watch",
+        "action_reason_last": "cases above usual level (p75)"
+      },
+      {
+        "barangay": "Tangos",
+        "share_pct": 3.88,
+        "p75": 5.5,
+        "p90": 8.2,
+        "pred_total": 21.8,
+        "actual_total": 22.0,
+        "mae_month": 1.6,
+        "pred_last": 4.6,
+        "actual_last": 5.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "San Roque",
+        "share_pct": 3.85,
+        "p75": 6.0,
+        "p90": 7.0,
+        "pred_total": 21.6,
+        "actual_total": 22.0,
+        "mae_month": 2.13,
+        "pred_last": 4.6,
+        "actual_last": 2.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Pinagbarilan",
+        "share_pct": 3.82,
+        "p75": 5.0,
+        "p90": 6.6,
+        "pred_total": 21.4,
+        "actual_total": 17.0,
+        "mae_month": 1.23,
+        "pred_last": 4.5,
+        "actual_last": 4.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Tilapayong",
+        "share_pct": 3.82,
+        "p75": 5.0,
+        "p90": 6.6,
+        "pred_total": 21.4,
+        "actual_total": 21.0,
+        "mae_month": 0.73,
+        "pred_last": 4.5,
+        "actual_last": 5.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Sto. Ni\u00f1o",
+        "share_pct": 3.76,
+        "p75": 5.0,
+        "p90": 8.2,
+        "pred_total": 21.2,
+        "actual_total": 21.0,
+        "mae_month": 1.23,
+        "pred_last": 4.5,
+        "actual_last": 4.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Barangca",
+        "share_pct": 3.71,
+        "p75": 6.0,
+        "p90": 7.0,
+        "pred_total": 20.8,
+        "actual_total": 7.0,
+        "mae_month": 2.3,
+        "pred_last": 4.4,
+        "actual_last": 3.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Subic",
+        "share_pct": 3.71,
+        "p75": 5.0,
+        "p90": 7.6,
+        "pred_total": 20.8,
+        "actual_total": 12.0,
+        "mae_month": 1.87,
+        "pred_last": 4.4,
+        "actual_last": 0.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Tiaong",
+        "share_pct": 3.71,
+        "p75": 5.5,
+        "p90": 7.6,
+        "pred_total": 20.8,
+        "actual_total": 26.0,
+        "mae_month": 2.0,
+        "pred_last": 4.4,
+        "actual_last": 7.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Medium",
+        "action_tier_last": "Watch",
+        "action_reason_last": "cases above usual level (p75)"
+      },
+      {
+        "barangay": "Virgen Delas Flores",
+        "share_pct": 3.71,
+        "p75": 4.5,
+        "p90": 7.0,
+        "pred_total": 20.8,
+        "actual_total": 16.0,
+        "mae_month": 1.07,
+        "pred_last": 4.4,
+        "actual_last": 4.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Hinukay",
+        "share_pct": 3.68,
+        "p75": 5.0,
+        "p90": 7.0,
+        "pred_total": 20.8,
+        "actual_total": 31.0,
+        "mae_month": 2.7,
+        "pred_last": 4.4,
+        "actual_last": 10.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "High",
+        "action_tier_last": "Needs Action",
+        "action_reason_last": "cases above usual high (p90)"
+      },
+      {
+        "barangay": "Tarcan",
+        "share_pct": 3.59,
+        "p75": 4.5,
+        "p90": 8.0,
+        "pred_total": 20.2,
+        "actual_total": 22.0,
+        "mae_month": 1.97,
+        "pred_last": 4.3,
+        "actual_last": 2.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Catulinan",
+        "share_pct": 3.54,
+        "p75": 5.0,
+        "p90": 6.0,
+        "pred_total": 19.8,
+        "actual_total": 20.0,
+        "mae_month": 2.47,
+        "pred_last": 4.2,
+        "actual_last": 2.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Makinabang",
+        "share_pct": 3.54,
+        "p75": 4.5,
+        "p90": 8.0,
+        "pred_total": 19.8,
+        "actual_total": 20.0,
+        "mae_month": 1.53,
+        "pred_last": 4.2,
+        "actual_last": 3.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Needs Action",
+        "action_reason_last": "reportable disease in last 3 months"
+      },
+      {
+        "barangay": "San Jose",
+        "share_pct": 3.4,
+        "p75": 5.0,
+        "p90": 6.0,
+        "pred_total": 18.9,
+        "actual_total": 21.0,
+        "mae_month": 1.22,
+        "pred_last": 4.0,
+        "actual_last": 4.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Pagala",
+        "share_pct": 3.31,
+        "p75": 5.0,
+        "p90": 6.6,
+        "pred_total": 18.7,
+        "actual_total": 21.0,
+        "mae_month": 1.62,
+        "pred_last": 3.9,
+        "actual_last": 7.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "High",
+        "action_tier_last": "Needs Action",
+        "action_reason_last": "cases above usual high (p90)"
+      },
+      {
+        "barangay": "Piel",
+        "share_pct": 3.28,
+        "p75": 5.0,
+        "p90": 6.6,
+        "pred_total": 18.2,
+        "actual_total": 19.0,
+        "mae_month": 1.37,
+        "pred_last": 3.9,
+        "actual_last": 3.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Low",
+        "action_tier_last": "Normal",
+        "action_reason_last": "nothing unusual"
+      },
+      {
+        "barangay": "Matangtubig",
+        "share_pct": 3.26,
+        "p75": 5.0,
+        "p90": 7.0,
+        "pred_total": 18.2,
+        "actual_total": 24.0,
+        "mae_month": 1.57,
+        "pred_last": 3.9,
+        "actual_last": 6.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "Medium",
+        "action_tier_last": "Watch",
+        "action_reason_last": "cases above usual level (p75)"
+      },
+      {
+        "barangay": "Sulivan",
+        "share_pct": 3.17,
+        "p75": 4.0,
+        "p90": 6.0,
+        "pred_total": 17.7,
+        "actual_total": 20.0,
+        "mae_month": 2.52,
+        "pred_last": 3.8,
+        "actual_last": 8.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "High",
+        "action_tier_last": "Needs Action",
+        "action_reason_last": "cases above usual high (p90)"
+      },
+      {
+        "barangay": "Calantipay",
+        "share_pct": 3.0,
+        "p75": 4.0,
+        "p90": 5.6,
+        "pred_total": 16.9,
+        "actual_total": 18.0,
+        "mae_month": 2.42,
+        "pred_last": 3.6,
+        "actual_last": 9.0,
+        "level_pred_last": "Low",
+        "level_actual_last": "High",
+        "action_tier_last": "Needs Action",
+        "action_reason_last": "cases above usual high (p90)"
+      }
+    ],
+    "live": [
+      {
+        "barangay": "Sta. Barbara",
+        "share_pct": 3.93,
+        "next_month": 4.6,
+        "lower": 1.3,
+        "upper": 7.9,
+        "quarter_total": 13.5,
+        "quarter_lower": 5.2,
+        "quarter_upper": 21.8,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Bagong Nayon",
+        "share_pct": 3.89,
+        "next_month": 4.6,
+        "lower": 1.1,
+        "upper": 8.1,
+        "quarter_total": 13.5,
+        "quarter_lower": 4.6,
+        "quarter_upper": 22.4,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Concepcion",
+        "share_pct": 4.18,
+        "next_month": 4.9,
+        "lower": 1.5,
+        "upper": 8.3,
+        "quarter_total": 14.4,
+        "quarter_lower": 5.8,
+        "quarter_upper": 23.0,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Paitan",
+        "share_pct": 3.98,
+        "next_month": 4.7,
+        "lower": 1.2,
+        "upper": 8.2,
+        "quarter_total": 13.8,
+        "quarter_lower": 5.1,
+        "quarter_upper": 22.5,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Sto. Cristo",
+        "share_pct": 4.18,
+        "next_month": 4.9,
+        "lower": 1.6,
+        "upper": 8.2,
+        "quarter_total": 14.4,
+        "quarter_lower": 6.2,
+        "quarter_upper": 22.6,
+        "volume_band": "Low",
+        "action_tier": "Needs Action",
+        "action_reason": "Reportable disease reported in the last 3 months"
+      },
+      {
+        "barangay": "Tibag",
+        "share_pct": 4.25,
+        "next_month": 5.0,
+        "lower": 0.9,
+        "upper": 9.1,
+        "quarter_total": 14.7,
+        "quarter_lower": 4.4,
+        "quarter_upper": 25.0,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Sabang",
+        "share_pct": 4.18,
+        "next_month": 4.9,
+        "lower": 0.8,
+        "upper": 9.0,
+        "quarter_total": 14.4,
+        "quarter_lower": 4.1,
+        "quarter_upper": 24.7,
+        "volume_band": "Low",
+        "action_tier": "Needs Action",
+        "action_reason": "Cases this month (12) are well above this barangay's usual level"
+      },
+      {
+        "barangay": "Poblacion",
+        "share_pct": 4.06,
+        "next_month": 4.8,
+        "lower": 0.9,
+        "upper": 8.7,
+        "quarter_total": 14.0,
+        "quarter_lower": 4.3,
+        "quarter_upper": 23.7,
+        "volume_band": "Low",
+        "action_tier": "Watch",
+        "action_reason": "Cases this month (6) are above this barangay's usual level"
+      },
+      {
+        "barangay": "Tangos",
+        "share_pct": 3.86,
+        "next_month": 4.5,
+        "lower": 0.9,
+        "upper": 8.1,
+        "quarter_total": 13.3,
+        "quarter_lower": 4.2,
+        "quarter_upper": 22.4,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "San Roque",
+        "share_pct": 3.84,
+        "next_month": 4.5,
+        "lower": 1.0,
+        "upper": 8.0,
+        "quarter_total": 13.2,
+        "quarter_lower": 4.3,
+        "quarter_upper": 22.1,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Pinagbarilan",
+        "share_pct": 3.69,
+        "next_month": 4.3,
+        "lower": 1.5,
+        "upper": 7.1,
+        "quarter_total": 12.7,
+        "quarter_lower": 5.7,
+        "quarter_upper": 19.7,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Tilapayong",
+        "share_pct": 3.79,
+        "next_month": 4.4,
+        "lower": 1.0,
+        "upper": 7.8,
+        "quarter_total": 13.1,
+        "quarter_lower": 4.5,
+        "quarter_upper": 21.7,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Sto. Ni\u00f1o",
+        "share_pct": 3.74,
+        "next_month": 4.4,
+        "lower": 0.8,
+        "upper": 8.0,
+        "quarter_total": 12.9,
+        "quarter_lower": 3.9,
+        "quarter_upper": 21.9,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Barangca",
+        "share_pct": 3.35,
+        "next_month": 3.9,
+        "lower": 0.8,
+        "upper": 7.0,
+        "quarter_total": 11.5,
+        "quarter_lower": 3.8,
+        "quarter_upper": 19.2,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Subic",
+        "share_pct": 3.47,
+        "next_month": 4.1,
+        "lower": 0.6,
+        "upper": 7.6,
+        "quarter_total": 12.0,
+        "quarter_lower": 3.3,
+        "quarter_upper": 20.7,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Tiaong",
+        "share_pct": 3.81,
+        "next_month": 4.5,
+        "lower": 1.0,
+        "upper": 8.0,
+        "quarter_total": 13.2,
+        "quarter_lower": 4.4,
+        "quarter_upper": 22.0,
+        "volume_band": "Low",
+        "action_tier": "Watch",
+        "action_reason": "Cases this month (7) are above this barangay's usual level"
+      },
+      {
+        "barangay": "Virgen Delas Flores",
+        "share_pct": 3.57,
+        "next_month": 4.2,
+        "lower": 1.1,
+        "upper": 7.3,
+        "quarter_total": 12.3,
+        "quarter_lower": 4.6,
+        "quarter_upper": 20.0,
+        "volume_band": "Medium",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Hinukay",
+        "share_pct": 3.91,
+        "next_month": 4.6,
+        "lower": 0.8,
+        "upper": 8.4,
+        "quarter_total": 13.5,
+        "quarter_lower": 3.9,
+        "quarter_upper": 23.1,
+        "volume_band": "Low",
+        "action_tier": "Needs Action",
+        "action_reason": "Cases this month (10) are well above this barangay's usual level"
+      },
+      {
+        "barangay": "Tarcan",
+        "share_pct": 3.62,
+        "next_month": 4.2,
+        "lower": 0.9,
+        "upper": 7.5,
+        "quarter_total": 12.5,
+        "quarter_lower": 4.3,
+        "quarter_upper": 20.7,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Catulinan",
+        "share_pct": 3.52,
+        "next_month": 4.1,
+        "lower": 0.9,
+        "upper": 7.3,
+        "quarter_total": 12.1,
+        "quarter_lower": 4.0,
+        "quarter_upper": 20.2,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Makinabang",
+        "share_pct": 3.52,
+        "next_month": 4.1,
+        "lower": 0.5,
+        "upper": 7.7,
+        "quarter_total": 12.1,
+        "quarter_lower": 3.2,
+        "quarter_upper": 21.0,
+        "volume_band": "Low",
+        "action_tier": "Needs Action",
+        "action_reason": "Reportable disease reported in the last 3 months"
+      },
+      {
+        "barangay": "San Jose",
+        "share_pct": 3.42,
+        "next_month": 4.0,
+        "lower": 1.1,
+        "upper": 6.9,
+        "quarter_total": 11.8,
+        "quarter_lower": 4.4,
+        "quarter_upper": 19.2,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Pagala",
+        "share_pct": 3.35,
+        "next_month": 3.9,
+        "lower": 0.7,
+        "upper": 7.1,
+        "quarter_total": 11.5,
+        "quarter_lower": 3.5,
+        "quarter_upper": 19.5,
+        "volume_band": "Low",
+        "action_tier": "Needs Action",
+        "action_reason": "Cases this month (7) are well above this barangay's usual level"
+      },
+      {
+        "barangay": "Piel",
+        "share_pct": 3.28,
+        "next_month": 3.8,
+        "lower": 0.5,
+        "upper": 7.1,
+        "quarter_total": 11.2,
+        "quarter_lower": 3.0,
+        "quarter_upper": 19.4,
+        "volume_band": "Low",
+        "action_tier": "Normal",
+        "action_reason": "Nothing unusual in this barangay's recent cases"
+      },
+      {
+        "barangay": "Matangtubig",
+        "share_pct": 3.38,
+        "next_month": 4.0,
+        "lower": 0.6,
+        "upper": 7.4,
+        "quarter_total": 11.7,
+        "quarter_lower": 3.2,
+        "quarter_upper": 20.2,
+        "volume_band": "Low",
+        "action_tier": "Watch",
+        "action_reason": "Cases this month (6) are above this barangay's usual level"
+      },
+      {
+        "barangay": "Sulivan",
+        "share_pct": 3.21,
+        "next_month": 3.8,
+        "lower": 1.0,
+        "upper": 6.6,
+        "quarter_total": 11.1,
+        "quarter_lower": 4.1,
+        "quarter_upper": 18.1,
+        "volume_band": "Low",
+        "action_tier": "Needs Action",
+        "action_reason": "Cases this month (8) are well above this barangay's usual level"
+      },
+      {
+        "barangay": "Calantipay",
+        "share_pct": 3.01,
+        "next_month": 3.5,
+        "lower": 0.4,
+        "upper": 6.6,
+        "quarter_total": 10.4,
+        "quarter_lower": 2.7,
+        "quarter_upper": 18.1,
+        "volume_band": "Low",
+        "action_tier": "Needs Action",
+        "action_reason": "Cases this month (9) are well above this barangay's usual level"
+      }
+    ],
+    "live_month": "Aug 2026",
+    "live_quarter": "Aug-Oct 2026",
+    "monthly_metrics": {
+      "mae": 1.878,
+      "rmse": 2.49,
+      "mape": 58.2,
+      "wape": 52.1,
+      "n": 162
+    },
+    "quarter_metrics": {
+      "mae": 3.319,
+      "rmse": 4.38,
+      "mape": 32.6,
+      "wape": 30.7,
+      "n": 54
+    },
+    "baseline_own_mean": {
+      "mae": 1.96,
+      "rmse": 2.57,
+      "mape": 64.8,
+      "wape": 54.4,
+      "n": 162
+    },
+    "level_confusion": {
+      "labels": [
+        "Low",
+        "Medium",
+        "High"
+      ],
+      "matrix": [
+        [
+          132,
+          0,
+          0
+        ],
+        [
+          16,
+          0,
+          0
+        ],
+        [
+          14,
+          0,
+          0
+        ]
+      ]
+    },
+    "level_accuracy": 81.5,
+    "level_per_class": {
+      "Low": {
+        "precision": 0.815,
+        "recall": 1.0,
+        "f1": 0.898,
+        "support": 132
+      },
+      "Medium": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 16
+      },
+      "High": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 14
+      }
+    },
+    "level_last_month_match": 19,
+    "n_barangays": 27
+  },
+  "per_disease": {
+    "test_from": "2026-02",
+    "n_diseases": 42,
+    "n_rows": 252,
+    "rf": {
+      "mae": 1.288,
+      "rmse": 1.81,
+      "mape": 45.8,
+      "wape": 55.6,
+      "n": 252,
+      "r2": 0.661
+    },
+    "arima": {
+      "mae": 1.356,
+      "rmse": 1.81,
+      "mape": 46.4,
+      "wape": 58.5,
+      "n": 252,
+      "r2": 0.661
+    },
+    "baseline_disease_mean": {
+      "mae": 1.353,
+      "rmse": 1.82,
+      "mape": 42.7,
+      "wape": 58.4,
+      "n": 252,
+      "r2": 0.654
+    },
+    "baseline_last_value": {
+      "mae": 1.516,
+      "rmse": 2.27,
+      "mape": 63.8,
+      "wape": 65.4,
+      "n": 252
+    },
+    "top": [
+      {
+        "diagnosis": "Flea Allergy Dermatitis",
+        "actual": 59.0,
+        "rf": 53.0,
+        "arima": 57.3,
+        "rf_mae": 1.83,
+        "arima_mae": 2.52
+      },
+      {
+        "diagnosis": "Skin Infection",
+        "actual": 56.0,
+        "rf": 53.3,
+        "arima": 56.8,
+        "rf_mae": 1.87,
+        "arima_mae": 1.67
+      },
+      {
+        "diagnosis": "Mange",
+        "actual": 53.0,
+        "rf": 54.5,
+        "arima": 52.2,
+        "rf_mae": 1.9,
+        "arima_mae": 1.87
+      },
+      {
+        "diagnosis": "Parasitic Infection",
+        "actual": 40.0,
+        "rf": 24.3,
+        "arima": 25.1,
+        "rf_mae": 2.62,
+        "arima_mae": 2.55
+      },
+      {
+        "diagnosis": "Ear Mites",
+        "actual": 37.0,
+        "rf": 26.5,
+        "arima": 27.0,
+        "rf_mae": 2.17,
+        "arima_mae": 2.17
+      },
+      {
+        "diagnosis": "Ehrlichiosis",
+        "actual": 36.0,
+        "rf": 23.7,
+        "arima": 24.0,
+        "rf_mae": 2.73,
+        "arima_mae": 3.27
+      },
+      {
+        "diagnosis": "Dental Disease",
+        "actual": 32.0,
+        "rf": 23.1,
+        "arima": 20.7,
+        "rf_mae": 1.9,
+        "arima_mae": 1.88
+      },
+      {
+        "diagnosis": "Ear Infection",
+        "actual": 29.0,
+        "rf": 27.7,
+        "arima": 38.2,
+        "rf_mae": 2.11,
+        "arima_mae": 2.23
+      },
+      {
+        "diagnosis": "Gastroenteritis",
+        "actual": 27.0,
+        "rf": 27.2,
+        "arima": 26.7,
+        "rf_mae": 2.57,
+        "arima_mae": 2.52
+      },
+      {
+        "diagnosis": "Feline Lower Urinary Tract Disease",
+        "actual": 25.0,
+        "rf": 19.3,
+        "arima": 20.4,
+        "rf_mae": 2.02,
+        "arima_mae": 2.03
+      }
+    ],
+    "monthly": [
+      {
+        "month": "Feb 2026",
+        "actual": 80.0,
+        "rf": 85.6,
+        "arima": 96.5,
+        "rf_mae": 1.13,
+        "arima_mae": 1.283,
+        "n_diseases": 42
+      },
+      {
+        "month": "Mar 2026",
+        "actual": 78.0,
+        "rf": 82.4,
+        "arima": 96.0,
+        "rf_mae": 0.957,
+        "arima_mae": 1.019,
+        "n_diseases": 42
+      },
+      {
+        "month": "Apr 2026",
+        "actual": 92.0,
+        "rf": 88.0,
+        "arima": 97.7,
+        "rf_mae": 1.457,
+        "arima_mae": 1.593,
+        "n_diseases": 42
+      },
+      {
+        "month": "May 2026",
+        "actual": 87.0,
+        "rf": 96.3,
+        "arima": 101.0,
+        "rf_mae": 1.275,
+        "arima_mae": 1.395,
+        "n_diseases": 42
+      },
+      {
+        "month": "Jun 2026",
+        "actual": 117.0,
+        "rf": 105.7,
+        "arima": 91.6,
+        "rf_mae": 1.562,
+        "arima_mae": 1.438,
+        "n_diseases": 42
+      },
+      {
+        "month": "Jul 2026",
+        "actual": 130.0,
+        "rf": 112.7,
+        "arima": 99.8,
+        "rf_mae": 1.348,
+        "arima_mae": 1.405,
+        "n_diseases": 42
+      }
+    ],
+    "live": [
+      {
+        "diagnosis": "Flea Allergy Dermatitis",
+        "next_month": 10.6
+      },
+      {
+        "diagnosis": "Skin Infection",
+        "next_month": 10.2
+      },
+      {
+        "diagnosis": "Mange",
+        "next_month": 10.6
+      },
+      {
+        "diagnosis": "Parasitic Infection",
+        "next_month": 4.4
+      },
+      {
+        "diagnosis": "Ear Mites",
+        "next_month": 4.7
+      },
+      {
+        "diagnosis": "Ehrlichiosis",
+        "next_month": 6.0
+      },
+      {
+        "diagnosis": "Dental Disease",
+        "next_month": 5.5
+      },
+      {
+        "diagnosis": "Ear Infection",
+        "next_month": 3.1
+      },
+      {
+        "diagnosis": "Gastroenteritis",
+        "next_month": 4.1
+      },
+      {
+        "diagnosis": "Feline Lower Urinary Tract Disease",
+        "next_month": 3.0
+      }
+    ],
+    "worked": {
+      "diagnosis": "Flea Allergy Dermatitis",
+      "forecast_month": "Aug 2026",
+      "lag_months": [
+        "May 2026",
+        "Jun 2026",
+        "Jul 2026"
+      ],
+      "lag_values": [
+        8.0,
+        11.0,
+        8.0
+      ],
+      "roll_mean_3": 9.0,
+      "disease_mean": 9.42,
+      "seas_idx": 8.67,
+      "seas_years": {
+        "2023": 7.0,
+        "2024": 8.0,
+        "2025": 11.0
+      },
+      "trend_3": 0.0,
+      "n_trees": 400,
+      "predicted": 10.6
+    },
+    "points": [
+      {
+        "actual": 0.0,
+        "rf": 0.86,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.57,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.61,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 1.16,
+        "arima": 0.6
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.83,
+        "arima": 0.6
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.76,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.41,
+        "arima": 0.5
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.74,
+        "arima": 0.5
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.59,
+        "arima": 0.5
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.74,
+        "arima": 0.5
+      },
+      {
+        "actual": 3.0,
+        "rf": 0.48,
+        "arima": 0.5
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.79,
+        "arima": 0.4
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.51,
+        "arima": 1.0
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.66,
+        "arima": 1.0
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.44,
+        "arima": 1.0
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.55,
+        "arima": 0.9
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.99,
+        "arima": 0.9
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.91,
+        "arima": 0.9
+      },
+      {
+        "actual": 7.0,
+        "rf": 2.44,
+        "arima": 5.2
+      },
+      {
+        "actual": 4.0,
+        "rf": 3.16,
+        "arima": 3.1
+      },
+      {
+        "actual": 3.0,
+        "rf": 3.95,
+        "arima": 2.5
+      },
+      {
+        "actual": 4.0,
+        "rf": 4.33,
+        "arima": 3.0
+      },
+      {
+        "actual": 7.0,
+        "rf": 4.78,
+        "arima": 3.6
+      },
+      {
+        "actual": 7.0,
+        "rf": 4.47,
+        "arima": 3.3
+      },
+      {
+        "actual": 0.0,
+        "rf": 3.2,
+        "arima": 3.6
+      },
+      {
+        "actual": 4.0,
+        "rf": 3.96,
+        "arima": 5.2
+      },
+      {
+        "actual": 6.0,
+        "rf": 5.02,
+        "arima": 7.7
+      },
+      {
+        "actual": 3.0,
+        "rf": 5.49,
+        "arima": 7.2
+      },
+      {
+        "actual": 7.0,
+        "rf": 4.79,
+        "arima": 7.6
+      },
+      {
+        "actual": 9.0,
+        "rf": 5.27,
+        "arima": 6.9
+      },
+      {
+        "actual": 6.0,
+        "rf": 4.39,
+        "arima": 3.7
+      },
+      {
+        "actual": 3.0,
+        "rf": 4.26,
+        "arima": 4.5
+      },
+      {
+        "actual": 8.0,
+        "rf": 3.74,
+        "arima": 4.4
+      },
+      {
+        "actual": 7.0,
+        "rf": 4.86,
+        "arima": 4.5
+      },
+      {
+        "actual": 5.0,
+        "rf": 4.3,
+        "arima": 4.2
+      },
+      {
+        "actual": 8.0,
+        "rf": 4.95,
+        "arima": 5.7
+      },
+      {
+        "actual": 3.0,
+        "rf": 4.41,
+        "arima": 5.3
+      },
+      {
+        "actual": 4.0,
+        "rf": 4.62,
+        "arima": 5.5
+      },
+      {
+        "actual": 11.0,
+        "rf": 4.54,
+        "arima": 5.3
+      },
+      {
+        "actual": 8.0,
+        "rf": 2.52,
+        "arima": 3.1
+      },
+      {
+        "actual": 4.0,
+        "rf": 3.0,
+        "arima": 2.2
+      },
+      {
+        "actual": 6.0,
+        "rf": 4.62,
+        "arima": 2.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.44,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.81,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 1.15,
+        "arima": 0.6
+      },
+      {
+        "actual": 1.0,
+        "rf": 1.29,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.74,
+        "arima": 0.6
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.62,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.32,
+        "arima": 0.5
+      },
+      {
+        "actual": 3.0,
+        "rf": 0.45,
+        "arima": 0.5
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.28,
+        "arima": 0.1
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.22,
+        "arima": 0.4
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.48,
+        "arima": 0.2
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.69,
+        "arima": 0.8
+      },
+      {
+        "actual": 1.0,
+        "rf": 3.06,
+        "arima": 1.6
+      },
+      {
+        "actual": 2.0,
+        "rf": 3.15,
+        "arima": 2.2
+      },
+      {
+        "actual": 3.0,
+        "rf": 2.39,
+        "arima": 2.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 2.94,
+        "arima": 2.9
+      },
+      {
+        "actual": 0.0,
+        "rf": 2.49,
+        "arima": 1.6
+      },
+      {
+        "actual": 4.0,
+        "rf": 2.13,
+        "arima": 1.7
+      },
+      {
+        "actual": 3.0,
+        "rf": 3.21,
+        "arima": 3.4
+      },
+      {
+        "actual": 4.0,
+        "rf": 2.45,
+        "arima": 3.4
+      },
+      {
+        "actual": 0.0,
+        "rf": 2.85,
+        "arima": 3.4
+      },
+      {
+        "actual": 4.0,
+        "rf": 4.16,
+        "arima": 3.3
+      },
+      {
+        "actual": 7.0,
+        "rf": 3.6,
+        "arima": 3.4
+      },
+      {
+        "actual": 7.0,
+        "rf": 3.05,
+        "arima": 3.5
+      },
+      {
+        "actual": 4.0,
+        "rf": 4.06,
+        "arima": 2.6
+      },
+      {
+        "actual": 1.0,
+        "rf": 2.82,
+        "arima": 2.7
+      },
+      {
+        "actual": 1.0,
+        "rf": 3.23,
+        "arima": 2.6
+      },
+      {
+        "actual": 2.0,
+        "rf": 2.18,
+        "arima": 2.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 3.02,
+        "arima": 2.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 3.27,
+        "arima": 2.5
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.71,
+        "arima": 1.2
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.84,
+        "arima": 1.1
+      },
+      {
+        "actual": 0.0,
+        "rf": 1.58,
+        "arima": 2.4
+      },
+      {
+        "actual": 0.0,
+        "rf": 2.02,
+        "arima": 1.1
+      },
+      {
+        "actual": 7.0,
+        "rf": 6.25,
+        "arima": 2.2
+      },
+      {
+        "actual": 6.0,
+        "rf": 5.96,
+        "arima": 5.3
+      },
+      {
+        "actual": 10.0,
+        "rf": 9.12,
+        "arima": 9.0
+      },
+      {
+        "actual": 9.0,
+        "rf": 7.64,
+        "arima": 9.9
+      },
+      {
+        "actual": 13.0,
+        "rf": 8.38,
+        "arima": 8.8
+      },
+      {
+        "actual": 8.0,
+        "rf": 8.96,
+        "arima": 11.7
+      },
+      {
+        "actual": 11.0,
+        "rf": 9.36,
+        "arima": 7.8
+      },
+      {
+        "actual": 8.0,
+        "rf": 9.51,
+        "arima": 10.1
+      },
+      {
+        "actual": 3.0,
+        "rf": 4.39,
+        "arima": 5.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 4.02,
+        "arima": 3.9
+      },
+      {
+        "actual": 5.0,
+        "rf": 4.49,
+        "arima": 3.1
+      },
+      {
+        "actual": 0.0,
+        "rf": 5.59,
+        "arima": 5.5
+      },
+      {
+        "actual": 7.0,
+        "rf": 3.76,
+        "arima": 2.8
+      },
+      {
+        "actual": 7.0,
+        "rf": 5.73,
+        "arima": 6.0
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.44,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.42,
+        "arima": 0.7
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.64,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.44,
+        "arima": 0.7
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.6,
+        "arima": 0.7
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.65,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.89,
+        "arima": 0.8
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.1,
+        "arima": 0.8
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.1,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.23,
+        "arima": 0.6
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.49,
+        "arima": 0.5
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.51,
+        "arima": 0.8
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.26,
+        "arima": 0.2
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.26,
+        "arima": 0.4
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.83,
+        "arima": 0.3
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.48,
+        "arima": 0.4
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.49,
+        "arima": 0.8
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.55,
+        "arima": 0.8
+      },
+      {
+        "actual": 0.0,
+        "rf": 2.96,
+        "arima": 4.6
+      },
+      {
+        "actual": 3.0,
+        "rf": 5.26,
+        "arima": 4.4
+      },
+      {
+        "actual": 6.0,
+        "rf": 4.79,
+        "arima": 4.4
+      },
+      {
+        "actual": 3.0,
+        "rf": 5.59,
+        "arima": 4.4
+      },
+      {
+        "actual": 7.0,
+        "rf": 3.67,
+        "arima": 4.4
+      },
+      {
+        "actual": 8.0,
+        "rf": 4.91,
+        "arima": 4.5
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.38,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.64,
+        "arima": 0.8
+      },
+      {
+        "actual": 0.0,
+        "rf": 1.12,
+        "arima": 0.8
+      },
+      {
+        "actual": 0.0,
+        "rf": 1.5,
+        "arima": 0.4
+      },
+      {
+        "actual": 0.0,
+        "rf": 1.28,
+        "arima": 0.4
+      },
+      {
+        "actual": 0.0,
+        "rf": 1.48,
+        "arima": 0.4
+      },
+      {
+        "actual": 3.0,
+        "rf": 0.34,
+        "arima": 0.5
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.38,
+        "arima": 0.6
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.52,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.74,
+        "arima": 0.6
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.74,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.51,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.06,
+        "arima": 0.3
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.83,
+        "arima": 0.4
+      },
+      {
+        "actual": 1.0,
+        "rf": 1.16,
+        "arima": 0.4
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.74,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.49,
+        "arima": 0.3
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.21,
+        "arima": 0.3
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.26,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.46,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.34,
+        "arima": 0.6
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.4,
+        "arima": 0.6
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.52,
+        "arima": 0.6
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.44,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.72,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.45,
+        "arima": 0.7
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.46,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.34,
+        "arima": 1.0
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.63,
+        "arima": 0.6
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.78,
+        "arima": 1.2
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.55,
+        "arima": 0.7
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.51,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.39,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.38,
+        "arima": 0.7
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.33,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.44,
+        "arima": 0.7
+      },
+      {
+        "actual": 4.0,
+        "rf": 5.1,
+        "arima": 4.5
+      },
+      {
+        "actual": 4.0,
+        "rf": 4.06,
+        "arima": 4.3
+      },
+      {
+        "actual": 0.0,
+        "rf": 4.29,
+        "arima": 4.1
+      },
+      {
+        "actual": 5.0,
+        "rf": 4.4,
+        "arima": 5.2
+      },
+      {
+        "actual": 9.0,
+        "rf": 4.05,
+        "arima": 4.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 5.02,
+        "arima": 2.8
+      },
+      {
+        "actual": 2.0,
+        "rf": 2.87,
+        "arima": 2.7
+      },
+      {
+        "actual": 1.0,
+        "rf": 1.89,
+        "arima": 2.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 2.24,
+        "arima": 2.7
+      },
+      {
+        "actual": 3.0,
+        "rf": 2.18,
+        "arima": 2.6
+      },
+      {
+        "actual": 1.0,
+        "rf": 2.95,
+        "arima": 2.6
+      },
+      {
+        "actual": 4.0,
+        "rf": 3.64,
+        "arima": 2.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.53,
+        "arima": 0.9
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.28,
+        "arima": 0.7
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.32,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 1.26,
+        "arima": 1.2
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.96,
+        "arima": 0.9
+      },
+      {
+        "actual": 0.0,
+        "rf": 1.25,
+        "arima": 0.9
+      },
+      {
+        "actual": 7.0,
+        "rf": 9.23,
+        "arima": 8.8
+      },
+      {
+        "actual": 7.0,
+        "rf": 9.07,
+        "arima": 8.7
+      },
+      {
+        "actual": 7.0,
+        "rf": 9.11,
+        "arima": 8.7
+      },
+      {
+        "actual": 11.0,
+        "rf": 8.61,
+        "arima": 8.6
+      },
+      {
+        "actual": 11.0,
+        "rf": 8.68,
+        "arima": 8.7
+      },
+      {
+        "actual": 10.0,
+        "rf": 9.75,
+        "arima": 8.7
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.27,
+        "arima": 1.1
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.4,
+        "arima": 0.5
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.22,
+        "arima": 0.8
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.29,
+        "arima": 0.8
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.55,
+        "arima": 1.1
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.55,
+        "arima": 0.8
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.27,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.44,
+        "arima": 0.7
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.53,
+        "arima": 0.6
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.84,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.58,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.44,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.92,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.52,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.51,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 1.08,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.83,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 1.17,
+        "arima": 0.5
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.11,
+        "arima": 0.4
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.34,
+        "arima": 0.4
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.59,
+        "arima": 0.4
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.52,
+        "arima": 0.4
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.37,
+        "arima": 0.4
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.31,
+        "arima": 0.4
+      },
+      {
+        "actual": 6.0,
+        "rf": 4.21,
+        "arima": 3.9
+      },
+      {
+        "actual": 6.0,
+        "rf": 4.12,
+        "arima": 4.0
+      },
+      {
+        "actual": 9.0,
+        "rf": 3.41,
+        "arima": 4.1
+      },
+      {
+        "actual": 7.0,
+        "rf": 4.13,
+        "arima": 4.7
+      },
+      {
+        "actual": 4.0,
+        "rf": 3.7,
+        "arima": 4.2
+      },
+      {
+        "actual": 8.0,
+        "rf": 4.7,
+        "arima": 4.2
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.57,
+        "arima": 3.7
+      },
+      {
+        "actual": 2.0,
+        "rf": 1.12,
+        "arima": 3.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 1.3,
+        "arima": 4.4
+      },
+      {
+        "actual": 0.0,
+        "rf": 1.41,
+        "arima": 3.5
+      },
+      {
+        "actual": 0.0,
+        "rf": 6.81,
+        "arima": 2.6
+      },
+      {
+        "actual": 6.0,
+        "rf": 5.07,
+        "arima": 2.5
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.51,
+        "arima": 0.1
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.66,
+        "arima": 0.1
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.46,
+        "arima": 0.3
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.75,
+        "arima": 0.5
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.68,
+        "arima": 0.4
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.46,
+        "arima": 0.6
+      },
+      {
+        "actual": 3.0,
+        "rf": 0.6,
+        "arima": 0.6
+      },
+      {
+        "actual": 3.0,
+        "rf": 0.36,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.48,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.59,
+        "arima": 0.7
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.86,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.72,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.81,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.3,
+        "arima": 0.8
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.46,
+        "arima": 0.9
+      },
+      {
+        "actual": 1.0,
+        "rf": 1.02,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.57,
+        "arima": 0.6
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.35,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 1.06,
+        "arima": 0.8
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.44,
+        "arima": 0.8
+      },
+      {
+        "actual": 2.0,
+        "rf": 0.66,
+        "arima": 0.8
+      },
+      {
+        "actual": 3.0,
+        "rf": 0.67,
+        "arima": 0.8
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.72,
+        "arima": 0.9
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.56,
+        "arima": 0.1
+      },
+      {
+        "actual": 8.0,
+        "rf": 9.41,
+        "arima": 9.5
+      },
+      {
+        "actual": 10.0,
+        "rf": 8.32,
+        "arima": 9.5
+      },
+      {
+        "actual": 6.0,
+        "rf": 8.83,
+        "arima": 9.5
+      },
+      {
+        "actual": 11.0,
+        "rf": 8.81,
+        "arima": 9.4
+      },
+      {
+        "actual": 9.0,
+        "rf": 8.73,
+        "arima": 9.4
+      },
+      {
+        "actual": 12.0,
+        "rf": 9.15,
+        "arima": 9.5
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.51,
+        "arima": 2.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.28,
+        "arima": 2.2
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.54,
+        "arima": 2.3
+      },
+      {
+        "actual": 0.0,
+        "rf": 1.21,
+        "arima": 2.2
+      },
+      {
+        "actual": 0.0,
+        "rf": 6.13,
+        "arima": 2.2
+      },
+      {
+        "actual": 5.0,
+        "rf": 5.83,
+        "arima": 2.1
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.27,
+        "arima": 0.7
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.31,
+        "arima": 0.7
+      },
+      {
+        "actual": 3.0,
+        "rf": 0.47,
+        "arima": 0.6
+      },
+      {
+        "actual": 0.0,
+        "rf": 0.67,
+        "arima": 0.7
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.39,
+        "arima": 0.7
+      },
+      {
+        "actual": 1.0,
+        "rf": 0.56,
+        "arima": 0.7
+      }
+    ],
+    "rf_detail": {
+      "n_train_rows": 1050,
+      "n_features": 12,
+      "features": [
+        "lag_1",
+        "lag_2",
+        "lag_3",
+        "roll_mean_3",
+        "roll_std_3",
+        "disease_mean",
+        "trend_3",
+        "seas_idx",
+        "month_sin",
+        "month_cos",
+        "month_no",
+        "cat_code"
+      ],
+      "trained_on_live": 1302,
+      "n_trees": 400,
+      "min_samples_leaf": 2,
+      "importance_top": [
+        [
+          "disease_mean",
+          0.4051
+        ],
+        [
+          "seas_idx",
+          0.3334
+        ],
+        [
+          "lag_1",
+          0.0589
+        ],
+        [
+          "roll_mean_3",
+          0.0322
+        ],
+        [
+          "lag_2",
+          0.0267
+        ]
+      ],
+      "service_holdout_mae": 1.288,
+      "service_baseline_mae": 1.353
+    }
+  },
+  "diagnosis": {
+    "worked": {
+      "symptom_cluster": "vomiting, diarrhea, loss of appetite, weakness",
+      "animal_group": "Dogs",
+      "n_train_pair": 89,
+      "n_trees": 300,
+      "training_mix": [
+        {
+          "diagnosis": "Gastroenteritis",
+          "n": 50,
+          "pct": 56.2
+        },
+        {
+          "diagnosis": "Intestinal Parasites",
+          "n": 39,
+          "pct": 43.8
+        }
+      ],
+      "served": [
+        {
+          "diagnosis": "Gastroenteritis",
+          "probability": 56.2
+        },
+        {
+          "diagnosis": "Intestinal Parasites",
+          "probability": 43.8
+        }
+      ],
+      "n_clusters_offered": null
+    },
+    "trained_on": 2792,
+    "n_classes": 42,
+    "n_train": 2233,
+    "n_test": 559,
+    "n_symptom_clusters": 10,
+    "n_animal_groups": 6,
+    "n_classes_ever_predicted": 26,
+    "rf": {
+      "accuracy": 58.3,
+      "weighted": {
+        "precision": 44.8,
+        "recall": 58.3,
+        "f1": 47.2
+      },
+      "macro": {
+        "precision": 50.2,
+        "recall": 60.2,
+        "f1": 52.6
+      }
+    },
+    "top3_accuracy": 94.5,
+    "lookup": {
+      "accuracy": 58.1,
+      "weighted": {
+        "precision": 45.9,
+        "recall": 58.1,
+        "f1": 47.9
+      },
+      "macro": {
+        "precision": 51.2,
+        "recall": 61.3,
+        "f1": 53.6
+      }
+    },
+    "per_class_top10": [
+      {
+        "diagnosis": "Flea Allergy Dermatitis",
+        "precision": 32.3,
+        "recall": 100.0,
+        "f1": 48.8,
+        "support": 52,
+        "top3_recall": 100.0
+      },
+      {
+        "diagnosis": "Skin Infection",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 50,
+        "top3_recall": 100.0
+      },
+      {
+        "diagnosis": "Mange",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 49,
+        "top3_recall": 100.0
+      },
+      {
+        "diagnosis": "Ear Infection",
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 27,
+        "top3_recall": 0.0
+      },
+      {
+        "diagnosis": "Ear Mites",
+        "precision": 100.0,
+        "recall": 29.6,
+        "f1": 45.7,
+        "support": 27,
+        "top3_recall": 100.0
+      },
+      {
+        "diagnosis": "Flea Infestation",
+        "precision": 40.3,
+        "recall": 100.0,
+        "f1": 57.4,
+        "support": 27,
+        "top3_recall": 100.0
+      },
+      {
+        "diagnosis": "Gastroenteritis",
+        "precision": 44.8,
+        "recall": 100.0,
+        "f1": 61.9,
+        "support": 26,
+        "top3_recall": 100.0
+      },
+      {
+        "diagnosis": "Dental Disease",
+        "precision": 100.0,
+        "recall": 100.0,
+        "f1": 100.0,
+        "support": 25,
+        "top3_recall": 100.0
+      },
+      {
+        "diagnosis": "Ehrlichiosis",
+        "precision": 88.9,
+        "recall": 100.0,
+        "f1": 94.1,
+        "support": 24,
+        "top3_recall": 100.0
+      },
+      {
+        "diagnosis": "Parasitic Infection",
+        "precision": 85.7,
+        "recall": 100.0,
+        "f1": 92.3,
+        "support": 24,
+        "top3_recall": 100.0
+      }
+    ],
+    "samples": [
+      {
+        "symptom_cluster": "vomiting, diarrhea, loss of appetite, weakness",
+        "animal_group": "Dogs",
+        "actual": "Gastroenteritis",
+        "top3": [
+          {
+            "diagnosis": "Gastroenteritis",
+            "probability": 56.2
+          },
+          {
+            "diagnosis": "Intestinal Parasites",
+            "probability": 43.8
+          },
+          {
+            "diagnosis": "Skin Infection",
+            "probability": 0.0
+          }
+        ],
+        "top1_correct": true,
+        "in_top3": true
+      },
+      {
+        "symptom_cluster": "itching, hair loss, wounds, ear scratching",
+        "animal_group": "Dogs",
+        "actual": "Skin Infection",
+        "top3": [
+          {
+            "diagnosis": "Flea Allergy Dermatitis",
+            "probability": 33.0
+          },
+          {
+            "diagnosis": "Skin Infection",
+            "probability": 31.9
+          },
+          {
+            "diagnosis": "Mange",
+            "probability": 17.9
+          }
+        ],
+        "top1_correct": false,
+        "in_top3": true
+      },
+      {
+        "symptom_cluster": "bite exposure, fever, neurological signs, suspected public-health risk",
+        "animal_group": "Dogs",
+        "actual": "Rabies (Suspected)",
+        "top3": [
+          {
+            "diagnosis": "Leptospirosis",
+            "probability": 55.3
+          },
+          {
+            "diagnosis": "Rabies (Suspected)",
+            "probability": 44.7
+          },
+          {
+            "diagnosis": "Upper Respiratory Infection",
+            "probability": 0.0
+          }
+        ],
+        "top1_correct": false,
+        "in_top3": true
+      },
+      {
+        "symptom_cluster": "coughing, nasal discharge, fever, difficulty breathing",
+        "animal_group": "Dogs",
+        "actual": "Kennel Cough",
+        "top3": [
+          {
+            "diagnosis": "Kennel Cough",
+            "probability": 100.0
+          },
+          {
+            "diagnosis": "Urinary Tract Infection",
+            "probability": 0.0
+          },
+          {
+            "diagnosis": "Skin Infection",
+            "probability": 0.0
+          }
+        ],
+        "top1_correct": true,
+        "in_top3": true
+      },
+      {
+        "symptom_cluster": "fever, ticks, anemia, weakness",
+        "animal_group": "Carabaos / Water Buffalo",
+        "actual": "Parasite Infection",
+        "top3": [
+          {
+            "diagnosis": "Parasite Infection",
+            "probability": 100.0
+          },
+          {
+            "diagnosis": "Urinary Tract Infection",
+            "probability": 0.0
+          },
+          {
+            "diagnosis": "Upper Respiratory Infection",
+            "probability": 0.0
+          }
+        ],
+        "top1_correct": true,
+        "in_top3": true
+      },
+      {
+        "symptom_cluster": "general weakness, appetite loss, abnormal behavior",
+        "animal_group": "Goats / Sheep",
+        "actual": "Parasitic Infection",
+        "top3": [
+          {
+            "diagnosis": "Parasitic Infection",
+            "probability": 86.6
+          },
+          {
+            "diagnosis": "Foot Rot",
+            "probability": 13.4
+          },
+          {
+            "diagnosis": "Upper Respiratory Infection",
+            "probability": 0.0
+          }
+        ],
+        "top1_correct": true,
+        "in_top3": true
+      },
+      {
+        "symptom_cluster": "frequent urination, straining, blood in urine",
+        "animal_group": "Cats",
+        "actual": "Feline Lower Urinary Tract Disease",
+        "top3": [
+          {
+            "diagnosis": "Feline Lower Urinary Tract Disease",
+            "probability": 100.0
+          },
+          {
+            "diagnosis": "Urinary Tract Infection",
+            "probability": 0.0
+          },
+          {
+            "diagnosis": "Skin Infection",
+            "probability": 0.0
+          }
+        ],
+        "top1_correct": true,
+        "in_top3": true
+      },
+      {
+        "symptom_cluster": "bad breath, drooling, difficulty eating",
+        "animal_group": "Cats",
+        "actual": "Dental Disease",
+        "top3": [
+          {
+            "diagnosis": "Dental Disease",
+            "probability": 100.0
+          },
+          {
+            "diagnosis": "Urinary Tract Infection",
+            "probability": 0.0
+          },
+          {
+            "diagnosis": "Skin Infection",
+            "probability": 0.0
+          }
+        ],
+        "top1_correct": true,
+        "in_top3": true
+      },
+      {
+        "symptom_cluster": "abdominal swelling, discharge, mammary inflammation",
+        "animal_group": "Dogs",
+        "actual": "Pyometra",
+        "top3": [
+          {
+            "diagnosis": "Pyometra",
+            "probability": 100.0
+          },
+          {
+            "diagnosis": "Urinary Tract Infection",
+            "probability": 0.0
+          },
+          {
+            "diagnosis": "Upper Respiratory Infection",
+            "probability": 0.0
+          }
+        ],
+        "top1_correct": true,
+        "in_top3": true
+      },
+      {
+        "symptom_cluster": "panting, collapse, high temperature, dehydration",
+        "animal_group": "Dogs",
+        "actual": "Heat Stroke",
+        "top3": [
+          {
+            "diagnosis": "Heat Stroke",
+            "probability": 100.0
+          },
+          {
+            "diagnosis": "Urinary Tract Infection",
+            "probability": 0.0
+          },
+          {
+            "diagnosis": "Skin Infection",
+            "probability": 0.0
+          }
+        ],
+        "top1_correct": true,
+        "in_top3": true
+      }
+    ]
+  },
+  "vaccination": {
+    "worked": {
+      "n_months": 36,
+      "total_animals": 14387.0,
+      "mean": 399.6,
+      "sigma": 292.1,
+      "margin": 374.1,
+      "barangay": "Tiaong",
+      "dogs": 945,
+      "weight_pct": 5.61,
+      "dogs_total": 16847,
+      "per_month": 22.4,
+      "six_month": 134.4
+    },
+    "model": "ARIMA(0, 0, 0)",
+    "model_type": "ARIMA",
+    "series_from": "2023-01",
+    "series_to": "2025-12",
+    "year_totals": {
+      "2023": 3959.0,
+      "2024": 4006.0,
+      "2025": 6422.0
+    },
+    "avg_month_all": 399.6,
+    "avg_month_2025": 535.2,
+    "holdout_train_to": "2025-06",
+    "holdout": [
+      {
+        "month": "Jul 2025",
+        "actual": 610.0,
+        "predicted": 379.0,
+        "lower": 0.0,
+        "upper": 781.1,
+        "error": -231.0
+      },
+      {
+        "month": "Aug 2025",
+        "actual": 578.0,
+        "predicted": 379.0,
+        "lower": 0.0,
+        "upper": 781.1,
+        "error": -199.0
+      },
+      {
+        "month": "Sep 2025",
+        "actual": 546.0,
+        "predicted": 379.0,
+        "lower": 0.0,
+        "upper": 781.1,
+        "error": -167.0
+      },
+      {
+        "month": "Oct 2025",
+        "actual": 514.0,
+        "predicted": 379.0,
+        "lower": 0.0,
+        "upper": 781.1,
+        "error": -135.0
+      },
+      {
+        "month": "Nov 2025",
+        "actual": 417.0,
+        "predicted": 379.0,
+        "lower": 0.0,
+        "upper": 781.1,
+        "error": -38.0
+      },
+      {
+        "month": "Dec 2025",
+        "actual": 353.0,
+        "predicted": 379.0,
+        "lower": 0.0,
+        "upper": 781.1,
+        "error": 26.0
+      }
+    ],
+    "metrics": {
+      "mae": 132.667,
+      "rmse": 153.4,
+      "mape": 24.3,
+      "wape": 26.4,
+      "n": 6
+    },
+    "baseline_same_month_last_year": {
+      "mae": 405.5,
+      "rmse": 415.86,
+      "mape": 81.3,
+      "wape": 80.6,
+      "n": 6
+    },
+    "forecast": [
+      {
+        "month": "Jan 2026",
+        "predicted": 399.6,
+        "lower": 25.6,
+        "upper": 773.7,
+        "same_month": {
+          "2023": 25.0,
+          "2024": 25.0,
+          "2025": 353.0
+        }
+      },
+      {
+        "month": "Feb 2026",
+        "predicted": 399.6,
+        "lower": 25.6,
+        "upper": 773.7,
+        "same_month": {
+          "2023": 35.0,
+          "2024": 24.0,
+          "2025": 386.0
+        }
+      },
+      {
+        "month": "Mar 2026",
+        "predicted": 399.6,
+        "lower": 25.6,
+        "upper": 773.7,
+        "same_month": {
+          "2023": 647.0,
+          "2024": 441.0,
+          "2025": 546.0
+        }
+      },
+      {
+        "month": "Apr 2026",
+        "predicted": 399.6,
+        "lower": 25.6,
+        "upper": 773.7,
+        "same_month": {
+          "2023": 389.0,
+          "2024": 722.0,
+          "2025": 674.0
+        }
+      },
+      {
+        "month": "May 2026",
+        "predicted": 399.6,
+        "lower": 25.6,
+        "upper": 773.7,
+        "same_month": {
+          "2023": 1079.0,
+          "2024": 639.0,
+          "2025": 739.0
+        }
+      },
+      {
+        "month": "Jun 2026",
+        "predicted": 399.6,
+        "lower": 25.6,
+        "upper": 773.7,
+        "same_month": {
+          "2023": 472.0,
+          "2024": 396.0,
+          "2025": 706.0
+        }
+      }
+    ],
+    "barangays": [
+      {
+        "barangay": "Tiaong",
+        "dogs_2025": 945,
+        "weight_pct": 5.61,
+        "hist_avg_month": 22.4,
+        "hist_2025_month": 30.0,
+        "hist_2025_year": 360.0,
+        "forecast_next": 22.4,
+        "forecast_lower": 1.4,
+        "forecast_upper": 43.4,
+        "forecast_6mo": 134.4,
+        "vs_2025_pct": -25.4,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "San Jose",
+        "dogs_2025": 860,
+        "weight_pct": 5.1,
+        "hist_avg_month": 20.4,
+        "hist_2025_month": 27.3,
+        "hist_2025_year": 328.0,
+        "forecast_next": 20.4,
+        "forecast_lower": 1.3,
+        "forecast_upper": 39.5,
+        "forecast_6mo": 122.4,
+        "vs_2025_pct": -25.3,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Poblacion",
+        "dogs_2025": 774,
+        "weight_pct": 4.59,
+        "hist_avg_month": 18.3,
+        "hist_2025_month": 24.6,
+        "hist_2025_year": 295.0,
+        "forecast_next": 18.3,
+        "forecast_lower": 1.2,
+        "forecast_upper": 35.5,
+        "forecast_6mo": 109.8,
+        "vs_2025_pct": -25.5,
+        "recorded_2026": {
+          "2026-06": 25
+        }
+      },
+      {
+        "barangay": "Sulivan",
+        "dogs_2025": 774,
+        "weight_pct": 4.59,
+        "hist_avg_month": 18.3,
+        "hist_2025_month": 24.6,
+        "hist_2025_year": 295.0,
+        "forecast_next": 18.3,
+        "forecast_lower": 1.2,
+        "forecast_upper": 35.5,
+        "forecast_6mo": 109.8,
+        "vs_2025_pct": -25.5,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Tangos",
+        "dogs_2025": 774,
+        "weight_pct": 4.59,
+        "hist_avg_month": 18.3,
+        "hist_2025_month": 24.6,
+        "hist_2025_year": 295.0,
+        "forecast_next": 18.3,
+        "forecast_lower": 1.2,
+        "forecast_upper": 35.5,
+        "forecast_6mo": 109.8,
+        "vs_2025_pct": -25.5,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Bagong Nayon",
+        "dogs_2025": 688,
+        "weight_pct": 4.08,
+        "hist_avg_month": 16.3,
+        "hist_2025_month": 21.8,
+        "hist_2025_year": 262.0,
+        "forecast_next": 16.3,
+        "forecast_lower": 1.0,
+        "forecast_upper": 31.6,
+        "forecast_6mo": 97.8,
+        "vs_2025_pct": -25.3,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Pagala",
+        "dogs_2025": 688,
+        "weight_pct": 4.08,
+        "hist_avg_month": 16.3,
+        "hist_2025_month": 21.8,
+        "hist_2025_year": 262.0,
+        "forecast_next": 16.3,
+        "forecast_lower": 1.0,
+        "forecast_upper": 31.6,
+        "forecast_6mo": 97.8,
+        "vs_2025_pct": -25.3,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Pinagbarilan",
+        "dogs_2025": 653,
+        "weight_pct": 3.88,
+        "hist_avg_month": 15.5,
+        "hist_2025_month": 20.8,
+        "hist_2025_year": 249.0,
+        "forecast_next": 15.5,
+        "forecast_lower": 1.0,
+        "forecast_upper": 30.0,
+        "forecast_6mo": 93.0,
+        "vs_2025_pct": -25.4,
+        "recorded_2026": {
+          "2026-06": 50,
+          "2026-07": 50
+        }
+      },
+      {
+        "barangay": "Virgen Delas Flores",
+        "dogs_2025": 653,
+        "weight_pct": 3.88,
+        "hist_avg_month": 15.5,
+        "hist_2025_month": 20.8,
+        "hist_2025_year": 249.0,
+        "forecast_next": 15.5,
+        "forecast_lower": 1.0,
+        "forecast_upper": 30.0,
+        "forecast_6mo": 93.0,
+        "vs_2025_pct": -25.4,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Tarcan",
+        "dogs_2025": 619,
+        "weight_pct": 3.67,
+        "hist_avg_month": 14.7,
+        "hist_2025_month": 19.6,
+        "hist_2025_year": 236.0,
+        "forecast_next": 14.7,
+        "forecast_lower": 0.9,
+        "forecast_upper": 28.4,
+        "forecast_6mo": 88.2,
+        "vs_2025_pct": -25.2,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Makinabang",
+        "dogs_2025": 619,
+        "weight_pct": 3.67,
+        "hist_avg_month": 14.7,
+        "hist_2025_month": 19.6,
+        "hist_2025_year": 236.0,
+        "forecast_next": 14.7,
+        "forecast_lower": 0.9,
+        "forecast_upper": 28.4,
+        "forecast_6mo": 88.2,
+        "vs_2025_pct": -25.2,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Tibag",
+        "dogs_2025": 619,
+        "weight_pct": 3.67,
+        "hist_avg_month": 14.7,
+        "hist_2025_month": 19.6,
+        "hist_2025_year": 236.0,
+        "forecast_next": 14.7,
+        "forecast_lower": 0.9,
+        "forecast_upper": 28.4,
+        "forecast_6mo": 88.2,
+        "vs_2025_pct": -25.2,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Subic",
+        "dogs_2025": 602,
+        "weight_pct": 3.57,
+        "hist_avg_month": 14.3,
+        "hist_2025_month": 19.1,
+        "hist_2025_year": 229.0,
+        "forecast_next": 14.3,
+        "forecast_lower": 0.9,
+        "forecast_upper": 27.6,
+        "forecast_6mo": 85.8,
+        "vs_2025_pct": -25.2,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "San Roque",
+        "dogs_2025": 602,
+        "weight_pct": 3.57,
+        "hist_avg_month": 14.3,
+        "hist_2025_month": 19.1,
+        "hist_2025_year": 229.0,
+        "forecast_next": 14.3,
+        "forecast_lower": 0.9,
+        "forecast_upper": 27.6,
+        "forecast_6mo": 85.8,
+        "vs_2025_pct": -25.2,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Paitan",
+        "dogs_2025": 584,
+        "weight_pct": 3.47,
+        "hist_avg_month": 13.9,
+        "hist_2025_month": 18.6,
+        "hist_2025_year": 223.0,
+        "forecast_next": 13.9,
+        "forecast_lower": 0.9,
+        "forecast_upper": 26.8,
+        "forecast_6mo": 83.4,
+        "vs_2025_pct": -25.1,
+        "recorded_2026": {
+          "2026-06": 25
+        }
+      },
+      {
+        "barangay": "Sto. Cristo",
+        "dogs_2025": 584,
+        "weight_pct": 3.47,
+        "hist_avg_month": 13.9,
+        "hist_2025_month": 18.6,
+        "hist_2025_year": 223.0,
+        "forecast_next": 13.9,
+        "forecast_lower": 0.9,
+        "forecast_upper": 26.8,
+        "forecast_6mo": 83.4,
+        "vs_2025_pct": -25.1,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Hinukay",
+        "dogs_2025": 567,
+        "weight_pct": 3.37,
+        "hist_avg_month": 13.5,
+        "hist_2025_month": 18.0,
+        "hist_2025_year": 216.0,
+        "forecast_next": 13.5,
+        "forecast_lower": 0.9,
+        "forecast_upper": 26.1,
+        "forecast_6mo": 81.0,
+        "vs_2025_pct": -25.1,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Sto. Ni\u00f1o",
+        "dogs_2025": 567,
+        "weight_pct": 3.37,
+        "hist_avg_month": 13.5,
+        "hist_2025_month": 18.0,
+        "hist_2025_year": 216.0,
+        "forecast_next": 13.5,
+        "forecast_lower": 0.9,
+        "forecast_upper": 26.1,
+        "forecast_6mo": 81.0,
+        "vs_2025_pct": -25.1,
+        "recorded_2026": {
+          "2026-07": 50
+        }
+      },
+      {
+        "barangay": "Tilapayong",
+        "dogs_2025": 550,
+        "weight_pct": 3.27,
+        "hist_avg_month": 13.1,
+        "hist_2025_month": 17.5,
+        "hist_2025_year": 210.0,
+        "forecast_next": 13.1,
+        "forecast_lower": 0.8,
+        "forecast_upper": 25.3,
+        "forecast_6mo": 78.6,
+        "vs_2025_pct": -25.1,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Concepcion",
+        "dogs_2025": 550,
+        "weight_pct": 3.27,
+        "hist_avg_month": 13.1,
+        "hist_2025_month": 17.5,
+        "hist_2025_year": 210.0,
+        "forecast_next": 13.1,
+        "forecast_lower": 0.8,
+        "forecast_upper": 25.3,
+        "forecast_6mo": 78.6,
+        "vs_2025_pct": -25.1,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Barangca",
+        "dogs_2025": 533,
+        "weight_pct": 3.16,
+        "hist_avg_month": 12.6,
+        "hist_2025_month": 16.9,
+        "hist_2025_year": 203.0,
+        "forecast_next": 12.6,
+        "forecast_lower": 0.8,
+        "forecast_upper": 24.4,
+        "forecast_6mo": 75.6,
+        "vs_2025_pct": -25.5,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Piel",
+        "dogs_2025": 533,
+        "weight_pct": 3.16,
+        "hist_avg_month": 12.6,
+        "hist_2025_month": 16.9,
+        "hist_2025_year": 203.0,
+        "forecast_next": 12.6,
+        "forecast_lower": 0.8,
+        "forecast_upper": 24.4,
+        "forecast_6mo": 75.6,
+        "vs_2025_pct": -25.5,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Catulinan",
+        "dogs_2025": 516,
+        "weight_pct": 3.06,
+        "hist_avg_month": 12.2,
+        "hist_2025_month": 16.4,
+        "hist_2025_year": 197.0,
+        "forecast_next": 12.2,
+        "forecast_lower": 0.8,
+        "forecast_upper": 23.7,
+        "forecast_6mo": 73.2,
+        "vs_2025_pct": -25.5,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Calantipay",
+        "dogs_2025": 516,
+        "weight_pct": 3.06,
+        "hist_avg_month": 12.2,
+        "hist_2025_month": 16.4,
+        "hist_2025_year": 197.0,
+        "forecast_next": 12.2,
+        "forecast_lower": 0.8,
+        "forecast_upper": 23.7,
+        "forecast_6mo": 73.2,
+        "vs_2025_pct": -25.5,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Sta. Barbara",
+        "dogs_2025": 516,
+        "weight_pct": 3.06,
+        "hist_avg_month": 12.2,
+        "hist_2025_month": 16.4,
+        "hist_2025_year": 197.0,
+        "forecast_next": 12.2,
+        "forecast_lower": 0.8,
+        "forecast_upper": 23.7,
+        "forecast_6mo": 73.2,
+        "vs_2025_pct": -25.5,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Sabang",
+        "dogs_2025": 499,
+        "weight_pct": 2.96,
+        "hist_avg_month": 11.8,
+        "hist_2025_month": 15.8,
+        "hist_2025_year": 190.0,
+        "forecast_next": 11.8,
+        "forecast_lower": 0.8,
+        "forecast_upper": 22.9,
+        "forecast_6mo": 70.8,
+        "vs_2025_pct": -25.5,
+        "recorded_2026": {}
+      },
+      {
+        "barangay": "Matangtubig",
+        "dogs_2025": 462,
+        "weight_pct": 2.76,
+        "hist_avg_month": 11.0,
+        "hist_2025_month": 14.8,
+        "hist_2025_year": 177.0,
+        "forecast_next": 11.0,
+        "forecast_lower": 0.7,
+        "forecast_upper": 21.4,
+        "forecast_6mo": 66.0,
+        "vs_2025_pct": -25.5,
+        "recorded_2026": {}
+      }
+    ],
+    "live": {
+      "db_months_available": 2,
+      "db_months_used": 0,
+      "db_months_rejected": 2,
+      "plausibility_floor": 182.9,
+      "rejected_months": [
+        {
+          "period": "2026-06",
+          "total": 100.0
+        },
+        {
+          "period": "2026-07",
+          "total": 100.0
+        }
+      ]
+    },
+    "history": [
+      {
+        "month": "2023-01",
+        "vaccinated": 25.0
+      },
+      {
+        "month": "2023-02",
+        "vaccinated": 35.0
+      },
+      {
+        "month": "2023-03",
+        "vaccinated": 647.0
+      },
+      {
+        "month": "2023-04",
+        "vaccinated": 389.0
+      },
+      {
+        "month": "2023-05",
+        "vaccinated": 1079.0
+      },
+      {
+        "month": "2023-06",
+        "vaccinated": 472.0
+      },
+      {
+        "month": "2023-07",
+        "vaccinated": 0.0
+      },
+      {
+        "month": "2023-08",
+        "vaccinated": 506.0
+      },
+      {
+        "month": "2023-09",
+        "vaccinated": 56.0
+      },
+      {
+        "month": "2023-10",
+        "vaccinated": 21.0
+      },
+      {
+        "month": "2023-11",
+        "vaccinated": 228.0
+      },
+      {
+        "month": "2023-12",
+        "vaccinated": 501.0
+      },
+      {
+        "month": "2024-01",
+        "vaccinated": 25.0
+      },
+      {
+        "month": "2024-02",
+        "vaccinated": 24.0
+      },
+      {
+        "month": "2024-03",
+        "vaccinated": 441.0
+      },
+      {
+        "month": "2024-04",
+        "vaccinated": 722.0
+      },
+      {
+        "month": "2024-05",
+        "vaccinated": 639.0
+      },
+      {
+        "month": "2024-06",
+        "vaccinated": 396.0
+      },
+      {
+        "month": "2024-07",
+        "vaccinated": 222.0
+      },
+      {
+        "month": "2024-08",
+        "vaccinated": 134.0
+      },
+      {
+        "month": "2024-09",
+        "vaccinated": 1133.0
+      },
+      {
+        "month": "2024-10",
+        "vaccinated": 134.0
+      },
+      {
+        "month": "2024-11",
+        "vaccinated": 99.0
+      },
+      {
+        "month": "2024-12",
+        "vaccinated": 37.0
+      },
+      {
+        "month": "2025-01",
+        "vaccinated": 353.0
+      },
+      {
+        "month": "2025-02",
+        "vaccinated": 386.0
+      },
+      {
+        "month": "2025-03",
+        "vaccinated": 546.0
+      },
+      {
+        "month": "2025-04",
+        "vaccinated": 674.0
+      },
+      {
+        "month": "2025-05",
+        "vaccinated": 739.0
+      },
+      {
+        "month": "2025-06",
+        "vaccinated": 706.0
+      },
+      {
+        "month": "2025-07",
+        "vaccinated": 610.0
+      },
+      {
+        "month": "2025-08",
+        "vaccinated": 578.0
+      },
+      {
+        "month": "2025-09",
+        "vaccinated": 546.0
+      },
+      {
+        "month": "2025-10",
+        "vaccinated": 514.0
+      },
+      {
+        "month": "2025-11",
+        "vaccinated": 417.0
+      },
+      {
+        "month": "2025-12",
+        "vaccinated": 353.0
+      }
+    ]
+  }
+}

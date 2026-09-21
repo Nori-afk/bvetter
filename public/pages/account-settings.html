@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
-  <link rel="stylesheet" href="../css/account-settings.css"/>
+  <link rel="stylesheet" href="../css/account-settings.css?v=20260919-confirm"/>
 </head>
 <body>
 
@@ -207,9 +207,14 @@
     </div>
     <div class="modal-title center">Deactivate Account?</div>
     <div class="modal-desc center">You will be signed out on every device and will not be able to sign in again. Your records are kept, not deleted &mdash; the Baliwag City Veterinary Office can reopen your account if you change your mind. To have your personal data deleted instead, contact the office using the details in our <a href="privacy-policy.html">Privacy Policy</a>.</div>
+    <label class="deact-confirm-label" for="deactivateConfirmInput">To confirm, type <strong>DEACTIVATE</strong></label>
+    <input type="text" id="deactivateConfirmInput" class="form-input deact-confirm-input"
+           autocomplete="off" autocapitalize="characters" spellcheck="false"
+           placeholder="DEACTIVATE" aria-describedby="deactivateConfirmHint"/>
+    <span class="deact-confirm-hint" id="deactivateConfirmHint">The button below stays locked until this matches.</span>
     <div class="modal-footer-row centered">
       <button class="btn-modal-cancel" id="btnCancelDeactivate">Cancel</button>
-      <button class="btn-modal-danger" id="btnConfirmDeactivate">Yes, Deactivate</button>
+      <button class="btn-modal-danger" id="btnConfirmDeactivate" disabled>Yes, Deactivate</button>
     </div>
   </div>
 </div>
@@ -223,7 +228,7 @@
   <script src="../js/nav.js?v=20260829-preview"></script>
   <script src="../js/api.js?v=20260819-authfix"></script>
   <script src="../js/password-policy.js?v=20260816-sec"></script>
-  <script src="../js/account-settings.js?v=20260819-deactivate"></script>
+  <script src="../js/account-settings.js?v=20260919-confirm"></script>
   <script src="../js/site-settings.js?v=20260829-preview"></script>
 </body>
 </html>

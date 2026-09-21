@@ -22,6 +22,9 @@
 
   const session = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
 
+  // Set by loadProfile() and re-based after every successful save.
+  let loadedEmail = '';
+
   /* ── Load current profile into the form ───── */
   async function loadProfile() {
     if (!session) return;
@@ -39,6 +42,8 @@
 
     if (nameInput) nameInput.value = profile.fullName || '';
     if (emailInput) emailInput.value = profile.email || '';
+    // Remembered so Save can tell a real email change from an untouched field.
+    loadedEmail = profile.email || '';
     if (phoneInput) phoneInput.value = profile.phone || '';
     if (avatarImg && profile.avatarUrl) avatarImg.src = profile.avatarUrl;
     if (navName) navName.textContent = profile.fullName || session.name || 'Pet Owner';
@@ -71,6 +76,22 @@
         showToast('Please fill in all required fields.', 'error');
         return;
       }
+
+      // Changing the email address is not the same kind of edit as changing a
+      // phone number: it is where password resets and 2FA codes are sent, so a
+      // typo here quietly moves the keys to the account somewhere the owner
+      // cannot read. Save was one button with nothing between it and that.
+      // Name and phone stay unguarded on purpose — both are correctable from
+      // this same form, and a prompt on every save trains people past it.
+      if (loadedEmail && email.trim().toLowerCase() !== loadedEmail.toLowerCase()) {
+        const ok = await vbConfirm(
+          `Change your sign-in email from ${loadedEmail} to ${email.trim()}? Password resets and `
+          + `login codes will go to the new address, so make sure you can open it.`,
+          'Change Email'
+        );
+        if (!ok) return;
+      }
+
       const result = await api.updateProfile({
         user_id: session?.userId,
         fullName: name.trim(),
@@ -82,6 +103,9 @@
         showToast(result.message || 'Could not save your profile.', 'error');
         return;
       }
+      // Re-based on what the server stored, so a second save in the same visit
+      // compares against the new address rather than re-prompting off the old.
+      loadedEmail = result.data.email || email.trim();
       const navName = document.querySelector('.nav-user-name');
       if (navName) navName.textContent = result.data.fullName;
       showToast('Profile saved successfully.', 'success');
@@ -187,17 +211,61 @@
   const btnDeactivate        = document.getElementById('btnDeactivate');
   const btnCancelDeactivate  = document.getElementById('btnCancelDeactivate');
   const btnConfirmDeactivate = document.getElementById('btnConfirmDeactivate');
-  if (btnDeactivate)       btnDeactivate      .addEventListener('click', () => deactivateModal.classList.add('open'));
-  if (btnCancelDeactivate) btnCancelDeactivate.addEventListener('click', () => deactivateModal.classList.remove('open'));
-  if (deactivateModal)     deactivateModal    .addEventListener('click', e => { if (e.target === deactivateModal) deactivateModal.classList.remove('open'); });
+  const deactivateInput      = document.getElementById('deactivateConfirmInput');
+
+  /* "Yes, Deactivate" is the one control on this page whose effect the person
+     pressing it cannot undo on their own: the server revokes every session and
+     blocks the account, and only the vet office can reopen it. Typing the word
+     is what separates meaning it from brushing past it. A fixed word rather
+     than the account's own name, because the risk here is a reflexive click —
+     there is only ever one account in this dialog to get wrong. */
+  const DEACTIVATE_WORD = 'DEACTIVATE';
+
+  function deactivateTyped() {
+    return (deactivateInput?.value || '').trim().toUpperCase() === DEACTIVATE_WORD;
+  }
+
+  function syncDeactivateButton() {
+    const ok = deactivateTyped();
+    if (btnConfirmDeactivate) btnConfirmDeactivate.disabled = !ok;
+    deactivateInput?.classList.toggle('deact-match', ok);
+  }
+
+  // Re-armed from scratch on open and on close, so a word left in the box
+  // cannot survive a cancel and greet the next visit already unlocked.
+  function resetDeactivateModal() {
+    if (deactivateInput) deactivateInput.value = '';
+    syncDeactivateButton();
+  }
+
+  function closeDeactivateModal() {
+    deactivateModal?.classList.remove('open');
+    resetDeactivateModal();
+  }
+
+  deactivateInput?.addEventListener('input', syncDeactivateButton);
+
+  if (btnDeactivate) {
+    btnDeactivate.addEventListener('click', () => {
+      resetDeactivateModal();
+      deactivateModal.classList.add('open');
+      deactivateInput?.focus();
+    });
+  }
+  if (btnCancelDeactivate) btnCancelDeactivate.addEventListener('click', closeDeactivateModal);
+  if (deactivateModal)     deactivateModal    .addEventListener('click', e => { if (e.target === deactivateModal) closeDeactivateModal(); });
 
   if (btnConfirmDeactivate) {
     btnConfirmDeactivate.addEventListener('click', async () => {
+      // Checked here as well as through the disabled attribute: the typed word
+      // is what actually authorises this call, the button state only mirrors it.
+      if (!deactivateTyped()) return;
+
       btnConfirmDeactivate.disabled = true;
       const result = await api.deactivateAccount().catch(() => ({ success: false }));
 
       if (!result.success) {
-        btnConfirmDeactivate.disabled = false;
+        syncDeactivateButton();
         showToast(result.message || 'Could not deactivate the account. Please try again.', 'error');
         return;
       }
@@ -218,7 +286,7 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       if (pwModal)         pwModal.classList.remove('open');
-      if (deactivateModal) deactivateModal.classList.remove('open');
+      if (deactivateModal) closeDeactivateModal();
     }
   });
 

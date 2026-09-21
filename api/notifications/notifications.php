@@ -167,6 +167,33 @@ function dismiss($pdo, $data, $userId)
     respond(200, ['success' => true, 'message' => 'Notification dismissed.', 'updated' => $stmt->rowCount()]);
 }
 
+/**
+ * Bulk counterpart to dismiss(), shaped like markAllRead() above: one indexed
+ * UPDATE over the caller's own undismissed rows rather than the client firing
+ * a dismiss per id. A loop would be N round trips that can half-fail, and it
+ * could only ever reach the rows the page had fetched — so "Clear All" would
+ * quietly leave older notifications behind.
+ *
+ * Scoped to the whole feed, not to whatever page the caller is displaying,
+ * which is the same scope mark_all_read uses.
+ */
+function dismissAll($pdo, $userId)
+{
+    $stmt = $pdo->prepare('
+        UPDATE notifications SET dismissed_at = NOW()
+        WHERE user_id = :user_id AND dismissed_at IS NULL
+    ');
+    $stmt->execute([':user_id' => $userId]);
+
+    // Same reason markAllRead() reports this: without it, an UPDATE that never
+    // ran is indistinguishable from one that matched nothing.
+    respond(200, [
+        'success' => true,
+        'message' => 'All notifications cleared.',
+        'updated' => $stmt->rowCount(),
+    ]);
+}
+
 $session = requireRole($pdo, ['admin', 'veterinarian', 'pet_owner']);
 $userId = (int) $session['user_id'];
 
@@ -184,6 +211,7 @@ try {
     if ($action === 'mark_read') markRead($pdo, $input, $userId);
     if ($action === 'mark_all_read') markAllRead($pdo, $userId);
     if ($action === 'dismiss') dismiss($pdo, $input, $userId);
+    if ($action === 'dismiss_all') dismissAll($pdo, $userId);
 
     respond(400, [
         'success' => false,

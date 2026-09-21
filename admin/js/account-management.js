@@ -458,11 +458,45 @@ function openBlockModal(id) {
 }
 
 /* ── DELETE MODAL ───────────────────────────────────────────── */
+
+/*
+ * Deletion is the only irreversible action on this page, and a plain modal
+ * guarded almost nothing: the delete icon sits in every row, so one mis-aimed
+ * click plus one reflexive click on a red button was the whole distance
+ * between a full table and a destroyed account. Nothing in the dialog forced
+ * the admin to read WHOSE account it was holding.
+ *
+ * The confirm button now stays disabled until the account's full name is
+ * retyped. The comparison is deliberately forgiving — case and runs of
+ * whitespace are normalised — because the point is to make the admin read the
+ * name, not to test their typing.
+ */
+function normalizeName(value) {
+    return String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 function wireDeleteModal() {
-    document.getElementById('delete-confirm-btn')?.addEventListener('click', async () => {
-        if (!pendingDeleteId) return;
+    const input      = document.getElementById('delete-confirm-input');
+    const confirmBtn = document.getElementById('delete-confirm-btn');
+
+    input?.addEventListener('input', () => {
+        const user = allUsers.find(u => u.id === pendingDeleteId);
+        const ok = !!user && normalizeName(input.value) === normalizeName(user.name);
+        if (confirmBtn) confirmBtn.disabled = !ok;
+        input.classList.toggle('am-match', ok);
+    });
+
+    confirmBtn?.addEventListener('click', async () => {
+        const user = allUsers.find(u => u.id === pendingDeleteId);
+        // Re-checked here instead of trusting the disabled attribute: the
+        // pending id and the typed name are what actually authorise this
+        // call, and the button state is only a reflection of them.
+        if (!user || normalizeName(input?.value) !== normalizeName(user.name)) return;
+
+        confirmBtn.disabled = true;
         const result = await api.deleteUser(pendingDeleteId).catch(() => ({ success: false }));
         if (!result.success) {
+            confirmBtn.disabled = false;
             await vbAlert(result.message || 'Could not delete this account.');
             return;
         }
@@ -480,8 +514,20 @@ function openDeleteModal(id) {
     const initials = user.name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
     setEl('delete-avatar', initials);
     setEl('delete-user-name', user.name);
+    // Role and email so the name is not the only thing identifying the row:
+    // two residents can share a name, and the email is what separates them.
+    const contact = user.emailIsPlaceholder ? 'no email on file' : user.email;
+    setEl('delete-user-meta', `${user.roleLabel || capitalize(user.role)} · ${contact}`);
+
+    // Every open starts clean. A value left over from the previous account
+    // would arrive already matching — against a different person entirely.
+    const input      = document.getElementById('delete-confirm-input');
+    const confirmBtn = document.getElementById('delete-confirm-btn');
+    if (input)      { input.value = ''; input.classList.remove('am-match'); }
+    if (confirmBtn) confirmBtn.disabled = true;
 
     document.getElementById('modal-delete').hidden = false;
+    input?.focus();
 }
 
 /* ── VERIFY MODAL ───────────────────────────────────────────── */
@@ -571,6 +617,8 @@ function wireVerifyModal() {
     document.getElementById('verify-approve-btn')?.addEventListener('click', async () => {
         if (!pendingVerifyId) return;
 
+        const applicant = allUsers.find(u => u.id === pendingVerifyId);
+        const who = applicant ? applicant.name : 'this applicant';
         const linkTo = pendingWalkIns.find(c => c.id === selectedWalkInId);
 
         if (linkTo) {
@@ -580,6 +628,16 @@ function wireVerifyModal() {
                 + `The new account takes over ${linkTo.pets.length} pet(s)${pets} and `
                 + `${linkTo.visitCount} visit record(s). This cannot be undone.`,
                 'Link & Approve'
+            );
+            if (!ok) return;
+        } else {
+            // The unlinked path used to commit on the first click. Approving
+            // turns an ID photo into a verified resident who can sign in and
+            // book — the same weight of decision as the linked path, it just
+            // has less to spell out.
+            const ok = await vbConfirm(
+                `Approve ${who} as a verified resident? They will be able to sign in and book appointments.`,
+                'Approve'
             );
             if (!ok) return;
         }
@@ -601,6 +659,18 @@ function wireVerifyModal() {
 
     document.getElementById('verify-reject-btn')?.addEventListener('click', async () => {
         if (!pendingVerifyId) return;
+
+        // Matches the confirmation the Reject button on the table row has
+        // always had. The one inside this modal sits next to Approve, which
+        // is exactly where a slip is most likely.
+        const applicant = allUsers.find(u => u.id === pendingVerifyId);
+        const ok = await vbConfirm(
+            `Reject ${applicant ? applicant.name : 'this application'}? The account is set to inactive `
+            + `and they will have to submit proof of residence again.`,
+            'Reject'
+        );
+        if (!ok) return;
+
         const result = await api.rejectUser(pendingVerifyId).catch(() => ({ success: false }));
         if (!result.success) {
             await vbAlert(result.message || 'Could not reject this account.');
