@@ -26,6 +26,7 @@ require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/auth_guard.php';
 require_once __DIR__ . '/../includes/dataset.php';
 require_once __DIR__ . '/../includes/dataset_versions.php';
+require_once __DIR__ . '/../includes/case_timeline.php';
 require_once __DIR__ . '/../includes/analytics_client.php';
 
 $session = requireRole($pdo, ['veterinarian', 'admin']);
@@ -83,6 +84,9 @@ function actionUpload(PDO $pdo, array $session)
     // what a column means.
     $rows = bv_xlsx_rows_from_path($stored, 'Consult_Diagnosis_3Y', null, bv_consult_required_columns());
 
+    // Read before the upload moves it, to tell which typed visits it takes over.
+    $liveCountedAfter = bv_live_visits_count_after($pdo);
+
     try {
         bv_consult_validate($rows);
         $result = bv_consult_ingest(
@@ -96,6 +100,11 @@ function actionUpload(PDO $pdo, array $session)
         error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         respond(500, ['success' => false, 'message' => $e->getMessage()]);
     }
+
+    // What the new boundary means for the people entering visits. See
+    // api/includes/case_timeline.php for the rule both of these follow.
+    $result['shadowedVisits']   = bv_upload_shadowed_visits($pdo, $liveCountedAfter, bv_live_visits_count_after($pdo));
+    $result['partialLastMonth'] = bv_upload_partial_last_month($pdo, $result['versionId'], bv_upload_last_month($pdo));
 
     // Belt-and-braces: arima_service.py re-checks the active version id before
     // serving, so this only makes the refresh immediate rather than making it
@@ -118,7 +127,15 @@ function actionVersions(PDO $pdo)
     respond(200, ['success' => true, 'data' => $rows]);
 }
 
-/** Rollback and roll-forward are the same operation: point at a different version. */
+/**
+ * Rollback and roll-forward are the same operation: point at a different version.
+ *
+ * Only to a version of the SAME dataset. A version whose consultation ids
+ * belong to different consultations is a different dataset -- the bundled
+ * 2023-2025 workbook is one -- and switching to it would move every chart,
+ * report and forecast onto records the clinic's results were not computed from.
+ * See bv_version_id_conflicts().
+ */
 function actionActivate(PDO $pdo, $versionId)
 {
     setupDatasetVersionTables($pdo);
@@ -127,6 +144,21 @@ function actionActivate(PDO $pdo, $versionId)
     $stmt->execute([':v' => $versionId]);
     if (!$stmt->fetchColumn()) {
         respond(404, ['success' => false, 'message' => 'That dataset version does not exist.']);
+    }
+
+    $active = bv_active_dataset_version($pdo);
+    if ($active && (int) $active['id'] !== $versionId) {
+        $conflicts = bv_version_id_conflicts($pdo, $versionId, (int) $active['id'], 1);
+        if ($conflicts['count'] > 0) {
+            respond(409, [
+                'success' => false,
+                'message' => 'Version ' . $versionId . ' is a different dataset, not an earlier version of the one '
+                           . 'in use: ' . number_format($conflicts['count']) . ' of its consultation ids belong to '
+                           . 'other consultations (for example, ' . $conflicts['examples'][0] . '). '
+                           . 'Switching to it would move every chart, report and forecast onto different records, '
+                           . 'so it stays off.',
+            ]);
+        }
     }
 
     $pdo->beginTransaction();
@@ -150,7 +182,7 @@ function actionActivate(PDO $pdo, $versionId)
  * The refusal is not squeamishness: because each version carries its own full
  * copy of the data, deleting an INACTIVE version is genuinely inert -- no other
  * version reads from it. Deleting the ACTIVE one is a different act entirely,
- * silently dropping every chart back to the bundled workbook, so it is made to
+ * silently leaving every chart with no consultation dataset, so it is made to
  * go through an explicit switch instead.
  */
 function actionDelete(PDO $pdo, $versionId)
@@ -177,34 +209,11 @@ function actionDelete(PDO $pdo, $versionId)
     ]);
 }
 
-/**
- * Stands every version down, so the portal reads the bundled workbook again.
- *
- * WHY THIS EXISTS. Uploads merge: each one carries the previous version's rows
- * forward, so a version can only ever grow. Once a year has entered the active
- * dataset there is no upload that removes it again, and deleting the version it
- * arrived in does not help -- the rows were copied into every version since.
- * Without this, "put the system back to the shipped 2023-2025 records" was
- * simply unreachable, which is a bad place for a demo or a bad import to leave
- * someone.
- *
- * Non-destructive on purpose: nothing is deleted, is_active is just cleared, and
- * any version can be switched back on from the History tab afterwards. An empty
- * active set is the same state a fresh install runs in, not a broken one --
- * bv_active_consult_rows() returns null and every reader falls back to the
- * workbook.
- */
-function actionRevert(PDO $pdo)
-{
-    setupDatasetVersionTables($pdo);
-    $pdo->exec("UPDATE dataset_versions SET is_active = 0 WHERE is_active = 1");
-    bv_analytics_invalidate_disease();
-    respond(200, [
-        'success' => true,
-        'message' => 'The system is now reading the bundled 2023-2025 workbook. '
-                   . 'Nothing was deleted — switch any upload back on from the History tab.',
-    ]);
-}
+// There is deliberately no "revert to the bundled workbook" action any more.
+// That workbook is a different dataset from the clinic's own (the same
+// consultation ids describe different visits), so "reverting" moved every
+// chart, report and forecast onto records the clinic's results were not
+// computed from. See bv_sheet_rows() and bv_version_id_conflicts().
 
 $action = bv_clean($_POST['action'] ?? $_GET['action'] ?? 'versions');
 
@@ -220,12 +229,6 @@ try {
             respond(405, ['success' => false, 'message' => 'Deleting a dataset version requires POST.']);
         }
         actionDelete($pdo, $_POST['versionId'] ?? 0);
-    }
-    if ($action === 'revert') {
-        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
-            respond(405, ['success' => false, 'message' => 'Reverting to the bundled workbook requires POST.']);
-        }
-        actionRevert($pdo);
     }
     respond(400, ['success' => false, 'message' => 'Unknown action: ' . $action]);
 } catch (Throwable $e) {

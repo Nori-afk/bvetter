@@ -153,8 +153,10 @@ def cache_set(key, data):
 #
 # The clinic uploads its consultation workbook through api/dataset/dataset.php,
 # which stores it in `historical_consultations` under a `dataset_versions` row
-# and marks exactly one version active. This service reads that active version
-# instead of the bundled Excel once one exists.
+# and marks exactly one version active. This service reads consultations from
+# that active version only -- never from the bundled workbook, which is a
+# different dataset (see _load_consult_diagnosis_raw). Other sheets
+# (vaccination and the like) still come from the workbook.
 #
 # FRESHNESS IS PULL-BASED, ON PURPOSE. PHP does fire an invalidation call after
 # an upload, but that call is best-effort: if it fails, _all_disease_models and
@@ -182,7 +184,9 @@ def load_active_dataset_version() -> int:
         # serving the bundled workbook indefinitely while the PHP pages served
         # the uploaded dataset. The only symptom was a forecast that disagreed
         # with the actual case counts on the same screen, which reads as a
-        # modelling problem rather than a connection one.
+        # modelling problem rather than a connection one. There is no workbook
+        # fallback for consultations any more (see _load_consult_diagnosis_raw),
+        # so the failure now shows up as missing forecasts, and this says why.
         #
         # Printed once per broken run rather than per request: this is called
         # before every consultation read, and a per-request log would bury it.
@@ -190,8 +194,8 @@ def load_active_dataset_version() -> int:
             _db_connect_warned = True
             print(f"[dataset] CANNOT REACH THE DATABASE as {DB_CONFIG['user']}@"
                   f"{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}: {e}")
-            print("[dataset] Falling back to the bundled workbook. Uploaded datasets will be "
-                  "IGNORED by every forecast until this is fixed, while the PHP pages keep using them.")
+            print("[dataset] No consultation data will be served -- every disease forecast "
+                  "is unavailable until this is fixed, while the PHP pages keep using the upload.")
         return None
     _db_connect_warned = False
     try:
@@ -201,17 +205,28 @@ def load_active_dataset_version() -> int:
         return int(row["id"]) if row else None
     except Exception:
         # Table absent (upload feature not migrated yet) is a normal state:
-        # it simply means "no uploads, use the Excel fallback".
+        # it simply means "nothing uploaded".
         return None
     finally:
         conn.close()
 
 
+# The consultation columns, as historical_consultations stores them and the
+# Consult_Diagnosis_3Y sheet names them. Also the shape of the empty frame
+# _load_consult_diagnosis_raw() serves when nothing is uploaded, so every
+# column its callers index exists either way.
+CONSULT_COLUMNS = [
+    "consultation_id", "consultation_date", "year", "month_no", "month",
+    "barangay_id", "barangay", "animal_group", "diagnosis", "disease_category",
+    "symptom_cluster", "cases_reported", "frequency_code", "frequency_description",
+    "season_pattern", "risk_level", "basis", "system_use",
+]
+
+
 def load_active_consult_rows() -> pd.DataFrame:
     """
     The active version's consultations, shaped like read_excel_sheet(
-    "Consult_Diagnosis_3Y") returns them, so _load_consult_diagnosis_raw() can
-    swap sources without its callers noticing. Returns None (not an empty frame)
+    "Consult_Diagnosis_3Y") returns them. Returns None (not an empty frame)
     when there is no active version, so "nothing uploaded" stays distinguishable
     from "uploaded and genuinely empty".
     """
@@ -221,22 +236,19 @@ def load_active_consult_rows() -> pd.DataFrame:
     try:
         conn = db_connect()
     except Exception as e:
-        print(f"[dataset] connect failed, falling back to Excel: {e}")
+        print(f"[dataset] connect failed, serving no consultation data: {e}")
         return None
     try:
         with conn.cursor() as cur:
-            cur.execute("""
-                SELECT consultation_id, consultation_date, year, month_no, month,
-                       barangay_id, barangay, animal_group, diagnosis, disease_category,
-                       symptom_cluster, cases_reported, frequency_code, frequency_description,
-                       season_pattern, risk_level, basis, system_use
+            cur.execute(f"""
+                SELECT {", ".join(CONSULT_COLUMNS)}
                 FROM historical_consultations
                 WHERE dataset_version_id = %s
                 ORDER BY year, month_no, consultation_id
             """, (version_id,))
             rows = cur.fetchall()
     except Exception as e:
-        print(f"[dataset] query failed, falling back to Excel: {e}")
+        print(f"[dataset] query failed, serving no consultation data: {e}")
         return None
     finally:
         conn.close()
@@ -2997,12 +3009,16 @@ def _load_consult_diagnosis_raw() -> pd.DataFrame:
     if _consult_diagnosis_df is not None:
         return _consult_diagnosis_df
 
-    # Uploaded dataset first, bundled workbook only until one exists. Once a
-    # version is active this path no longer opens the .xlsx at all, which takes
-    # openpyxl (and its 20-50x-file-size parse spike) off the request path.
+    # The clinic's uploaded dataset, and nothing else. This used to fall back to
+    # the bundled workbook's sheet whenever no version was active or the DB
+    # could not be reached -- but that workbook is a different dataset reusing
+    # the same consultation ids, so the fallback quietly moved every forecast
+    # onto records the clinic's results were never computed from (which is why
+    # tools/create_q2_q4_results.py has to refuse to run without the DB). An
+    # empty frame is visibly empty instead; PHP's bv_sheet_rows() does the same.
     raw = load_active_consult_rows()
     if raw is None:
-        raw = read_excel_sheet("Consult_Diagnosis_3Y")
+        raw = pd.DataFrame(columns=CONSULT_COLUMNS)
     raw.columns = [str(c).strip().lower() for c in raw.columns]
     raw["year"]           = pd.to_numeric(raw["year"], errors="coerce")
     raw["month_no"]       = pd.to_numeric(raw["month_no"], errors="coerce").fillna(1).astype(int)

@@ -733,6 +733,13 @@ function bindEvents() {
     // Now the server reports which months actually hold records (`liveMonths`),
     // and this merges those with the plain calendar so an empty month is still
     // browsable -- just labelled as empty rather than silently blank.
+    //
+    // Those months span the whole timeline (api/includes/case_timeline.php):
+    // every month of the uploaded dataset, then the months of typed visits
+    // after it. Each says which it is, because a month's figures change when the
+    // dataset version does, and the label is what explains why.
+
+    const MONTH_SOURCE_LABEL = { upload: 'uploaded file', live: 'logged in clinic' };
 
     /* `known` is false before Current mode has ever been loaded, when the page
        genuinely does not know what each month holds. Bare month names then --
@@ -744,8 +751,10 @@ function bindEvents() {
         if (!known) return name;
         const row = byMonth[value];
         if (!row || !row.visits) return `${name} — no records`;
-        if (!row.cases)          return `${name} — ${row.visits} visit${row.visits === 1 ? '' : 's'}, no diagnosis`;
-        return `${name} — ${row.cases} case${row.cases === 1 ? '' : 's'}`;
+        const source = (row.sources || []).map(s => MONTH_SOURCE_LABEL[s]).filter(Boolean).join(' + ');
+        const from   = source ? ` · ${source}` : '';
+        if (!row.cases)          return `${name} — ${row.visits} visit${row.visits === 1 ? '' : 's'}, no diagnosis${from}`;
+        return `${name} — ${row.cases} case${row.cases === 1 ? '' : 's'}${from}`;
     }
 
     function syncMonthPicker() {
@@ -769,12 +778,22 @@ function bindEvents() {
 
         // Rebuilt rather than appended to: logging a visit changes these labels,
         // and the old "populate once" guard left them stale for the page's life.
-        sel.replaceChildren(...ordered.map(value => {
+        // Grouped by year: an uploaded dataset puts three-plus years of months
+        // in this one list.
+        const groups = new Map();
+        ordered.forEach(value => {
+            const year = value.slice(0, 4);
+            if (!groups.has(year)) {
+                const group = document.createElement('optgroup');
+                group.label = year;
+                groups.set(year, group);
+            }
             const opt = document.createElement('option');
             opt.value = value;
             opt.textContent = monthOptionLabel(value, byMonth, known);
-            return opt;
-        }));
+            groups.get(year).appendChild(opt);
+        });
+        sel.replaceChildren(...groups.values());
 
         const loaded = diseaseAnalyticsData.currentMonth;
         sel.value = ordered.includes(loaded)
@@ -896,8 +915,8 @@ function switchPanel(panelId) {
 }
 
 /* ── Live layer ──────────────────────────────────────────────────
-   The clinic's own 2026+ records, reported separately from the frozen
-   2023-2025 baseline the cards above and the charts below are built on.
+   Visits typed in after the uploaded dataset ends, reported separately from
+   the uploaded baseline the cards above and the charts below are built on.
    Hidden entirely if the API predates this field. */
 function renderLiveLayer() {
     const root = document.getElementById('liveLayer');
@@ -981,13 +1000,18 @@ function renderOverview() {
     const allDiseases = diseaseAnalyticsData.isAllDiseases;
     const diseaseName = diseaseAnalyticsData.selectedDisease || 'All Diseases';
 
-    // Honest small-N state: Current mode can be a handful of live visits, and
-    // a normal-looking chart off 1 case reads as a full, comparable picture
-    // when it isn't one. Named rather than hidden.
+    // Honest small-N state: a Current-mode month can be a handful of records,
+    // and a normal-looking chart off 1 case reads as a full, comparable picture
+    // when it isn't one. Named rather than hidden -- and worded for the source
+    // the month actually comes from, the uploaded file or typed-in visits.
     const coverageNote = document.getElementById('liveCoverageNote');
     if (coverageNote) {
         const cov = diseaseAnalyticsData.liveCoverage;
         const SPARSE_THRESHOLD = 5;
+        const fromUpload = !!cov && (cov.sources || []).includes('upload')
+                                 && !(cov.sources || []).includes('live');
+        const span = diseaseAnalyticsData.datasetSpan;
+        const toHistorical = span ? ` or switch to Historical for the ${span} dataset` : '';
         if (isCurrentView && cov && cov.with_diagnosis < SPARSE_THRESHOLD) {
             coverageNote.hidden = false;
             if (cov.total_visits === 0) {
@@ -1002,11 +1026,16 @@ function renderOverview() {
                         const [y, m] = r.month.split('-').map(Number);
                         return new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
                     });
+                const empty = fromUpload
+                    ? `The uploaded file has no consultations for ${periodLabel}.`
+                    : `No clinic visits recorded for ${periodLabel} yet.`;
                 coverageNote.textContent = elsewhere.length
-                    ? `No clinic visits recorded for ${periodLabel}. Records exist for ${elsewhere.join(', ')} — `
-                      + `pick one of those months above, or switch to Historical for the 2023-2025 baseline.`
-                    : `No clinic visits have been recorded yet. This view fills in as visits are logged — `
-                      + `switch to Historical for the 2023-2025 baseline in the meantime.`;
+                    ? `${empty} Records exist for ${elsewhere.join(', ')} — pick one of those months above${toHistorical}.`
+                    : `No records yet. This view fills in as a dataset is uploaded and visits are logged.`;
+            } else if (fromUpload) {
+                coverageNote.textContent =
+                    `Only ${cov.total_visits} consultation${cov.total_visits === 1 ? '' : 's'} in the uploaded file `
+                  + `for ${periodLabel} — treat this chart as thin, not a full picture.`;
             } else {
                 coverageNote.textContent =
                     `${cov.total_visits} clinic visit${cov.total_visits === 1 ? '' : 's'} recorded in ${periodLabel} · `
