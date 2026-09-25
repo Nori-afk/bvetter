@@ -18,6 +18,7 @@ require_once __DIR__ . '/../config/notifications.php';
 require_once __DIR__ . '/../config/veterinarian_profile.php';
 require_once __DIR__ . '/../includes/patient_tables.php';
 require_once __DIR__ . '/appointment_notifications.php';
+require_once __DIR__ . '/../includes/timed_rules.php';
 
 // How far ahead an appointment may be scheduled. Mirrors
 // BOOKING_HORIZON_MONTHS in public/js/book-appointment.js — the date input's
@@ -426,6 +427,7 @@ function listAppointments($pdo, $data)
                 : 'NULL AS proposed_date,
                    NULL AS proposed_time_slot,
                    NULL AS reschedule_reason,') . '
+        ' . (ensureTimedRulesSchema($pdo) ? 'appointments.expires_at,' : 'NULL AS expires_at,') . '
         appointments.description,
         appointments.notes,
         appointments.created_at,
@@ -471,6 +473,9 @@ function listAppointments($pdo, $data)
             'veterinarian' => $row['veterinarian_name'],
             'preferred_date' => $row['preferred_date'],
             'time_slot' => $row['time_slot'],
+            // When an unconfirmed request expires (api/includes/timed_rules.php).
+            // NULL for requests made before the time limit existed.
+            'expires_at' => $row['expires_at'],
             // Only set while a vet-proposed reschedule is awaiting the owner.
             'proposed_date' => $row['proposed_date'],
             'proposed_time_slot' => $row['proposed_time_slot'],
@@ -660,6 +665,10 @@ function createAppointment($pdo, $data)
     $pdo->commit();
     unlockSlot($pdo, $slotLock);
 
+    // The clinic has 1 working day to confirm, or until the slot, whichever
+    // is sooner; after that the request expires and the slot is released.
+    setAppointmentExpiry($pdo, $appointmentId, $preferredDate, $timeSlot);
+
     // Sent synchronously and directly, on purpose: two different attempts at
     // deferring this (an early-flush trick, then a detached background
     // process) each broke in a way specific to this server that wasn't
@@ -668,7 +677,7 @@ function createAppointment($pdo, $data)
 
     respond(201, [
         'success' => true,
-        'message' => 'Appointment request submitted.',
+        'message' => 'Appointment request submitted. The clinic confirms requests within 1 working day; if it isn\'t confirmed by then, it expires and you can book again.',
         'appointment_id' => $appointmentId
     ]);
 }
@@ -694,9 +703,16 @@ function updateAppointmentStatus($pdo, $data)
     // those the vet confirms first wins; the second is refused.
     $slotLock = null;
     if ($status === 'confirmed') {
-        $slotRow = $pdo->prepare('SELECT veterinarian_id, preferred_date, time_slot FROM appointments WHERE id = :id LIMIT 1');
+        $slotRow = $pdo->prepare('SELECT veterinarian_id, preferred_date, time_slot, status FROM appointments WHERE id = :id LIMIT 1');
         $slotRow->execute([':id' => $appointmentId]);
         $slot = $slotRow->fetch();
+        // Its owner has already been told it expired and to book again.
+        if ($slot && $slot['status'] === 'expired') {
+            respond(409, [
+                'success' => false,
+                'message' => 'This request expired before it was confirmed, and the owner was asked to book again.'
+            ]);
+        }
         if ($slot) {
             $slotLock = lockSlot($pdo, $slot['preferred_date'], $slot['time_slot']);
             if (slotConflictExists($pdo, (int) $slot['veterinarian_id'], $slot['preferred_date'], $slot['time_slot'], $appointmentId, false)) {
@@ -1428,6 +1444,9 @@ if (in_array($action, ['list', 'create', 'submit_review'], true)) {
 // end it and break the rollback -- running it here means every later call just
 // reads the cached result.
 $rescheduleSchemaReady = ensureRescheduleSchema($pdo);
+// Same reason: the time-limit columns are settled before any transaction.
+ensureTimedRulesSchema($pdo);
+runTimedRules($pdo);
 
 // The handshake can't run without its columns. Everything else on this
 // endpoint works regardless, so only these two actions are blocked.

@@ -20,6 +20,10 @@ require_once __DIR__ . '/../config/input_validation.php';
 require_once __DIR__ . '/../config/notifications.php';
 require_once __DIR__ . '/../config/walk_in_accounts.php';
 require_once __DIR__ . '/../config/email_availability.php';
+require_once __DIR__ . '/../includes/timed_rules.php';
+
+// Before any transaction: MySQL commits implicitly on DDL.
+ensureTimedRulesSchema($pdo);
 
 function respond($statusCode, $payload)
 {
@@ -312,8 +316,12 @@ try {
         ':file_size' => $proof['size'],
         ':status' => 'pending',
     ]);
+    $documentId = (int) $pdo->lastInsertId();
 
     $pdo->commit();
+
+    // Admins get a reminder after 1 working day; after 2 it shows as Overdue.
+    setApplicationDeadlines($pdo, $documentId);
 
     // Alert the admins. Until this existed, an application arrived completely
     // silently — every other queue in the app (appointments, tickets, lost &
@@ -353,7 +361,7 @@ try {
 
     respond(201, [
         'success' => true,
-        'message' => 'Account request submitted. Please wait for admin verification.',
+        'message' => 'Account request submitted. Applications are reviewed within 2 working days; you will get an email once yours is decided.',
         'user_id' => $userId,
         'reference_number' => '#ACC-' . date('Y') . '-' . str_pad((string) $userId, 4, '0', STR_PAD_LEFT),
         'proof_path' => $relativePath

@@ -19,6 +19,7 @@ require_once __DIR__ . '/../config/security_settings.php';
 require_once __DIR__ . '/../config/veterinarian_profile.php';
 require_once __DIR__ . '/../config/input_validation.php';
 require_once __DIR__ . '/../config/walk_in_accounts.php';
+require_once __DIR__ . '/../includes/timed_rules.php';
 
 requireRole($pdo, ['admin']);
 ensureLoginSecuritySchema($pdo);
@@ -102,6 +103,7 @@ function listUsers($pdo)
             documents.file_path AS proof_path,
             documents.original_name AS proof_name,
             documents.reviewed_at AS proof_reviewed_at,
+            ' . (ensureTimedRulesSchema($pdo) ? 'documents.review_overdue_at' : 'NULL') . ' AS review_overdue_at,
             documents.review_notes AS proof_review_notes,
             reviewer.full_name AS proof_reviewer_name,
             (SELECT COUNT(*) FROM pets WHERE pets.owner_id = users.id) AS pet_count
@@ -166,6 +168,9 @@ function listUsers($pdo)
             'reviewerName' => $row['proof_reviewer_name'],
             'reviewNotes' => $row['proof_review_notes'],
             'petCount' => (int) $row['pet_count'],
+            // Applications waiting past 2 working days (timed_rules.php).
+            'overdueSince' => $status === 'pending' && $row['review_overdue_at'] && strtotime($row['review_overdue_at']) <= time()
+                ? $row['review_overdue_at'] : null,
         ];
     }, $rows);
 
@@ -828,6 +833,7 @@ $action = isset($_POST['action']) ? $_POST['action'] : 'list';
 try {
     if ($action === 'list') {
         sweepInactiveAccounts($pdo);
+        runTimedRules($pdo);
         listUsers($pdo);
     }
 

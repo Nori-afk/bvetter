@@ -1546,3 +1546,17 @@ body {
 
 #modal-details .am-verify-footer { justify-content: space-between; }
 .am-details-actions { display: flex; gap: 10px; }
+
+/* Application waiting past 2 working days (api/includes/timed_rules.php) */
+.am-overdue {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 2px 8px;
+    border-radius: 99px;
+    background: #FEE2E2;
+    color: #B91C1C;
+    font-size: 10.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}

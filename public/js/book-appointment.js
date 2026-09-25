@@ -1632,7 +1632,7 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
         await vbAlert(result.message || 'Failed to book appointment.');
         return;
       }
-      showBookingSuccess('Successfully booked! We’ve sent a confirmation to your email.');
+      showBookingSuccess('Request sent! The clinic confirms within 1 working day.');
       await new Promise((resolve) => setTimeout(resolve, 400));
       hideBookingOverlay();
       showDefaultSuccess();

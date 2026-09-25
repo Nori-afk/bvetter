@@ -25,6 +25,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/auth_guard.php';
+// The bell polls this endpoint from every signed-in page, which makes it the
+// most regular heartbeat the time limits have (api/includes/timed_rules.php).
+require_once __DIR__ . '/../includes/timed_rules.php';
 
 function respond($statusCode, $payload)
 {
@@ -206,6 +209,8 @@ $input = inputData();
 $action = clean($input['action'] ?? '');
 
 try {
+    runTimedRules($pdo);
+
     if ($action === 'list') listNotifications($pdo, $input, $userId);
     if ($action === 'unread_count') unreadCount($pdo, $userId);
     if ($action === 'mark_read') markRead($pdo, $input, $userId);

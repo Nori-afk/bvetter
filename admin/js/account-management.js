@@ -114,6 +114,8 @@ function applyFilters() {
         const matchSearch = !search || u.name.toLowerCase().includes(search) || u.email.toLowerCase().includes(search);
         return matchTab && matchSearch;
     });
+    // Applications waiting past 2 working days go to the top.
+    filteredUsers.sort((a, b) => (b.overdueSince ? 1 : 0) - (a.overdueSince ? 1 : 0));
     currentPage = 1;
     renderTable();
 }
@@ -164,7 +166,10 @@ function renderTable() {
         const selfClosed = u.status === 'blocked' && u.blockedReason === 'user_request'
             ? '<span class="am-status-note"> · Left by request</span>'
             : '';
-        const statusEl = `<span class="am-status ${u.status}"${blockedTitle}><span class="am-status-dot"></span>${capitalize(u.status)}${selfClosed}</span>`;
+        const overdueEl = u.overdueSince
+            ? ` <span class="am-overdue" title="Waiting more than 2 working days">Overdue</span>`
+            : '';
+        const statusEl = `<span class="am-status ${u.status}"${blockedTitle}><span class="am-status-dot"></span>${capitalize(u.status)}${selfClosed}</span>${overdueEl}`;
 
         let actionsEl = `
             <button class="am-btn-delete" onclick="openDeleteModal('${u.id}')" title="Delete user">

@@ -17,6 +17,7 @@ require_once __DIR__ . '/../config/input_validation.php';
 require_once __DIR__ . '/../config/mailer.php';
 require_once __DIR__ . '/../config/notifications.php';
 require_once __DIR__ . '/matching.php';
+require_once __DIR__ . '/../includes/timed_rules.php';
 
 function respond($statusCode, $payload)
 {
@@ -466,7 +467,71 @@ function reportRowToArray($row)
         'created_at' => $row['created_at'],
         'updated_at' => $row['updated_at'] ?? $row['created_at'],
         'resolved_at' => $row['resolved_at'] ?? null,
+        // Time limits (api/includes/timed_rules.php): when a pending owner
+        // report goes live on its own, and whether a live one got there that
+        // way without a vet having looked at it yet.
+        'autoPublishAt' => $row['auto_publish_at'] ?? null,
+        'autoPublished' => !empty($row['auto_published_at']) && empty($row['reviewed_by_user_id']),
     ];
+}
+
+/**
+ * Owner reports nobody reviewed within BV_LF_AUTO_PUBLISH_MINUTES go live on
+ * their own, tagged "Auto-published" for the vets until one marks it
+ * reviewed. Every poster is an ID-verified resident, and a lost pet can't
+ * wait for the vets to come back from the field.
+ *
+ * Runs at the start of every Lost & Found request -- the board loading is
+ * exactly when it matters -- and from api/cron/timed-rules.php. Only reports
+ * made after this shipped have auto_publish_at; older pending ones stay in
+ * the vets' queue.
+ */
+function autoPublishDueReports($pdo)
+{
+    try {
+        if (!ensureTimedRulesSchema($pdo)) return;
+
+        $stmt = $pdo->prepare("
+            SELECT id, owner_id, report_type, pet_name
+            FROM lost_found_reports
+            WHERE status = 'pending' AND auto_publish_at IS NOT NULL AND auto_publish_at <= :now
+        ");
+        $stmt->execute([':now' => date('Y-m-d H:i:s')]);
+
+        foreach ($stmt->fetchAll() as $row) {
+            $id = (int) $row['id'];
+            $publish = $pdo->prepare("UPDATE lost_found_reports SET status = 'active', auto_published_at = NOW() WHERE id = :id AND status = 'pending'");
+            $publish->execute([':id' => $id]);
+            if ($publish->rowCount() !== 1) continue;
+
+            rebuildMatchesForReport($pdo, $id);
+            notifyReportOwnerStatus($pdo, (int) $row['owner_id'], $id, 'active');
+            notifyStaff(
+                $pdo,
+                'both',
+                'lost_found_new',
+                'Report Auto-Published',
+                'A ' . $row['report_type'] . ' pet report' . ($row['pet_name'] ? ' (' . $row['pet_name'] . ')' : '')
+                    . ' went live after 2 hours without review. Please check it and mark it reviewed.',
+                $id,
+                false
+            );
+        }
+    } catch (Throwable $e) {
+        error_log('[BVetter] lost & found auto-publish: ' . $e->getMessage());
+    }
+}
+
+/** A vet has now looked at an auto-published report; clears its tag. */
+function markReportReviewed($pdo, $data, $staffSession)
+{
+    $id = (int) ($data['id'] ?? $data['report_id'] ?? 0);
+    if ($id <= 0) respond(422, ['success' => false, 'message' => 'Invalid report id.']);
+
+    $pdo->prepare('UPDATE lost_found_reports SET reviewed_by_user_id = :user, reviewed_at = NOW() WHERE id = :id')
+        ->execute([':user' => (int) $staffSession['user_id'], ':id' => $id]);
+
+    respond(200, ['success' => true, 'message' => 'Marked as reviewed.']);
 }
 
 // A logged-out visitor only ever sees reports through the landing page, which
@@ -761,6 +826,10 @@ function createReport($pdo, $data)
     $reportId = (int) $pdo->lastInsertId();
     rebuildMatchesForReport($pdo, $reportId);
 
+    if ($status === 'pending') {
+        setReportAutoPublish($pdo, $reportId);
+    }
+
     if ($status === 'active') {
         notifyReportOwnerStatus($pdo, $ownerId, $reportId, 'active');
     } else {
@@ -778,7 +847,9 @@ function createReport($pdo, $data)
 
     respond(201, [
         'success' => true,
-        'message' => $status === 'active' ? 'Report published.' : 'Report submitted for vet review.',
+        'message' => $status === 'active'
+            ? 'Report published.'
+            : 'Report submitted for vet review. If no vet reviews it sooner, it goes live automatically in 2 hours.',
         'report_id' => $reportId,
         'status' => $status
     ]);
@@ -852,7 +923,7 @@ function notifyReportOwnerStatus($pdo, $ownerId, $reportId, $status)
         $status === 'active' ? 'Report Published' : 'Report Rejected',
         "Your {$label} report" . ($report['pet_name'] ? " for {$report['pet_name']}" : '')
             . " (case #{$report['case_number']}) was "
-            . ($status === 'active' ? 'approved and is now live.' : 'rejected.'),
+            . ($status === 'active' ? 'published and is now live.' : 'rejected.'),
         (int) $reportId
     );
 
@@ -1679,10 +1750,12 @@ $staffActions = [
     'approve_match', 'dismiss_match',
     'list_sightings', 'approve_sighting', 'reject_sighting', 'resolve_sighting',
     'approve_claim', 'reject_claim', 'resolve_claim',
+    'mark_reviewed',
 ];
+$staffSession = null;
 if (in_array($action, $staffActions, true)) {
     require_once __DIR__ . '/../config/auth_guard.php';
-    requireRole($pdo, ['veterinarian', 'admin']);
+    $staffSession = requireRole($pdo, ['veterinarian', 'admin']);
 }
 
 // Matches pair two people's reports and carry both sides' contact details, so
@@ -1751,8 +1824,11 @@ if (in_array($action, $ownerActions, true)) {
 
 try {
     ensureLostFoundSchema($pdo);
+    autoPublishDueReports($pdo);
+    runTimedRules($pdo);
 
     if ($action === 'schema') respond(200, ['success' => true, 'message' => 'Lost and found schema is ready.']);
+    if ($action === 'mark_reviewed') markReportReviewed($pdo, $input, $staffSession);
     if ($action === 'rebuild_image_features') rebuildImageFeatures($pdo);
     if ($action === 'list') listReports($pdo, $input, false, $viewer);
     if ($action === 'management_list') listReports($pdo, $input, true);

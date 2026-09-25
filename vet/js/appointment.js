@@ -11,7 +11,7 @@
 	{ id: 10, datetime: '2026-04-25T16:00:00', patient: 'Rocky', owner: 'Monica Reyes', service: 'Ear Infection Follow-up', status: 'pending', type: 'Follow-up' }
 ];
 
-const VALID_STATUSES = new Set(['pending', 'confirmed', 'completed', 'canceled', 'cancelled', 'rejected', 'reschedule_pending']);
+const VALID_STATUSES = new Set(['pending', 'confirmed', 'completed', 'canceled', 'cancelled', 'rejected', 'reschedule_pending', 'expired']);
 const RESCHEDULE_SLOTS = [
 	{ label: 'Morning', value: '08:00', display: '8:00 AM' },
 	{ label: 'Morning', value: '09:00', display: '9:00 AM' },
@@ -120,8 +120,21 @@ function normalizeAppointment(item, index) {
 		type: String(item.type || 'General'),
 		veterinarianId: item.veterinarian_id ? Number(item.veterinarian_id) : null,
 		veterinarian: item.veterinarian ? String(item.veterinarian) : '',
-		timeSlot: canonicalSlot(item.time_slot || '')
+		timeSlot: canonicalSlot(item.time_slot || ''),
+		expiresAt: item.expires_at || null
 	};
+}
+
+/**
+ * "Expires Tue, Sep 29, 10:00 AM" for a pending request -- after that it
+ * lapses on its own and the owner is asked to rebook
+ * (api/includes/timed_rules.php). Empty for requests from before the limit.
+ */
+function expiryLabel(item) {
+	if (!item.expiresAt) return '';
+	const at = new Date(String(item.expiresAt).replace(' ', 'T'));
+	if (Number.isNaN(at.getTime())) return '';
+	return 'Confirm by ' + at.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
 /**
@@ -244,6 +257,7 @@ function statusClass(status) {
 	if (status === 'confirmed') return 'status-confirmed';
 	if (status === 'completed') return 'status-completed';
 	if (status === 'canceled' || status === 'cancelled' || status === 'rejected') return 'status-canceled';
+	if (status === 'expired') return 'status-expired';
 	return 'status-pending';
 }
 
@@ -321,6 +335,7 @@ function renderPendingList() {
 			<article class="pending-item" data-id="${item.id}">
 				<p class="time">${dt.date} - ${dt.time}</p>
 				${clash}
+				${expiryLabel(item) ? `<p class="expires-at">${expiryLabel(item)}</p>` : ''}
 				<h4>${item.patient}</h4>
 				<p>${item.service}</p>
 				<div class="pending-actions">
