@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
-  <link rel="stylesheet" href="../css/lost-found.css"/>
+  <link rel="stylesheet" href="../css/lost-found.css?v=20260925-claimed"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 </head>
@@ -111,6 +111,7 @@
       <button type="button" class="tab active" id="tab-all"      onclick="filterPets('all', this)">All Reports</button>
       <button type="button" class="tab"        id="tab-lost"     onclick="filterPets('lost', this)">Lost</button>
       <button type="button" class="tab"        id="tab-found"    onclick="filterPets('found', this)">Found</button>
+      <button type="button" class="tab"        id="tab-reunited" onclick="filterPets('reunited', this)">Reunited</button>
       <button type="button" class="tab"        id="tab-myreports" onclick="showMyReports(this)">My Reports</button>
       <button type="button" class="tab plain"                    onclick="window.location.href='my-claims.html'">My Claims</button>
     </div>
@@ -671,11 +672,13 @@
             </div>
           </div>
         </div>
+        <p class="details-claimed-note" id="detailsLostClaimed" hidden></p>
         <div class="details-footer">
           <button type="button" class="btn-details-close" onclick="closeModal('detailsLostModal')">Close</button>
-          <button type="button" class="btn-details-action" onclick="openSightingModal()">
+          <button type="button" class="btn-details-action" id="detailsLostAction" onclick="openSightingModal()">
             <img src="../images/icons/report-icon.svg" alt="" class="btn-icon-sm"/> I've Seen / Found This Pet
           </button>
+          <button type="button" class="btn-details-action" id="detailsLostDispute" onclick="openDisputeModal()" hidden>This is My Pet</button>
         </div>
       </div>
     </div>
@@ -720,11 +723,13 @@
             </div>
           </div>
         </div>
+        <p class="details-claimed-note" id="detailsFoundClaimed" hidden></p>
         <div class="details-footer">
           <button type="button" class="btn-details-close" onclick="closeModal('detailsFoundModal')">Close</button>
-          <button type="button" class="btn-details-action" onclick="openClaimModal()">
+          <button type="button" class="btn-details-action" id="detailsFoundAction" onclick="openClaimModal()">
   <img src="../images/icons/report-icon.svg" alt="" class="btn-icon-sm"/> This is My Pet
 </button>
+          <button type="button" class="btn-details-action" id="detailsFoundDispute" onclick="openDisputeModal()" hidden>This is My Pet</button>
         </div>
       </div>
     </div>
@@ -822,6 +827,46 @@
             Submit Sighting
             <img src="../images/icons/report-submit.svg" alt="" class="btn-icon-img"/>
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!--
+    "This is my pet" on a claimed/reunited report. The handover already
+    happened physically, so the system can't undo it: this files a support
+    ticket linked to the case, and the vets look into it with the owner.
+  -->
+  <div class="modal-overlay" id="disputeModal" onclick="closeModalOutside(event,'disputeModal')">
+    <div class="modal-box sighting-modal-box">
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div>
+            <h2 class="modal-title">This Is My Pet</h2>
+            <p class="modal-subtitle" id="disputeCaseLabel">Tell the clinic this pet was claimed by someone else.</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close" onclick="closeModal('disputeModal')">
+          <img src="../images/icons/icon-close.svg" alt="close" class="close-icon-img"/>
+        </button>
+      </div>
+      <div class="sighting-body">
+        <div class="matching-banner">
+          <span class="matching-label">Reviewed by the clinic</span>
+          <p class="matching-text">This sends a support ticket linked to the case. A vet will contact you to sort it out. Attach a photo of you with your pet, or its vaccination card, if you have one.</p>
+        </div>
+        <div class="form-group" style="margin:16px 0 14px;">
+          <label>WHAT HAPPENED?</label>
+          <textarea class="form-textarea" id="disputeDetailsInput" maxlength="1500" oninput="updateCharCounter('disputeDetailsInput','disputeDetailsCounter')" placeholder="e.g. This is my dog Bantay. He went missing on Sept 10 near the plaza. He has a scar on his left ear."></textarea>
+          <span class="char-counter" id="disputeDetailsCounter">0/1500</span>
+        </div>
+        <div class="form-group" style="margin-bottom:20px;">
+          <label>PROOF PHOTO (OPTIONAL)</label>
+          <input type="file" id="disputePhotoInput" accept=".jpg,.jpeg,.png,.webp" class="form-input"/>
+        </div>
+        <div class="sighting-footer">
+          <button type="button" class="btn-cancel" onclick="closeModal('disputeModal')">Cancel</button>
+          <button type="button" class="btn-submit" id="disputeSubmitBtn" onclick="submitDispute()">Send to Clinic</button>
         </div>
       </div>
     </div>
@@ -1110,7 +1155,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
           crossorigin=""></script>
-  <script src="../js/lost-found.js?v=20260816-sec"></script>
+  <script src="../js/lost-found.js?v=20260925-claimed"></script>
   <script src="../js/site-settings.js?v=20260829-preview"></script>
 </body>
 </html>

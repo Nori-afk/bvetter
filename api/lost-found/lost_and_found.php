@@ -496,24 +496,43 @@ function reportSelectSql()
     ";
 }
 
+/**
+ * How long a claimed/reunited report stays in the main board grid, grayed
+ * out, before it moves under the Reunited filter only.
+ */
+const CLAIMED_ON_BOARD_DAYS = 30;
+
 function listReports($pdo, $data, $management = false, $viewer = null)
 {
     $where = [];
     $params = [];
 
-    // The public board only ever shows active reports. The status filter used to
-    // be honoured for anyone, so a logged-out request for status=rejected or
-    // status=pending returned posts a vet had turned down or not yet reviewed,
-    // contact details included. Only staff may browse other statuses here.
+    // The public board shows active reports and, grayed out, the ones resolved
+    // in the last CLAIMED_ON_BOARD_DAYS days. A resolved report used to vanish
+    // the moment a claim or match was approved, so if the wrong person claimed
+    // a pet, its real owner never saw that it had been claimed at all.
+    // 'reunited' lists every resolved report, for the board's Reunited filter.
+    //
+    // The status filter used to be honoured for anyone, so a logged-out
+    // request for status=rejected or status=pending returned posts a vet had
+    // turned down or not yet reviewed, contact details included. Only staff
+    // may browse other statuses here.
     $status = clean($data['status'] ?? '');
+    $reunitedOnly = !$management && strtolower($status) === 'reunited';
     if (!$management && !isStaffViewer($viewer)) {
-        $status = 'active';
+        // Open cases only is the one narrower view the public may ask for --
+        // the landing page's "recent reports" strip does.
+        $status = strtolower($status) === 'active' ? 'active' : '';
     }
-    if ($status !== '' && $status !== 'all') {
+    if ($reunitedOnly) {
+        $where[] = "lost_found_reports.status = 'resolved'";
+    } elseif ($status !== '' && $status !== 'all') {
         $where[] = 'lost_found_reports.status = :status';
         $params[':status'] = normalizeStatus($status, $management ? 'pending' : 'active');
     } elseif (!$management) {
-        $where[] = "lost_found_reports.status = 'active'";
+        $where[] = "(lost_found_reports.status = 'active'
+                     OR (lost_found_reports.status = 'resolved' AND lost_found_reports.resolved_at >= :claimed_since))";
+        $params[':claimed_since'] = date('Y-m-d H:i:s', time() - CLAIMED_ON_BOARD_DAYS * 86400);
     }
 
     $type = clean($data['type'] ?? $data['report_type'] ?? '');
@@ -542,7 +561,10 @@ function listReports($pdo, $data, $management = false, $viewer = null)
 
     $sql = reportSelectSql();
     if ($where) $sql .= ' WHERE ' . implode(' AND ', $where);
-    $sql .= ' ORDER BY lost_found_reports.created_at DESC';
+    // Open cases first; the grayed-out claimed ones after them.
+    $sql .= $reunitedOnly
+        ? ' ORDER BY lost_found_reports.resolved_at DESC'
+        : " ORDER BY (lost_found_reports.status = 'resolved') ASC, lost_found_reports.created_at DESC";
 
     $limit = (int) ($data['limit'] ?? 0);
     if ($limit > 0 && $limit <= 100) {
@@ -552,9 +574,12 @@ function listReports($pdo, $data, $management = false, $viewer = null)
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $reports = array_map('reportRowToArray', $stmt->fetchAll());
-    if (!$management && $viewer === null) {
-        $reports = array_map('withoutPosterDetails', $reports);
-    }
+    // A closed case needs nobody's phone number any more; a dispute goes
+    // through the clinic ("This is my pet" files a ticket), not the poster.
+    $reports = array_map(function ($report) use ($management, $viewer) {
+        $hide = !$management && ($viewer === null || ($report['status'] === 'resolved' && !isStaffViewer($viewer)));
+        return $hide ? withoutPosterDetails($report) : $report;
+    }, $reports);
 
     respond(200, ['success' => true, 'data' => $reports]);
 }
@@ -603,12 +628,14 @@ function getReport($pdo, $data, $viewer = null)
     // else answers exactly like a missing id, so ids can't be probed for
     // pending or rejected posts.
     $isOwnReport = $row && $viewer !== null && (int) $row['owner_id'] === (int) $viewer['user_id'];
-    if (!$row || ($row['status'] !== 'active' && !$isOwnReport && !isStaffViewer($viewer))) {
+    $publicStatus = $row && in_array($row['status'], ['active', 'resolved'], true);
+    if (!$row || (!$publicStatus && !$isOwnReport && !isStaffViewer($viewer))) {
         respond(404, ['success' => false, 'message' => 'Report not found.']);
     }
 
     $report = reportRowToArray($row);
-    respond(200, ['success' => true, 'data' => $viewer === null ? withoutPosterDetails($report) : $report]);
+    $hide = $viewer === null || ($row['status'] === 'resolved' && !$isOwnReport && !isStaffViewer($viewer));
+    respond(200, ['success' => true, 'data' => $hide ? withoutPosterDetails($report) : $report]);
 }
 
 function createReport($pdo, $data)
