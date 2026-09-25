@@ -108,10 +108,10 @@ async function openPetDetail(petId) {
 // The pet whose detail panel is open, for Print Record.
 let currentDetailPet = null;
 
-// The owner's name and phone for the printout. The login session carries no
-// phone number, so it is fetched once, when a detail panel first opens --
-// not on the Print click, where waiting on a request would get the print
-// window blocked as a pop-up.
+// The owner's name and phone for the printout, fetched once when a detail
+// panel first opens, so a number changed since login is the one printed (the
+// session's copy is the fallback). Not fetched on the Print click: waiting
+// on a request there would get the print window blocked as a pop-up.
 let ownerContact = null;
 function loadOwnerContact() {
   if (ownerContact || typeof api === 'undefined' || !api.getProfile) return;
@@ -144,7 +144,7 @@ function printCurrentPet() {
     colorMarkings: pet.colorMarkings,
     healthStatus: pet.healthStatus,
     ownerName: ownerContact?.name || session.name || session.fullName || '',
-    ownerPhone: ownerContact?.phone || '',
+    ownerPhone: ownerContact?.phone || session.phone || '',
     visits: pet.visitHistory || [],
     vaccinations: pet.vaccinationHistory || []
   });
