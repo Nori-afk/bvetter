@@ -208,6 +208,8 @@ body {
 .mp-badge-success { background: var(--color-green-light); color: var(--color-green-dark); }
 .mp-badge-warning  { background: var(--color-yellow-light); color: var(--color-yellow); }
 .mp-badge-danger   { background: var(--color-red-light); color: var(--color-red); }
+/* No consultation recorded yet -- not a health claim either way. */
+.mp-badge-neutral  { background: #F1F5F9; color: #475569; }
 
 /* ── Empty states ───────────────────────────── */
 .mp-empty {
@@ -523,3 +525,22 @@ body {
   .mp-detail-profile { flex-direction: column; }
   .mp-detail-profile-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Print Record, beside the close button (shared/js/pet-record-print.js) */
+.mp-detail-print {
+  margin-left: auto;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: var(--bg-page);
+  border: 1px solid var(--border-default);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-navy, #002A58);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.mp-detail-print:hover { background: var(--border-default); }

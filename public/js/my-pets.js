@@ -41,6 +41,7 @@ async function loadMyPets() {
 function petStatusBadgeClass(statusType) {
   if (statusType === 'warning') return 'mp-badge-warning';
   if (statusType === 'danger') return 'mp-badge-danger';
+  if (statusType === 'neutral') return 'mp-badge-neutral';
   return 'mp-badge-success';
 }
 
@@ -104,7 +105,36 @@ async function openPetDetail(petId) {
   renderPetDetail(result.data);
 }
 
+// The pet whose detail panel is open, for Print Record.
+let currentDetailPet = null;
+
+/**
+ * A summary the owner can show another clinic -- see
+ * shared/js/pet-record-print.js. Only what this panel already shows.
+ */
+function printCurrentPet() {
+  const pet = currentDetailPet;
+  if (!pet || typeof window.printPetRecord !== 'function') return;
+  const session = window.VBetterAuth?.getSession?.() || {};
+  window.printPetRecord({
+    recordId: pet.id,
+    petName: pet.petName,
+    species: pet.species,
+    breed: pet.breed,
+    sex: pet.sex,
+    age: pet.age,
+    weight: pet.weight,
+    colorMarkings: pet.colorMarkings,
+    healthStatus: pet.healthStatus,
+    ownerName: session.name || session.fullName || '',
+    ownerPhone: session.phone || '',
+    visits: pet.visitHistory || [],
+    vaccinations: pet.vaccinationHistory || []
+  });
+}
+
 function renderPetDetail(pet) {
+  currentDetailPet = pet;
   const nameEl = document.getElementById('mpDetailName');
   const subEl = document.getElementById('mpDetailSub');
   const body = document.getElementById('mpDetailBody');

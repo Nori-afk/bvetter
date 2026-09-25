@@ -175,7 +175,8 @@ async function renderRecentActivity() {
 const PET_STATUS_BADGE = {
   success: 'badge-approved',
   warning: 'badge-pending',
-  danger: 'badge-rejected'
+  danger: 'badge-rejected',
+  neutral: 'badge-review'
 };
 
 function renderPetsRow(pets) {

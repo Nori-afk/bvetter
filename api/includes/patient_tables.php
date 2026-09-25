@@ -317,12 +317,14 @@ function ensurePatientRecordFromAppointment($pdo, $appointmentId)
     $petId = (int) $stmt->fetchColumn();
     if ($petId <= 0) return;
 
+    // A booking only makes sure the pet has a record. It says nothing about
+    // the pet's health, so it must not set one: this used to write "Good
+    // Standing" on every confirmation -- and, on a pet the vet had already
+    // marked Monitoring or Critical, overwrite that back to Active Patient.
     $profile = $pdo->prepare("
         INSERT INTO patient_record_profiles (pet_id, patient_status, health_status, alert_text, source, is_archived)
-        VALUES (:pet_id, 'Active Patient', 'Good Standing', '', 'appointment', 0)
+        VALUES (:pet_id, 'Active Patient', '', '', 'appointment', 0)
         ON DUPLICATE KEY UPDATE
-            patient_status = VALUES(patient_status),
-            health_status = VALUES(health_status),
             is_archived = 0
     ");
     $profile->execute([':pet_id' => $petId]);

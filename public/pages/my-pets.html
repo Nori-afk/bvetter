@@ -16,7 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
-  <link rel="stylesheet" href="../css/my-pets.css"/>
+  <link rel="stylesheet" href="../css/my-pets.css?v=20260925-print"/>
 </head>
 <body>
 
@@ -98,6 +98,7 @@
           <h2 class="mp-detail-panel-title" id="mpDetailName">Pet</h2>
           <span class="mp-detail-panel-sub" id="mpDetailSub"></span>
         </div>
+        <button class="mp-detail-print" id="mpDetailPrint" type="button" onclick="printCurrentPet()">Print Record</button>
         <button class="mp-detail-close" onclick="closePetDetail()" aria-label="Close panel">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M4 4l8 8M12 4l-8 8" stroke="#424750" stroke-width="1.5" stroke-linecap="round"/>
@@ -145,7 +146,8 @@
   </script>
   <script src="../js/nav.js?v=20260829-preview"></script>
   <script src="../js/api.js?v=20260819-authfix"></script>
-  <script src="../js/my-pets.js"></script>
+  <script src="../../shared/js/pet-record-print.js?v=20260925-print"></script>
+  <script src="../js/my-pets.js?v=20260925-print"></script>
   <script src="../js/site-settings.js?v=20260829-preview"></script>
 </body>
 </html>
