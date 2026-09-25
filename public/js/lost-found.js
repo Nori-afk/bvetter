@@ -1263,7 +1263,7 @@ async function handleResolveOwnReport(reportId) {
   const confirmMsg = isFound
     ? 'Mark this case as resolved? This will remove it from the active found pets list.'
     : 'Mark this case as resolved? This will remove it from the active lost pets list.';
-  if (!(await vbConfirm(confirmMsg, 'Mark Resolved'))) return;
+  if (!(await vbConfirm(confirmMsg))) return;
 
   const result = await api.resolveOwnReport(reportId);
   if (!result.success) {

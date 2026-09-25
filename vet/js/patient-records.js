@@ -2442,7 +2442,7 @@ function bindGlobalEvents() {
 		const resyncButton = event.target.closest('[data-resync-visit]');
 		if (resyncButton) {
 			const visitId = Number(resyncButton.dataset.resyncVisit);
-			if (!window.confirm('Copy this owner’s current barangay onto this visit? Other visits are not affected.')) return;
+			if (!(await vbConfirm('Copy this owner’s current barangay onto this visit? Other visits are not affected.'))) return;
 
 			resyncButton.disabled = true;
 			try {

@@ -152,6 +152,13 @@ function getSession() {
  * Self-contained confirm modal (styles injected once) used in place of the
  * native window.confirm() dialog — works identically on every page since it
  * doesn't depend on that page's stylesheet.
+ *
+ * The answers are always No / Yes: the message is the question and names the
+ * action ("Approve Juan as a verified resident?"). Buttons that repeated the
+ * action ("Approve" under "Approve?", right after an "Approve" button) read
+ * as a redundant second step. Pass confirmLabel only for something that
+ * cannot be undone -- e.g. 'Yes, delete' -- which also turns the button red,
+ * so a quick click on a destructive action is still spelled out.
  */
 function vbConfirm(message, confirmLabel) {
     return new Promise((resolve) => {
@@ -163,11 +170,12 @@ function vbConfirm(message, confirmLabel) {
                     align-items:center; justify-content:center; background:rgba(15,23,42,0.55); }
                 #vbConfirmOverlay .vb-confirm-box { background:#fff; border-radius:16px; padding:28px 32px;
                     text-align:center; max-width:340px; box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:inherit; }
-                #vbConfirmOverlay .vb-confirm-msg { color:#1f2937; font-size:15px; font-weight:600; margin-bottom:20px; }
+                #vbConfirmOverlay .vb-confirm-msg { color:#1f2937; font-size:15px; font-weight:600; margin-bottom:20px; white-space:pre-line; }
                 #vbConfirmOverlay .vb-confirm-actions { display:flex; gap:12px; justify-content:center; }
                 #vbConfirmOverlay button { border:none; border-radius:8px; padding:10px 20px;
                     font-weight:700; font-size:14px; cursor:pointer; font-family:inherit; }
                 #vbConfirmOverlay .vb-confirm-yes { background:#00B928; color:#fff; }
+                #vbConfirmOverlay .vb-confirm-yes.is-danger { background:#e53e3e; }
                 #vbConfirmOverlay .vb-confirm-no { background:#eef2f7; color:#1f2937; }
             `;
             document.head.appendChild(style);
@@ -180,12 +188,13 @@ function vbConfirm(message, confirmLabel) {
             <div class="vb-confirm-box">
                 <div class="vb-confirm-msg"></div>
                 <div class="vb-confirm-actions">
-                    <button type="button" class="vb-confirm-no">Cancel</button>
-                    <button type="button" class="vb-confirm-yes">${confirmLabel || 'Confirm'}</button>
+                    <button type="button" class="vb-confirm-no">No</button>
+                    <button type="button" class="vb-confirm-yes${confirmLabel ? ' is-danger' : ''}"></button>
                 </div>
             </div>
         `;
         overlay.querySelector('.vb-confirm-msg').textContent = message;
+        overlay.querySelector('.vb-confirm-yes').textContent = confirmLabel || 'Yes';
         overlay.style.display = 'flex';
 
         const cleanup = (result) => {
@@ -469,7 +478,7 @@ function getCurrentUser() {
 
 /** Logs out and redirects to login */
 async function logout() {
-    const confirmed = await vbConfirm('Are you sure you want to log out?', 'Log Out');
+    const confirmed = await vbConfirm('Are you sure you want to log out?');
     if (!confirmed) return;
 
     const role = getSession()?.role;

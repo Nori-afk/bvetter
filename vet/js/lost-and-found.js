@@ -695,15 +695,15 @@ function renderSightings(root) {
 // per action drives both the root-level buttons and the buttons inside modals
 // (wireModalActionButtons below) so the copy and behavior can't drift apart.
 const CONFIRM_ACTIONS = {
-	'approve-pending': { tone: 'success', title: 'Approve this report?', message: 'The report will go public and become visible to pet owners.', confirmLabel: 'Approve', request: 'approve_report', idKey: 'report_id' },
-	'reject-pending': { tone: 'danger', title: 'Reject this report?', message: 'The submitter will be notified that their report was not approved.', confirmLabel: 'Reject', request: 'reject_report', idKey: 'report_id' },
-	'resolve-active': { tone: 'success', title: 'Mark this case as resolved?', message: 'The report will be moved to Resolved Cases and removed from the active list.', confirmLabel: 'Resolve', request: 'resolve_report', idKey: 'report_id' },
-	'approve-match': { tone: 'success', title: 'Approve this match?', message: 'This will mark both the lost and found reports as resolved and notify the submitters.', confirmLabel: 'Approve Match', request: 'approve_match', idKey: 'match_id' },
-	'dismiss-match': { tone: 'danger', title: 'Dismiss this match?', message: 'This suggested match will be removed. This cannot be undone.', confirmLabel: 'Dismiss Match', request: 'dismiss_match', idKey: 'match_id' },
-	'approve-claim': { tone: 'success', title: 'Approve this claim?', message: 'The claimant will be notified that their claim was approved.', confirmLabel: 'Approve', request: 'approve_claim', idKey: 'claim_id' },
-	'reject-claim': { tone: 'danger', title: 'Reject this claim?', message: 'The claimant will be notified that their claim was not approved.', confirmLabel: 'Reject', request: 'reject_claim', idKey: 'claim_id' },
-	'approve-sighting': { tone: 'success', title: 'Approve this sighting?', message: 'The sighting will be published and made visible to pet owners.', confirmLabel: 'Approve', request: 'approve_sighting', idKey: 'sighting_id' },
-	'reject-sighting': { tone: 'danger', title: 'Reject this sighting?', message: 'The sighting will be rejected and removed from the queue.', confirmLabel: 'Reject', request: 'reject_sighting', idKey: 'sighting_id' }
+	'approve-pending': { tone: 'success', title: 'Approve this report?', message: 'The report will go public and become visible to pet owners.', request: 'approve_report', idKey: 'report_id' },
+	'reject-pending': { tone: 'danger', title: 'Reject this report?', message: 'The submitter will be notified that their report was not approved.', request: 'reject_report', idKey: 'report_id' },
+	'resolve-active': { tone: 'success', title: 'Mark this case as resolved?', message: 'The report stays on the public board, grayed out, and leaves the active list.', request: 'resolve_report', idKey: 'report_id' },
+	'approve-match': { tone: 'success', title: 'Approve this match?', message: 'This will mark both the lost and found reports as resolved and notify the submitters.', request: 'approve_match', idKey: 'match_id' },
+	'dismiss-match': { tone: 'danger', title: 'Dismiss this match?', message: 'This suggested match will be removed. This cannot be undone.', confirmLabel: 'Yes, dismiss', request: 'dismiss_match', idKey: 'match_id' },
+	'approve-claim': { tone: 'success', title: 'Approve this claim?', message: 'The claimant will be notified that their claim was approved.', request: 'approve_claim', idKey: 'claim_id' },
+	'reject-claim': { tone: 'danger', title: 'Reject this claim?', message: 'The claimant will be notified that their claim was not approved.', request: 'reject_claim', idKey: 'claim_id' },
+	'approve-sighting': { tone: 'success', title: 'Approve this sighting?', message: 'The sighting will be published and made visible to pet owners.', request: 'approve_sighting', idKey: 'sighting_id' },
+	'reject-sighting': { tone: 'danger', title: 'Reject this sighting?', message: 'The sighting will be rejected and removed from the queue.', request: 'reject_sighting', idKey: 'sighting_id' }
 };
 
 function runConfirmableAction(action, id) {
@@ -766,7 +766,9 @@ function findRecord(action, id) {
 	return null;
 }
 
-function openConfirmDialog({ tone = 'success', title, message, confirmLabel, cancelLabel = 'Cancel', onConfirm }) {
+// Yes / No, like vbConfirm: the title is the question. Only an action that
+// can't be undone passes its own label ('Yes, dismiss').
+function openConfirmDialog({ tone = 'success', title, message, confirmLabel = 'Yes', cancelLabel = 'No', onConfirm }) {
 	document.getElementById('lfModalBody').innerHTML = `
 		<div class="confirm-dialog">
 			<div class="confirm-icon confirm-icon--${tone}">${tone === 'danger' ? '&#33;' : '&#10003;'}</div>

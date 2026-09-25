@@ -954,3 +954,21 @@ body {
     gap: 10px;
     margin-top: 4px;
 }
+
+/* ── Hand Over Account ──────────────────────────────────── */
+.handover-modal {
+    width: min(480px, 100%);
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+}
+
+.handover-inline {
+    display: flex;
+    gap: 8px;
+}
+
+.handover-inline input { flex: 1; min-width: 0; }
+.handover-inline .btn-outline { flex-shrink: 0; }
+
+.handover-holders { margin-top: 2px; }
+.handover-holders:empty { display: none; }

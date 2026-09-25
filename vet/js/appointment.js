@@ -600,8 +600,7 @@ function completeModalTemplate(appointment) {
 	return `
 		<div class="confirm-content">
 			<div class="confirm-icon">&#10003;</div>
-			<h3 class="confirm-title" id="modal-title">Mark As Completed</h3>
-			<p class="confirm-text">You are about to mark this appointment as completed.</p>
+			<h3 class="confirm-title" id="modal-title">Mark this appointment as completed?</h3>
 			<article class="danger-card">
 				<p class="muted"><strong>Owner:</strong> ${appointment.owner}</p>
 				<p class="muted"><strong>Patient:</strong> ${appointment.patient}</p>
@@ -610,8 +609,8 @@ function completeModalTemplate(appointment) {
 			</article>
 			<textarea class="textarea" id="completion-notes" maxlength="1000" placeholder="Completion notes (optional)"></textarea>
 			<div class="two-actions">
-				<button class="btn btn-outline" type="button" data-modal-action="open-details">Cancel</button>
-				<button class="btn btn-primary" type="button" data-modal-action="confirm-complete">Mark as Completed</button>
+				<button class="btn btn-outline" type="button" data-modal-action="open-details">No</button>
+				<button class="btn btn-primary" type="button" data-modal-action="confirm-complete">Yes</button>
 			</div>
 		</div>
 	`;
@@ -639,10 +638,10 @@ function cancelModalTemplate(appointment) {
 				</div>
 			</div>
 			<div class="modal-footer">
-				<button class="btn btn-outline" type="button" data-modal-action="open-details">Keep Appointment</button>
+				<button class="btn btn-outline" type="button" data-modal-action="open-details">No</button>
 				<button class="btn btn-danger" type="button" data-modal-action="confirm-cancel">
 					<i data-lucide="x-circle"></i>
-					Cancel Appointment
+					Yes, cancel
 				</button>
 			</div>
 		</div>

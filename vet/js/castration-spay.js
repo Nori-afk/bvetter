@@ -95,7 +95,7 @@ async function loadPrograms() {
   });
   tbody.querySelectorAll('[data-delete-program]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      if (!(await vbConfirm('Delete this program? This cannot be undone.', 'Delete'))) return;
+      if (!(await vbConfirm('Delete this program? This cannot be undone.', 'Yes, delete'))) return;
       const res = await window.VetAPI.deleteCspProgram(Number(btn.dataset.deleteProgram));
       if (!res.ok) { await vbAlert(res.error || 'Failed to delete program.'); return; }
       refreshAll();
@@ -194,7 +194,7 @@ async function loadRoster() {
 
   tbody.querySelectorAll('[data-cancel-reg]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      if (!(await vbConfirm('Cancel this registration?', 'Cancel Registration'))) return;
+      if (!(await vbConfirm('Cancel this registration?'))) return;
       const res = await window.VetAPI.cancelCspRegistration(Number(btn.dataset.cancelReg));
       if (!res.ok) { await vbAlert(res.error || 'Failed to cancel.'); return; }
       refreshAll();
@@ -209,7 +209,7 @@ async function loadRoster() {
   });
   tbody.querySelectorAll('[data-delete-reg]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      if (!(await vbConfirm('Delete this registration? This cannot be undone.', 'Delete'))) return;
+      if (!(await vbConfirm('Delete this registration? This cannot be undone.', 'Yes, delete'))) return;
       const res = await window.VetAPI.deleteCspRegistration(Number(btn.dataset.deleteReg));
       if (!res.ok) { await vbAlert(res.error || 'Failed to delete registration.'); return; }
       refreshAll();

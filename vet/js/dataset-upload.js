@@ -229,10 +229,10 @@
     async function activateVersion(versionId, button) {
         // Switching the active version changes every chart, report and forecast in
         // the portal, so it asks first.
-        if (!window.confirm(
+        if (!(await vbConfirm(
             `Switch the system back to dataset version ${versionId}?\n\n` +
             'Every chart, report and forecast will use that version from now on. ' +
-            'Nothing is deleted, and you can switch again at any time.')) {
+            'Nothing is deleted, and you can switch again at any time.'))) {
             return;
         }
         button.disabled = true;
@@ -258,11 +258,11 @@
     async function deleteVersion(versionId, button) {
         const row = button.closest('tr');
         const name = row ? row.querySelector('.du-file-name')?.textContent?.trim() : '';
-        if (!window.confirm(
+        if (!(await vbConfirm(
             `Permanently delete dataset version ${versionId}${name ? ` (${name})` : ''}?\n\n` +
             'Its consultation records are removed from the database. Every other version keeps ' +
             'its own full copy, so nothing else loses data, and the dataset in use is unaffected.\n\n' +
-            'The original uploaded file stays on the server. This cannot be undone from here.')) {
+            'The original uploaded file stays on the server. This cannot be undone from here.', 'Yes, delete'))) {
             return;
         }
         button.disabled = true;
@@ -284,10 +284,10 @@
     // this there is no route from "a year I did not want is in the dataset"
     // back to the bundled workbook.
     async function revertToBundled(button) {
-        if (!window.confirm(
+        if (!(await vbConfirm(
             'Switch the system back to the bundled 2023-2025 workbook?\n\n' +
             'Every chart, report and forecast will read the shipped records again. ' +
-            'No upload is deleted — the History tab can switch any of them back on.')) {
+            'No upload is deleted — the History tab can switch any of them back on.'))) {
             return;
         }
         button.disabled = true;

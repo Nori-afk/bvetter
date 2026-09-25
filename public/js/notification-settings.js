@@ -169,7 +169,7 @@
       const ok = await vbConfirm(
         `Remove ${subject}${aside}? They will disappear from this list and from your `
         + `notification bell, and cannot be brought back.`,
-        'Clear All'
+        'Yes, clear all'
       );
       if (!ok) return;
 

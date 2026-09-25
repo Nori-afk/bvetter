@@ -195,7 +195,7 @@
 		const question = turningOn
 			? "Enable two-factor authentication? You'll be emailed a 6-digit code every time you sign in."
 			: "Disable two-factor authentication? Your account will be protected by your password alone.";
-		if (!(await vbConfirm(question, turningOn ? "Enable" : "Disable"))) return;
+		if (!(await vbConfirm(question))) return;
 
 		btnManage2FA.disabled = true;
 		try {

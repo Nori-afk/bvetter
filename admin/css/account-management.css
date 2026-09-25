@@ -1525,3 +1525,24 @@ body {
     color: var(--text-tertiary);
     font-style: italic;
 }
+/* ── Clickable rows + Account Details window ──────────────── */
+.am-table tbody tr.am-row-clickable { cursor: pointer; }
+.am-table tbody tr.am-row-clickable:focus-visible { outline: 2px solid #00B928; outline-offset: -2px; }
+
+.am-details-note { font-weight: 500; color: #8A94A6; }
+
+.am-details-doc {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 12px 14px;
+    border: 1px solid #e5e9f0;
+    border-radius: 10px;
+}
+
+.am-details-doc[hidden] { display: none; }
+
+#modal-details .am-verify-footer { justify-content: space-between; }
+.am-details-actions { display: flex; gap: 10px; }

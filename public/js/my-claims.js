@@ -249,7 +249,7 @@ function closeModalOutside(event, id) {
 }
 
 async function handleResolved(claimId) {
-  const confirmed = await vbConfirm("Only mark this claim as resolved after you've physically received the pet from the finder. Continue?", 'Confirm');
+  const confirmed = await vbConfirm("Only mark this claim as resolved after you've physically received the pet from the finder. Continue?");
   if (!confirmed) return;
 
   const panelId = `detailClaim${claimId}`;

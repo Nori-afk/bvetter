@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260824-tz"/>
-    <link rel="stylesheet" href="../css/account-management.css?v=20260919-confirm"/>
+    <link rel="stylesheet" href="../css/account-management.css?v=20260925-details"/>
 </head>
 <body>
 
@@ -189,7 +189,7 @@
             <div class="dash-modal-head">
                 <div>
                     <h2 id="add-account-title">Add Account</h2>
-                    <p>Create a new staff or user account</p>
+                    <p>Create a new veterinarian account. New administrators take over an existing admin account with Hand Over Account on its profile.</p>
                 </div>
                 <button class="dash-modal-close" id="modal-add-close" type="button" aria-label="Close">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -290,7 +290,7 @@
         <div class="am-modal am-modal-lg" role="dialog" aria-modal="true" aria-labelledby="unblock-modal-title">
             <div class="am-modal-header-plain">
                 <div>
-                    <h2 id="unblock-modal-title">Unblock User</h2>
+                    <h2 id="unblock-modal-title">Unblock this user?</h2>
                     <p>Review the account below before restoring access</p>
                 </div>
                 <button class="am-modal-close" data-close="modal-unblock" aria-label="Close">&times;</button>
@@ -326,10 +326,10 @@
                 </div>
             </div>
 
-            <button class="am-btn-unblock-lg" id="unblock-confirm-btn" type="button">Unblock</button>
+            <button class="am-btn-unblock-lg" id="unblock-confirm-btn" type="button">Yes</button>
 
             <div class="am-modal-footer">
-                <button class="am-btn-cancel" data-close="modal-unblock" type="button">CANCEL</button>
+                <button class="am-btn-cancel" data-close="modal-unblock" type="button">NO</button>
             </div>
         </div>
     </div>
@@ -338,7 +338,7 @@
         <div class="am-modal am-modal-lg" role="dialog" aria-modal="true" aria-labelledby="block-modal-title">
             <div class="am-modal-header-plain">
                 <div>
-                    <h2 id="block-modal-title">Block User</h2>
+                    <h2 id="block-modal-title">Block this user?</h2>
                     <p>Review the account below before restricting access</p>
                 </div>
                 <button class="am-modal-close" data-close="modal-block" aria-label="Close">&times;</button>
@@ -374,10 +374,10 @@
                 </div>
             </div>
 
-            <button class="am-btn-block-lg" id="block-confirm-btn" type="button">Block</button>
+            <button class="am-btn-block-lg" id="block-confirm-btn" type="button">Yes</button>
 
             <div class="am-modal-footer">
-                <button class="am-btn-cancel" data-close="modal-block" type="button">CANCEL</button>
+                <button class="am-btn-cancel" data-close="modal-block" type="button">NO</button>
             </div>
         </div>
     </div>
@@ -488,11 +488,35 @@
         </div>
     </div>
 
-    <script src="../../shared/js/auth.js?v=20260816-sec"></script>
+    <!-- Read-only account details, opened by clicking a non-pending row. -->
+    <div class="am-modal-overlay" id="modal-details" hidden>
+        <div class="am-modal am-verify-modal" role="dialog" aria-modal="true" aria-labelledby="details-modal-title">
+            <div class="am-verify-header">
+                <div>
+                    <h2 id="details-modal-title">Account Details</h2>
+                    <p>Account information and history.</p>
+                </div>
+                <button class="am-modal-close" data-close="modal-details" aria-label="Close">&times;</button>
+            </div>
+            <div class="am-verify-body">
+                <div class="am-verify-info-grid" id="details-grid"></div>
+                <div class="am-details-doc" id="details-doc" hidden>
+                    <span class="am-verify-id-label">Uploaded Document</span>
+                    <a href="#" id="details-doc-link" class="am-verify-fullsize" target="_blank" rel="noopener">View uploaded document</a>
+                </div>
+            </div>
+            <div class="am-verify-footer">
+                <button class="am-btn-close-verify" data-close="modal-details" type="button">Close</button>
+                <div class="am-details-actions" id="details-actions"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../shared/js/auth.js?v=20260925-yesno"></script>
     <script>VBetterAuth.requireAuth(['admin']);</script>
     <script src="../../shared/js/sidebar.js?v=20260824-tz"></script>
     <script src="../../public/js/api.js?v=20260828-walkin"></script>
     <script src="../../public/js/password-policy.js?v=20260925-strength"></script>
-    <script src="../js/account-management.js?v=20260919-confirm"></script>
+    <script src="../js/account-management.js?v=20260925-details"></script>
 </body>
 </html>
