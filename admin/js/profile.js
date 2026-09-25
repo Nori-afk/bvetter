@@ -306,6 +306,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	function openPasswordModal() {
 		pwForm?.reset();
+		// reset() changes values without an input event, so the strength bar
+		// and match line would keep describing the last password typed.
+		pwForm?.querySelectorAll('input[type="password"]').forEach((input) => input.dispatchEvent(new Event("input")));
 		setPwMessage("");
 		if (pwOverlay) pwOverlay.hidden = false;
 		document.getElementById("pw-current")?.focus();
@@ -329,7 +332,10 @@ document.addEventListener("DOMContentLoaded", () => {
 		const confirmPassword = pwForm.elements.confirmPassword.value;
 
 		if (!currentPassword) return setPwMessage("Enter your current password.", "error");
-		if (newPassword.length < 12) return setPwMessage("New password must be at least 12 characters.", "error");
+		const policyError = window.PasswordPolicy
+			? PasswordPolicy.validate(newPassword)
+			: (newPassword.length < 12 ? "New password must be at least 12 characters." : null);
+		if (policyError) return setPwMessage(policyError, "error");
 		if (newPassword !== confirmPassword) return setPwMessage("New password and confirmation do not match.", "error");
 
 		const submitBtn = pwForm.querySelector('button[type="submit"]');

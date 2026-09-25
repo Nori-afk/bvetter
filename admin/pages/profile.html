@@ -433,10 +433,12 @@
             <div class="field-group">
                 <label for="pw-new">New Password</label>
                 <input type="password" id="pw-new" name="newPassword" autocomplete="new-password" minlength="8" required>
+                <div data-pw-strength="pw-new"></div>
             </div>
             <div class="field-group">
                 <label for="pw-confirm">Confirm New Password</label>
                 <input type="password" id="pw-confirm" name="confirmPassword" autocomplete="new-password" minlength="8" required>
+                <div data-pw-match="pw-new" data-pw-confirm="pw-confirm"></div>
             </div>
             <p class="pw-modal-message" id="pwModalMessage"></p>
             <div class="pw-modal-actions">
@@ -450,6 +452,7 @@
 <script src="../../shared/js/auth.js?v=20260816-sec"></script>
 <script>VBetterAuth.requireAuth(['admin']);</script>
 <script src="../../shared/js/sidebar.js?v=20260824-tz"></script>
+<script src="../../public/js/password-policy.js?v=20260925-strength"></script>
 <script src="../js/profile.js?v=20260822-adminprofile"></script>
 </body>
 </html>

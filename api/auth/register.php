@@ -19,6 +19,7 @@ require_once __DIR__ . '/../config/security_settings.php';
 require_once __DIR__ . '/../config/input_validation.php';
 require_once __DIR__ . '/../config/notifications.php';
 require_once __DIR__ . '/../config/walk_in_accounts.php';
+require_once __DIR__ . '/../config/email_availability.php';
 
 function respond($statusCode, $payload)
 {
@@ -90,20 +91,34 @@ if (!preg_match('/^(?:\+63|63|0)9\d{9}$/', preg_replace('/[\s-]/', '', $phoneNum
 // an address belongs to a clinic walk-in is accepted for the same reason
 // forgotPassword() in api/admin/verify-contact.php rejects unknown addresses
 // outright: this form already reveals which addresses are registered.
-ensureWalkInSchema($pdo);
+//
+// The same rule answers the form's live check and gates the verification
+// code (both in verify-contact.php), so normally nobody reaches this point
+// with a taken address; this is the backstop for a direct POST.
+$emailState = registrationEmailState($pdo, $email);
 
-$existing = $pdo->prepare('SELECT is_walk_in FROM users WHERE email = :email LIMIT 1');
-$existing->execute([':email' => $email]);
-$existingRow = $existing->fetch();
-
-if ($existingRow && (int) $existingRow['is_walk_in'] === 1) {
+if ($emailState['state'] === 'walk_in') {
     respond(409, [
         'success' => false,
         'claim' => true,
-        'message' => 'The clinic already has a record under this email address from an earlier visit. You have not set a password yet, so use "Forgot Password" on the login page to create one. Your pet records will already be there.',
+        'message' => $emailState['message'],
         'title' => 'Record Already Exists'
     ]);
 }
+
+if (!$emailState['allowed']) {
+    respond(409, [
+        'success' => false,
+        'message' => $emailState['message']
+    ]);
+}
+
+// A rejected applicant applies again on their existing row rather than a new
+// one: users.email is unique, so the address would otherwise be spent
+// forever -- someone turned down over a blurry ID photo could never apply
+// with their own email again. Their earlier document and its rejection stay
+// in user_verification_documents as history; the new one is added beside it.
+$reapplyUserId = $emailState['state'] === 'rejected' ? $emailState['userId'] : 0;
 
 // The Terms of Service checkbox was only ever enforced in the browser, so a
 // direct POST could create an account that never agreed to them.
@@ -165,16 +180,6 @@ if (!is_dir($uploadDirectory) && !mkdir($uploadDirectory, 0775, true)) {
 }
 
 try {
-    $checkEmail = $pdo->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
-    $checkEmail->execute([':email' => $email]);
-
-    if ($checkEmail->fetch()) {
-        respond(409, [
-            'success' => false,
-            'message' => 'Email is already registered.'
-        ]);
-    }
-
     $pdo->beginTransaction();
 
     $roleQuery = $pdo->prepare('SELECT id FROM roles WHERE name = :name LIMIT 1');
@@ -213,33 +218,70 @@ try {
         $barangay = $barangayRow['name'];
     }
 
-    $insertUser = $pdo->prepare(
-        'INSERT INTO users (role_id, full_name, email, password_hash, phone_number, account_status)
-         VALUES (:role_id, :full_name, :email, :password_hash, :phone_number, :account_status)'
-    );
+    if ($reapplyUserId > 0) {
+        // Only while the row is still a rejected application, so an admin
+        // approving it in the meantime can't be overwritten by this request.
+        $reapplyUser = $pdo->prepare("
+            UPDATE users
+            INNER JOIN owner_profiles ON owner_profiles.user_id = users.id
+            SET users.full_name = :full_name,
+                users.password_hash = :password_hash,
+                users.phone_number = :phone_number,
+                users.account_status = 'inactive',
+                owner_profiles.barangay_id = :barangay_id,
+                owner_profiles.complete_address = :complete_address,
+                owner_profiles.verification_status = 'pending',
+                owner_profiles.verified_at = NULL
+            WHERE users.id = :id
+              AND owner_profiles.verification_status = 'rejected'
+        ");
+        $reapplyUser->execute([
+            ':full_name' => $fullName,
+            ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
+            ':phone_number' => $phoneNumber,
+            ':barangay_id' => $barangayId,
+            ':complete_address' => $barangay,
+            ':id' => $reapplyUserId,
+        ]);
 
-    $insertUser->execute([
-        ':role_id' => $roleId,
-        ':full_name' => $fullName,
-        ':email' => $email,
-        ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
-        ':phone_number' => $phoneNumber,
-        ':account_status' => 'inactive',
-    ]);
+        if ($reapplyUser->rowCount() === 0) {
+            $pdo->rollBack();
+            respond(409, [
+                'success' => false,
+                'message' => 'This application changed while you were filling in the form. Please reload the page and try again.'
+            ]);
+        }
 
-    $userId = (int) $pdo->lastInsertId();
+        $userId = $reapplyUserId;
+    } else {
+        $insertUser = $pdo->prepare(
+            'INSERT INTO users (role_id, full_name, email, password_hash, phone_number, account_status)
+             VALUES (:role_id, :full_name, :email, :password_hash, :phone_number, :account_status)'
+        );
 
-    $insertOwnerProfile = $pdo->prepare(
-        'INSERT INTO owner_profiles (user_id, barangay_id, complete_address, verification_status)
-         VALUES (:user_id, :barangay_id, :complete_address, :verification_status)'
-    );
+        $insertUser->execute([
+            ':role_id' => $roleId,
+            ':full_name' => $fullName,
+            ':email' => $email,
+            ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
+            ':phone_number' => $phoneNumber,
+            ':account_status' => 'inactive',
+        ]);
 
-    $insertOwnerProfile->execute([
-        ':user_id' => $userId,
-        ':barangay_id' => $barangayId,
-        ':complete_address' => $barangay,
-        ':verification_status' => 'pending',
-    ]);
+        $userId = (int) $pdo->lastInsertId();
+
+        $insertOwnerProfile = $pdo->prepare(
+            'INSERT INTO owner_profiles (user_id, barangay_id, complete_address, verification_status)
+             VALUES (:user_id, :barangay_id, :complete_address, :verification_status)'
+        );
+
+        $insertOwnerProfile->execute([
+            ':user_id' => $userId,
+            ':barangay_id' => $barangayId,
+            ':complete_address' => $barangay,
+            ':verification_status' => 'pending',
+        ]);
+    }
 
     $extension = $allowedMimeTypes[$mimeType];
     $safeFileName = 'proof_' . $userId . '_' . bin2hex(random_bytes(8)) . '.' . $extension;
@@ -293,7 +335,8 @@ try {
             'admin',
             'account_application',
             'New Account Application',
-            $fullName . ' (' . $barangay . ') submitted a proof of residence and is waiting for verification.',
+            $fullName . ' (' . $barangay . ') submitted a proof of residence and is waiting for verification.'
+                . ($reapplyUserId > 0 ? ' This is a new application after an earlier one was not approved.' : ''),
             $userId,
             true,
             // Relative to admin/pages/ — the login page's own directory,

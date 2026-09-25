@@ -153,7 +153,7 @@
       showToast('Password updated successfully.', 'success');
       ['inputCurrentPw', 'inputNewPw', 'inputConfirmPw'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.value = '';
+        if (el) { el.value = ''; el.dispatchEvent(new Event('input')); }
       });
     });
   }

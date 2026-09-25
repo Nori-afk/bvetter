@@ -3,6 +3,7 @@
  * BVetter – Contact Verification & Forgot Password
  *
  * Actions:
+ *   check_email        – can a new registration use this email? (sign-up form)
  *   send_email_otp     – generate & email a 6-digit OTP
  *   send_phone_otp     – generate & "SMS" a 6-digit OTP (stub – swap for real SMS gateway)
  *   verify_otp         – confirm the code the user entered
@@ -31,6 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/mailer.php';
 require_once __DIR__ . '/../config/security_settings.php';
+require_once __DIR__ . '/../config/email_availability.php';
+require_once __DIR__ . '/../config/rate_limit.php';
+require_once __DIR__ . '/../config/session.php';
 
 /* ── helpers ────────────────────────────────────────────── */
 
@@ -79,6 +83,45 @@ function ensureResetTable(PDO $pdo): void
 }
 
 /* ── send OTP via email ─────────────────────────────────── */
+/**
+ * Both public ways to learn whether an address is registered share this
+ * per-IP allowance: plenty for a person filling the form in, useless for a
+ * script working through a list.
+ */
+function assertEmailLookupAllowed(PDO $pdo): void
+{
+    if (!rateLimitAllow($pdo, 'email_lookup:' . clientIp(), 20, 600)) {
+        respond(429, [
+            'success' => false,
+            'message' => 'Too many attempts. Please wait a few minutes and try again.',
+        ]);
+    }
+}
+
+/**
+ * The sign-up form's live check, run when the applicant leaves the Email
+ * field -- so a taken address is caught on the first screen, not after the
+ * code and the ID upload. The same rule gates sendEmailOtp() below and the
+ * final submit, so skipping this call changes nothing.
+ */
+function checkEmail(PDO $pdo): never
+{
+    $email = trim($_POST['email'] ?? '');
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        respond(422, ['success' => false, 'message' => 'Invalid email address.']);
+    }
+
+    assertEmailLookupAllowed($pdo);
+    $result = registrationEmailState($pdo, $email);
+
+    respond(200, [
+        'success' => true,
+        'state'   => $result['state'],
+        'allowed' => $result['allowed'],
+        'message' => $result['message'],
+    ]);
+}
+
 function sendEmailOtp(PDO $pdo): never
 {
     ensureOtpTable($pdo);
@@ -88,6 +131,19 @@ function sendEmailOtp(PDO $pdo): never
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         respond(422, ['success' => false, 'message' => 'Invalid email address.']);
+    }
+
+    // Registration is this action's only caller. No code goes to an address
+    // the form could never finish with -- it would only be turned away at
+    // the final submit, after the ID upload.
+    assertEmailLookupAllowed($pdo);
+    $availability = registrationEmailState($pdo, $email);
+    if (!$availability['allowed']) {
+        respond(409, [
+            'success' => false,
+            'state'   => $availability['state'],
+            'message' => $availability['message'],
+        ]);
     }
 
     $otp       = generateOtp();
@@ -467,6 +523,7 @@ $action = $_POST['action'] ?? '';
 
 try {
     match ($action) {
+        'check_email'    => checkEmail($pdo),
         'send_email_otp' => sendEmailOtp($pdo),
         'send_phone_otp' => sendPhoneOtp($pdo),
         'verify_otp'     => verifyOtp($pdo),

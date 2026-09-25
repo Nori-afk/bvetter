@@ -5,8 +5,9 @@
  * cannot go below) and enforced server-side. This helper only improves the
  * UX: it fetches the active policy, writes its description into any element
  * marked [data-pw-policy-hint], renders a live rule checklist and strength
- * bar into any [data-pw-strength] element, and offers a client-side pre-check
- * mirroring the server's passwordPolicyError().
+ * bar into any [data-pw-strength] element, a live "passwords match" line into
+ * any [data-pw-match] element, and offers a client-side pre-check mirroring
+ * the server's passwordPolicyError().
  *
  * Client-side checks are convenience only — trivially bypassed by posting
  * straight to the API, which is exactly why the same rules are enforced in
@@ -66,7 +67,7 @@ window.PasswordPolicy = (() => {
             el.textContent = get().description;
         });
 
-        document.querySelectorAll('[data-pw-strength]').forEach(mountStrength);
+        mountAll();
 
         return get();
     }
@@ -127,32 +128,54 @@ window.PasswordPolicy = (() => {
     }
 
     /**
-     * Strength score 0-4. Length does most of the work, because it is what
-     * actually costs an attacker time; the classes are already mandatory, so
-     * scoring them again would just show 'strong' for every valid password.
+     * Length that turns an acceptable password into a strong one. Never
+     * below the admin's minimum, so raising the minimum in Manage Security
+     * can't make "Strong" easier to reach than "Medium".
+     */
+    function strongLength() {
+        return Math.max(16, get().minLength);
+    }
+
+    /**
+     * Strength level 0-2, in the three words people actually use:
+     *   0 Weak   - a rule is missing, so the form will not accept it
+     *   1 Medium - every rule is met; accepted
+     *   2 Strong - every rule is met and it is long
+     *
+     * The old 0-4 score labelled a password that met every rule as a red
+     * "Weak" next to an all-green checklist, and nothing said what "strong"
+     * meant or how to get there. Only Weak blocks a form -- the rules are the
+     * bar the admin set, and demanding Strong on top of it only frustrates.
      */
     function score(password) {
         const v = password || '';
-        if (!v) return 0;
-        if (validate(v) !== null) return 0;
-
-        let s = 1;
-        if (v.length >= 14) s++;
-        if (v.length >= 18) s++;
-        if (new Set(v).size >= 12) s++;
-        return Math.min(4, s);
+        if (!v || validate(v) !== null) return 0;
+        return v.length >= strongLength() ? 2 : 1;
     }
 
     const LEVELS = [
-        // Score 0 means the password fails a rule outright. It still needs a
-        // label — an empty one next to an empty bar reads as "nothing has
-        // been assessed yet" rather than "this is not acceptable".
-        { label: 'Too weak', color: '#e53e3e' },
-        { label: 'Weak', color: '#e53e3e' },
-        { label: 'Fair', color: '#f59e0b' },
-        { label: 'Strong', color: '#00B928' },
-        { label: 'Very strong', color: '#047857' }
+        { label: 'Weak', color: '#e53e3e', width: 33 },
+        { label: 'Medium', color: '#d97706', width: 66 },
+        { label: 'Strong', color: '#00B928', width: 100 }
     ];
+
+    /** One line telling the user what to do next at their current level. */
+    function hint(password) {
+        const v = password || '';
+        const s = score(v);
+
+        if (s === 0) {
+            const missing = rules().filter(rule => !rule.test(v)).map(rule => rule.label.toLowerCase());
+            if (!missing.length) return validate(v) || '';
+            const last = missing.pop();
+            return 'Still needed: ' + (missing.length ? missing.join(', ') + ' and ' + last : last) + '.';
+        }
+        if (s === 1) {
+            const more = strongLength() - v.length;
+            return `Good. Add ${more} more character${more === 1 ? '' : 's'} to make it Strong.`;
+        }
+        return 'Strong password.';
+    }
 
     let stylesInjected = false;
     function injectStyles() {
@@ -164,11 +187,15 @@ window.PasswordPolicy = (() => {
             .pw-strength-bar { height: 6px; border-radius: 99px; background: #e5e7eb; overflow: hidden; }
             .pw-strength-fill { height: 100%; width: 0; border-radius: 99px; transition: width .2s, background-color .2s; }
             .pw-strength-label { font-size: 11.5px; font-weight: 700; margin-top: 5px; min-height: 14px; }
+            .pw-strength-label .pw-strength-hint { font-weight: 500; color: #5b6475; }
             .pw-rules { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 3px; }
             .pw-rules li { font-size: 11.5px; font-weight: 500; color: #8A94A6; display: flex; align-items: center; gap: 6px; }
             .pw-rules li::before { content: '\\2715'; font-size: 10px; font-weight: 800; color: #c2c8d2; width: 12px; text-align: center; }
             .pw-rules li.ok { color: #1B6D24; }
             .pw-rules li.ok::before { content: '\\2713'; color: #00B928; }
+            .pw-match { font-size: 11.5px; font-weight: 600; margin-top: 6px; min-height: 14px; }
+            .pw-match.is-bad { color: #e53e3e; }
+            .pw-match.is-ok { color: #1B6D24; }
         `;
         document.head.appendChild(style);
     }
@@ -192,7 +219,7 @@ window.PasswordPolicy = (() => {
         host.classList.add('pw-strength');
         host.innerHTML = `
             <div class="pw-strength-bar"><div class="pw-strength-fill"></div></div>
-            <div class="pw-strength-label"></div>
+            <div class="pw-strength-label" aria-live="polite"></div>
             <ul class="pw-rules"></ul>
         `;
 
@@ -213,21 +240,76 @@ window.PasswordPolicy = (() => {
                 list.children[i].classList.toggle('ok', rule.test(value));
             });
 
-            const s = score(value);
-            const level = LEVELS[s];
-            // A sliver of red at score 0, so the bar reads as "assessed and
-            // rejected" rather than as an untouched empty track.
-            fill.style.width = value ? Math.max(8, s / 4 * 100) + '%' : '0%';
+            const level = LEVELS[score(value)];
+            fill.style.width = value ? level.width + '%' : '0%';
             fill.style.backgroundColor = level.color;
             label.style.color = level.color;
-            label.textContent = value ? level.label : '';
+            label.textContent = '';
+            if (!value) return;
+
+            label.append(level.label + ' · ');
+            const note = document.createElement('span');
+            note.className = 'pw-strength-hint';
+            note.textContent = hint(value);
+            label.appendChild(note);
         };
 
         input.addEventListener('input', render);
         render();
     }
 
+    /**
+     * Wires a [data-pw-match="passwordId"] element, placed under a confirm
+     * field whose id is in [data-pw-confirm], so a mismatch shows while the
+     * user types instead of only after they press the form's button.
+     *
+     * It stays quiet while the confirmation is still the start of the
+     * password (they are mid-typing, not wrong), says so the moment a
+     * character differs or they leave the field short, and turns green on an
+     * exact match. Editing the first password re-checks it. The form's own
+     * submit-time check stays as the backstop -- this is feedback only.
+     */
+    function mountMatch(host) {
+        const password = document.getElementById(host.getAttribute('data-pw-match'));
+        const confirm  = document.getElementById(host.getAttribute('data-pw-confirm'));
+        if (!password || !confirm || host.dataset.pwMounted === '1') return;
+        host.dataset.pwMounted = '1';
+
+        injectStyles();
+        host.classList.add('pw-match');
+        host.setAttribute('aria-live', 'polite');
+
+        let left = false;
+        const render = () => {
+            const a = password.value;
+            const b = confirm.value;
+            host.classList.remove('is-ok', 'is-bad');
+            host.textContent = '';
+            if (!b) return;
+
+            if (a === b) {
+                host.classList.add('is-ok');
+                host.textContent = '✓ Passwords match';
+            } else if (!a.startsWith(b) || left) {
+                host.classList.add('is-bad');
+                host.textContent = 'Passwords don’t match';
+            }
+        };
+
+        confirm.addEventListener('input', () => { left = false; render(); });
+        confirm.addEventListener('blur', () => { left = true; render(); });
+        password.addEventListener('input', render);
+        render();
+    }
+
+    /** Mounts any strength/match hosts under root (default: the whole page). */
+    function mountAll(root) {
+        const scope = root || document;
+        scope.querySelectorAll('[data-pw-strength]').forEach(mountStrength);
+        scope.querySelectorAll('[data-pw-match]').forEach(mountMatch);
+    }
+
     document.addEventListener('DOMContentLoaded', load);
 
-    return { load, get, validate, score, rules, mountStrength };
+    return { load, get, validate, score, hint, rules, mountStrength, mountMatch, mountAll };
 })();

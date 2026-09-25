@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="../css/variables.css"/>
-  <link rel="stylesheet" href="../css/signup.css"/>
+  <link rel="stylesheet" href="../css/signup.css?v=20260925-emailcheck"/>
   <!-- Loaded in <head>, not at the end of <body>: requireOwnerOrGuest()
        redirects a logged-in vet/admin to their own dashboard, and that has
        to happen before first paint or they see this page flash past. -->
@@ -65,6 +65,7 @@
               <img src="../images/icons/icon-email.svg" alt="" class="input-icon"/>
               <input type="email" id="reg_email" name="email" placeholder="your@email.com" autocomplete="email"/>
             </div>
+            <div class="email-status" id="reg_email_status" aria-live="polite" hidden></div>
           </div>
 
           <div class="form-group">
@@ -84,6 +85,7 @@
               <input type="password" id="reg_pw2" name="password_confirmation" placeholder="••••••••" autocomplete="new-password"/>
               <img src="../images/icons/icon-eye.svg" alt="show" class="toggle-pw" onclick="togglePw('reg_pw2')"/>
             </div>
+            <div data-pw-match="reg_pw1" data-pw-confirm="reg_pw2"></div>
           </div>
              <div class="form-group">
             <label>Phone Number</label>
@@ -550,7 +552,7 @@
 </style>
 
 <script src="../js/api.js?v=20260819-authfix"></script>
-<script src="../js/password-policy.js?v=20260816-sec"></script>
-<script src="../js/signup.js?v=20260821-proofpreview"></script>
+<script src="../js/password-policy.js?v=20260925-strength"></script>
+<script src="../js/signup.js?v=20260925-emailcheck"></script>
 </body>
 </html>
