@@ -16,6 +16,8 @@ const DEFAULT_CONFIG = {
   email:    'BaliwagtVC@gmail.com',
   phone:    '09959210640',
   address:  'AgriCorp Building, Baliwag Government Complex, 247 Highway, Baliwag, Philippines, 3026',
+  closedDates:             '',
+  upcomingClosedDates:     [],
   visitsCountOverride:     '',
   visitsCountComputed:     0,
   avgRatingPerVetOverride: '',
@@ -83,6 +85,7 @@ async function saveConfig() {
   formData.append('address', document.getElementById('cp-address').value);
   formData.append('visitsCountOverride', document.getElementById('cp-visits-count').value);
   formData.append('avgRatingPerVetOverride', document.getElementById('cp-avg-rating').value);
+  formData.append('closed_dates', document.getElementById('cp-closed-dates').value);
 
   const fileFieldMap = {
     logo: 'logo_file',
@@ -126,6 +129,30 @@ async function saveConfig() {
   }
 }
 
+/* What the booking calendar will block soon, built-in holidays included,
+   as the server last computed it (refreshed on save). */
+function renderUpcomingClosedDates() {
+  const list = document.getElementById('cp-closed-upcoming');
+  if (!list) return;
+  list.innerHTML = '';
+  const days = Array.isArray(config.upcomingClosedDates) ? config.upcomingClosedDates : [];
+  if (!days.length) {
+    const li = document.createElement('li');
+    li.className = 'wm-closed-empty';
+    li.textContent = 'No closed weekdays in the next 4 months.';
+    list.appendChild(li);
+    return;
+  }
+  days.forEach(day => {
+    const li = document.createElement('li');
+    const when = new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    const date = document.createElement('strong');
+    date.textContent = when;
+    li.append(date, ' — ' + day.name);
+    list.appendChild(li);
+  });
+}
+
 /* ── Discard ── */
 function discardConfig() {
   config = { ...savedConfig };
@@ -160,6 +187,8 @@ function applyConfigToForm() {
   document.getElementById('cp-visits-count').value = config.visitsCountOverride || '';
   document.getElementById('cp-avg-rating').value   = config.avgRatingPerVetOverride || '';
   document.getElementById('cp-specialists-count').value = config.specialistsCount ?? 0;
+  document.getElementById('cp-closed-dates').value = config.closedDates || '';
+  renderUpcomingClosedDates();
 
   document.getElementById('cp-visits-computed-hint').textContent =
     `Auto-calculated from completed appointments: ${Number(config.visitsCountComputed || 0).toLocaleString()}. Leave blank to use it.`;

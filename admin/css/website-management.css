@@ -495,3 +495,15 @@ input[type="file"] { display: none; }
   }
   .wm-preview-divider { display: none; }
 }
+/* Clinic Closed Dates preview (website-management.js) */
+.wm-closed-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--text-secondary, #475569);
+}
+.wm-closed-list strong { color: var(--text-primary, #0f172a); }
+.wm-closed-empty { color: var(--text-tertiary, #94a3b8); }

@@ -108,6 +108,23 @@ async function openPetDetail(petId) {
 // The pet whose detail panel is open, for Print Record.
 let currentDetailPet = null;
 
+// The owner's name and phone for the printout. The login session carries no
+// phone number, so it is fetched once, when a detail panel first opens --
+// not on the Print click, where waiting on a request would get the print
+// window blocked as a pop-up.
+let ownerContact = null;
+function loadOwnerContact() {
+  if (ownerContact || typeof api === 'undefined' || !api.getProfile) return;
+  ownerContact = {};
+  api.getProfile()
+    .then((result) => {
+      if (result && result.success && result.data) {
+        ownerContact = { name: result.data.fullName || '', phone: result.data.phone || '' };
+      }
+    })
+    .catch(() => {});
+}
+
 /**
  * A summary the owner can show another clinic -- see
  * shared/js/pet-record-print.js. Only what this panel already shows.
@@ -126,8 +143,8 @@ function printCurrentPet() {
     weight: pet.weight,
     colorMarkings: pet.colorMarkings,
     healthStatus: pet.healthStatus,
-    ownerName: session.name || session.fullName || '',
-    ownerPhone: session.phone || '',
+    ownerName: ownerContact?.name || session.name || session.fullName || '',
+    ownerPhone: ownerContact?.phone || '',
     visits: pet.visitHistory || [],
     vaccinations: pet.vaccinationHistory || []
   });
@@ -135,6 +152,7 @@ function printCurrentPet() {
 
 function renderPetDetail(pet) {
   currentDetailPet = pet;
+  loadOwnerContact();
   const nameEl = document.getElementById('mpDetailName');
   const subEl = document.getElementById('mpDetailSub');
   const body = document.getElementById('mpDetailBody');

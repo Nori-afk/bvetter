@@ -1868,6 +1868,15 @@ body {
   opacity: 0.6;
 }
 
+/* Holiday / office closed. pointer-events stays on so the title tooltip
+   with the holiday's name still shows; the click handler is never bound. */
+.cal-day.disabled.closed {
+  pointer-events: auto;
+  text-decoration: line-through;
+  color: #b45309;
+  background: #fff7ed;
+}
+
 .hstep-col {
   gap: 6px;
 }

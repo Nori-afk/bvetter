@@ -244,10 +244,13 @@ function buildRescheduleCalendar(monthDate, selectedIsoDate) {
 		const isActive = iso === selectedIsoDate ? ' active' : '';
 		const isPast = iso < todayIso;
 		const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6; // Sun=0, Sat=6 — clinic is closed
-		const isDisabled = isPast || isWeekend;
+		// Holidays and office-closed dates (api/includes/clinic_calendar.php).
+		const closedReason = closedDates[iso] || '';
+		const isDisabled = isPast || isWeekend || closedReason !== '';
 		const disabledAttr = isDisabled ? ' disabled' : '';
 		const disabledClass = isDisabled ? ' disabled' : '';
-		dayCells.push(`<button type="button" class="day-btn${isActive}${disabledClass}" data-resched-date="${iso}"${disabledAttr}>${day}</button>`);
+		const title = closedReason ? ` title="Clinic closed: ${escapeAttr(closedReason)}"` : '';
+		dayCells.push(`<button type="button" class="day-btn${isActive}${disabledClass}" data-resched-date="${iso}"${disabledAttr}${title}>${day}</button>`);
 	}
 
 	return dayCells.join('');
@@ -1136,9 +1139,34 @@ function exposeApi() {
 	};
 }
 
+// { 'YYYY-MM-DD': 'Christmas Day' } -- weekdays the clinic is closed, so the
+// reschedule calendar can't propose one. The server refuses them regardless.
+let closedDates = {};
+
+async function loadClosedDates() {
+	try {
+		const response = await fetch('/api/appointments/appointment.php', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ action: 'closed_dates' })
+		});
+		const result = await response.json();
+		if (result.success && Array.isArray(result.data)) {
+			closedDates = Object.fromEntries(result.data.map((day) => [day.date, day.name]));
+		}
+	} catch {
+		// Weekends still gray out; the server refuses a closed date anyway.
+	}
+}
+
+function escapeAttr(value) {
+	return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 async function init() {
 	ui.modalOverlay.hidden = true;
 	document.body.style.overflow = '';
+	void loadClosedDates();
 	setupCalendar();
 	setupEvents();
 	if (window.VetAPI?.getAppointments) {

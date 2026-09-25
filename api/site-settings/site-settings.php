@@ -8,6 +8,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/input_validation.php';
+require_once __DIR__ . '/../includes/clinic_calendar.php';
 
 function respond($statusCode, $payload)
 {
@@ -109,6 +110,38 @@ function setupSiteSettings($pdo)
         $pdo->exec("ALTER TABLE site_settings ADD COLUMN rating_cache DECIMAL(3,1) NULL AFTER rating_override");
         $pdo->exec("ALTER TABLE site_settings ADD COLUMN rating_cached_at TIMESTAMP NULL AFTER rating_cache");
     }
+
+    /* closed_dates: extra weekdays the clinic is closed, one "YYYY-MM-DD
+       Name" per line, on top of the built-in Philippine holidays (see
+       api/includes/clinic_calendar.php). */
+    if (!$pdo->query("SHOW COLUMNS FROM site_settings LIKE 'closed_dates'")->fetch()) {
+        $pdo->exec("ALTER TABLE site_settings ADD COLUMN closed_dates TEXT NULL");
+    }
+}
+
+/**
+ * Checks and tidies the Clinic Closed Dates text. Each non-blank line must
+ * start with a real YYYY-MM-DD date; the name after it is optional. Returns
+ * [normalizedText, errorMessage|null].
+ */
+function normalizeClosedDates($text)
+{
+    $lines = [];
+    foreach (preg_split('/\R/', (string) $text) as $index => $line) {
+        $line = trim($line);
+        if ($line === '') continue;
+        if (!preg_match('/^(\d{4}-\d{2}-\d{2})\s*(.*)$/', $line, $m) || !isValidYmd($m[1])) {
+            return ['', 'Clinic Closed Dates, line ' . ($index + 1) . ': "' . mb_substr($line, 0, 40)
+                . '" doesn\'t start with a date. Write one date per line as YYYY-MM-DD, optionally followed by a name.'];
+        }
+        // Names are shown to residents on the booking calendar.
+        $name = trim(str_replace(['<', '>'], '', $m[2]));
+        $lines[] = $m[1] . ($name !== '' ? ' ' . mb_substr($name, 0, 80) : '');
+    }
+    if (count($lines) > 200) {
+        return ['', 'Clinic Closed Dates can list at most 200 dates.'];
+    }
+    return [implode("\n", $lines), null];
 }
 
 function activeSpecialistsCount($pdo)
@@ -187,6 +220,10 @@ function formatSettings($row, $specialistsCount, $visitsComputed, $ratingCompute
 
         'specialistsCount' => $specialistsCount,
         'updatedAt'         => $row['updated_at'],
+
+        // Normalized on save (normalizeClosedDates), so it holds only dates
+        // and names with no markup.
+        'closedDates'       => (string) ($row['closed_dates'] ?? ''),
     ];
 }
 
@@ -198,9 +235,20 @@ function getSettings($pdo)
     $visitsComputed = cachedStat($pdo, $row, 'visits_cache', 'visits_cached_at', 'computeVisitsCount');
     $ratingComputed = cachedStat($pdo, $row, 'rating_cache', 'rating_cached_at', 'computeAverageRating');
 
+    $data = formatSettings($row, activeSpecialistsCount($pdo), $visitsComputed, $ratingComputed);
+
+    // What the booking calendar will block over the next four months, built-in
+    // holidays included, so an admin can see the list is right.
+    clinicExtraClosedDates(parseClosedDates($row['closed_dates'] ?? ''));
+    $upcoming = [];
+    foreach (clinicClosedDatesBetween(date('Y-m-d'), date('Y-m-d', strtotime('+120 days'))) as $date => $name) {
+        $upcoming[] = ['date' => $date, 'name' => $name];
+    }
+    $data['upcomingClosedDates'] = $upcoming;
+
     respond(200, [
         'success' => true,
-        'data' => formatSettings($row, activeSpecialistsCount($pdo), $visitsComputed, $ratingComputed)
+        'data' => $data
     ]);
 }
 
@@ -305,6 +353,16 @@ function saveSettings($pdo, $data)
         ':visits_override'  => clean($data['visitsCountOverride'] ?? ''),
         ':rating_override'  => clean($data['avgRatingPerVetOverride'] ?? ''),
     ];
+
+    // Only when the form sent it, so an older copy of the page can't wipe it.
+    if (array_key_exists('closed_dates', $data)) {
+        [$closedDates, $closedError] = normalizeClosedDates($data['closed_dates']);
+        if ($closedError !== null) {
+            respond(422, ['success' => false, 'message' => $closedError]);
+        }
+        $set[] = 'closed_dates = :closed_dates';
+        $params[':closed_dates'] = $closedDates;
+    }
 
     $imageFields = [
         'logo'         => ['upload' => 'logo_file',        'column' => 'logo_path',         'remove' => 'remove_logo'],

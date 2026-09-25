@@ -87,6 +87,12 @@ function assertSchedulableDate($date, $pastMessage)
     if (in_array((int) date('N', strtotime($date)), [6, 7], true)) {
         respond(422, ['success' => false, 'message' => 'The clinic is closed on Saturdays and Sundays.']);
     }
+    // Holidays and the dates the office marked closed (clinic_calendar.php;
+    // loaded for this request in the router preamble).
+    $closedReason = clinicClosedReason($date);
+    if ($closedReason !== null) {
+        respond(422, ['success' => false, 'message' => "The clinic is closed on that day ({$closedReason}). Please choose another date."]);
+    }
     $horizon = strtotime('+' . BOOKING_HORIZON_MONTHS . ' months', strtotime(date('Y-m-d')));
     if (strtotime($date) > $horizon) {
         respond(422, [
@@ -1277,6 +1283,20 @@ function listVeterinarians($pdo)
     ]);
 }
 
+/**
+ * Weekdays the booking calendars must gray out -- holidays and dates the
+ * office marked closed -- from today to the end of the booking horizon.
+ */
+function listClosedDates()
+{
+    $to = date('Y-m-d', strtotime('+' . BOOKING_HORIZON_MONTHS . ' months'));
+    $days = [];
+    foreach (clinicClosedDatesBetween(date('Y-m-d'), $to) as $date => $name) {
+        $days[] = ['date' => $date, 'name' => $name];
+    }
+    respond(200, ['success' => true, 'data' => $days]);
+}
+
 function getBookedSlots($pdo, $data)
 {
     $date  = clean($data['preferred_date'] ?? $data['date'] ?? '');
@@ -1447,6 +1467,7 @@ $rescheduleSchemaReady = ensureRescheduleSchema($pdo);
 // Same reason: the time-limit columns are settled before any transaction.
 ensureTimedRulesSchema($pdo);
 runTimedRules($pdo);
+loadClinicCalendar($pdo);
 
 // The handshake can't run without its columns. Everything else on this
 // endpoint works regardless, so only these two actions are blocked.
@@ -1466,6 +1487,7 @@ try {
     if ($action === 'delete') deleteAppointment($pdo, $input);
     if ($action === 'vets') listVeterinarians($pdo);
     if ($action === 'booked_slots') getBookedSlots($pdo, $input);
+    if ($action === 'closed_dates') listClosedDates();
     if ($action === 'submit_review') submitReview($pdo, $input, $callerSession);
     if ($action === 'vet_reviews') getVetReviews($pdo, $input);
     if ($action === 'get_total') getTotalAppointment($pdo, $input);

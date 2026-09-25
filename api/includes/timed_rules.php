@@ -99,6 +99,7 @@ function bvNow(): DateTimeImmutable
 function setAppointmentExpiry(PDO $pdo, int $appointmentId, string $date, string $timeSlot): void
 {
     if (!ensureTimedRulesSchema($pdo)) return;
+    loadClinicCalendar($pdo);
     $deadline = addWorkingDays(bvNow(), 1);
     $slotStart = DateTimeImmutable::createFromFormat('Y-m-d H:i', $date . ' ' . $timeSlot);
     if ($slotStart && $slotStart < $deadline) $deadline = $slotStart;
@@ -110,6 +111,7 @@ function setAppointmentExpiry(PDO $pdo, int $appointmentId, string $date, string
 function setApplicationDeadlines(PDO $pdo, int $documentId): void
 {
     if (!ensureTimedRulesSchema($pdo)) return;
+    loadClinicCalendar($pdo);
     $now = bvNow();
     $pdo->prepare('
         UPDATE user_verification_documents

@@ -620,8 +620,16 @@ function listReports($pdo, $data, $management = false, $viewer = null)
 
     $search = clean($data['search'] ?? '');
     if ($search !== '') {
-        $where[] = '(lost_found_reports.pet_name LIKE :search OR lost_found_reports.breed LIKE :search OR lost_found_reports.color_markings LIKE :search OR lost_found_reports.notes LIKE :search OR lost_found_reports.case_number LIKE :search)';
-        $params[':search'] = '%' . $search . '%';
+        // One placeholder per use: prepares are native (not emulated), and a
+        // named placeholder repeated in one statement fails outright -- which
+        // made every search on this board return an error.
+        $columns = ['pet_name', 'breed', 'color_markings', 'notes', 'case_number'];
+        $likes = [];
+        foreach ($columns as $i => $column) {
+            $likes[] = "lost_found_reports.{$column} LIKE :search{$i}";
+            $params[":search{$i}"] = '%' . $search . '%';
+        }
+        $where[] = '(' . implode(' OR ', $likes) . ')';
     }
 
     $sql = reportSelectSql();
