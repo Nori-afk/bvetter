@@ -1705,3 +1705,10 @@ body {
 
     .info-grid, .reschedule-layout { grid-template-columns: 1fr; }
 }
+/* Legacy pending requests sharing one slot (vet/js/appointment.js) */
+.pending-item .slot-clash {
+	margin: 2px 0 4px;
+	font-size: 11.5px;
+	font-weight: 700;
+	color: #b45309;
+}

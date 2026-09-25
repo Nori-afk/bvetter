@@ -119,8 +119,29 @@ function normalizeAppointment(item, index) {
 		status,
 		type: String(item.type || 'General'),
 		veterinarianId: item.veterinarian_id ? Number(item.veterinarian_id) : null,
-		veterinarian: item.veterinarian ? String(item.veterinarian) : ''
+		veterinarian: item.veterinarian ? String(item.veterinarian) : '',
+		timeSlot: canonicalSlot(item.time_slot || '')
 	};
+}
+
+/**
+ * Pending requests sharing a time with another pending request. New requests
+ * can't do this any more (a pending request holds its slot), but ones made
+ * before that change can -- and only the first of a pair can be confirmed.
+ */
+function sameSlotPendingIds() {
+	const pending = state.appointments.filter((item) => item.status === 'pending' && item.timeSlot);
+	const clashing = new Set();
+	pending.forEach((a, i) => {
+		pending.slice(i + 1).forEach((b) => {
+			const sameVet = !a.veterinarianId || !b.veterinarianId || a.veterinarianId === b.veterinarianId;
+			if (a.preferredDate === b.preferredDate && a.timeSlot === b.timeSlot && sameVet) {
+				clashing.add(a.id);
+				clashing.add(b.id);
+			}
+		});
+	});
+	return clashing;
 }
 
 function loadAppointments(dataset) {
@@ -290,11 +311,16 @@ function renderPendingList() {
 	}
 
 	ui.pendingEmpty.hidden = true;
+	const clashing = sameSlotPendingIds();
 	ui.pendingHolder.innerHTML = pending.map((item) => {
 		const dt = formatDateTime(item.datetime);
+		const clash = clashing.has(item.id)
+			? '<p class="slot-clash">&#9888; Same time as another request</p>'
+			: '';
 		return `
 			<article class="pending-item" data-id="${item.id}">
 				<p class="time">${dt.date} - ${dt.time}</p>
+				${clash}
 				<h4>${item.patient}</h4>
 				<p>${item.service}</p>
 				<div class="pending-actions">
@@ -974,8 +1000,12 @@ function setupEvents() {
 	ui.settingsButton?.addEventListener('click', openSettingsModal);
 
 	ui.acceptAllButton.addEventListener('click', async () => {
+		// One at a time, not in parallel: two requests for the same slot can
+		// only have one winner, and the server decides it in arrival order.
 		const pending = state.appointments.filter((item) => item.status === 'pending');
-		await Promise.all(pending.map((item) => updateStatus(item.id, 'confirmed', { skipReload: true })));
+		for (const item of pending) {
+			await updateStatus(item.id, 'confirmed', { skipReload: true });
+		}
 		await reloadFromServer();
 	});
 

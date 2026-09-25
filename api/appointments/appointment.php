@@ -601,15 +601,24 @@ function createAppointment($pdo, $data)
         }
     }
 
+    // Two owners pressing Book for the same slot at the same moment would both
+    // pass the check below before either row exists. The named lock makes the
+    // check-then-insert one step per date/slot; it is released on commit or
+    // when the connection closes, whichever comes first.
+    $slotLock = lockSlot($pdo, $preferredDate, $timeSlot);
+
     $pdo->beginTransaction();
 
     // Re-check the slot server-side (mirrors getBookedSlots) so a race between
     // two owners — or a stale slot list on the client — can't double-book a
-    // vet once a prior request for the same date/time has been confirmed.
-    // Shares slotConflictExists() with the reschedule path so a slot held for a
-    // pending reschedule can't be booked out from under it.
+    // vet. A PENDING request holds its slot too (first come, first served):
+    // before, only a confirmed booking did, so two owners could request the
+    // same time and a vet could confirm both. Shares slotConflictExists() with
+    // the reschedule path so a slot held for a pending reschedule can't be
+    // booked out from under it.
     if (slotConflictExists($pdo, $veterinarianId, $preferredDate, $timeSlot, 0)) {
         $pdo->rollBack();
+        unlockSlot($pdo, $slotLock);
         respond(409, [
             'success' => false,
             'message' => 'That time slot has just been booked. Please choose another.'
@@ -649,6 +658,7 @@ function createAppointment($pdo, $data)
 
     $appointmentId = (int) $pdo->lastInsertId();
     $pdo->commit();
+    unlockSlot($pdo, $slotLock);
 
     // Sent synchronously and directly, on purpose: two different attempts at
     // deferring this (an early-flush trick, then a detached background
@@ -677,6 +687,28 @@ function updateAppointmentStatus($pdo, $data)
         ]);
     }
 
+    // Confirming used to skip the slot check entirely, so with two requests
+    // for one time the vet could confirm both. Pending requests aren't counted
+    // here -- this one is itself pending, and so may be a same-slot request
+    // left over from before pending requests held their slot. Whichever of
+    // those the vet confirms first wins; the second is refused.
+    $slotLock = null;
+    if ($status === 'confirmed') {
+        $slotRow = $pdo->prepare('SELECT veterinarian_id, preferred_date, time_slot FROM appointments WHERE id = :id LIMIT 1');
+        $slotRow->execute([':id' => $appointmentId]);
+        $slot = $slotRow->fetch();
+        if ($slot) {
+            $slotLock = lockSlot($pdo, $slot['preferred_date'], $slot['time_slot']);
+            if (slotConflictExists($pdo, (int) $slot['veterinarian_id'], $slot['preferred_date'], $slot['time_slot'], $appointmentId, false)) {
+                unlockSlot($pdo, $slotLock);
+                respond(409, [
+                    'success' => false,
+                    'message' => 'Another appointment is already confirmed for this date and time. Reschedule this request or decline it.'
+                ]);
+            }
+        }
+    }
+
     $confirmedAtSql = $status === 'confirmed' ? 'NOW()' : 'confirmed_at';
     $cancelledAtSql = in_array($status, ['cancelled', 'rejected'], true) ? 'NOW()' : 'cancelled_at';
 
@@ -696,6 +728,7 @@ function updateAppointmentStatus($pdo, $data)
         ':review_notes' => $reviewNotes,
         ':id' => $appointmentId,
     ]);
+    unlockSlot($pdo, $slotLock);
 
     if ($status === 'confirmed') {
         ensurePatientRecordFromAppointment($pdo, $appointmentId);
@@ -898,13 +931,37 @@ function notifyStaffRescheduleAnswer($pdo, $appointmentId, $verb, $date, $timeSl
 }
 
 /**
- * Is this vet's date/time already spoken for? A slot counts as taken when it
- * holds another confirmed booking, and on both sides of a reschedule still
- * awaiting an answer -- the original is held in case the owner declines, the
- * proposed one in case they accept.
+ * Serialises booking decisions for one date/slot across requests. Returns
+ * the lock name to pass to unlockSlot(), or null if the lock couldn't be
+ * had in time -- the conflict check still runs, it just isn't serialised.
  */
-function slotConflictExists($pdo, $vetId, $date, $timeSlot, $excludeId)
+function lockSlot($pdo, $date, $timeSlot)
 {
+    $name = 'bv_slot_' . $date . '_' . $timeSlot;
+    $stmt = $pdo->prepare('SELECT GET_LOCK(:name, 5)');
+    $stmt->execute([':name' => $name]);
+    return (int) $stmt->fetchColumn() === 1 ? $name : null;
+}
+
+function unlockSlot($pdo, $name)
+{
+    if ($name === null) return;
+    $pdo->prepare('SELECT RELEASE_LOCK(:name)')->execute([':name' => $name]);
+}
+
+/**
+ * Is this vet's date/time already spoken for? A slot counts as taken when it
+ * holds another confirmed booking, on both sides of a reschedule still
+ * awaiting an answer -- the original is held in case the owner declines, the
+ * proposed one in case they accept -- and, unless $includePending is false,
+ * when another request for it is still pending: first come, first served.
+ */
+function slotConflictExists($pdo, $vetId, $date, $timeSlot, $excludeId, $includePending = true)
+{
+    $heldStatuses = $includePending
+        ? "'pending', 'confirmed', 'completed', 'reschedule_pending'"
+        : "'confirmed', 'completed', 'reschedule_pending'";
+
     $vetClause = $vetId > 0 ? 'AND (veterinarian_id = :vet_id OR veterinarian_id IS NULL)' : '';
 
     $params = [
@@ -932,7 +989,7 @@ function slotConflictExists($pdo, $vetId, $date, $timeSlot, $excludeId)
         WHERE id <> :id
           AND (
                 (preferred_date = :date AND time_slot = :slot
-                 AND status IN ('confirmed', 'completed', 'reschedule_pending'))
+                 AND status IN ({$heldStatuses}))
                 {$heldClause}
               )
           {$vetClause}
@@ -1253,10 +1310,12 @@ function getBookedSlots($pdo, $data)
         ";
     }
 
+    // Pending requests gray their slot out too: a request holds its time
+    // until it is confirmed, declined or expires (see slotConflictExists()).
     $stmt = $pdo->prepare("
         SELECT time_slot FROM appointments
         WHERE preferred_date = :date
-          AND status IN ('confirmed', 'completed', 'reschedule_pending')
+          AND status IN ('pending', 'confirmed', 'completed', 'reschedule_pending')
           {$vetClause}
           {$excludeClause}
         {$proposedUnion}

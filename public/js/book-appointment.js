@@ -455,12 +455,15 @@ async function loadRecentHistory(options = {}) {
         `;
       }
 
-      // pending / cancelled
+      // Pending, confirmed, cancelled...: a status, not an action. It used to
+      // be a disabled button that still took the hand cursor and a hover
+      // fill, so it looked clickable and did nothing.
       else {
         reviewBtn = `
-          <button class="btn-rate" disabled>
+          <span class="status-badge s-${appt.status}">
+            <span class="status-dot"></span>
             ${statusText(appt.status)}
-          </button>
+          </span>
         `;
       }
 //  const icons = {
