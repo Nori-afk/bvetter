@@ -99,6 +99,7 @@ window.PasswordPolicy = (() => {
         if (p.requireSpecial)   list.push({ label: 'A special character', test: (v) => /[^a-zA-Z0-9]/.test(v) });
         list.push({
             label: 'Not a commonly used password',
+            common: true,
             test: (v) => !!v && !COMMON.has(baseWord(v))
         });
         return list;
@@ -165,7 +166,9 @@ window.PasswordPolicy = (() => {
         const s = score(v);
 
         if (s === 0) {
-            const missing = rules().filter(rule => !rule.test(v)).map(rule => rule.label.toLowerCase());
+            // Character rules read well as a list; a common password needs
+            // its own sentence ("too easy to guess"), which validate() has.
+            const missing = rules().filter(rule => !rule.common && !rule.test(v)).map(rule => rule.label.toLowerCase());
             if (!missing.length) return validate(v) || '';
             const last = missing.pop();
             return 'Still needed: ' + (missing.length ? missing.join(', ') + ' and ' + last : last) + '.';
