@@ -103,16 +103,15 @@
             // three years of records instead of extending them.
             host.innerHTML = `
                 <div class="du-active-empty">
-                    <strong>No dataset has been uploaded yet.</strong> The system is reading the
-                    bundled workbook (<code>BaliwagVet_2023-2025.xlsx</code>) as a fallback.
+                    <strong>No dataset is in use.</strong> Disease Analytics, the disease reports and
+                    the forecasts have no consultation records until one is uploaded.
                     <br><br>
                     Because there is no dataset to build on, <strong>this first upload becomes the
                     whole history on its own</strong> — nothing is carried forward into it. Later
                     uploads are different: they merge into whatever is active, so a monthly or
                     yearly top-up adds to the records rather than replacing them.
                     <br><br>
-                    If your file covers only part of your records, upload your full history first —
-                    or upload <code>BaliwagVet_2023-2025.xlsx</code> to set a 2023-2025 baseline,
+                    If your file covers only part of your records, upload your full history first,
                     then top it up.
                 </div>`;
             return;
@@ -140,17 +139,10 @@
                     <span class="du-stat-value" style="font-size:13px;word-break:break-all">${vbEscapeHtml(active.filename || '—')}</span>
                     ${active.note ? `<span class="du-stat-note">${vbEscapeHtml(active.note)}</span>` : ''}
                 </div>
-            </div>
-            <div class="du-revert-row">
-                <button type="button" class="du-btn du-btn-ghost" id="du-revert">Use the bundled 2023-2025 workbook instead</button>
-                <span class="du-dim">Stands every upload down without deleting anything. Switch one back on any time.</span>
             </div>`;
-
-        // Bound here rather than once at init: this element is re-created every
-        // time the panel re-renders, so a listener attached to the old node
-        // would be thrown away with it.
-        const revert = el('du-revert');
-        if (revert) revert.addEventListener('click', () => revertToBundled(revert));
+        // No "use the bundled workbook instead" button: that workbook is a
+        // different dataset reusing the same consultation ids, not an older
+        // copy of this one. See bv_sheet_rows() in api/includes/dataset.php.
     }
 
     function renderVersions(versions) {
@@ -280,30 +272,6 @@
         }
     }
 
-    // The way back to the shipped records. Uploads only ever add, so without
-    // this there is no route from "a year I did not want is in the dataset"
-    // back to the bundled workbook.
-    async function revertToBundled(button) {
-        if (!(await vbConfirm(
-            'Switch the system back to the bundled 2023-2025 workbook?\n\n' +
-            'Every chart, report and forecast will read the shipped records again. ' +
-            'No upload is deleted — the History tab can switch any of them back on.'))) {
-            return;
-        }
-        button.disabled = true;
-        button.textContent = 'Switching…';
-        try {
-            const result = await datasetRequest('revert', new FormData());
-            message('ok', `<strong>Done.</strong> ${vbEscapeHtml(result.message)}`);
-            await loadVersions();
-            notifyChange();
-        } catch (error) {
-            message('error', `Could not switch back. ${vbEscapeHtml(error.message)}`);
-            button.disabled = false;
-            button.textContent = 'Use the bundled 2023-2025 workbook instead';
-        }
-    }
-
     function describeResult(data) {
         const carried = Number(data.rowsCarried || 0);
         const added = Number(data.rowsAdded || 0);
@@ -335,7 +303,50 @@
                     halves will count cases differently, so a trend across the join may be an
                     artefact of the encoding rather than a real change.
                 </li>` : ''}
+                ${describeShadowedVisits(data.shadowedVisits)}
+                ${describePartialMonth(data.partialLastMonth)}
+                ${describeNewDiagnoses(data.newDiagnoses)}
             </ul>`;
+    }
+
+    // Visits typed in for months this file now covers. The file wins for those
+    // months (see api/includes/case_timeline.php); the visits themselves are not
+    // touched, but whoever logged them should hear that they stopped counting.
+    function describeShadowedVisits(shadowed) {
+        const count = Number(shadowed?.count || 0);
+        if (!count) return '';
+        const months = (shadowed.months || []).map(vbEscapeHtml).join(', ');
+        return `<li class="du-warn">
+            <strong>${num(count)} typed-in visit${count === 1 ? '' : 's'} no longer counted</strong>
+            (${months}). This file now covers ${count === 1 ? 'that month' : 'those months'}, so its
+            figures are used there instead. The visit${count === 1 ? ' stays' : 's stay'} on the
+            patient record — nothing was deleted.
+        </li>`;
+    }
+
+    // The file owns its last month in full, even when it stops part-way through.
+    function describePartialMonth(partial) {
+        if (!partial) return '';
+        return `<li class="du-warn">
+            <strong>This file ends ${vbEscapeHtml(partial.lastDate)}, part-way through
+            ${vbEscapeHtml(partial.month)}.</strong> All of ${vbEscapeHtml(partial.month)} now comes from
+            uploads, so the rest of it has to be in your next upload. Manual entry opens
+            ${vbEscapeHtml(partial.entryOpens)}.
+        </li>`;
+    }
+
+    // Listed by name so a typo ("Mnage") is caught by a person before it
+    // settles into the vet's diagnosis list.
+    function describeNewDiagnoses(names) {
+        const list = Array.isArray(names) ? names : [];
+        if (!list.length) return '';
+        const shown = list.slice(0, 8).map(vbEscapeHtml).join(', ');
+        const more = list.length > 8 ? ` and ${num(list.length - 8)} more` : '';
+        return `<li>
+            <strong>${num(list.length)} new diagnos${list.length === 1 ? 'is' : 'es'} added to the list
+            vets choose from:</strong> ${shown}${more}. Check the spelling — a misspelt name becomes a
+            separate disease.
+        </li>`;
     }
 
     async function submitUpload(event) {

@@ -59,14 +59,14 @@ document.addEventListener('DOMContentLoaded', () => {
             right:  'Most Active Barangay'
         },
         disease_incidence: {
-            // Not "Total Cases": this is the barangay-month surveillance
-            // volume from Barangay_Disease_Monthly, a larger and separate
-            // tally from the diagnosis-level count on Disease Analytics.
-            left:   'Surveillance Tally — {period}',
-            center: 'Dominant Disease Group',
-            // Not "Highest Risk": the ranking is by case count, and Case Volume
-            // Level is a band on that same count (see risk_class_from_volume in
+            // The same diagnosis-level case count Disease Analytics shows: the
+            // report reads the uploaded consultations now, not the separate
+            // Barangay_Disease_Monthly tally it used to (see disease_rows in
             // api/reports/reports.php).
+            left:   'Total Cases — {period}',
+            center: 'Dominant Disease Group',
+            // Not "Highest Risk": the ranking is by case count. Whether a
+            // barangay needs action is the Action Level column's job.
             right:  'Highest Case Volume Barangay'
         },
         mass_vaccination: {
