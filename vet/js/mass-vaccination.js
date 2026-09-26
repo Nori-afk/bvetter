@@ -1279,7 +1279,7 @@
         const activeId = document.getElementById('post-event-form').dataset.activeEventId;
         const e = state.events.find(item => item.id === activeId);
         if (!e) return;
-        if (!(await vbConfirm(`Delete the ${e.barangay} – ${e.vaccine} event on ${e.dateLabel}? This cannot be undone.`, 'Delete'))) return;
+        if (!(await vbConfirm(`Delete the ${e.barangay} – ${e.vaccine} event on ${e.dateLabel}? This cannot be undone.`, 'Yes, delete'))) return;
 
         try {
             const res = await fetch(MASS_VACC_API, {

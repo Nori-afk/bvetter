@@ -267,15 +267,32 @@ function setupDiseaseCatalog($pdo)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
 
-    // Seeded only while empty. Parsing the 4,986-row sheet is far too costly to
-    // repeat on every patient-records request, and re-seeding would also undo
-    // any disease the clinic later edits or deactivates through the table.
+    // Seeded only while empty. Reading the whole dataset is far too costly to
+    // repeat on every patient-records request. Every upload adds its own new
+    // diagnoses as it lands (bv_consult_ingest), so this only ever matters for a
+    // catalog that has never been filled.
     if ((int) $pdo->query("SELECT COUNT(*) FROM diseases")->fetchColumn() > 0) return;
 
     require_once __DIR__ . '/dataset.php';
     $rows = bv_sheet_rows('Consult_Diagnosis_3Y');
     if (!$rows) return;
 
+    bv_catalog_add_from_rows($pdo, $rows);
+}
+
+/**
+ * Adds every diagnosis in $rows that the catalog does not already hold, and
+ * returns the names it added.
+ *
+ * Existing entries are left exactly as they are -- including ones the clinic
+ * has deactivated, which an upload must not quietly switch back on. The name
+ * column's collation is case-insensitive, so "mange" in a file does not create
+ * a second "Mange".
+ *
+ * @return string[]
+ */
+function bv_catalog_add_from_rows($pdo, array $rows)
+{
     $catalog = [];
     foreach ($rows as $row) {
         $name = trim((string) ($row['diagnosis'] ?? ''));
@@ -289,13 +306,14 @@ function setupDiseaseCatalog($pdo)
         $group = trim((string) ($row['animal_group'] ?? ''));
         if ($group !== '') $catalog[$name]['animal_groups'][$group] = true;
     }
-    if (!$catalog) return;
+    if (!$catalog) return [];
 
     $insert = $pdo->prepare("
         INSERT INTO diseases (name, display_category, bucket_category, animal_groups)
         VALUES (:name, :display_category, :bucket_category, :animal_groups)
         ON DUPLICATE KEY UPDATE name = name
     ");
+    $added = [];
     foreach ($catalog as $name => $meta) {
         $groups = array_keys($meta['animal_groups']);
         sort($groups);
@@ -305,7 +323,12 @@ function setupDiseaseCatalog($pdo)
             ':bucket_category'  => diseaseBucketForCategory($meta['display_category']),
             ':animal_groups'    => implode(', ', $groups),
         ]);
+        // 1 for an insert, 0 when the name was already there: the no-op
+        // "name = name" update changes nothing, so MySQL reports no row affected.
+        if ($insert->rowCount() === 1) $added[] = $name;
     }
+    sort($added);
+    return $added;
 }
 
 function ensurePatientRecordFromAppointment($pdo, $appointmentId)
@@ -317,12 +340,14 @@ function ensurePatientRecordFromAppointment($pdo, $appointmentId)
     $petId = (int) $stmt->fetchColumn();
     if ($petId <= 0) return;
 
+    // A booking only makes sure the pet has a record. It says nothing about
+    // the pet's health, so it must not set one: this used to write "Good
+    // Standing" on every confirmation -- and, on a pet the vet had already
+    // marked Monitoring or Critical, overwrite that back to Active Patient.
     $profile = $pdo->prepare("
         INSERT INTO patient_record_profiles (pet_id, patient_status, health_status, alert_text, source, is_archived)
-        VALUES (:pet_id, 'Active Patient', 'Good Standing', '', 'appointment', 0)
+        VALUES (:pet_id, 'Active Patient', '', '', 'appointment', 0)
         ON DUPLICATE KEY UPDATE
-            patient_status = VALUES(patient_status),
-            health_status = VALUES(health_status),
             is_archived = 0
     ");
     $profile->execute([':pet_id' => $petId]);

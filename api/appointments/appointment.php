@@ -18,6 +18,7 @@ require_once __DIR__ . '/../config/notifications.php';
 require_once __DIR__ . '/../config/veterinarian_profile.php';
 require_once __DIR__ . '/../includes/patient_tables.php';
 require_once __DIR__ . '/appointment_notifications.php';
+require_once __DIR__ . '/../includes/timed_rules.php';
 
 // How far ahead an appointment may be scheduled. Mirrors
 // BOOKING_HORIZON_MONTHS in public/js/book-appointment.js — the date input's
@@ -85,6 +86,12 @@ function assertSchedulableDate($date, $pastMessage)
     }
     if (in_array((int) date('N', strtotime($date)), [6, 7], true)) {
         respond(422, ['success' => false, 'message' => 'The clinic is closed on Saturdays and Sundays.']);
+    }
+    // Holidays and the dates the office marked closed (clinic_calendar.php;
+    // loaded for this request in the router preamble).
+    $closedReason = clinicClosedReason($date);
+    if ($closedReason !== null) {
+        respond(422, ['success' => false, 'message' => "The clinic is closed on that day ({$closedReason}). Please choose another date."]);
     }
     $horizon = strtotime('+' . BOOKING_HORIZON_MONTHS . ' months', strtotime(date('Y-m-d')));
     if (strtotime($date) > $horizon) {
@@ -426,6 +433,7 @@ function listAppointments($pdo, $data)
                 : 'NULL AS proposed_date,
                    NULL AS proposed_time_slot,
                    NULL AS reschedule_reason,') . '
+        ' . (ensureTimedRulesSchema($pdo) ? 'appointments.expires_at,' : 'NULL AS expires_at,') . '
         appointments.description,
         appointments.notes,
         appointments.created_at,
@@ -471,6 +479,9 @@ function listAppointments($pdo, $data)
             'veterinarian' => $row['veterinarian_name'],
             'preferred_date' => $row['preferred_date'],
             'time_slot' => $row['time_slot'],
+            // When an unconfirmed request expires (api/includes/timed_rules.php).
+            // NULL for requests made before the time limit existed.
+            'expires_at' => $row['expires_at'],
             // Only set while a vet-proposed reschedule is awaiting the owner.
             'proposed_date' => $row['proposed_date'],
             'proposed_time_slot' => $row['proposed_time_slot'],
@@ -601,15 +612,24 @@ function createAppointment($pdo, $data)
         }
     }
 
+    // Two owners pressing Book for the same slot at the same moment would both
+    // pass the check below before either row exists. The named lock makes the
+    // check-then-insert one step per date/slot; it is released on commit or
+    // when the connection closes, whichever comes first.
+    $slotLock = lockSlot($pdo, $preferredDate, $timeSlot);
+
     $pdo->beginTransaction();
 
     // Re-check the slot server-side (mirrors getBookedSlots) so a race between
     // two owners — or a stale slot list on the client — can't double-book a
-    // vet once a prior request for the same date/time has been confirmed.
-    // Shares slotConflictExists() with the reschedule path so a slot held for a
-    // pending reschedule can't be booked out from under it.
+    // vet. A PENDING request holds its slot too (first come, first served):
+    // before, only a confirmed booking did, so two owners could request the
+    // same time and a vet could confirm both. Shares slotConflictExists() with
+    // the reschedule path so a slot held for a pending reschedule can't be
+    // booked out from under it.
     if (slotConflictExists($pdo, $veterinarianId, $preferredDate, $timeSlot, 0)) {
         $pdo->rollBack();
+        unlockSlot($pdo, $slotLock);
         respond(409, [
             'success' => false,
             'message' => 'That time slot has just been booked. Please choose another.'
@@ -649,6 +669,11 @@ function createAppointment($pdo, $data)
 
     $appointmentId = (int) $pdo->lastInsertId();
     $pdo->commit();
+    unlockSlot($pdo, $slotLock);
+
+    // The clinic has 1 working day to confirm, or until the slot, whichever
+    // is sooner; after that the request expires and the slot is released.
+    setAppointmentExpiry($pdo, $appointmentId, $preferredDate, $timeSlot);
 
     // Sent synchronously and directly, on purpose: two different attempts at
     // deferring this (an early-flush trick, then a detached background
@@ -658,7 +683,7 @@ function createAppointment($pdo, $data)
 
     respond(201, [
         'success' => true,
-        'message' => 'Appointment request submitted.',
+        'message' => 'Appointment request submitted. The clinic confirms requests within 1 working day; if it isn\'t confirmed by then, it expires and you can book again.',
         'appointment_id' => $appointmentId
     ]);
 }
@@ -675,6 +700,35 @@ function updateAppointmentStatus($pdo, $data)
             'success' => false,
             'message' => 'Invalid appointment id.'
         ]);
+    }
+
+    // Confirming used to skip the slot check entirely, so with two requests
+    // for one time the vet could confirm both. Pending requests aren't counted
+    // here -- this one is itself pending, and so may be a same-slot request
+    // left over from before pending requests held their slot. Whichever of
+    // those the vet confirms first wins; the second is refused.
+    $slotLock = null;
+    if ($status === 'confirmed') {
+        $slotRow = $pdo->prepare('SELECT veterinarian_id, preferred_date, time_slot, status FROM appointments WHERE id = :id LIMIT 1');
+        $slotRow->execute([':id' => $appointmentId]);
+        $slot = $slotRow->fetch();
+        // Its owner has already been told it expired and to book again.
+        if ($slot && $slot['status'] === 'expired') {
+            respond(409, [
+                'success' => false,
+                'message' => 'This request expired before it was confirmed, and the owner was asked to book again.'
+            ]);
+        }
+        if ($slot) {
+            $slotLock = lockSlot($pdo, $slot['preferred_date'], $slot['time_slot']);
+            if (slotConflictExists($pdo, (int) $slot['veterinarian_id'], $slot['preferred_date'], $slot['time_slot'], $appointmentId, false)) {
+                unlockSlot($pdo, $slotLock);
+                respond(409, [
+                    'success' => false,
+                    'message' => 'Another appointment is already confirmed for this date and time. Reschedule this request or decline it.'
+                ]);
+            }
+        }
     }
 
     $confirmedAtSql = $status === 'confirmed' ? 'NOW()' : 'confirmed_at';
@@ -696,6 +750,7 @@ function updateAppointmentStatus($pdo, $data)
         ':review_notes' => $reviewNotes,
         ':id' => $appointmentId,
     ]);
+    unlockSlot($pdo, $slotLock);
 
     if ($status === 'confirmed') {
         ensurePatientRecordFromAppointment($pdo, $appointmentId);
@@ -898,13 +953,37 @@ function notifyStaffRescheduleAnswer($pdo, $appointmentId, $verb, $date, $timeSl
 }
 
 /**
- * Is this vet's date/time already spoken for? A slot counts as taken when it
- * holds another confirmed booking, and on both sides of a reschedule still
- * awaiting an answer -- the original is held in case the owner declines, the
- * proposed one in case they accept.
+ * Serialises booking decisions for one date/slot across requests. Returns
+ * the lock name to pass to unlockSlot(), or null if the lock couldn't be
+ * had in time -- the conflict check still runs, it just isn't serialised.
  */
-function slotConflictExists($pdo, $vetId, $date, $timeSlot, $excludeId)
+function lockSlot($pdo, $date, $timeSlot)
 {
+    $name = 'bv_slot_' . $date . '_' . $timeSlot;
+    $stmt = $pdo->prepare('SELECT GET_LOCK(:name, 5)');
+    $stmt->execute([':name' => $name]);
+    return (int) $stmt->fetchColumn() === 1 ? $name : null;
+}
+
+function unlockSlot($pdo, $name)
+{
+    if ($name === null) return;
+    $pdo->prepare('SELECT RELEASE_LOCK(:name)')->execute([':name' => $name]);
+}
+
+/**
+ * Is this vet's date/time already spoken for? A slot counts as taken when it
+ * holds another confirmed booking, on both sides of a reschedule still
+ * awaiting an answer -- the original is held in case the owner declines, the
+ * proposed one in case they accept -- and, unless $includePending is false,
+ * when another request for it is still pending: first come, first served.
+ */
+function slotConflictExists($pdo, $vetId, $date, $timeSlot, $excludeId, $includePending = true)
+{
+    $heldStatuses = $includePending
+        ? "'pending', 'confirmed', 'completed', 'reschedule_pending'"
+        : "'confirmed', 'completed', 'reschedule_pending'";
+
     $vetClause = $vetId > 0 ? 'AND (veterinarian_id = :vet_id OR veterinarian_id IS NULL)' : '';
 
     $params = [
@@ -932,7 +1011,7 @@ function slotConflictExists($pdo, $vetId, $date, $timeSlot, $excludeId)
         WHERE id <> :id
           AND (
                 (preferred_date = :date AND time_slot = :slot
-                 AND status IN ('confirmed', 'completed', 'reschedule_pending'))
+                 AND status IN ({$heldStatuses}))
                 {$heldClause}
               )
           {$vetClause}
@@ -1204,6 +1283,20 @@ function listVeterinarians($pdo)
     ]);
 }
 
+/**
+ * Weekdays the booking calendars must gray out -- holidays and dates the
+ * office marked closed -- from today to the end of the booking horizon.
+ */
+function listClosedDates()
+{
+    $to = date('Y-m-d', strtotime('+' . BOOKING_HORIZON_MONTHS . ' months'));
+    $days = [];
+    foreach (clinicClosedDatesBetween(date('Y-m-d'), $to) as $date => $name) {
+        $days[] = ['date' => $date, 'name' => $name];
+    }
+    respond(200, ['success' => true, 'data' => $days]);
+}
+
 function getBookedSlots($pdo, $data)
 {
     $date  = clean($data['preferred_date'] ?? $data['date'] ?? '');
@@ -1253,10 +1346,12 @@ function getBookedSlots($pdo, $data)
         ";
     }
 
+    // Pending requests gray their slot out too: a request holds its time
+    // until it is confirmed, declined or expires (see slotConflictExists()).
     $stmt = $pdo->prepare("
         SELECT time_slot FROM appointments
         WHERE preferred_date = :date
-          AND status IN ('confirmed', 'completed', 'reschedule_pending')
+          AND status IN ('pending', 'confirmed', 'completed', 'reschedule_pending')
           {$vetClause}
           {$excludeClause}
         {$proposedUnion}
@@ -1369,6 +1464,10 @@ if (in_array($action, ['list', 'create', 'submit_review'], true)) {
 // end it and break the rollback -- running it here means every later call just
 // reads the cached result.
 $rescheduleSchemaReady = ensureRescheduleSchema($pdo);
+// Same reason: the time-limit columns are settled before any transaction.
+ensureTimedRulesSchema($pdo);
+runTimedRules($pdo);
+loadClinicCalendar($pdo);
 
 // The handshake can't run without its columns. Everything else on this
 // endpoint works regardless, so only these two actions are blocked.
@@ -1388,6 +1487,7 @@ try {
     if ($action === 'delete') deleteAppointment($pdo, $input);
     if ($action === 'vets') listVeterinarians($pdo);
     if ($action === 'booked_slots') getBookedSlots($pdo, $input);
+    if ($action === 'closed_dates') listClosedDates();
     if ($action === 'submit_review') submitReview($pdo, $input, $callerSession);
     if ($action === 'vet_reviews') getVetReviews($pdo, $input);
     if ($action === 'get_total') getTotalAppointment($pdo, $input);

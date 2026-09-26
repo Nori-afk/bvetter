@@ -228,12 +228,6 @@
 .du-btn-danger:hover:not(:disabled) { background: #fef3f2; border-color: #f97066; }
 
 /* ── Revert to the bundled workbook ─────────────────────────────── */
-.du-revert-row {
-    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--du-line);
-}
-.du-revert-row .du-dim { font-size: 12px; line-height: 1.45; flex: 1 1 220px; }
-
 /* ── Data-quality warning inside an upload result ───────────────── */
 /* Amber, not red: the upload succeeded and the data is in. This flags
    something to check, not something that failed. */

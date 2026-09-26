@@ -4,6 +4,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../includes/patient_tables.php';
+require_once __DIR__ . '/../includes/pet_standing.php';
 require_once __DIR__ . '/../includes/dataset_versions.php';
 require_once __DIR__ . '/../config/input_validation.php';
 require_once __DIR__ . '/../config/auth_guard.php';
@@ -328,7 +329,9 @@ function mapRecord($pdo, $row)
     $vaccinations = array_map('mapVaccination', $vaccStmt->fetchAll());
 
     $status = $row['patient_status'] ?: 'Active Patient';
-    $healthStatus = $row['profile_health_status'] ?: ($row['pet_health_status'] ?: 'Good Standing');
+    // Same badge the owner sees -- see api/includes/pet_standing.php.
+    $standing = petStanding($status, array_column($visits, 'category'));
+    $healthStatus = $standing['label'];
     $followUp = $latest['followUp'] ?? '';
     $alert = $row['alert_text'] ?: ($followUp && $followUp !== 'TBD' ? 'Follow-up set' : '0');
     $lastVisit = $latest && $latest['date'] ? displayDate($latest['date']) : displayDate($row['created_at']);
@@ -366,6 +369,7 @@ function mapRecord($pdo, $row)
         'recordCount' => count($visits),
         'lastVisit' => $lastVisit,
         'healthStatus' => $healthStatus,
+        'standingType' => $standing['type'],
         'alert' => $alert,
         'visitTitle' => $latest['title'] ?? '',
         'visitDate' => $latest['date'] ?? '',

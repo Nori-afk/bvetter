@@ -1868,6 +1868,15 @@ body {
   opacity: 0.6;
 }
 
+/* Holiday / office closed. pointer-events stays on so the title tooltip
+   with the holiday's name still shows; the click handler is never bound. */
+.cal-day.disabled.closed {
+  pointer-events: auto;
+  text-decoration: line-through;
+  color: #b45309;
+  background: #fff7ed;
+}
+
 .hstep-col {
   gap: 6px;
 }
@@ -2226,4 +2235,22 @@ body {
   .modal-footer { flex-direction: column-reverse; }
   .modal-footer .btn-cancel,
   .modal-footer .btn-submit { width: 100%; justify-content: center; }
+}
+/* Statuses that had no colour of their own and fell back to the bare badge. */
+.s-confirmed {
+  background: #EFF6FF;
+  color: #1E40AF;
+  border: 1px solid #BFDBFE;
+}
+
+.s-rejected {
+  background: #FEF2F2;
+  color: #991B1B;
+  border: 1px solid #FECACA;
+}
+
+.s-expired {
+  background: #F3F4F6;
+  color: #4B5563;
+  border: 1px solid #D1D5DB;
 }

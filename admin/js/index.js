@@ -107,8 +107,18 @@ async function loadPendingApprovals() {
         return;
     }
 
-    pendingUsers = (result.data || []).filter(u => u.status === 'pending');
+    // Overdue applications (waiting past 2 working days) first.
+    pendingUsers = (result.data || [])
+        .filter(u => u.status === 'pending')
+        .sort((a, b) => (b.overdueSince ? 1 : 0) - (a.overdueSince ? 1 : 0));
     renderPendingApprovals(pendingUsers);
+
+    const overdue = pendingUsers.filter(u => u.overdueSince).length;
+    const badge = document.getElementById('kpi-pending-badge');
+    if (badge && overdue > 0) {
+        badge.hidden = false;
+        badge.textContent = `${overdue} Overdue`;
+    }
 }
 
 async function loadRoles() {
@@ -302,39 +312,17 @@ function renderPendingApprovals(users) {
             <div class="pending-item" data-id="${u.id}">
                 <div class="${avatarClass}">${initials}</div>
                 <div class="pending-info">
-                    <p class="pending-name">${escapeHtml(u.name || '')}</p>
+                    <p class="pending-name">${escapeHtml(u.name || '')}${u.overdueSince ? ' <span class="pending-overdue">Overdue</span>' : ''}</p>
                     <p class="pending-role">${escapeHtml(u.roleLabel || capitalize(u.role))} • Joined ${formatShortDate(u.created)}</p>
                 </div>
                 <div class="pending-actions">
-                    <button class="btn-approve" data-id="${u.id}">✓</button>
-                    <button class="btn-reject" data-id="${u.id}">✕</button>
+                    <a class="btn-review" href="account-management.html?review=${encodeURIComponent(u.id)}">Review</a>
                 </div>
             </div>`;
     }).join('');
-
-    list.querySelectorAll('.btn-approve').forEach(btn => {
-        btn.addEventListener('click', () => handlePendingAction(btn.dataset.id, 'approve'));
-    });
-    list.querySelectorAll('.btn-reject').forEach(btn => {
-        btn.addEventListener('click', () => handlePendingAction(btn.dataset.id, 'reject'));
-    });
-}
-
-async function handlePendingAction(userId, action) {
-    const user = pendingUsers.find(u => u.id === userId);
-    const name = user?.name || 'Account';
-
-    const result = action === 'approve'
-        ? await api.approveUser(userId).catch(() => ({ success: false }))
-        : await api.rejectUser(userId).catch(() => ({ success: false }));
-
-    if (!result.success) {
-        showToast(result.message || `Could not ${action} this account.`, 'error');
-        return;
-    }
-
-    showToast(action === 'approve' ? `${name} approved successfully.` : `${name} was rejected.`, action === 'approve' ? 'success' : 'error');
-    await loadDashboard();
+    // ✓ / ✕ buttons used to approve or reject straight from this card, with
+    // no ID in sight and no confirmation. Deciding happens in the review
+    // window on Account Management, next to the uploaded document.
 }
 
 /* ── Recent activity feed ────────────────────────────────────── */

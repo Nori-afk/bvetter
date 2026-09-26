@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
   <link rel="stylesheet" href="../../shared/css/form-validation.css"/>
-  <link rel="stylesheet" href="../css/book-appointment.css"/>
+  <link rel="stylesheet" href="../css/book-appointment.css?v=20260925-holidays"/>
 </head>
 <body>
 
@@ -431,7 +431,7 @@
     <div id="step4" class="step-content" style="display:none;">
       <div class="form-card wide">
         <div class="form-card-title">Review &amp; Confirm</div>
-        <p class="review-intro">Please review all details carefully. You will receive a confirmation via SMS/Email once your appointment is approved by the clinic.</p>
+        <p class="review-intro">Please review all details carefully. You will receive a confirmation via SMS/Email once your appointment is approved by the clinic, which it does within 1 working day.</p>
 
         <div class="review-section-label">OWNER INFO</div>
         <div class="review-block">
@@ -470,7 +470,7 @@
           <img src="../images/icons/icon-success.png" alt="booked"/>
         </div>
         <div class="success-title">Appointment Booked!</div>
-        <div class="success-desc">Your appointment request has been submitted and is pending clinic approval. You'll be notified via SMS/Email once confirmed.</div>
+        <div class="success-desc">Your appointment request has been submitted and is pending clinic approval. The clinic confirms requests within 1 working day. If it isn't confirmed by then, or by your chosen time, it expires, the slot is released, and you'll be asked to book again.</div>
         <div class="success-ref">
           <span class="ref-label">Reference No.</span>
           <span class="ref-val" id="rv-refNo">#BB-2025-12</span>
@@ -710,7 +710,7 @@
     </div>
   </div>
 
-   <script src="../../shared/js/auth.js?v=20260816-sec"></script>
+   <script src="../../shared/js/auth.js?v=20260925-yesno"></script>
   <script>
     VBetterAuth.requireAuth(['owner']);
   </script>
@@ -718,7 +718,7 @@
   <script src="../js/api.js?v=20260819-authfix"></script>
   <!-- Must load before book-appointment.js, which calls VBForm at validate time. -->
   <script src="../../shared/js/form-validation.js"></script>
-  <script src="../js/book-appointment.js?v=20260819-idor"></script>
+  <script src="../js/book-appointment.js?v=20260925-holidays"></script>
   <script src="../js/site-settings.js?v=20260829-preview"></script>
 </body>
 </html>

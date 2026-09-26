@@ -293,29 +293,34 @@ function bv_normalize_header($value)
 /**
  * Rows for a dataset sheet.
  *
- * Consult_Diagnosis_3Y is served from the DATABASE once the clinic has uploaded
- * a dataset version (see api/includes/dataset_versions.php); the bundled
- * workbook is the fallback until then. The switch lives here, inside the reader,
- * precisely so the five call sites that read this sheet — dashboard.php:234 and
- * :579, patient_tables.php:260, reports.php:110 and :255 — need no changes and
- * cannot drift apart.
+ * Consult_Diagnosis_3Y is served ONLY from the database, from the clinic's
+ * active uploaded dataset version (see api/includes/dataset_versions.php). The
+ * switch lives here, inside the reader, so every call site that reads this
+ * sheet gets the same rows and none of them can drift apart.
+ *
+ * With no active version it returns no rows. It used to fall back to the
+ * bundled workbook's sheet, but that is a different dataset that reuses the
+ * same consultation ids (4,986 consultations against the clinic's 2,349 for
+ * 2023-2025, and no shared id describes the same visit). The fallback therefore
+ * put every chart, report and forecast on records the results were never
+ * computed from, with nothing on screen to say so. An empty dataset is at least
+ * visibly empty.
  *
  * Every other sheet still comes from the workbook.
  */
 function bv_sheet_rows($sheetName)
 {
     if ($sheetName === 'Consult_Diagnosis_3Y') {
-        // Resolved once per request. `false` means "not looked up yet"; `null`
-        // means "looked up, no active version" — the Excel fallback case.
+        // Resolved once per request. `false` means "not looked up yet".
         static $activeRows = false;
         if ($activeRows === false) {
             // Required lazily rather than at file scope: dataset_versions.php
             // requires this file back, and at load time that cycle would leave
             // half of one of them undefined.
             require_once __DIR__ . '/dataset_versions.php';
-            $activeRows = bv_active_consult_rows();
+            $activeRows = bv_active_consult_rows() ?? [];
         }
-        if (is_array($activeRows)) return $activeRows;
+        return $activeRows;
     }
 
     $headerRows = [

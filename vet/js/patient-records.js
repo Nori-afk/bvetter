@@ -605,6 +605,31 @@ function navigate(mode, options = {}, replace = false) {
 	render();
 }
 
+/**
+ * A printable summary for the owner to take to another clinic -- walk-in
+ * owners have no login, so the counter is their only way to get one. The
+ * same layout as the owner's own Print on My Pets (shared/js/pet-record-print.js).
+ */
+function printRecord(id) {
+	const record = getRecordById(id);
+	if (!record || typeof window.printPetRecord !== 'function') return;
+	window.printPetRecord({
+		recordId: record.id,
+		petName: record.petName,
+		species: record.species,
+		breed: record.breed,
+		sex: record.sex,
+		age: record.age,
+		weight: record.weight,
+		colorMarkings: record.colorMarkings,
+		healthStatus: record.healthStatus,
+		ownerName: record.ownerName,
+		ownerPhone: record.phone,
+		visits: record.visitHistory || [],
+		vaccinations: record.vaccinationHistory || []
+	});
+}
+
 function getRecordById(id) {
 	return state.records.find((record) => record.id === id) || null;
 }
@@ -654,10 +679,16 @@ function getStatusClass(statusType) {
 	return 'neutral';
 }
 
-function healthStatusFromType(statusType) {
-	if (statusType === 'warning') return { label: 'Needs Attention', cls: 'kpi-status-warn' };
-	if (statusType === 'danger') return { label: 'Critical', cls: 'kpi-status-danger' };
-	return { label: 'Good Health', cls: 'kpi-status-ok' };
+// The Health Status tile shows the same words the owner sees on My Pets
+// (api/includes/pet_standing.php), so the clinic and the owner never read
+// two different verdicts for one pet.
+function healthStatusFromRecord(record) {
+	const cls = {
+		warning: 'kpi-status-warn',
+		danger: 'kpi-status-danger',
+		neutral: 'kpi-status-neutral'
+	}[record.standingType] || 'kpi-status-ok';
+	return { label: record.healthStatus || 'Awaiting Consultation', cls };
 }
 
 function filteredRecords() {
@@ -729,8 +760,8 @@ function renderPatientInfoTab(record) {
 							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
 						</div>
 					</div>
-					<p class="kpi-tile-value kpi-tile-value-status ${healthStatusFromType(record.statusType).cls}">
-						<span class="status-dot"></span>${escapeHtml(healthStatusFromType(record.statusType).label)}
+					<p class="kpi-tile-value kpi-tile-value-status ${healthStatusFromRecord(record).cls}">
+						<span class="status-dot"></span>${escapeHtml(healthStatusFromRecord(record).label)}
 					</p>
 					<p class="kpi-tile-sub">Current health standing</p>
 				</div>
@@ -1600,6 +1631,7 @@ function renderDetail(record) {
 							</div>
 						</div>
 						<div class="detail-actions">
+							<button type="button" class="btn btn-soft" data-action="print" data-id="${record.id}">Print Record</button>
 							<button type="button" class="btn btn-primary" data-nav="add" data-id="${record.id}"><img src="../../vet/images/addView.svg" alt="Add New Record"> Add New Record</button>
 						</div>
 					</div>
@@ -2442,7 +2474,7 @@ function bindGlobalEvents() {
 		const resyncButton = event.target.closest('[data-resync-visit]');
 		if (resyncButton) {
 			const visitId = Number(resyncButton.dataset.resyncVisit);
-			if (!window.confirm('Copy this owner’s current barangay onto this visit? Other visits are not affected.')) return;
+			if (!(await vbConfirm('Copy this owner’s current barangay onto this visit? Other visits are not affected.'))) return;
 
 			resyncButton.disabled = true;
 			try {
@@ -2520,6 +2552,7 @@ function bindGlobalEvents() {
 		if (action === 'add-record') navigate('add', { id }, false);
 		if (action === 'add-pet') openAddPetModal(id);
 		if (action === 'edit') openEditModal(id);
+		if (action === 'print') printRecord(id);
 		if (action === 'delete') openDeleteModal(id);
 		if (action === 'clear-selection') { state.selectedIds = []; render(); }
 		if (action === 'bulk-delete') openBulkDeleteModal();

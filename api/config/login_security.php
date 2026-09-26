@@ -84,10 +84,36 @@ function recordFailedLoginAttempt(PDO $pdo, array $user): bool
  * this call just blocked the account, so the caller can react immediately
  * instead of waiting for the next sweep/request.
  */
+/**
+ * True when this account is the only active administrator. Admins are no
+ * longer created (the account is handed over instead -- see
+ * api/admin/handover.php), so an inactivity block on the last one could
+ * never be lifted: only an admin can lift it, and Forgot Password
+ * deliberately doesn't. A failed-login block is still applied to it, since
+ * Forgot Password does lift that one.
+ */
+function isLastActiveAdmin(PDO $pdo, int $userId): bool
+{
+    $stmt = $pdo->prepare("
+        SELECT
+            SUM(users.id = :id) AS is_this,
+            COUNT(*) AS active_admins
+        FROM users
+        INNER JOIN roles ON roles.id = users.role_id
+        WHERE roles.name = 'admin' AND users.account_status = 'active'
+    ");
+    $stmt->execute([':id' => $userId]);
+    $row = $stmt->fetch();
+    return $row && (int) $row['is_this'] === 1 && (int) $row['active_admins'] === 1;
+}
+
 function maybeBlockForInactivity(PDO $pdo, array $user): bool
 {
     $settings = getSecuritySettings($pdo);
     if (!$settings['inactivity_lockout_enabled'] || $user['last_login_at'] === null) {
+        return false;
+    }
+    if (isLastActiveAdmin($pdo, (int) $user['id'])) {
         return false;
     }
 
@@ -138,6 +164,9 @@ function sweepInactiveAccounts(PDO $pdo): void
 
     $update = $pdo->prepare("UPDATE users SET account_status = 'blocked', blocked_reason = 'inactivity' WHERE id = :id");
     foreach ($stale as $row) {
+        // Checked per row, after the earlier ones were blocked: if every
+        // admin has gone quiet, the last one standing is kept.
+        if (isLastActiveAdmin($pdo, (int) $row['id'])) continue;
         $update->execute([':id' => $row['id']]);
         sendInactivityBlockedEmail($row['email'], $row['full_name'], $days);
     }

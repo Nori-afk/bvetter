@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../includes/dataset.php';
+require_once __DIR__ . '/../includes/case_timeline.php';
 require_once __DIR__ . '/../config/auth_guard.php';
 
 requireRole($pdo, ['veterinarian', 'admin']);
@@ -55,12 +56,10 @@ function report_columns($category)
             ['key' => 'riskLevel', 'label' => 'Risk Level'],
             ['key' => 'cases', 'label' => 'Cases'],
         ],
-        // 'Case Volume Level', not 'Risk Class': the value is a band on monthly
-        // case COUNT, not a clinical severity rating. See risk_class_from_volume().
-        // 'Source' distinguishes municipality-wide dataset rows (10-30 cases per
-        // barangay-month) from this clinic's own records (typically 1-2) -- the
-        // two sit in one table at very different scales, and without the column
-        // there is no way to tell which scale a given row is on.
+        // 'Action Level' is Needs Action / Watch / Normal, the same rule and the
+        // same words Disease Analytics uses (see disease_rows). 'Source' says
+        // whether a month comes from the uploaded file or from visits typed in
+        // after it ends.
         'disease_incidence' => [
             ['key' => 'date', 'label' => 'Month'],
             ['key' => 'barangay', 'label' => 'Barangay'],
@@ -69,17 +68,13 @@ function report_columns($category)
             ['key' => 'parasiticCases', 'label' => 'Parasitic'],
             ['key' => 'respiratoryCases', 'label' => 'Respiratory'],
             ['key' => 'gastrointestinalCases', 'label' => 'Gastrointestinal'],
-            // 'Surveillance Tally', not 'Total Cases': this column is
-            // Barangay_Disease_Monthly's barangay-month volume, which is a
-            // separate and larger tally than the diagnosis-level case count
-            // Disease Analytics reports (4,927 against 2,551 for 2025). Both
-            // are correct measures of different things, and carrying one label
-            // across both made them look like the same number disagreeing.
-            // The array key stays `totalCases` so the JSON contract and the
-            // Excel column name keep working -- only the label changed, the
-            // same way riskClass became 'Case Volume Level'.
-            ['key' => 'totalCases', 'label' => 'Surveillance Tally'],
-            ['key' => 'riskClass', 'label' => 'Case Volume Level'],
+            // 'Total Cases' again, now that it is the same count Disease
+            // Analytics shows: it read Barangay_Disease_Monthly's separate,
+            // larger tally before, and was labelled 'Surveillance Tally' to keep
+            // the two apart. The keys stay `totalCases` and `riskClass` so the
+            // JSON contract and the Excel column names do not move.
+            ['key' => 'totalCases', 'label' => 'Total Cases'],
+            ['key' => 'riskClass', 'label' => 'Action Level'],
         ],
         'mass_vaccination' => [
             ['key' => 'date', 'label' => 'Date'],
@@ -299,8 +294,14 @@ function db_consultation_rows($pdo)
         ? 'LEFT JOIN diseases d ON d.name = pvr.diagnosis'
         : '';
 
+    // Only visits in months the uploaded dataset does not cover. This report
+    // used to list every visit beside every uploaded consultation, so a visit in
+    // a covered month was counted on top of the upload's own figures for it.
+    // See api/includes/case_timeline.php.
+    [$liveOnly, $liveParams] = bv_live_month_condition('COALESCE(pvr.visit_date, pvr.created_at)', $pdo);
+
     try {
-        $rows = $pdo->query("
+        $stmt = $pdo->prepare("
             SELECT
                 pvr.id,
                 pvr.visit_date,
@@ -318,8 +319,11 @@ function db_consultation_rows($pdo)
             {$diseaseJoin}
             WHERE pvr.diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)
             {$archiveFilter}
+            " . ($liveOnly !== '' ? "AND {$liveOnly}" : '') . "
             ORDER BY pvr.visit_date DESC, pvr.id DESC
-        ")->fetchAll();
+        ");
+        $stmt->execute($liveParams);
+        $rows = $stmt->fetchAll();
     } catch (Throwable $e) {
         error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return [];
@@ -358,64 +362,76 @@ function risk_level_from_status($status)
     }
 }
 
+/**
+ * Every uploaded consultation, plus typed visits in the months after the upload
+ * ends -- one timeline, the same months counted from the same source as
+ * everywhere else (api/includes/case_timeline.php). The month cut is applied
+ * inside db_consultation_rows().
+ */
 function consultation_rows($pdo = null)
 {
     $dbRows = $pdo ? db_consultation_rows($pdo) : [];
     return array_merge($dbRows, excel_consultation_rows());
 }
 
-function excel_disease_rows()
+/**
+ * An empty Disease report row for one barangay-month.
+ *
+ * `zoonoticCases` is carried for the action level (see disease_rows) rather
+ * than shown: one reportable case is enough to act on, whatever the total.
+ */
+function disease_row_skeleton($date, $barangay, $source)
 {
-    $sourceRows = array_values(array_filter(bv_sheet_rows('Barangay_Disease_Monthly'), fn($row) => !empty($row['year']) && !empty($row['month_no']) && bv_clean($row['barangay'] ?? '') !== ''));
-    return array_map(function ($row) {
-        return [
-            'date' => bv_date_from_parts($row['year'] ?? 0, $row['month_no'] ?? 1),
-            'barangay' => $row['barangay'] ?? '',
-            'skinRelatedCases' => (int) ($row['skin_related_cases'] ?? 0),
-            'parasiticCases' => (int) ($row['parasitic_cases'] ?? 0),
-            'respiratoryCases' => (int) ($row['respiratory_cases'] ?? 0),
-            'gastrointestinalCases' => (int) ($row['gastrointestinal_cases'] ?? 0),
-            'totalCases' => (int) ($row['total_cases'] ?? 0),
-            'dominantCaseGroup' => $row['dominant_case_group'] ?? '',
-            'riskClass' => $row['risk_class'] ?? '',
-            'source' => 'Dataset',
-        ];
-    }, $sourceRows);
+    return [
+        'date' => $date,
+        'barangay' => $barangay,
+        'skinRelatedCases' => 0,
+        'parasiticCases' => 0,
+        'respiratoryCases' => 0,
+        'gastrointestinalCases' => 0,
+        'totalCases' => 0,
+        'zoonoticCases' => 0,
+        'source' => $source,
+    ];
+}
+
+/** Adds $cases of one disease category to a Disease report row. */
+function disease_row_add(array &$row, $category, $cases)
+{
+    $row['totalCases'] += $cases;
+    switch (bv_case_bucket($category)) {
+        case 'Skin': $row['skinRelatedCases'] += $cases; break;
+        case 'Parasitic': $row['parasiticCases'] += $cases; break;
+        case 'Respiratory': $row['respiratoryCases'] += $cases; break;
+        case 'Gastrointestinal': $row['gastrointestinalCases'] += $cases; break;
+        // 'General/Other' still counts toward totalCases but no specific bucket.
+    }
+    if (bv_is_zoonotic_category($category)) $row['zoonoticCases'] += $cases;
 }
 
 /**
- * Case Volume Level for a barangay-month, on the same scale the historical
- * labels use. Displayed as 'Case Volume Level', not 'Risk Class': the value is
- * a band on monthly case COUNT and carries no clinical severity meaning. The
- * array key stays `riskClass` so the JSON contract with the frontend and the
- * Excel column name both keep working -- only the label changed.
+ * The uploaded dataset as barangay-months: the same consultations Disease
+ * Analytics counts, summed the same way (cases_reported), so the report and
+ * the page agree on every month.
  *
- * Barangay_Disease_Monthly.risk_class is, in the source data, a case-VOLUME
- * band rather than a clinical-severity rating -- its three classes separate
- * almost entirely on total_cases (Low sits at 9, Medium spans 10-17, High
- * 16-30). These cutoffs were fitted against that column directly and reproduce
- * it for 925 of 972 labeled rows (95.2%); Low and High come out exact, and the
- * only disagreements are 47 Medium rows in the 16-17 overlap that this rule
- * calls High.
- *
- * Deriving live rows the same way keeps them comparable to the Excel rows they
- * sit beside in this report. It deliberately does NOT read patient status: that
- * measures how sick an individual animal is, which is a different question from
- * how many cases a barangay saw, and mixing the two would give one column two
- * meanings. Per-patient severity belongs to the consultation report's Risk
- * Level (see risk_level_from_status).
- *
- * A low-volume month therefore reads 'Low' even when a diagnosis is clinically
- * serious -- that matches the source labeling, where all 53 Rabies (Suspected)
- * consultations are 'Low' because rabies is rare, not because it is harmless.
+ * This used to read Barangay_Disease_Monthly, a separate sheet that shipped
+ * with the bundled workbook. It stopped at December 2025 whatever the clinic
+ * uploaded -- January 2026 read 0 here beside 65 consultations on the page --
+ * and its tallies never matched the consultations (4,927 against 2,551 cases
+ * for 2025).
  */
-function risk_class_from_volume($totalCases)
+function upload_disease_rows()
 {
-    $cases = (float) $totalCases;
-    if ($cases <= 0)  return 'N/A';
-    if ($cases <= 9)  return 'Low';
-    if ($cases <= 15) return 'Medium';
-    return 'High';
+    $grouped = [];
+    foreach (bv_sheet_rows('Consult_Diagnosis_3Y') as $row) {
+        $ym = bv_row_month($row);
+        $barangay = bv_clean($row['barangay'] ?? '');
+        if ($ym === '' || $barangay === '') continue;
+        $key = $ym . '|' . $barangay;
+        $grouped[$key] ??= disease_row_skeleton($ym . '-01', $barangay, 'Uploaded file');
+        disease_row_add($grouped[$key], $row['disease_category'] ?? '', (int) ($row['cases_reported'] ?? 1));
+    }
+    return array_values($grouped);
 }
 
 function db_disease_rows($pdo)
@@ -443,6 +459,9 @@ function db_disease_rows($pdo)
         : '';
     $archiveFilter = $archiveJoin ? 'AND COALESCE(prp.is_archived, 0) = 0' : '';
 
+    // Only months after the uploaded dataset (api/includes/case_timeline.php).
+    [$liveOnly, $liveParams] = bv_live_month_condition('pvr.visit_date', $pdo);
+
     try {
         // LEFT JOIN, not INNER: a de-identified visit has no pet row, and
         // dropping it here would delete a real case from disease surveillance
@@ -460,7 +479,7 @@ function db_disease_rows($pdo)
         // anything; a non-empty test let scratch text ('asdadadad') count as a
         // surveillance case. Off-catalog text stays on the patient's record and
         // is simply not aggregated.
-        $rows = $pdo->query("
+        $stmt = $pdo->prepare("
             SELECT
                 YEAR(pvr.visit_date) AS yr,
                 MONTH(pvr.visit_date) AS mo,
@@ -474,8 +493,11 @@ function db_disease_rows($pdo)
             WHERE pvr.visit_date IS NOT NULL
               AND pvr.diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)
               {$archiveFilter}
+              " . ($liveOnly !== '' ? "AND {$liveOnly}" : '') . "
             GROUP BY yr, mo, barangay, pvr.disease_category
-        ")->fetchAll();
+        ");
+        $stmt->execute($liveParams);
+        $rows = $stmt->fetchAll();
     } catch (Throwable $e) {
         error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
         return [];
@@ -485,30 +507,36 @@ function db_disease_rows($pdo)
     $grouped = [];
     foreach ($rows as $row) {
         $key = $row['yr'] . '-' . $row['mo'] . '-' . $row['barangay'];
-        if (!isset($grouped[$key])) {
-            $grouped[$key] = [
-                'date' => bv_date_from_parts((int) $row['yr'], (int) $row['mo']),
-                'barangay' => $row['barangay'],
-                'skinRelatedCases' => 0,
-                'parasiticCases' => 0,
-                'respiratoryCases' => 0,
-                'gastrointestinalCases' => 0,
-                'totalCases' => 0,
-                'source' => 'Clinic',
-            ];
-        }
-        $cases = (int) $row['cases'];
-        $grouped[$key]['totalCases'] += $cases;
-        switch ($row['disease_category']) {
-            case 'Skin': $grouped[$key]['skinRelatedCases'] += $cases; break;
-            case 'Parasitic': $grouped[$key]['parasiticCases'] += $cases; break;
-            case 'Respiratory': $grouped[$key]['respiratoryCases'] += $cases; break;
-            case 'Gastrointestinal': $grouped[$key]['gastrointestinalCases'] += $cases; break;
-            // 'General/Other' still counts toward totalCases but no specific bucket.
-        }
+        $grouped[$key] ??= disease_row_skeleton(
+            bv_date_from_parts((int) $row['yr'], (int) $row['mo']), $row['barangay'], 'Clinic');
+        disease_row_add($grouped[$key], $row['disease_category'], (int) $row['cases']);
     }
+    return array_values($grouped);
+}
 
-    return array_values(array_map(function ($row) {
+/**
+ * The Disease report: the uploaded dataset's barangay-months, then typed visits
+ * in the months after it (the cut is inside db_disease_rows) -- the same
+ * timeline, and so the same numbers, as Disease Analytics.
+ *
+ * `riskClass` (shown as Action Level) is the analytics service's own rule,
+ * computed over the whole timeline before any date filter so each month is
+ * judged against its barangay's full history. See bv_action_tiers(). The key
+ * keeps its old name so the JSON contract with the frontend does not move.
+ */
+function disease_rows($pdo = null)
+{
+    $rows = array_merge($pdo ? db_disease_rows($pdo) : [], upload_disease_rows());
+
+    $tiers = bv_action_tiers(array_map(fn($row) => [
+        'barangay'   => $row['barangay'],
+        'ym'         => substr((string) $row['date'], 0, 7),
+        'total'      => $row['totalCases'],
+        'zoonotic'   => $row['zoonoticCases'],
+        'fromUpload' => $row['source'] === 'Uploaded file',
+    ], $rows));
+
+    return array_map(function ($row) use ($tiers) {
         $buckets = [
             'Skin' => $row['skinRelatedCases'],
             'Parasitic' => $row['parasiticCases'],
@@ -518,36 +546,9 @@ function db_disease_rows($pdo)
         arsort($buckets);
         $topBucket = array_key_first($buckets);
         $row['dominantCaseGroup'] = $buckets[$topBucket] > 0 ? $topBucket : 'General/Other';
-        $row['riskClass'] = risk_class_from_volume($row['totalCases']);
+        $row['riskClass'] = $tiers[$row['barangay'] . '|' . substr((string) $row['date'], 0, 7)] ?? 'Normal';
         return $row;
-    }, $grouped));
-}
-
-function disease_rows($pdo = null)
-{
-    $dbRows = $pdo ? db_disease_rows($pdo) : [];
-    $excelRows = excel_disease_rows();
-
-    // The Excel sheet is a municipality-wide monthly aggregate; the DB rows are
-    // this clinic's own visits. For any month the sheet already covers, the
-    // sheet's figure is the authoritative one, and a DB row for that month
-    // would surface as a second, far smaller row for the same barangay-month --
-    // double-counting in every total. Keep only DB months strictly after the
-    // sheet's last covered month, the same splice point
-    // load_db_disease_monthly() uses in api/analytics/arima_service.py.
-    $latestExcelMonth = '';
-    foreach ($excelRows as $row) {
-        $month = substr((string) ($row['date'] ?? ''), 0, 7);
-        if ($month > $latestExcelMonth) $latestExcelMonth = $month;
-    }
-    if ($latestExcelMonth !== '') {
-        $dbRows = array_values(array_filter(
-            $dbRows,
-            fn($row) => substr((string) ($row['date'] ?? ''), 0, 7) > $latestExcelMonth
-        ));
-    }
-
-    return array_merge($dbRows, $excelRows);
+    }, $rows);
 }
 
 function db_vaccination_rows($pdo)
@@ -791,7 +792,7 @@ function report_metrics($pdo, $filteredRows, $category)
         arsort($barangayCases);
         $topBarangay      = array_key_first($barangayCases) ?: 'N/A';
         $topBarangayCount = $barangayCases[$topBarangay] ?? 0;
-        $highVolumeCount  = count(array_filter($thisMonth, fn($r) => strtolower($r['riskClass'] ?? '') === 'high'));
+        $needsActionCount = count(array_filter($thisMonth, fn($r) => ($r['riskClass'] ?? '') === 'Needs Action'));
 
         return [
             // Named so the frontend can title the tiles with the month they
@@ -815,8 +816,8 @@ function report_metrics($pdo, $filteredRows, $category)
             ],
             'right' => [
                 'value'  => $topBarangay,
-                'subset' => bv_pluralize($topBarangayCount, 'case') . " · " . bv_pluralize($highVolumeCount, 'high-volume area'),
-                'trend'  => $highVolumeCount > 0 ? 'down' : 'neutral',
+                'subset' => bv_pluralize($topBarangayCount, 'case') . " · " . bv_pluralize($needsActionCount, 'area') . ' needing action',
+                'trend'  => $needsActionCount > 0 ? 'down' : 'neutral',
             ],
         ];
     }
@@ -1002,7 +1003,7 @@ function generate_trend_svg(array $rows, string $category): string
 
     $legendLabel = match($category) {
         'mass_vaccination'  => 'Total Vaccinated',
-        'disease_incidence' => 'Surveillance Tally',
+        'disease_incidence' => 'Total Cases',
         default             => 'Consultations',
     };
 
@@ -1186,11 +1187,11 @@ function pdf_export($columns, $rows, $category, $title, $input = [])
             <tr><td>Cats Vaccinated</td><td class="sv">'.array_sum(array_column($rows,'catsVaccinated')).'</td></tr>';
     } elseif ($category === 'disease_incidence') {
         $tc = array_sum(array_column($rows,'totalCases'));
-        $hr = count(array_filter($rows, fn($r) => strtolower($r['riskClass']??'') === 'high'));
+        $hr = count(array_filter($rows, fn($r) => ($r['riskClass']??'') === 'Needs Action'));
         $bc = count(array_unique(array_column($rows,'barangay')));
         $summaryRows = '
-            <tr><td>Surveillance Tally</td><td class="sv">'.$tc.'</td></tr>
-            <tr><td>High Volume Barangay-Months</td><td class="sv">'.$hr.'</td></tr>
+            <tr><td>Total Cases</td><td class="sv">'.$tc.'</td></tr>
+            <tr><td>Barangay-Months Needing Action</td><td class="sv">'.$hr.'</td></tr>
             <tr><td>Barangays Covered</td><td class="sv">'.$bc.'</td></tr>';
     } elseif ($category === 'lost_found') {
         $res = count(array_filter($rows, fn($r) => strtolower($r['status']??'') === 'resolved'));

@@ -427,6 +427,15 @@ function empty(message) {
 	return `<div class="list-note">${escapeHtml(message)}</div>`;
 }
 
+// "Goes live automatically at 3:40 PM" for a pending owner report. Unreviewed
+// reports publish themselves after 2 hours (api/includes/timed_rules.php).
+function autoPublishNote(report) {
+	if (!report.autoPublishAt) return '';
+	const at = new Date(String(report.autoPublishAt).replace(' ', 'T'));
+	if (Number.isNaN(at.getTime())) return '';
+	return `<p class="auto-note">Goes live automatically ${escapeHtml(at.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))} if not reviewed first.</p>`;
+}
+
 function reportCard(report, mode) {
 	return `
 		<article class="report-card ${report.type === 'Found' ? 'pending-found' : 'pending-lost'}">
@@ -438,6 +447,7 @@ function reportCard(report, mode) {
 				<h3>${escapeHtml(report.title)}</h3>
 				<p class="meta-line">Submitted by ${escapeHtml(report.uploader)} - ${escapeHtml(report.date || 'No date')}</p>
 				<p class="desc-line">${escapeHtml(report.notes || 'No notes')}</p>
+				${mode === 'pending' ? autoPublishNote(report) : ''}
 				<div class="card-actions">
 					${mode === 'pending' ? `
 						<button type="button" class="btn btn-success" data-action="approve-pending" data-id="${report.id}">Approve</button>
@@ -465,7 +475,7 @@ function renderReportList(root, reports, mode) {
 		source: item.source,
 		type: item.type
 	}));
-	root.innerHTML = `${mode === 'pending' ? '<div class="list-note">Owner reports wait here until vet approval. Approved reports become public and active.</div>' : ''}${list.length ? list.map((item) => reportCard(item, mode)).join('') : empty('No records found.')}`;
+	root.innerHTML = `${mode === 'pending' ? '<div class="list-note">Owner reports wait here for vet approval. One nobody reviews within 2 hours goes live on its own and is tagged Auto-published in Active Reports, so a lost pet isn\'t kept waiting while the vets are out.</div>' : ''}${list.length ? list.map((item) => reportCard(item, mode)).join('') : empty('No records found.')}`;
 	bindRootActions(root);
 }
 
@@ -484,6 +494,11 @@ function renderActive(root) {
 				<span class="tag-chip ${(item.type || 'lost').toLowerCase()}">${escapeHtml((item.type || 'Lost').toUpperCase())}</span>
 			</div>
 			<div class="active-card-body">
+				${item.autoPublished ? `
+					<div class="auto-published">
+						<span>Auto-published &middot; awaiting vet review</span>
+						<button type="button" class="btn-link" data-action="mark-reviewed" data-id="${item.id}">Mark Reviewed</button>
+					</div>` : ''}
 				<h4>${escapeHtml(item.title)}</h4>
 				<small>${escapeHtml(item.barangay)} &middot; ${escapeHtml(item.date || '')}</small>
 				<div class="mini-row">
@@ -695,15 +710,16 @@ function renderSightings(root) {
 // per action drives both the root-level buttons and the buttons inside modals
 // (wireModalActionButtons below) so the copy and behavior can't drift apart.
 const CONFIRM_ACTIONS = {
-	'approve-pending': { tone: 'success', title: 'Approve this report?', message: 'The report will go public and become visible to pet owners.', confirmLabel: 'Approve', request: 'approve_report', idKey: 'report_id' },
-	'reject-pending': { tone: 'danger', title: 'Reject this report?', message: 'The submitter will be notified that their report was not approved.', confirmLabel: 'Reject', request: 'reject_report', idKey: 'report_id' },
-	'resolve-active': { tone: 'success', title: 'Mark this case as resolved?', message: 'The report will be moved to Resolved Cases and removed from the active list.', confirmLabel: 'Resolve', request: 'resolve_report', idKey: 'report_id' },
-	'approve-match': { tone: 'success', title: 'Approve this match?', message: 'This will mark both the lost and found reports as resolved and notify the submitters.', confirmLabel: 'Approve Match', request: 'approve_match', idKey: 'match_id' },
-	'dismiss-match': { tone: 'danger', title: 'Dismiss this match?', message: 'This suggested match will be removed. This cannot be undone.', confirmLabel: 'Dismiss Match', request: 'dismiss_match', idKey: 'match_id' },
-	'approve-claim': { tone: 'success', title: 'Approve this claim?', message: 'The claimant will be notified that their claim was approved.', confirmLabel: 'Approve', request: 'approve_claim', idKey: 'claim_id' },
-	'reject-claim': { tone: 'danger', title: 'Reject this claim?', message: 'The claimant will be notified that their claim was not approved.', confirmLabel: 'Reject', request: 'reject_claim', idKey: 'claim_id' },
-	'approve-sighting': { tone: 'success', title: 'Approve this sighting?', message: 'The sighting will be published and made visible to pet owners.', confirmLabel: 'Approve', request: 'approve_sighting', idKey: 'sighting_id' },
-	'reject-sighting': { tone: 'danger', title: 'Reject this sighting?', message: 'The sighting will be rejected and removed from the queue.', confirmLabel: 'Reject', request: 'reject_sighting', idKey: 'sighting_id' }
+	'approve-pending': { tone: 'success', title: 'Approve this report?', message: 'The report will go public and become visible to pet owners.', request: 'approve_report', idKey: 'report_id' },
+	'reject-pending': { tone: 'danger', title: 'Reject this report?', message: 'The submitter will be notified that their report was not approved.', request: 'reject_report', idKey: 'report_id' },
+	'mark-reviewed': { tone: 'success', title: 'Mark this report as reviewed?', message: 'It went live automatically. Marking it reviewed clears the Auto-published tag; reject it instead if it shouldn\'t be public.', request: 'mark_reviewed', idKey: 'report_id' },
+	'resolve-active': { tone: 'success', title: 'Mark this case as resolved?', message: 'The report stays on the public board, grayed out, and leaves the active list.', request: 'resolve_report', idKey: 'report_id' },
+	'approve-match': { tone: 'success', title: 'Approve this match?', message: 'This will mark both the lost and found reports as resolved and notify the submitters.', request: 'approve_match', idKey: 'match_id' },
+	'dismiss-match': { tone: 'danger', title: 'Dismiss this match?', message: 'This suggested match will be removed. This cannot be undone.', confirmLabel: 'Yes, dismiss', request: 'dismiss_match', idKey: 'match_id' },
+	'approve-claim': { tone: 'success', title: 'Approve this claim?', message: 'The claimant will be notified that their claim was approved.', request: 'approve_claim', idKey: 'claim_id' },
+	'reject-claim': { tone: 'danger', title: 'Reject this claim?', message: 'The claimant will be notified that their claim was not approved.', request: 'reject_claim', idKey: 'claim_id' },
+	'approve-sighting': { tone: 'success', title: 'Approve this sighting?', message: 'The sighting will be published and made visible to pet owners.', request: 'approve_sighting', idKey: 'sighting_id' },
+	'reject-sighting': { tone: 'danger', title: 'Reject this sighting?', message: 'The sighting will be rejected and removed from the queue.', request: 'reject_sighting', idKey: 'sighting_id' }
 };
 
 function runConfirmableAction(action, id) {
@@ -766,7 +782,9 @@ function findRecord(action, id) {
 	return null;
 }
 
-function openConfirmDialog({ tone = 'success', title, message, confirmLabel, cancelLabel = 'Cancel', onConfirm }) {
+// Yes / No, like vbConfirm: the title is the question. Only an action that
+// can't be undone passes its own label ('Yes, dismiss').
+function openConfirmDialog({ tone = 'success', title, message, confirmLabel = 'Yes', cancelLabel = 'No', onConfirm }) {
 	document.getElementById('lfModalBody').innerHTML = `
 		<div class="confirm-dialog">
 			<div class="confirm-icon confirm-icon--${tone}">${tone === 'danger' ? '&#33;' : '&#10003;'}</div>

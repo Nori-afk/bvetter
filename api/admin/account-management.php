@@ -19,6 +19,7 @@ require_once __DIR__ . '/../config/security_settings.php';
 require_once __DIR__ . '/../config/veterinarian_profile.php';
 require_once __DIR__ . '/../config/input_validation.php';
 require_once __DIR__ . '/../config/walk_in_accounts.php';
+require_once __DIR__ . '/../includes/timed_rules.php';
 
 requireRole($pdo, ['admin']);
 ensureLoginSecuritySchema($pdo);
@@ -50,13 +51,19 @@ function roleLabel($roleName)
     return ucfirst($roleName);
 }
 
+/**
+ * Roles an admin may create from Add Account. Administrator is not one of
+ * them: a new administrator takes over an existing admin account through
+ * Hand Over Account on its profile (api/admin/handover.php), so the account
+ * -- and the record of who held it when -- carries on instead of multiplying.
+ */
 function listRoles($pdo)
 {
     $stmt = $pdo->query("
         SELECT id, name, description
         FROM roles
-        WHERE name IN ('veterinarian', 'admin')
-        ORDER BY FIELD(name, 'veterinarian', 'admin'), name
+        WHERE name = 'veterinarian'
+        ORDER BY name
     ");
 
     $roles = array_map(function ($row) {
@@ -88,11 +95,18 @@ function listUsers($pdo)
             users.blocked_reason,
             users.is_walk_in,
             users.created_at,
+            users.last_login_at,
             roles.name AS role_name,
             owner_profiles.verification_status,
+            owner_profiles.verified_at,
             barangays.name AS barangay_name,
             documents.file_path AS proof_path,
-            documents.original_name AS proof_name
+            documents.original_name AS proof_name,
+            documents.reviewed_at AS proof_reviewed_at,
+            ' . (ensureTimedRulesSchema($pdo) ? 'documents.review_overdue_at' : 'NULL') . ' AS review_overdue_at,
+            documents.review_notes AS proof_review_notes,
+            reviewer.full_name AS proof_reviewer_name,
+            (SELECT COUNT(*) FROM pets WHERE pets.owner_id = users.id) AS pet_count
         FROM users
         INNER JOIN roles ON roles.id = users.role_id
         LEFT JOIN owner_profiles ON owner_profiles.user_id = users.id
@@ -106,6 +120,7 @@ function listUsers($pdo)
                 GROUP BY user_id
             ) d2 ON d2.latest_id = d1.id
         ) documents ON documents.user_id = users.id
+        LEFT JOIN users reviewer ON reviewer.id = documents.reviewed_by_user_id
         ORDER BY users.created_at DESC
     ';
 
@@ -144,6 +159,18 @@ function listUsers($pdo)
             'created' => $row['created_at'],
             'idImage' => $row['proof_path'] ? '/' . $row['proof_path'] : '',
             'proofName' => $row['proof_name'],
+            // For the read-only Account Details window: who checked this
+            // person's ID and when, so an admin can answer "who approved
+            // this resident?" without digging through the database.
+            'lastLogin' => $row['last_login_at'],
+            'verifiedAt' => $row['verified_at'],
+            'reviewedAt' => $row['proof_reviewed_at'],
+            'reviewerName' => $row['proof_reviewer_name'],
+            'reviewNotes' => $row['proof_review_notes'],
+            'petCount' => (int) $row['pet_count'],
+            // Applications waiting past 2 working days (timed_rules.php).
+            'overdueSince' => $status === 'pending' && $row['review_overdue_at'] && strtotime($row['review_overdue_at']) <= time()
+                ? $row['review_overdue_at'] : null,
         ];
     }, $rows);
 
@@ -480,11 +507,19 @@ function createUser($pdo)
         $accountStatus = 'active';
     }
 
-    $roleQuery = $pdo->prepare("SELECT id, name FROM roles WHERE id = :id AND name IN ('veterinarian', 'admin') LIMIT 1");
+    $roleQuery = $pdo->prepare("SELECT id, name FROM roles WHERE id = :id LIMIT 1");
     $roleQuery->execute([':id' => $roleId]);
     $role = $roleQuery->fetch();
 
-    if (!$role) {
+    // Enforced here, not only by leaving the option out of the form.
+    if ($role && $role['name'] === 'admin') {
+        respond(422, [
+            'success' => false,
+            'message' => 'Administrator accounts are not created here. A new administrator takes over an existing admin account through Hand Over Account on its profile page.'
+        ]);
+    }
+
+    if (!$role || $role['name'] !== 'veterinarian') {
         respond(422, [
             'success' => false,
             'message' => 'Selected role is invalid for admin-created accounts.'
@@ -617,6 +652,32 @@ function createUser($pdo)
     ]);
 }
 
+/**
+ * The system must always keep one working administrator: with admin
+ * creation removed, blocking or deleting the last one would leave nobody
+ * able to approve residents -- or to undo the block.
+ */
+function assertKeepsAnAdmin($pdo, $userId)
+{
+    $roleQuery = $pdo->prepare('SELECT roles.name FROM users INNER JOIN roles ON roles.id = users.role_id WHERE users.id = :id LIMIT 1');
+    $roleQuery->execute([':id' => $userId]);
+    if ($roleQuery->fetchColumn() !== 'admin') return;
+
+    $others = $pdo->prepare("
+        SELECT COUNT(*) FROM users
+        INNER JOIN roles ON roles.id = users.role_id
+        WHERE roles.name = 'admin' AND users.account_status = 'active' AND users.id <> :id
+    ");
+    $others->execute([':id' => $userId]);
+
+    if ((int) $others->fetchColumn() === 0) {
+        respond(422, [
+            'success' => false,
+            'message' => 'This is the only active administrator account, so it cannot be blocked or deleted. To pass it to someone else, use Hand Over Account on its profile page.'
+        ]);
+    }
+}
+
 function updateAccountStatus($pdo)
 {
     $userId = (int) (isset($_POST['user_id']) ? $_POST['user_id'] : 0);
@@ -637,6 +698,10 @@ function updateAccountStatus($pdo)
             'success' => false,
             'message' => 'User not found.'
         ]);
+    }
+
+    if ($status !== 'active') {
+        assertKeepsAnAdmin($pdo, $userId);
     }
 
     if ($status === 'active') {
@@ -674,6 +739,8 @@ function deleteUser($pdo)
             'message' => 'Invalid user id.'
         ]);
     }
+
+    assertKeepsAnAdmin($pdo, $userId);
 
     $userQuery = $pdo->prepare('SELECT id, full_name FROM users WHERE id = :id LIMIT 1');
     $userQuery->execute([':id' => $userId]);
@@ -766,6 +833,7 @@ $action = isset($_POST['action']) ? $_POST['action'] : 'list';
 try {
     if ($action === 'list') {
         sweepInactiveAccounts($pdo);
+        runTimedRules($pdo);
         listUsers($pdo);
     }
 

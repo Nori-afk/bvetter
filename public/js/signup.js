@@ -128,13 +128,76 @@ document.getElementById('reg_email')?.addEventListener('input', function () {
     if (otpState.email.verified && otpState.email.verifiedValue !== this.value.trim()) {
         resetEmailVerification();
     }
+    // A message about the previous address no longer applies to this one.
+    if (emailCheck.value !== this.value.trim()) renderEmailStatus(null);
+});
+
+/* ══════════════════════════════════════════════
+   EMAIL AVAILABILITY
+   Asked when the applicant leaves the Email field, so a taken address is
+   caught on this first screen instead of at the final submit, after the
+   verification code and the ID upload. The server applies the same rule
+   before sending a code and again on submit (api/config/email_availability.php),
+   so this is feedback, not the gate.
+══════════════════════════════════════════════ */
+
+const emailCheck = { value: '', result: null };
+
+async function checkEmailAvailability(email) {
+    if (emailCheck.value === email && emailCheck.result) return emailCheck.result;
+
+    try {
+        const body = new FormData();
+        body.append('action', 'check_email');
+        body.append('email', email);
+        const res  = await fetch(VERIFY_API, { method: 'POST', body });
+        const data = await res.json();
+        // Rate-limited or rejected input: say nothing here and let the
+        // server's own checks answer when the code is requested.
+        if (!data.success) return null;
+        emailCheck.value = email;
+        emailCheck.result = data;
+        return data;
+    } catch {
+        return null;
+    }
+}
+
+function renderEmailStatus(result) {
+    const el = document.getElementById('reg_email_status');
+    if (!el) return;
+
+    el.className = 'email-status';
+    el.textContent = '';
+    el.hidden = !result || result.state === 'available';
+    if (el.hidden) return;
+
+    el.classList.add(result.allowed ? 'is-info' : 'is-error');
+    el.append(result.message);
+
+    // Someone who already has an account needs a way in, not a dead end.
+    if (result.state === 'registered' || result.state === 'walk_in') {
+        const links = document.createElement('span');
+        links.className = 'email-status-links';
+        links.innerHTML = '<a href="login.html">Log in</a> · <a href="forgot-password.html">Forgot Password</a>';
+        el.append(' ', links);
+    }
+}
+
+document.getElementById('reg_email')?.addEventListener('blur', async function () {
+    const email = this.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+    const result = await checkEmailAvailability(email);
+    // Only if the field still holds what was checked -- the user may have
+    // kept typing while the request was out.
+    if (this.value.trim() === email) renderEmailStatus(result);
 });
 
 /* ══════════════════════════════════════════════
    STEP NAVIGATION
 ══════════════════════════════════════════════ */
 
-function goTo(step) {
+async function goTo(step) {
     if (currentStep === 1 && step === 2) {
         if (!validateStep1()) return;
 
@@ -143,6 +206,12 @@ function goTo(step) {
         // user goes back and edits the email after verifying, the old "verified"
         // flag no longer applies to this (different) address — require OTP again.
         if (!otpState.email.verified || otpState.email.verifiedValue !== currentEmail) {
+            const availability = await checkEmailAvailability(currentEmail);
+            renderEmailStatus(availability);
+            if (availability && !availability.allowed) {
+                showStepError(availability.message);
+                return;
+            }
             resetEmailVerification();
             startOtpFlow();
             return;
@@ -266,6 +335,15 @@ async function sendOtp(type, value) {
         }
 
         if (!data.success) {
+            // The server refused the address itself (taken, or an application
+            // already pending). A code box is pointless -- close it and show
+            // the reason where the email was typed.
+            if (data.state) {
+                document.getElementById(`modal-otp-${type}`).hidden = true;
+                renderEmailStatus({ state: data.state, allowed: false, message: data.message });
+                showStepError(data.message);
+                return;
+            }
             showOtpError(type, data.message || 'Failed to send code.');
             return;
         }

@@ -30,9 +30,8 @@
  * cannot distinguish "removed on purpose" from "not included in this file".
  *
  * covers_from_date / covers_through_date are computed here at ingest time and
- * stored. Nothing consumes them yet — they exist for the manual-entry date
- * guard, which will read the active version's covered range rather than
- * recomputing it. Storing them now avoids a later migration.
+ * stored, and describe the file's actual first and last dates. The boundary the
+ * rest of the system uses is the last MONTH instead -- see bv_upload_last_month().
  */
 
 require_once __DIR__ . '/dataset.php';
@@ -114,7 +113,7 @@ function setupDatasetVersionTables($pdo)
 /**
  * The PDO handle, if this process has one. bv_sheet_rows() is called from
  * contexts that may not have included connection.php, so this never throws —
- * no handle simply means "fall back to the bundled Excel".
+ * no handle simply means "no uploaded dataset is reachable".
  */
 function bv_dataset_pdo()
 {
@@ -134,30 +133,70 @@ function bv_active_dataset_version($pdo = null)
         return $row ?: null;
     } catch (Throwable $e) {
         // The table not existing yet (fresh install, migration not run) is a
-        // normal state rather than an error: the Excel fallback covers it.
+        // normal state rather than an error: it reads as "nothing uploaded".
         return null;
     }
+}
+
+/**
+ * The last month the active upload holds, as 'Y-m', or null when nothing is
+ * active.
+ *
+ * THIS IS THE BOUNDARY. The upload owns every month up to and including this
+ * one, in full; typed visits count only after it (see
+ * api/includes/case_timeline.php). Whole months rather than the last date,
+ * because everything downstream -- the charts, the forecasts, the workbook's own
+ * year/month_no columns -- works in months: a boundary on Aug 14 would leave
+ * August half one source and half the other.
+ *
+ * Read from year/month_no rather than covers_through_date, because those are
+ * the columns _latest_period() in api/analytics/arima_service.py reads. The two
+ * runtimes therefore cannot place the boundary in different months even when a
+ * row's consultation_date disagrees with its month columns.
+ *
+ * Cached per active version, not per request: an upload asks before and after
+ * it changes the active version, and must get two different answers.
+ */
+function bv_upload_last_month($pdo = null)
+{
+    static $byVersion = [];
+
+    $pdo = $pdo ?: bv_dataset_pdo();
+    $version = bv_active_dataset_version($pdo);
+    if (!$pdo || !$version) return null;
+
+    $versionId = (int) $version['id'];
+    if (!array_key_exists($versionId, $byVersion)) {
+        try {
+            $stmt = $pdo->prepare("SELECT MAX(year * 100 + month_no) FROM historical_consultations
+                                   WHERE dataset_version_id = :v AND month_no BETWEEN 1 AND 12");
+            $stmt->execute([':v' => $versionId]);
+            $key = (int) $stmt->fetchColumn();
+        } catch (Throwable $e) {
+            error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
+            return null;
+        }
+        $byVersion[$versionId] = $key > 0
+            ? sprintf('%04d-%02d', intdiv($key, 100), $key % 100)
+            : null;
+    }
+    return $byVersion[$versionId];
 }
 
 /**
  * The date range the active uploaded dataset OWNS, or null when nothing has
  * been uploaded.
  *
- * THIS IS THE SINGLE SOURCE OF TRUTH for the covered range. It reads the
- * covers_from_date / covers_through_date stored on the version at ingest time
- * rather than recomputing a MAX() somewhere else, so the forecasting pipeline,
- * the reports and the manual-entry guard can never disagree about where the
- * boundary is.
+ * `through` is the last day of bv_upload_last_month(), not the last
+ * consultation date in the file. An upload owns whole months, so a file whose
+ * last consultation is Aug 14 owns August through the 31st. Using the raw date
+ * let vets type Aug 15-31 visits that the forecaster then dropped without a
+ * word, because it had already given August to the upload.
  *
- * WHY ANYTHING NEEDS THIS. Live visit records are only used for months AFTER
- * the uploaded data ends (see load_db_consult_rows in
- * api/analytics/arima_service.py) -- otherwise a month present in both sources
- * would be counted twice. While the bundled workbook ended in 2025-12 that
- * boundary sat far in the past and never mattered. Once a clinic uploads
- * through last month, it lands exactly where vets are working, and a visit
- * entered for a covered month would be silently dropped from every chart with
- * no error shown. Returning the range here lets entry be blocked up front with
- * a reason, instead of being ignored later without one.
+ * WHY ANYTHING NEEDS THIS. Typed visits only count in months AFTER the upload
+ * (see api/includes/case_timeline.php), so a visit entered for a covered month
+ * would be saved and then left out of every chart with no error shown.
+ * Returning the range here lets entry be blocked up front with a reason.
  *
  * @return array{from:string,through:string,versionId:int}|null
  */
@@ -165,18 +204,19 @@ function bv_active_upload_coverage($pdo = null)
 {
     $version = bv_active_dataset_version($pdo);
     if (!$version) return null;
-    $through = trim((string) ($version['covers_through_date'] ?? ''));
-    if ($through === '') return null;
+    $lastMonth = bv_upload_last_month($pdo);
+    if ($lastMonth === null) return null;
     return [
         'from'      => trim((string) ($version['covers_from_date'] ?? '')),
-        'through'   => $through,
+        'through'   => date('Y-m-t', strtotime($lastMonth . '-01')),
         'versionId' => (int) $version['id'],
     ];
 }
 
 /**
- * The first date a vet may still enter manually: the day after the uploaded
- * data ends. Null when no upload exists, meaning no restriction applies.
+ * The first date a vet may still enter manually: the first day of the month
+ * after the upload's last month. Null when no upload exists, meaning no
+ * restriction applies.
  */
 function bv_manual_entry_allowed_from($pdo = null)
 {
@@ -195,7 +235,7 @@ function bv_manual_entry_allowed_from($pdo = null)
  * The active version's rows, shaped exactly like bv_sheet_rows() returns them
  * so the call sites cannot tell the difference. Returns null (not []) when
  * there is no active version, so the caller can distinguish "nothing uploaded
- * yet, use Excel" from "an upload exists and is legitimately empty".
+ * yet" from "an upload exists and is legitimately empty".
  */
 function bv_active_consult_rows($pdo = null)
 {
@@ -366,6 +406,10 @@ function bv_consult_ingest(PDO $pdo, array $rows, $filename, $uploadedBy = '', $
     $ratioMismatch = $priorRatio !== null && $priorRatio > 0
         && abs($fileRatio - $priorRatio) / $priorRatio > 0.15;
 
+    // Before the transaction, not inside it: CREATE TABLE commits implicitly in
+    // MySQL, which would end the transaction below before anything was written.
+    require_once __DIR__ . '/patient_tables.php';
+    setupDiseaseCatalog($pdo);
 
     $pdo->beginTransaction();
     try {
@@ -427,6 +471,28 @@ function bv_consult_ingest(PDO $pdo, array $rows, $filename, $uploadedBy = '', $
                            ON DUPLICATE KEY UPDATE $updates")->execute($params);
         }
 
+        // Checked after the merge, on what actually landed: the new version now
+        // holds the file's row wherever the two shared an id, so comparing it
+        // with the version it was built from finds every id the file reused for
+        // a different consultation. See bv_version_id_conflicts().
+        if ($previousId) {
+            $conflicts = bv_version_id_conflicts($pdo, $versionId, $previousId);
+            if ($conflicts['count'] > 0) {
+                throw new InvalidArgumentException(
+                    'This file is a different dataset from the one in use: '
+                    . number_format($conflicts['count']) . ' of its consultation ids already belong to other '
+                    . 'consultations (for example, ' . implode('; ', $conflicts['examples']) . '). '
+                    . 'Merging it would mix two datasets under the same ids, so nothing was changed.'
+                );
+            }
+        }
+
+        // A diagnosis the catalog has never seen would otherwise be counted in
+        // Historical but missing from the vet's diagnosis list, and from every
+        // count that filters typed visits by the catalog. Inside the transaction
+        // so a rejected upload adds nothing.
+        $newDiagnoses = bv_catalog_add_from_rows($pdo, $rows);
+
         // Coverage is derived from what actually LANDED, not from the file, so a
         // merged version reports the full span it now holds. LAST_DAY covers rows
         // whose consultation_date was unparseable: the month is still known.
@@ -455,6 +521,11 @@ function bv_consult_ingest(PDO $pdo, array $rows, $filename, $uploadedBy = '', $
             ->execute([':v' => $versionId]);
 
         $pdo->commit();
+    } catch (InvalidArgumentException $e) {
+        // A rejection written for the encoder; passed through as-is so the
+        // endpoint answers 422 with it rather than a generic save failure.
+        $pdo->rollBack();
+        throw $e;
     } catch (Throwable $e) {
         $pdo->rollBack();
         throw new RuntimeException('The upload could not be saved: ' . $e->getMessage(), 0, $e);
@@ -472,7 +543,64 @@ function bv_consult_ingest(PDO $pdo, array $rows, $filename, $uploadedBy = '', $
         'casesPerRowFile'  => round($fileRatio, 2),
         'casesPerRowPrior' => $priorRatio === null ? null : round($priorRatio, 2),
         'casesPerRowMismatch' => $ratioMismatch,
+        'newDiagnoses'        => $newDiagnoses,
     ];
+}
+
+/**
+ * Consultation ids that two versions use for DIFFERENT consultations.
+ *
+ * WHY THIS EXISTS. Uploads merge on consultation_id, which only works if an id
+ * means the same consultation in every file. It does not have to: the bundled
+ * BaliwagVet_2023-2025.xlsx and the clinic's own workbook both number from
+ * CONS-2023-00001, and 825 ids appear in both without one of them describing
+ * the same visit. Merged, the file's rows overwrite unrelated consultations and
+ * the rest of the old dataset rides along, producing a mix of two datasets that
+ * passes every other check.
+ *
+ * A row counts as a different consultation only when date, barangay AND
+ * diagnosis all differ. A correction changes one or two of those; a reused id
+ * changes all three.
+ *
+ * Used for both entry points, because both would put different records under
+ * the same ids: bv_consult_ingest() compares the version it just built with the
+ * one it merged onto, and actionActivate() compares the target with the active
+ * version -- so an earlier version of the same dataset can still be switched
+ * back to, and a different dataset cannot.
+ *
+ * @return array{count:int, examples:string[]}
+ */
+function bv_version_id_conflicts(PDO $pdo, $versionA, $versionB, $exampleLimit = 3)
+{
+    $where = "FROM historical_consultations a
+              JOIN historical_consultations b
+                ON b.consultation_id = a.consultation_id AND b.dataset_version_id = :b
+              WHERE a.dataset_version_id = :a
+                AND NOT (a.consultation_date <=> b.consultation_date)
+                AND NOT (LOWER(TRIM(a.barangay))  <=> LOWER(TRIM(b.barangay)))
+                AND NOT (LOWER(TRIM(a.diagnosis)) <=> LOWER(TRIM(b.diagnosis)))";
+    $params = [':a' => (int) $versionA, ':b' => (int) $versionB];
+
+    $count = $pdo->prepare("SELECT COUNT(*) $where");
+    $count->execute($params);
+    $total = (int) $count->fetchColumn();
+    if ($total === 0) return ['count' => 0, 'examples' => []];
+
+    $sample = $pdo->prepare("SELECT a.consultation_id,
+                                    a.consultation_date AS a_date, a.barangay AS a_barangay, a.diagnosis AS a_diagnosis,
+                                    b.consultation_date AS b_date, b.barangay AS b_barangay, b.diagnosis AS b_diagnosis
+                             $where ORDER BY a.consultation_id LIMIT " . max(1, (int) $exampleLimit));
+    $sample->execute($params);
+
+    $describe = fn($date, $barangay, $diagnosis) =>
+        ($date ? date('M j, Y', strtotime((string) $date)) : 'no date') . ' · ' . $barangay . ' · ' . $diagnosis;
+    $examples = [];
+    foreach ($sample->fetchAll() as $row) {
+        $examples[] = $row['consultation_id'] . ' is '
+            . $describe($row['b_date'], $row['b_barangay'], $row['b_diagnosis']) . ' in one and '
+            . $describe($row['a_date'], $row['a_barangay'], $row['a_diagnosis']) . ' in the other';
+    }
+    return ['count' => $total, 'examples' => $examples];
 }
 
 /**
@@ -484,8 +612,8 @@ function bv_consult_ingest(PDO $pdo, array $rows, $filename, $uploadedBy = '', $
  * out of version 6, and deleting an old version can never leave a newer one
  * short of rows.
  *
- * The active version is refused rather than handled. Deleting it would drop the
- * whole system back to the bundled workbook with no other signal, which is a
+ * The active version is refused rather than handled. Deleting it would leave
+ * the whole system with no consultation dataset and no other signal, which is a
  * different operation from "tidy up an old upload" and deserves to be an
  * explicit switch first.
  *

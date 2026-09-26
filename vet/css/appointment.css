@@ -666,6 +666,15 @@ body {
 .status-confirmed { background: #d4eaff; color: #004080; }
 .status-completed { background: #d5f1dc; color: #176a2b; }
 .status-canceled  { background: #ffe5e5; color: #a02020; }
+.status-expired   { background: #eef0f3; color: #4b5563; }
+
+/* When an unconfirmed request lapses (api/includes/timed_rules.php) */
+.pending-item .expires-at {
+	margin: 2px 0 4px;
+	font-size: 11.5px;
+	font-weight: 600;
+	color: #6b7280;
+}
 
 /* ── Action buttons ──────────────────────────────────── */
 .action-buttons { display: flex; gap: 6px; }
@@ -1704,4 +1713,11 @@ body {
     }
 
     .info-grid, .reschedule-layout { grid-template-columns: 1fr; }
+}
+/* Legacy pending requests sharing one slot (vet/js/appointment.js) */
+.pending-item .slot-clash {
+	margin: 2px 0 4px;
+	font-size: 11.5px;
+	font-weight: 700;
+	color: #b45309;
 }

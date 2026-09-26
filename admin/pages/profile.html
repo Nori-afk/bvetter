@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260824-tz">
-    <link rel="stylesheet" href="../css/profile.css?v=20260822-adminprofile">
+    <link rel="stylesheet" href="../css/profile.css?v=20260925-handover">
 </head>
 <body>
 <div class="main-holder">
@@ -291,6 +291,29 @@
                         Revoke All Other
                     </button>
                 </div>
+                <div class="security-item">
+                    <div class="security-item-left">
+                        <div class="sec-icon">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <polyline points="17 11 19 13 23 9"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="sec-title">Hand Over Account</p>
+                            <p class="sec-desc">Pass this administrator account to the next person who will manage BVetter</p>
+                            <p class="sec-desc handover-holders" id="handover-holders"></p>
+                        </div>
+                    </div>
+                    <button class="btn-outline" id="handover-btn" type="button">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                            <polyline points="12 5 19 12 12 19"/>
+                        </svg>
+                        Hand Over
+                    </button>
+                </div>
             </div>
             <div class="prof-divider"></div>
             <div class="signin-section">
@@ -433,10 +456,12 @@
             <div class="field-group">
                 <label for="pw-new">New Password</label>
                 <input type="password" id="pw-new" name="newPassword" autocomplete="new-password" minlength="8" required>
+                <div data-pw-strength="pw-new"></div>
             </div>
             <div class="field-group">
                 <label for="pw-confirm">Confirm New Password</label>
                 <input type="password" id="pw-confirm" name="confirmPassword" autocomplete="new-password" minlength="8" required>
+                <div data-pw-match="pw-new" data-pw-confirm="pw-confirm"></div>
             </div>
             <p class="pw-modal-message" id="pwModalMessage"></p>
             <div class="pw-modal-actions">
@@ -447,9 +472,64 @@
     </div>
 </div>
 
-<script src="../../shared/js/auth.js?v=20260816-sec"></script>
+<!--
+    Guided handover. Admin accounts are no longer created from Account
+    Management; the next administrator takes over this one. The new email is
+    proven with a code, the outgoing password confirms who is doing it, and
+    finishing signs everyone out (see api/admin/handover.php).
+-->
+<div class="pw-modal-overlay" id="handoverOverlay" hidden>
+    <div class="pw-modal handover-modal" role="dialog" aria-modal="true" aria-labelledby="handoverTitle">
+        <button type="button" class="pw-modal-close" id="handoverClose" aria-label="Close">&times;</button>
+        <h3 id="handoverTitle">Hand Over Account</h3>
+        <p class="pw-modal-sub">Fill this in with the new administrator beside you. When it's done, everyone is signed out and only the new email and password work.</p>
+        <form id="handover-form" class="pw-modal-form" novalidate>
+            <div class="field-group">
+                <label for="ho-name">New Administrator's Full Name</label>
+                <input type="text" id="ho-name" name="newFullName" autocomplete="off" maxlength="150" required>
+            </div>
+            <div class="field-group">
+                <label for="ho-email">New Administrator's Email</label>
+                <div class="handover-inline">
+                    <input type="email" id="ho-email" name="newEmail" autocomplete="off" maxlength="190" required>
+                    <button type="button" class="btn-outline" id="ho-send-code">Send Code</button>
+                </div>
+            </div>
+            <div class="field-group">
+                <label for="ho-code">Code Sent to That Email</label>
+                <input type="text" id="ho-code" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required>
+            </div>
+            <div class="field-group">
+                <label for="ho-phone">New Administrator's Phone (optional)</label>
+                <input type="tel" id="ho-phone" name="newPhone" autocomplete="off" maxlength="30">
+            </div>
+            <div class="field-group">
+                <label for="ho-password">New Password</label>
+                <input type="password" id="ho-password" name="newPassword" autocomplete="new-password" required>
+                <div data-pw-strength="ho-password"></div>
+            </div>
+            <div class="field-group">
+                <label for="ho-confirm">Confirm New Password</label>
+                <input type="password" id="ho-confirm" name="confirmPassword" autocomplete="new-password" required>
+                <div data-pw-match="ho-password" data-pw-confirm="ho-confirm"></div>
+            </div>
+            <div class="field-group">
+                <label for="ho-current">Your Current Password</label>
+                <input type="password" id="ho-current" name="currentPassword" autocomplete="current-password" required>
+            </div>
+            <p class="pw-modal-message" id="handoverMessage"></p>
+            <div class="pw-modal-actions">
+                <button type="button" class="btn-outline" id="handoverCancel">Cancel</button>
+                <button type="submit" class="btn-save">Hand Over</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="../../shared/js/auth.js?v=20260925-yesno"></script>
 <script>VBetterAuth.requireAuth(['admin']);</script>
 <script src="../../shared/js/sidebar.js?v=20260824-tz"></script>
-<script src="../js/profile.js?v=20260822-adminprofile"></script>
+<script src="../../public/js/password-policy.js?v=20260925-strength"></script>
+<script src="../js/profile.js?v=20260925-handover"></script>
 </body>
 </html>

@@ -86,8 +86,7 @@
       if (loadedEmail && email.trim().toLowerCase() !== loadedEmail.toLowerCase()) {
         const ok = await vbConfirm(
           `Change your sign-in email from ${loadedEmail} to ${email.trim()}? Password resets and `
-          + `login codes will go to the new address, so make sure you can open it.`,
-          'Change Email'
+          + `login codes will go to the new address, so make sure you can open it.`
         );
         if (!ok) return;
       }
@@ -153,7 +152,7 @@
       showToast('Password updated successfully.', 'success');
       ['inputCurrentPw', 'inputNewPw', 'inputConfirmPw'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.value = '';
+        if (el) { el.value = ''; el.dispatchEvent(new Event('input')); }
       });
     });
   }
@@ -186,7 +185,7 @@
       const confirmMsg = enabling
         ? "Enable two-factor authentication? You'll need to enter a 6-digit code emailed to you every time you log in."
         : 'Disable two-factor authentication?';
-      if (!(await vbConfirm(confirmMsg, enabling ? 'Enable' : 'Disable'))) return;
+      if (!(await vbConfirm(confirmMsg))) return;
 
       btnManage.disabled = true;
       const result = await api.setTwoFactor(enabling).catch(() => ({ success: false }));

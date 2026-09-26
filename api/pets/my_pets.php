@@ -4,6 +4,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/auth_guard.php';
+require_once __DIR__ . '/../includes/pet_standing.php';
 
 function respond($statusCode, $payload)
 {
@@ -149,7 +150,9 @@ function mapPet($pdo, $row, $withHistory)
 
     $latest = $visits[0] ?? null;
     $status = $row['patient_status'] ?: 'Active Patient';
-    $healthStatus = $row['profile_health_status'] ?: ($row['health_status'] ?: 'Good Standing');
+    // From the vet's recorded visits, not the old health_status text that
+    // defaulted to "Good Standing" -- see api/includes/pet_standing.php.
+    $standing = petStanding($status, array_column($visits, 'category'));
     $lastVisit = $latest ? displayDate($latest['visit_date']) : '';
 
     $pet = [
@@ -163,8 +166,9 @@ function mapPet($pdo, $row, $withHistory)
         'colorMarkings' => $row['color_markings'],
         'photo' => $row['photo'] ?: '',
         'status' => $status,
-        'statusType' => statusType($status),
-        'healthStatus' => $healthStatus,
+        'statusType' => $standing['type'],
+        'healthStatus' => $standing['label'],
+        'consulted' => $standing['consulted'],
         'alert' => $row['alert_text'] ?: '',
         'lastVaccinationDate' => $row['last_vaccination_date'] ? displayDate($row['last_vaccination_date']) : '',
         'lastVisit' => $lastVisit,

@@ -911,3 +911,22 @@ background: linear-gradient(135deg, var(--color-green-dark) 0%, var(--color-gree
   color: var(--text-body);
   font-weight: 700;
 }
+
+/* Result of the live email check, under the Email field (signup.js) */
+.email-status {
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.email-status.is-error { color: #e53e3e; }
+.email-status.is-info  { color: #1d4ed8; }
+
+.email-status-links a {
+  color: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+}

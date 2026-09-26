@@ -16,6 +16,7 @@
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../includes/dataset.php';
 require_once __DIR__ . '/../includes/dataset_versions.php';
+require_once __DIR__ . '/../includes/case_timeline.php';
 require_once __DIR__ . '/../config/auth_guard.php';
 
 // Captured, not discarded: the ROUTER at the bottom needs the authenticated
@@ -223,9 +224,14 @@ function disease_case_series($pdo, string $selected, string $period = 'year', st
     $counts = [];
 
     if ($dataView === 'current') {
-        // Current mode reads the clinic's own live records only -- the Excel
-        // 2023-2025 snapshot is training data here, not a second answer to
-        // "how many cases", so it plays no part in this branch at all.
+        // Current mode is the month-by-month timeline: the uploaded dataset for
+        // the months it covers, typed visits after (api/includes/case_timeline.php).
+        // It used to read typed visits only, so every month the upload covered
+        // read "no records" -- and could never fill, because manual entry is
+        // closed for those months. Both sources are asked for every month; the
+        // overlap rule inside db_disease_barangay_counts decides whether typed
+        // visits have anything to add.
+        $counts = bv_upload_barangay_counts($selected, $currentMonth, $currentMonth);
         foreach (db_disease_barangay_counts($pdo, $selected, 'all', null, $currentMonth) as $b => $cases) {
             if ($b === '' || $b === 'Unspecified') continue;
             $counts[$b] = ($counts[$b] ?? 0) + $cases;
@@ -355,6 +361,14 @@ function db_disease_barangay_counts($pdo, string $selected, string $dateType = '
         $where[]             = 'COALESCE(patient_visit_records.visit_date, patient_visit_records.created_at) <= :end_date';
         $params[':end_date'] = $end->format('Y-m-d') . ' 23:59:59';
     }
+    // Typed visits in months the uploaded dataset covers are not counted: the
+    // upload's figures stand for those months (api/includes/case_timeline.php).
+    [$liveOnly, $liveParams] = bv_live_month_condition(
+        'COALESCE(patient_visit_records.visit_date, patient_visit_records.created_at)', $pdo);
+    if ($liveOnly !== '') {
+        $where[] = $liveOnly;
+        $params += $liveParams;
+    }
 
     try {
         $stmt = $pdo->prepare("
@@ -381,17 +395,31 @@ function db_disease_barangay_counts($pdo, string $selected, string $dateType = '
 }
 
 /**
- * How much of a given live month is actually usable for case counting, so
- * Current mode can say "3 consultations recorded, 1 with a listed diagnosis"
- * instead of drawing a normal-looking chart off a single bar. Coverage, not
- * disease counting, so it deliberately ignores the diseases-catalog filter
- * that db_disease_barangay_counts applies -- a visit with an off-catalog or
- * blank diagnosis still counts as "recorded", it just isn't a case yet.
+ * How much of a given month is actually usable for case counting, so Current
+ * mode can say "3 consultations recorded, 1 with a listed diagnosis" instead of
+ * drawing a normal-looking chart off a single bar. Coverage, not disease
+ * counting, so for typed visits it deliberately ignores the diseases-catalog
+ * filter that db_disease_barangay_counts applies -- a visit with an off-catalog
+ * or blank diagnosis still counts as "recorded", it just isn't a case yet.
+ *
+ * Both sources of the timeline (api/includes/case_timeline.php) are counted:
+ * the uploaded file's consultations for a month it covers, typed visits for a
+ * month after it. `sources` says which, so the page words the note for the
+ * records it is actually describing.
  */
 function db_live_coverage_stats($pdo, string $exactMonth): array
 {
-    if (!bv_table_exists($pdo, 'patient_visit_records') || !preg_match('/^\d{4}-\d{2}$/', $exactMonth)) {
-        return ['total_visits' => 0, 'with_diagnosis' => 0];
+    if (!preg_match('/^\d{4}-\d{2}$/', $exactMonth)) {
+        return ['total_visits' => 0, 'with_diagnosis' => 0, 'sources' => []];
+    }
+
+    // Diagnosis is a required upload column, so every uploaded consultation has one.
+    $uploaded = count(bv_upload_rows_between($exactMonth, $exactMonth));
+    $stats = ['total_visits' => $uploaded, 'with_diagnosis' => $uploaded,
+              'sources' => bv_month_sources($exactMonth, $pdo)];
+
+    if (!bv_table_exists($pdo, 'patient_visit_records') || !bv_live_counts_in_month($exactMonth, $pdo)) {
+        return $stats;
     }
 
     $catalogOnly = bv_table_exists($pdo, 'diseases')
@@ -407,18 +435,17 @@ function db_live_coverage_stats($pdo, string $exactMonth): array
         ");
         $stmt->execute([':ym' => $exactMonth]);
         $row = $stmt->fetch() ?: [];
-        return [
-            'total_visits'   => (int) ($row['total'] ?? 0),
-            'with_diagnosis' => (int) ($row['with_diagnosis'] ?? 0),
-        ];
+        $stats['total_visits']   += (int) ($row['total'] ?? 0);
+        $stats['with_diagnosis'] += (int) ($row['with_diagnosis'] ?? 0);
     } catch (Throwable $e) {
         error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
-        return ['total_visits' => 0, 'with_diagnosis' => 0];
     }
+    return $stats;
 }
 
 /**
- * Which calendar months actually hold live clinic records, newest first.
+ * Which calendar months actually hold records, newest first -- every month of
+ * the uploaded dataset, then every month of typed visits after it.
  *
  * Current mode's month picker used to be built entirely in the browser from
  * `new Date()` -- January through today, this calendar year -- so it offered a
@@ -430,87 +457,111 @@ function db_live_coverage_stats($pdo, string $exactMonth): array
  *
  * Reported disease-agnostically on purpose: this answers "where are there
  * records at all", and a picker that reshuffled itself every time the disease
- * filter changed would be its own confusion. `cases` is the subset that counts
- * epidemiologically (the diseases-catalog rule the charts use), so the client
- * can tell "no visits" apart from "visits, none of them a listed diagnosis".
+ * filter changed would be its own confusion. `visits` is records of any kind
+ * (uploaded consultations or typed visits); `cases` is what the charts count --
+ * cases_reported for the upload, catalog-diagnosed visits for typed ones, both
+ * affected animals -- so the client can tell "no visits" apart from "visits,
+ * none of them a listed diagnosis". `sources` names where the month comes from.
  */
 function db_live_record_months($pdo): array
 {
-    if (!bv_table_exists($pdo, 'patient_visit_records')) return [];
-
-    $catalogOnly = bv_table_exists($pdo, 'diseases')
-        ? 'diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)'
-        : 'COALESCE(diagnosis, "") <> ""';
-
-    try {
-        $stmt = $pdo->query("
-            SELECT DATE_FORMAT(COALESCE(visit_date, created_at), '%Y-%m') AS ym,
-                   COUNT(*) AS visits,
-                   SUM(CASE WHEN {$catalogOnly} THEN 1 ELSE 0 END) AS cases
-            FROM patient_visit_records
-            WHERE COALESCE(visit_date, created_at) IS NOT NULL
-            GROUP BY ym
-            ORDER BY ym DESC
-        ");
-        $months = [];
-        foreach ($stmt->fetchAll() as $row) {
-            $ym = (string) ($row['ym'] ?? '');
-            if (!preg_match('/^\d{4}-\d{2}$/', $ym)) continue;
-            $months[] = [
-                'month'  => $ym,
-                'visits' => (int) ($row['visits'] ?? 0),
-                'cases'  => (int) ($row['cases']  ?? 0),
-            ];
-        }
-        return $months;
-    } catch (Throwable $e) {
-        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
-        return [];
+    $months = [];
+    foreach (bv_upload_month_summary() as $ym => $summary) {
+        $months[$ym] = ['month' => $ym, 'visits' => $summary['consultations'], 'cases' => $summary['cases']];
     }
+
+    if (bv_table_exists($pdo, 'patient_visit_records')) {
+        $catalogOnly = bv_table_exists($pdo, 'diseases')
+            ? 'diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)'
+            : 'COALESCE(diagnosis, "") <> ""';
+        [$liveOnly, $params] = bv_live_month_condition('COALESCE(visit_date, created_at)', $pdo);
+
+        try {
+            $stmt = $pdo->prepare("
+                SELECT DATE_FORMAT(COALESCE(visit_date, created_at), '%Y-%m') AS ym,
+                       COUNT(*) AS visits,
+                       SUM(CASE WHEN {$catalogOnly} THEN 1 ELSE 0 END) AS cases
+                FROM patient_visit_records
+                WHERE COALESCE(visit_date, created_at) IS NOT NULL
+                " . ($liveOnly !== '' ? "AND {$liveOnly}" : '') . "
+                GROUP BY ym
+            ");
+            $stmt->execute($params);
+            foreach ($stmt->fetchAll() as $row) {
+                $ym = (string) ($row['ym'] ?? '');
+                if (!preg_match('/^\d{4}-\d{2}$/', $ym)) continue;
+                $months[$ym] ??= ['month' => $ym, 'visits' => 0, 'cases' => 0];
+                $months[$ym]['visits'] += (int) ($row['visits'] ?? 0);
+                $months[$ym]['cases']  += (int) ($row['cases']  ?? 0);
+            }
+        } catch (Throwable $e) {
+            error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
+        }
+    }
+
+    krsort($months);
+    foreach ($months as $ym => &$month) {
+        $month['sources'] = bv_month_sources($ym, $pdo);
+    }
+    unset($month);
+    return array_values($months);
 }
 
 /**
- * Top diagnosis for a live month, mirroring the Excel-era "Most Common
- * Disease" KPI but sourced from patient_visit_records instead of
- * Consult_Diagnosis_3Y. Same catalog rule as db_disease_barangay_counts.
+ * Top diagnosis for a month of the timeline, mirroring the Historical "Most
+ * Common Disease" KPI: uploaded consultations are counted per diagnosis exactly
+ * as Historical counts them (one per row), typed visits by the same catalog rule
+ * as db_disease_barangay_counts, and only in months where they count.
  */
 function db_top_diagnosis($pdo, string $exactMonth, string $selected): string
 {
-    if (!bv_table_exists($pdo, 'patient_visit_records') || !preg_match('/^\d{4}-\d{2}$/', $exactMonth)) {
-        return '';
+    if (!preg_match('/^\d{4}-\d{2}$/', $exactMonth)) return '';
+
+    $counts = [];
+    foreach (bv_upload_rows_between($exactMonth, $exactMonth) as $row) {
+        $diagnosis = bv_clean($row['diagnosis'] ?? '');
+        if ($diagnosis === '') continue;
+        if ($selected !== '' && strtolower($diagnosis) !== $selected) continue;
+        $counts[$diagnosis] = ($counts[$diagnosis] ?? 0) + 1;
     }
 
-    $where = bv_table_exists($pdo, 'diseases')
-        ? ['diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)']
-        : ['COALESCE(diagnosis, "") <> ""'];
-    $where[]  = "DATE_FORMAT(COALESCE(visit_date, created_at), '%Y-%m') = :ym";
-    $params   = [':ym' => $exactMonth];
-    if ($selected !== '') {
-        $where[]            = 'LOWER(COALESCE(diagnosis, "")) = :disease';
-        $params[':disease'] = $selected;
+    if (bv_table_exists($pdo, 'patient_visit_records') && bv_live_counts_in_month($exactMonth, $pdo)) {
+        $where = bv_table_exists($pdo, 'diseases')
+            ? ['diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)']
+            : ['COALESCE(diagnosis, "") <> ""'];
+        $where[]  = "DATE_FORMAT(COALESCE(visit_date, created_at), '%Y-%m') = :ym";
+        $params   = [':ym' => $exactMonth];
+        if ($selected !== '') {
+            $where[]            = 'LOWER(COALESCE(diagnosis, "")) = :disease';
+            $params[':disease'] = $selected;
+        }
+
+        try {
+            $stmt = $pdo->prepare("
+                SELECT diagnosis, COUNT(*) AS n
+                FROM patient_visit_records
+                WHERE " . implode(' AND ', $where) . "
+                GROUP BY diagnosis
+            ");
+            $stmt->execute($params);
+            foreach ($stmt->fetchAll() as $row) {
+                $diagnosis = bv_clean($row['diagnosis'] ?? '');
+                if ($diagnosis !== '') $counts[$diagnosis] = ($counts[$diagnosis] ?? 0) + (int) $row['n'];
+            }
+        } catch (Throwable $e) {
+            error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
+        }
     }
 
-    try {
-        $stmt = $pdo->prepare("
-            SELECT diagnosis, COUNT(*) AS n
-            FROM patient_visit_records
-            WHERE " . implode(' AND ', $where) . "
-            GROUP BY diagnosis
-            ORDER BY n DESC
-            LIMIT 1
-        ");
-        $stmt->execute($params);
-        return bv_clean($stmt->fetchColumn() ?: '');
-    } catch (Throwable $e) {
-        error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
-        return '';
-    }
+    arsort($counts);
+    return (string) (array_key_first($counts) ?? '');
 }
 
 /**
- * Date of the most recent live case, for the live layer's "latest entry" line.
- * Applies the same catalog rule as db_disease_barangay_counts so the date can
- * never point at a record the counts above exclude.
+ * Date of the most recent typed-in case, for the live layer's "latest entry"
+ * line. Applies the same catalog rule and the same window as the live layer's
+ * counts (see disease_analytics_data), so the date can never point at a record
+ * those counts exclude.
  */
 function db_latest_case_date($pdo): string
 {
@@ -520,17 +571,37 @@ function db_latest_case_date($pdo): string
         ? 'AND diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)'
         : 'AND COALESCE(diagnosis, "") <> ""';
 
+    // Since the upload ends when there is one; this calendar year when not.
+    [$liveOnly, $params] = bv_live_month_condition('COALESCE(visit_date, created_at)', $pdo);
+    $window = $liveOnly !== ''
+        ? "AND {$liveOnly}"
+        : 'AND YEAR(COALESCE(visit_date, created_at)) = YEAR(CURDATE())';
+
     try {
-        $date = $pdo->query("
+        $stmt = $pdo->prepare("
             SELECT MAX(COALESCE(visit_date, created_at))
             FROM patient_visit_records
-            WHERE YEAR(COALESCE(visit_date, created_at)) = YEAR(CURDATE())
+            WHERE 1 = 1 {$window}
             {$catalogOnly}
-        ")->fetchColumn();
+        ");
+        $stmt->execute($params);
+        $date = $stmt->fetchColumn();
         return $date ? date('j M Y', strtotime((string) $date)) : '';
     } catch (Throwable $e) {
         return '';
     }
+}
+
+/**
+ * Where a month's figures come from, in words, from bv_month_sources().
+ */
+function month_source_phrase(array $sources): string
+{
+    $upload = in_array('upload', $sources, true);
+    $live   = in_array('live', $sources, true);
+    if ($upload && $live) return 'uploaded file + visits logged in clinic';
+    if ($upload)          return 'from the uploaded file';
+    return 'logged in clinic';
 }
 
 /**
@@ -547,8 +618,9 @@ function live_layer_summary(int $filtered, int $total, bool $isAllDiseases, stri
     $unit = fn(int $n) => $n === 1 ? 'case' : 'cases';
 
     if ($isAllDiseases) {
+        // The period is in the label ("since August 2026" or "2026 to date").
         return $total === 0
-            ? 'No cases recorded yet this year'
+            ? 'No cases logged yet'
             : number_format($total) . ' ' . $unit($total) . ' recorded';
     }
 
@@ -596,25 +668,32 @@ function disease_analytics_data($pdo)
     /* ── The live layer ────────────────────────────────────────────────
      * The page shows two layers, and they answer different questions:
      *
-     *   baseline  the frozen 2023-2025 municipal snapshot, which is what the
-     *             charts plot and what the forecasts are built on
-     *   live      what this clinic has recorded since, which starts empty and
-     *             grows as visits are logged
+     *   baseline  the uploaded dataset, which is what Historical plots and
+     *             what the forecasts are built on
+     *   live      visits typed in after the upload ends, which Historical does
+     *             not show and which grow as visits are logged
      *
      * Mixing them silently is what produced the "Total Cases This Year" card
      * reading a 2025 figure. Both are reported, each labelled with its own
      * period, and neither is relabelled as the other.
      *
-     * The live figures are always calendar-year-to-date regardless of the
-     * Yearly/Monthly toggle: "what has this clinic recorded" is not a question
-     * about the snapshot's period.
+     * The live figures follow the timeline's rule (api/includes/case_timeline.php):
+     * only visits in months after the upload count. This card used to count
+     * the whole calendar year, so a visit in a month the upload covers showed
+     * here as a case while every chart, report and forecast left it out.
+     * With no upload at all there is no boundary, and it falls back to the
+     * calendar year to date.
      */
-    $currentCalendarYear = (int) date('Y');
-    $liveFiltered = (int) round(array_sum(db_disease_barangay_counts($pdo, $selected, 'year')));
+    $liveAfter    = bv_live_visits_count_after($pdo);
+    $liveWindow   = $liveAfter === null ? 'year' : 'all';
+    $liveFiltered = (int) round(array_sum(db_disease_barangay_counts($pdo, $selected, $liveWindow)));
     $liveTotal    = $isAllDiseases
         ? $liveFiltered
-        : (int) round(array_sum(db_disease_barangay_counts($pdo, '', 'year')));
+        : (int) round(array_sum(db_disease_barangay_counts($pdo, '', $liveWindow)));
     $liveLatest   = db_latest_case_date($pdo);
+    $liveSince    = $liveAfter === null
+        ? date('Y') . ' to date'
+        : 'since ' . date('F Y', strtotime($liveAfter . '-01 +1 month'));
 
     /* ── Top disease label ───────────────────────────────────────────── */
     if ($isCurrent) {
@@ -780,9 +859,10 @@ function disease_analytics_data($pdo)
     }
 
     /* ── Source labels ───────────────────────────────────────────────────
-     * Historical and Current never share a counting source (see
-     * disease_case_series), so their source lists say so plainly instead of
-     * describing one blended pipeline.
+     * Historical reads the uploaded dataset alone. Current reads the timeline:
+     * the upload for the months it covers, typed visits after. Each list says
+     * which months each source answers for, rather than describing one blended
+     * pipeline.
      */
     /* What the consultation source actually IS right now.
      *
@@ -803,15 +883,24 @@ function disease_analytics_data($pdo)
             : 'uploaded records';
         $consultLabel = 'Uploaded file · ' . (string) $activeVersion['filename'] . ' · ' . $spanLabel;
     } else {
-        $spanLabel    = '2023-2025';
-        $consultLabel = 'Bundled workbook · BaliwagVet_2023-2025.xlsx · 2023-2025';
+        // No fallback to the bundled workbook (see bv_sheet_rows), so nothing
+        // to name but the gap itself.
+        $spanLabel    = '';
+        $consultLabel = 'No dataset uploaded';
     }
+
+    $monthName  = fn($ym) => date('F Y', strtotime($ym . '-01'));
+    $uploadLast = bv_upload_last_month($pdo);
 
     if ($isCurrent) {
         $sources = [
-            ['name' => 'patient_visit_records', 'status' => 'Case counts · live clinic entries (used)'],
-            ['name' => 'diseases catalog',      'status' => 'Validates diagnosis before it counts as a case (used)'],
-            ['name' => 'Consult_Diagnosis_3Y',  'status' => $consultLabel . ' · not used in Current view'],
+            ['name' => 'Consult_Diagnosis_3Y',  'status' => $uploadLast !== null
+                ? 'Case counts through ' . $monthName($uploadLast) . ' · ' . $consultLabel . ' (used)'
+                : $consultLabel . ' · not used'],
+            ['name' => 'patient_visit_records', 'status' => 'Case counts '
+                . ($liveAfter !== null ? 'from ' . $monthName(date('Y-m', strtotime($liveAfter . '-01 +1 month'))) : 'for every month')
+                . ' · typed-in clinic visits (used)'],
+            ['name' => 'diseases catalog',      'status' => 'Validates a typed-in diagnosis before it counts as a case (used)'],
         ];
     } else {
         $sources = [
@@ -841,11 +930,18 @@ function disease_analytics_data($pdo)
         'isAllDiseases'   => $isAllDiseases,
         'dataView'        => $dataView,
         'currentMonth'    => $currentMonth,
-        // Every card here reads one single source per view, so the section
-        // carries one period label and no card restates the year on its own.
+        // Every card here reads one period, so the section carries one label and
+        // no card restates the year on its own. In Current mode it also names
+        // where that month's figures come from -- a switch of dataset version
+        // changes a past month, and this is what tells a reader why.
         'baselineLabel'   => $isCurrent
-            ? 'Live Clinic Records · ' . $periodLabel
-            : 'Historical Baseline · ' . $spanLabel . ' consultation records (training data)',
+            ? 'Monthly Records · ' . $periodLabel . ' · ' . month_source_phrase(bv_month_sources($currentMonth, $pdo))
+            : ($activeVersion
+                ? 'Historical Baseline · ' . $spanLabel . ' consultation records (training data)'
+                : 'No consultation dataset uploaded · upload one with Manage Dataset'),
+        // The uploaded dataset's span ("2023-2026"), for page text that points
+        // at Historical. Empty when nothing is uploaded.
+        'datasetSpan'     => $spanLabel,
         'liveCoverage'    => $liveCoverage,
         // Which months the month picker should offer and which of them hold
         // anything, so Current mode opens on a month with records instead of a
@@ -881,11 +977,14 @@ function disease_analytics_data($pdo)
         // the whole page already is that live data, so showing it again here
         // would be redundant; renderLiveLayer() hides the strip on null.
         'liveLayer'       => $isCurrent ? null : [
-            'label'   => 'Live Clinic Records · ' . $currentCalendarYear . ' to date',
+            'label'   => 'Logged in Clinic · ' . $liveSince,
             'summary' => live_layer_summary($liveFiltered, $liveTotal, $isAllDiseases,
                                             $isAllDiseases ? '' : ucwords($selected)),
             'latest'  => $liveLatest !== '' ? 'Latest entry ' . $liveLatest : '',
-            'note'    => 'Grows as visits are logged; excluded from the baseline figures above. Switch to Current to view them.',
+            'note'    => $liveAfter !== null
+                ? 'Grows as visits are logged. Not in the figures above, which come from the uploaded file. '
+                  . 'Switch to Current to view them month by month.'
+                : 'Grows as visits are logged. Switch to Current to view them month by month.',
             'total'   => $liveTotal,
         ],
         'predictionSummary' => [

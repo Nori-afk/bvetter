@@ -154,7 +154,7 @@ function buildDetailRow(ticket) {
     detailRow.querySelector('.btn-delete-ticket')?.addEventListener('click', async (event) => {
         event.stopPropagation();
         const id = Number(event.target.dataset.id);
-        if (!(await vbConfirm('Delete this ticket? The reporter will be notified. This cannot be undone.', 'Delete'))) return;
+        if (!(await vbConfirm('Delete this ticket? The reporter will be notified. This cannot be undone.', 'Yes, delete'))) return;
         const result = await apiCall({ action: 'delete_ticket', ticket_id: id });
         if (!result.success) {
             await vbAlert(result.message || 'Failed to delete ticket.');

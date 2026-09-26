@@ -11,7 +11,7 @@
 	{ id: 10, datetime: '2026-04-25T16:00:00', patient: 'Rocky', owner: 'Monica Reyes', service: 'Ear Infection Follow-up', status: 'pending', type: 'Follow-up' }
 ];
 
-const VALID_STATUSES = new Set(['pending', 'confirmed', 'completed', 'canceled', 'cancelled', 'rejected', 'reschedule_pending']);
+const VALID_STATUSES = new Set(['pending', 'confirmed', 'completed', 'canceled', 'cancelled', 'rejected', 'reschedule_pending', 'expired']);
 const RESCHEDULE_SLOTS = [
 	{ label: 'Morning', value: '08:00', display: '8:00 AM' },
 	{ label: 'Morning', value: '09:00', display: '9:00 AM' },
@@ -119,8 +119,42 @@ function normalizeAppointment(item, index) {
 		status,
 		type: String(item.type || 'General'),
 		veterinarianId: item.veterinarian_id ? Number(item.veterinarian_id) : null,
-		veterinarian: item.veterinarian ? String(item.veterinarian) : ''
+		veterinarian: item.veterinarian ? String(item.veterinarian) : '',
+		timeSlot: canonicalSlot(item.time_slot || ''),
+		expiresAt: item.expires_at || null
 	};
+}
+
+/**
+ * "Expires Tue, Sep 29, 10:00 AM" for a pending request -- after that it
+ * lapses on its own and the owner is asked to rebook
+ * (api/includes/timed_rules.php). Empty for requests from before the limit.
+ */
+function expiryLabel(item) {
+	if (!item.expiresAt) return '';
+	const at = new Date(String(item.expiresAt).replace(' ', 'T'));
+	if (Number.isNaN(at.getTime())) return '';
+	return 'Confirm by ' + at.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+/**
+ * Pending requests sharing a time with another pending request. New requests
+ * can't do this any more (a pending request holds its slot), but ones made
+ * before that change can -- and only the first of a pair can be confirmed.
+ */
+function sameSlotPendingIds() {
+	const pending = state.appointments.filter((item) => item.status === 'pending' && item.timeSlot);
+	const clashing = new Set();
+	pending.forEach((a, i) => {
+		pending.slice(i + 1).forEach((b) => {
+			const sameVet = !a.veterinarianId || !b.veterinarianId || a.veterinarianId === b.veterinarianId;
+			if (a.preferredDate === b.preferredDate && a.timeSlot === b.timeSlot && sameVet) {
+				clashing.add(a.id);
+				clashing.add(b.id);
+			}
+		});
+	});
+	return clashing;
 }
 
 function loadAppointments(dataset) {
@@ -210,10 +244,13 @@ function buildRescheduleCalendar(monthDate, selectedIsoDate) {
 		const isActive = iso === selectedIsoDate ? ' active' : '';
 		const isPast = iso < todayIso;
 		const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6; // Sun=0, Sat=6 — clinic is closed
-		const isDisabled = isPast || isWeekend;
+		// Holidays and office-closed dates (api/includes/clinic_calendar.php).
+		const closedReason = closedDates[iso] || '';
+		const isDisabled = isPast || isWeekend || closedReason !== '';
 		const disabledAttr = isDisabled ? ' disabled' : '';
 		const disabledClass = isDisabled ? ' disabled' : '';
-		dayCells.push(`<button type="button" class="day-btn${isActive}${disabledClass}" data-resched-date="${iso}"${disabledAttr}>${day}</button>`);
+		const title = closedReason ? ` title="Clinic closed: ${escapeAttr(closedReason)}"` : '';
+		dayCells.push(`<button type="button" class="day-btn${isActive}${disabledClass}" data-resched-date="${iso}"${disabledAttr}${title}>${day}</button>`);
 	}
 
 	return dayCells.join('');
@@ -223,6 +260,7 @@ function statusClass(status) {
 	if (status === 'confirmed') return 'status-confirmed';
 	if (status === 'completed') return 'status-completed';
 	if (status === 'canceled' || status === 'cancelled' || status === 'rejected') return 'status-canceled';
+	if (status === 'expired') return 'status-expired';
 	return 'status-pending';
 }
 
@@ -290,11 +328,17 @@ function renderPendingList() {
 	}
 
 	ui.pendingEmpty.hidden = true;
+	const clashing = sameSlotPendingIds();
 	ui.pendingHolder.innerHTML = pending.map((item) => {
 		const dt = formatDateTime(item.datetime);
+		const clash = clashing.has(item.id)
+			? '<p class="slot-clash">&#9888; Same time as another request</p>'
+			: '';
 		return `
 			<article class="pending-item" data-id="${item.id}">
 				<p class="time">${dt.date} - ${dt.time}</p>
+				${clash}
+				${expiryLabel(item) ? `<p class="expires-at">${expiryLabel(item)}</p>` : ''}
 				<h4>${item.patient}</h4>
 				<p>${item.service}</p>
 				<div class="pending-actions">
@@ -600,8 +644,7 @@ function completeModalTemplate(appointment) {
 	return `
 		<div class="confirm-content">
 			<div class="confirm-icon">&#10003;</div>
-			<h3 class="confirm-title" id="modal-title">Mark As Completed</h3>
-			<p class="confirm-text">You are about to mark this appointment as completed.</p>
+			<h3 class="confirm-title" id="modal-title">Mark this appointment as completed?</h3>
 			<article class="danger-card">
 				<p class="muted"><strong>Owner:</strong> ${appointment.owner}</p>
 				<p class="muted"><strong>Patient:</strong> ${appointment.patient}</p>
@@ -610,8 +653,8 @@ function completeModalTemplate(appointment) {
 			</article>
 			<textarea class="textarea" id="completion-notes" maxlength="1000" placeholder="Completion notes (optional)"></textarea>
 			<div class="two-actions">
-				<button class="btn btn-outline" type="button" data-modal-action="open-details">Cancel</button>
-				<button class="btn btn-primary" type="button" data-modal-action="confirm-complete">Mark as Completed</button>
+				<button class="btn btn-outline" type="button" data-modal-action="open-details">No</button>
+				<button class="btn btn-primary" type="button" data-modal-action="confirm-complete">Yes</button>
 			</div>
 		</div>
 	`;
@@ -639,10 +682,10 @@ function cancelModalTemplate(appointment) {
 				</div>
 			</div>
 			<div class="modal-footer">
-				<button class="btn btn-outline" type="button" data-modal-action="open-details">Keep Appointment</button>
+				<button class="btn btn-outline" type="button" data-modal-action="open-details">No</button>
 				<button class="btn btn-danger" type="button" data-modal-action="confirm-cancel">
 					<i data-lucide="x-circle"></i>
-					Cancel Appointment
+					Yes, cancel
 				</button>
 			</div>
 		</div>
@@ -975,8 +1018,12 @@ function setupEvents() {
 	ui.settingsButton?.addEventListener('click', openSettingsModal);
 
 	ui.acceptAllButton.addEventListener('click', async () => {
+		// One at a time, not in parallel: two requests for the same slot can
+		// only have one winner, and the server decides it in arrival order.
 		const pending = state.appointments.filter((item) => item.status === 'pending');
-		await Promise.all(pending.map((item) => updateStatus(item.id, 'confirmed', { skipReload: true })));
+		for (const item of pending) {
+			await updateStatus(item.id, 'confirmed', { skipReload: true });
+		}
 		await reloadFromServer();
 	});
 
@@ -1092,9 +1139,34 @@ function exposeApi() {
 	};
 }
 
+// { 'YYYY-MM-DD': 'Christmas Day' } -- weekdays the clinic is closed, so the
+// reschedule calendar can't propose one. The server refuses them regardless.
+let closedDates = {};
+
+async function loadClosedDates() {
+	try {
+		const response = await fetch('/api/appointments/appointment.php', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ action: 'closed_dates' })
+		});
+		const result = await response.json();
+		if (result.success && Array.isArray(result.data)) {
+			closedDates = Object.fromEntries(result.data.map((day) => [day.date, day.name]));
+		}
+	} catch {
+		// Weekends still gray out; the server refuses a closed date anyway.
+	}
+}
+
+function escapeAttr(value) {
+	return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 async function init() {
 	ui.modalOverlay.hidden = true;
 	document.body.style.overflow = '';
+	void loadClosedDates();
 	setupCalendar();
 	setupEvents();
 	if (window.VetAPI?.getAppointments) {

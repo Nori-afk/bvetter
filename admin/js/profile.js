@@ -306,6 +306,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
 	function openPasswordModal() {
 		pwForm?.reset();
+		// reset() changes values without an input event, so the strength bar
+		// and match line would keep describing the last password typed.
+		pwForm?.querySelectorAll('input[type="password"]').forEach((input) => input.dispatchEvent(new Event("input")));
 		setPwMessage("");
 		if (pwOverlay) pwOverlay.hidden = false;
 		document.getElementById("pw-current")?.focus();
@@ -314,6 +317,122 @@ document.addEventListener("DOMContentLoaded", () => {
 	function closePasswordModal() {
 		if (pwOverlay) pwOverlay.hidden = true;
 	}
+
+	/* Hand Over Account -- see api/admin/handover.php. */
+	const HANDOVER_API = "/api/admin/handover.php";
+	const hoOverlay = document.getElementById("handoverOverlay");
+	const hoForm = document.getElementById("handover-form");
+
+	async function handoverRequest(action, payload = {}) {
+		const response = await fetch(HANDOVER_API, {
+			method: "POST",
+			headers: authHeaders(),
+			body: JSON.stringify({ action, ...payload })
+		});
+		const result = await response.json();
+		if (!response.ok || !result.success) throw new Error(result.message || "Handover request failed.");
+		return result;
+	}
+
+	function setHoMessage(text, type = "info") {
+		const el = document.getElementById("handoverMessage");
+		if (!el) return;
+		el.textContent = text;
+		el.dataset.type = type;
+	}
+
+	function formatShortDate(value) {
+		const date = new Date(String(value).replace(" ", "T"));
+		return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+	}
+
+	// "Account holders: Maria Santos (until Sep 25, 2026) → Juan Cruz", so
+	// earlier approvals on this account can be read as the right person's.
+	async function loadHandoverHistory() {
+		const el = document.getElementById("handover-holders");
+		if (!el) return;
+		try {
+			const { data } = await handoverRequest("history");
+			if (!Array.isArray(data) || data.length < 2) { el.textContent = ""; return; }
+			el.textContent = "Account holders: " + data.map((holder) => holder.until
+				? `${holder.name} (until ${formatShortDate(holder.until)})`
+				: `${holder.name} (current)`).join(" → ");
+		} catch {
+			el.textContent = "";
+		}
+	}
+
+	function openHandover() {
+		hoForm?.reset();
+		hoForm?.querySelectorAll('input[type="password"]').forEach((input) => input.dispatchEvent(new Event("input")));
+		setHoMessage("");
+		if (hoOverlay) hoOverlay.hidden = false;
+		document.getElementById("ho-name")?.focus();
+	}
+
+	function closeHandover() {
+		if (hoOverlay) hoOverlay.hidden = true;
+	}
+
+	document.getElementById("handover-btn")?.addEventListener("click", openHandover);
+	document.getElementById("handoverClose")?.addEventListener("click", closeHandover);
+	document.getElementById("handoverCancel")?.addEventListener("click", closeHandover);
+	hoOverlay?.addEventListener("click", (event) => {
+		if (event.target === hoOverlay) closeHandover();
+	});
+
+	document.getElementById("ho-send-code")?.addEventListener("click", async (event) => {
+		const button = event.currentTarget;
+		const email = hoForm.elements.newEmail.value.trim();
+		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setHoMessage("Enter the new administrator's email first.", "error");
+		button.disabled = true;
+		try {
+			const result = await handoverRequest("send_code", { new_email: email });
+			setHoMessage(result.message + " Ask the new administrator for it.", "success");
+			document.getElementById("ho-code")?.focus();
+		} catch (error) {
+			setHoMessage(error.message, "error");
+		} finally {
+			button.disabled = false;
+		}
+	});
+
+	hoForm?.addEventListener("submit", async (event) => {
+		event.preventDefault();
+		const f = hoForm.elements;
+		const payload = {
+			new_full_name: f.newFullName.value.trim(),
+			new_email: f.newEmail.value.trim(),
+			code: f.code.value.trim(),
+			new_phone: f.newPhone.value.trim(),
+			new_password: f.newPassword.value,
+			current_password: f.currentPassword.value
+		};
+
+		if (!payload.new_full_name || !payload.new_email || !payload.code) return setHoMessage("Fill in the name, email and the code sent to that email.", "error");
+		const policyError = window.PasswordPolicy ? PasswordPolicy.validate(payload.new_password) : null;
+		if (policyError) return setHoMessage(policyError, "error");
+		if (payload.new_password !== f.confirmPassword.value) return setHoMessage("New password and confirmation do not match.", "error");
+		if (!payload.current_password) return setHoMessage("Enter your current password to confirm it's you.", "error");
+
+		if (!(await vbConfirm(`Hand this administrator account over to ${payload.new_full_name}? You will be signed out and can no longer sign in to it.`, "Yes, hand over"))) return;
+
+		const submitBtn = hoForm.querySelector('button[type="submit"]');
+		submitBtn.disabled = true;
+		try {
+			const result = await handoverRequest("complete", payload);
+			closeHandover();
+			await vbAlert(result.message);
+			// This session was revoked with the rest; clear it locally too.
+			if (typeof clearSession === "function") clearSession();
+			window.location.href = "ops-3bab26d632.html";
+		} catch (error) {
+			setHoMessage(error.message, "error");
+			submitBtn.disabled = false;
+		}
+	});
+
+	void loadHandoverHistory();
 
 	document.getElementById("update-password-btn")?.addEventListener("click", openPasswordModal);
 	document.getElementById("pwModalClose")?.addEventListener("click", closePasswordModal);
@@ -329,7 +448,10 @@ document.addEventListener("DOMContentLoaded", () => {
 		const confirmPassword = pwForm.elements.confirmPassword.value;
 
 		if (!currentPassword) return setPwMessage("Enter your current password.", "error");
-		if (newPassword.length < 12) return setPwMessage("New password must be at least 12 characters.", "error");
+		const policyError = window.PasswordPolicy
+			? PasswordPolicy.validate(newPassword)
+			: (newPassword.length < 12 ? "New password must be at least 12 characters." : null);
+		if (policyError) return setPwMessage(policyError, "error");
 		if (newPassword !== confirmPassword) return setPwMessage("New password and confirmation do not match.", "error");
 
 		const submitBtn = pwForm.querySelector('button[type="submit"]');
@@ -350,7 +472,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	});
 
 	document.getElementById("revoke-sessions-btn")?.addEventListener("click", async () => {
-		if (!(await vbConfirm("Revoke all other sessions? You will remain signed in on this device.", "Revoke"))) return;
+		if (!(await vbConfirm("Revoke all other sessions? You will remain signed in on this device."))) return;
 		try {
 			// 'end_others' is what api/auth/session.php calls this; the old
 			// 'revoke_others' was never a recognised action anywhere.
@@ -380,7 +502,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		const prompt = turningOn
 			? "Turn on two-factor authentication? You'll be emailed a 6-digit code at every sign-in."
 			: "Turn off two-factor authentication? Your account will be protected by password alone.";
-		if (!(await vbConfirm(prompt, turningOn ? "Turn On" : "Turn Off"))) return;
+		if (!(await vbConfirm(prompt))) return;
 
 		btn.disabled = true;
 		try {

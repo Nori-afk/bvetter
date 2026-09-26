@@ -614,6 +614,30 @@ html, body {
 
 .pending-actions { display: flex; gap: 6px; }
 
+.btn-review {
+    padding: 6px 14px;
+    border-radius: 8px;
+    background: rgba(0, 42, 88, 0.08);
+    color: #002A58;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.btn-review:hover { background: rgba(0, 42, 88, 0.16); }
+
+.pending-overdue {
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 99px;
+    background: #FEE2E2;
+    color: #B91C1C;
+    font-size: 10.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
 .btn-approve, .btn-reject {
     width: 28px;
     height: 28px;

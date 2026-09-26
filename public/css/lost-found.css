@@ -3479,3 +3479,39 @@ body {
 
   .success-modal-box { padding: 24px 20px 20px; }
 }
+
+/* ── Claimed / reunited reports stay on the board, grayed out ── */
+.pet-card.is-claimed { background: #f8fafc; }
+.pet-card.is-claimed .pet-card-img { filter: grayscale(1); opacity: 0.6; }
+.pet-card.is-claimed .pet-card-body { opacity: 0.75; }
+
+.pet-claimed-badge {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(17, 24, 39, 0.82);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  z-index: 2;
+}
+
+.details-claimed-note {
+  margin: 4px 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.details-claimed-note[hidden] { display: none; }
+
+/* The detail footers swap the claim/sighting button for "This is My Pet" on
+   a closed case by toggling [hidden]; the buttons' own display rule would
+   otherwise keep both on screen. */
+.details-footer .btn-details-action[hidden] { display: none !important; }

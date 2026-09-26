@@ -53,6 +53,32 @@ function isWeekendIso(dateIso) {
   return isWeekendDate(new Date(y, m - 1, d));
 }
 
+// Weekdays the clinic is closed -- Philippine holidays plus dates the office
+// marks closed -- as { 'YYYY-MM-DD': 'Christmas Day' }. Loaded from the
+// server, which refuses a booking on these days anyway; this just grays them
+// out so nobody picks one.
+let CLOSED_DATES = {};
+
+async function loadClosedDates() {
+  try {
+    const res = await fetch('/api/appointments/appointment.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'closed_dates' })
+    });
+    const json = await res.json();
+    if (json.success && Array.isArray(json.data)) {
+      CLOSED_DATES = Object.fromEntries(json.data.map((day) => [day.date, day.name]));
+    }
+  } catch {
+    // Keep what we have; the server still refuses a closed date.
+  }
+}
+
+function toIsoDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 // How far ahead an owner may book. Keeps the calendar from filling with
 // speculative bookings that hold slots nobody will honour. Mirrored
 // server-side in bookAppointment() — the input attribute is only UX.
@@ -131,7 +157,9 @@ function buildCalendar(year, month) {
     cellDate.setHours(0, 0, 0, 0);
 
     const isPast = cellDate < today;
-    const isWeekend = isWeekendDate(cellDate);
+    // A holiday is treated exactly like a weekend: closed.
+    const closedReason = CLOSED_DATES[toIsoDate(cellDate)] || '';
+    const isWeekend = isWeekendDate(cellDate) || closedReason !== '';
     const isBeyondHorizon = cellDate > horizon;
 
     const isToday =
@@ -143,6 +171,10 @@ function buildCalendar(year, month) {
 
     if (isToday) cell.classList.add('today');
     if (isPast || isWeekend || isBeyondHorizon) cell.classList.add('disabled');
+    if (closedReason) {
+      cell.classList.add('closed');
+      cell.title = `Clinic closed: ${closedReason}`;
+    }
 
     cell.textContent = d;
 
@@ -172,6 +204,8 @@ function buildCalendar(year, month) {
   const now = new Date();
 
   buildCalendar(now.getFullYear(), now.getMonth());
+  // Redraw once the holidays are known.
+  loadClosedDates().then(() => buildCalendar(calYear, calMonth));
 
   // Set today as the default selected date so slots load on page open
   const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -455,12 +489,15 @@ async function loadRecentHistory(options = {}) {
         `;
       }
 
-      // pending / cancelled
+      // Pending, confirmed, cancelled...: a status, not an action. It used to
+      // be a disabled button that still took the hand cursor and a hover
+      // fill, so it looked clickable and did nothing.
       else {
         reviewBtn = `
-          <button class="btn-rate" disabled>
+          <span class="status-badge s-${appt.status}">
+            <span class="status-dot"></span>
             ${statusText(appt.status)}
-          </button>
+          </span>
         `;
       }
 //  const icons = {
@@ -1252,6 +1289,10 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       setGroupError(group, 'Weekends are not available — please choose a weekday.');
       return false;
     }
+    if (CLOSED_DATES[el.value]) {
+      setGroupError(group, `The clinic is closed that day (${CLOSED_DATES[el.value]}) — please choose another date.`);
+      return false;
+    }
     clearGroupError(group);
     return true;
   }
@@ -1629,7 +1670,7 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
         await vbAlert(result.message || 'Failed to book appointment.');
         return;
       }
-      showBookingSuccess('Successfully booked! We’ve sent a confirmation to your email.');
+      showBookingSuccess('Request sent! The clinic confirms within 1 working day.');
       await new Promise((resolve) => setTimeout(resolve, 400));
       hideBookingOverlay();
       showDefaultSuccess();

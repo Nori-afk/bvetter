@@ -114,6 +114,8 @@ function applyFilters() {
         const matchSearch = !search || u.name.toLowerCase().includes(search) || u.email.toLowerCase().includes(search);
         return matchTab && matchSearch;
     });
+    // Applications waiting past 2 working days go to the top.
+    filteredUsers.sort((a, b) => (b.overdueSince ? 1 : 0) - (a.overdueSince ? 1 : 0));
     currentPage = 1;
     renderTable();
 }
@@ -164,7 +166,10 @@ function renderTable() {
         const selfClosed = u.status === 'blocked' && u.blockedReason === 'user_request'
             ? '<span class="am-status-note"> · Left by request</span>'
             : '';
-        const statusEl = `<span class="am-status ${u.status}"${blockedTitle}><span class="am-status-dot"></span>${capitalize(u.status)}${selfClosed}</span>`;
+        const overdueEl = u.overdueSince
+            ? ` <span class="am-overdue" title="Waiting more than 2 working days">Overdue</span>`
+            : '';
+        const statusEl = `<span class="am-status ${u.status}"${blockedTitle}><span class="am-status-dot"></span>${capitalize(u.status)}${selfClosed}</span>${overdueEl}`;
 
         let actionsEl = `
             <button class="am-btn-delete" onclick="openDeleteModal('${u.id}')" title="Delete user">
@@ -177,10 +182,12 @@ function renderTable() {
             actionsEl = `<button class="am-btn-block" onclick="openBlockModal('${u.id}')">Block</button>${actionsEl}`;
         }
 
+        // One Review button, not Approve/Reject on the row: deciding from
+        // the table meant rejecting someone without ever seeing their ID.
+        // Both decisions live in the review window, next to the document.
         if (u.status === 'pending') {
             actionsEl = `
-                <button class="am-btn-approve" onclick="openVerifyModal('${u.id}')">Approve</button>
-                <button class="am-btn-reject"  onclick="handleReject('${u.id}')">Reject</button>
+                <button class="am-btn-approve" onclick="openVerifyModal('${u.id}')">Review</button>
                 ${actionsEl}`;
         }
 
@@ -197,7 +204,7 @@ function renderTable() {
             : esc(u.email);
 
         return `
-            <tr data-id="${u.id}">
+            <tr data-id="${u.id}" class="am-row-clickable" tabindex="0" title="${u.status === 'pending' ? 'Review this application' : 'View account details'}">
                 <td>
                     <div class="am-user-cell">
                         ${avatarEl}
@@ -213,6 +220,19 @@ function renderTable() {
                 <td><div class="am-actions-cell">${actionsEl}</div></td>
             </tr>`;
     }).join('');
+
+    // The whole row opens the account; its own buttons (Review, Block,
+    // Delete...) keep doing just their one job.
+    tbody.querySelectorAll('tr[data-id]').forEach(tr => {
+        const open = (event) => {
+            if (event.target.closest('button, a, input')) return;
+            openAccount(tr.dataset.id);
+        };
+        tr.addEventListener('click', open);
+        tr.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(event); }
+        });
+    });
 
     const prevBtn = document.getElementById('prev-page');
     const nextBtn = document.getElementById('next-page');
@@ -627,7 +647,7 @@ function wireVerifyModal() {
                 `Link this application to clinic record #${linkTo.id} for ${linkTo.name}? `
                 + `The new account takes over ${linkTo.pets.length} pet(s)${pets} and `
                 + `${linkTo.visitCount} visit record(s). This cannot be undone.`,
-                'Link & Approve'
+                'Yes, link'
             );
             if (!ok) return;
         } else {
@@ -636,8 +656,7 @@ function wireVerifyModal() {
             // book — the same weight of decision as the linked path, it just
             // has less to spell out.
             const ok = await vbConfirm(
-                `Approve ${who} as a verified resident? They will be able to sign in and book appointments.`,
-                'Approve'
+                `Approve ${who} as a verified resident? They will be able to sign in and book appointments.`
             );
             if (!ok) return;
         }
@@ -666,8 +685,7 @@ function wireVerifyModal() {
         const applicant = allUsers.find(u => u.id === pendingVerifyId);
         const ok = await vbConfirm(
             `Reject ${applicant ? applicant.name : 'this application'}? The account is set to inactive `
-            + `and they will have to submit proof of residence again.`,
-            'Reject'
+            + `and they will have to submit proof of residence again.`
         );
         if (!ok) return;
 
@@ -731,18 +749,104 @@ function openVerifyModal(id) {
     document.getElementById('modal-verify').hidden = false;
 }
 
-/* ── Actions ────────────────────────────────────────────────── */
-async function handleReject(id) {
+/* ── ACCOUNT DETAILS ────────────────────────────────────────── */
+
+/** A pending application opens its review; every other account its details. */
+function openAccount(id) {
     const user = allUsers.find(u => u.id === id);
     if (!user) return;
-    if (!(await vbConfirm(`Reject application for ${user.name}?`, 'Reject'))) return;
+    if (user.status === 'pending') openVerifyModal(id);
+    else openDetailsModal(id);
+}
 
-    const result = await api.rejectUser(id).catch(() => ({ success: false }));
-    if (!result.success) {
-        await vbAlert(result.message || 'Could not reject this account.');
-        return;
+/**
+ * Read-only on purpose -- see the note at the top of this file: owners edit
+ * their own profile. This window only answers "who is this, and what has
+ * happened to the account", with the same Block/Unblock/Delete buttons the
+ * row already has.
+ */
+function openDetailsModal(id) {
+    const user = allUsers.find(u => u.id === id);
+    if (!user) return;
+    const esc = window.vbEscapeHtml;
+
+    const statusNote = {
+        inactivity: 'Blocked automatically for inactivity',
+        failed_login: 'Blocked after repeated failed login attempts',
+        user_request: 'The owner closed this account themselves',
+    }[user.blockedReason] || '';
+
+    const rows = [
+        ['Full Name', esc(user.name)],
+        ['Role', esc(user.roleLabel || capitalize(user.role))],
+        ['Status', esc(capitalize(user.status)) + (statusNote ? ` <span class="am-details-note">· ${esc(statusNote)}</span>` : '')],
+        ['Email', user.emailIsPlaceholder ? '<span class="am-email-none">No email on file</span>' : esc(user.email)],
+        ['Phone', esc(user.phone || '—')],
+        ['Joined', esc(formatDate(user.created))],
+        ['Last Sign-in', user.lastLogin ? esc(formatDate(user.lastLogin)) : (user.isWalkIn ? 'Never (clinic walk-in)' : 'Never')],
+    ];
+
+    if (user.role === 'owner') {
+        rows.push(['Barangay', esc(user.barangay || '—')]);
+        rows.push(['Pets on File', String(user.petCount || 0)]);
+
+        let verification = '—';
+        if (user.isWalkIn) {
+            verification = 'Added by a vet from a clinic visit';
+        } else if (user.verificationStatus === 'approved') {
+            const when = user.verifiedAt || user.reviewedAt;
+            verification = 'Approved'
+                + (user.reviewerName ? ` by ${esc(user.reviewerName)}` : '')
+                + (when ? ` on ${esc(formatDate(when))}` : '');
+        } else if (user.verificationStatus === 'rejected') {
+            verification = 'Not approved'
+                + (user.reviewerName ? ` by ${esc(user.reviewerName)}` : '')
+                + (user.reviewedAt ? ` on ${esc(formatDate(user.reviewedAt))}` : '')
+                + (user.reviewNotes ? ` <span class="am-details-note">· ${esc(user.reviewNotes)}</span>` : '');
+        }
+        rows.push(['Residency Check', verification]);
     }
-    await loadUsers();
+
+    const grid = document.getElementById('details-grid');
+    if (grid) {
+        grid.innerHTML = rows.map(([label, value]) => `
+            <div class="am-verify-field">
+                <label>${label}</label>
+                <span>${value}</span>
+            </div>`).join('');
+    }
+
+    const doc = document.getElementById('details-doc');
+    const docLink = document.getElementById('details-doc-link');
+    if (doc && docLink) {
+        doc.hidden = !user.idImage;
+        if (user.idImage) {
+            docLink.href = user.idImage;
+            docLink.textContent = user.proofName || 'View uploaded document';
+        }
+    }
+
+    // Same actions as the row, so nothing needs a trip back to the table.
+    const actions = document.getElementById('details-actions');
+    if (actions) {
+        let html = '';
+        if (user.status === 'blocked') html += `<button class="am-btn-unblock" type="button" data-details-action="unblock">Unblock</button>`;
+        else if (user.status === 'active' || user.status === 'inactive') html += `<button class="am-btn-block" type="button" data-details-action="block">Block</button>`;
+        html += `<button class="am-btn-reject-verify" type="button" data-details-action="delete">Delete</button>`;
+        actions.innerHTML = html;
+        actions.querySelectorAll('[data-details-action]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('modal-details').hidden = true;
+                const action = btn.dataset.detailsAction;
+                if (action === 'unblock') openUnblockModal(id);
+                if (action === 'block') openBlockModal(id);
+                if (action === 'delete') openDeleteModal(id);
+            });
+        });
+    }
+
+    setEl('details-modal-title', user.name);
+    document.getElementById('modal-details').hidden = false;
 }
 
 /* ── Helpers ─────────────────────────────────────────────────── */
