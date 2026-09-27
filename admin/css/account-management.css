@@ -1157,9 +1157,40 @@ body {
     .am-hero { flex-direction: column; align-items: flex-start; }
 }
 
-@media (max-width: 600px) {
-    .am-table th:nth-child(4),
-    .am-table td:nth-child(4) { display: none; }
+@media (max-width: 768px) {
+    .am-main { padding: 16px; }
+
+    /* Title above a full-width search, instead of "All User" squeezed
+       onto two lines beside it. */
+    .am-table-topbar { flex-direction: column; align-items: stretch; padding: 16px 16px 0; }
+    .am-table-controls { width: 100%; }
+    .am-search-wrap { flex: 1; }
+
+    /* The four tabs are wider than a phone. They scroll inside their own
+       row; left alone they widened the whole page. */
+    .am-tab-row { overflow-x: auto; padding: 12px 16px 0; scrollbar-width: none; }
+    .am-tab-row::-webkit-scrollbar { display: none; }
+    .am-tab { flex-shrink: 0; white-space: nowrap; }
+
+    /* Room around the row cards (shared/css/table-cards.css). */
+    .am-table-wrap { padding: 12px; }
+
+    /* Full-width in a card, the bare text buttons read as labels; give
+       them an edge so they look tappable. */
+    .am-actions-cell .am-btn-block,
+    .am-actions-cell .am-btn-delete {
+        background: #FFF5F3;
+        border: 1px solid #FAD4CC;
+        border-radius: var(--radius-sm);
+    }
+
+    .am-actions-cell .am-btn-unblock,
+    .am-actions-cell .am-btn-approve {
+        background: #EDFBEF;
+        border: 1px solid #BCEBC5;
+        border-radius: var(--radius-sm);
+    }
+    .am-table-footer { flex-wrap: wrap; gap: 10px; }
 }
 
 /* ── ADD ACCOUNT MODAL (dash-* form) ───────────────────────── */
