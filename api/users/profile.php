@@ -166,10 +166,13 @@ function getProfile($pdo, $userId)
         SELECT users.id, users.full_name, users.email, users.phone_number, users.profile_photo,
                users.two_factor_enabled, users.password_changed_at,
                veterinarian_profiles.education, veterinarian_profiles.specialization, veterinarian_profiles.bio,
-               roles.name AS role_name, users.created_at
+               roles.name AS role_name, users.created_at,
+               owner_profiles.barangay_id, owner_profiles.complete_address, barangays.name AS barangay_name
         FROM users
         LEFT JOIN roles ON roles.id = users.role_id
         LEFT JOIN veterinarian_profiles ON veterinarian_profiles.user_id = users.id
+        LEFT JOIN owner_profiles ON owner_profiles.user_id = users.id
+        LEFT JOIN barangays ON barangays.id = owner_profiles.barangay_id
         WHERE users.id = :id
         LIMIT 1
     ");
@@ -223,6 +226,11 @@ function getProfile($pdo, $userId)
             'role' => $user['role_name'],
             'roleLabel' => roleLabel($user['role_name']),
             'avatarUrl' => $user['profile_photo'] ?: '',
+            // Pet owners only (NULL for staff). The booking form's "Use my
+            // account details" switch fills its barangay and address from these.
+            'barangayId' => $user['barangay_id'] !== null ? (int) $user['barangay_id'] : null,
+            'barangay' => $user['barangay_name'],
+            'address' => $user['complete_address'],
             'twoFactorEnabled' => (bool) $user['two_factor_enabled'],
             'memberSince' => substr((string) $user['created_at'], 0, 4),
             'stats' => profileStats($pdo, $userId, $user['role_name']),

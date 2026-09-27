@@ -297,6 +297,21 @@ function parseSlotMinutes(slot) {
   return hour * 60 + minute;
 }
 
+/* Booked slots come back from the server as 24-hour 'HH:MM' ('15:00'); the
+   buttons on this page are labelled '3:00 PM'. Compared as plain strings
+   they never matched, so a time another owner already held stayed
+   clickable here and the owner only found out when the server refused it.
+   Both sides go through this before comparing. */
+function canonicalSlot(value) {
+  const text = String(value ?? '').trim();
+  const minutes = parseSlotMinutes(text);
+  if (minutes !== null) {
+    return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+  }
+  const match = text.match(/^(\d{1,2}):(\d{2})$/);
+  return match ? `${match[1].padStart(2, '0')}:${match[2]}` : text;
+}
+
 function isSlotPast(dateIso, slot) {
   if (!dateIso || dateIso !== toLocalIsoDate()) return false;
   const slotMinutes = parseSlotMinutes(slot);
@@ -311,9 +326,10 @@ function buildTimeSlots(unavailableSlots = []) {
   grid.innerHTML = '';
   selectedPreviewSlot = null;   // grid rebuilt — any earlier pick no longer applies
 
+  const booked = new Set(unavailableSlots.map(canonicalSlot));
   ALL_TIME_SLOTS.forEach(slot => {
     const div    = document.createElement('div');
-    const isNA   = unavailableSlots.includes(slot) || isSlotPast(selectedCalDate, slot);
+    const isNA   = booked.has(canonicalSlot(slot)) || isSlotPast(selectedCalDate, slot);
     div.className   = 'time-slot ' + (isNA ? 'na' : 'available');
     div.textContent = slot;
 
@@ -1164,6 +1180,7 @@ function getAverageRate(average) {
         vetId: selectedVetId || '',
         step: Math.min(currentStep, 4),
         slot: slotBtn ? slotBtn.dataset.slot : '',
+        useAccount: usingAccountDetails(),
         fields
       }));
     } catch {
@@ -1184,6 +1201,14 @@ function getAverageRate(average) {
       const el = document.getElementById(id);
       if (el && draft.fields[id] != null) el.value = draft.fields[id];
     });
+    // Put the account switch back where it was: with it on, the account's
+    // details win over whatever the draft held; with it off, the contact
+    // person the owner typed survives the reload.
+    const accountSwitch = document.getElementById('useAccountDetails');
+    if (accountSwitch && draft.useAccount === false) {
+      accountSwitch.checked = false;
+      applyAccountSwitch();
+    }
     if (draft.slot) {
       const slotBtn = document.querySelector(`#step3 .slot-btn[data-slot="${draft.slot}"]`);
       if (slotBtn) {
@@ -1195,7 +1220,10 @@ function getAverageRate(average) {
     toggleCspMode();
 
     // Only jump back into the wizard when the draft actually holds input.
-    const hasContent = draft.slot || Object.values(draft.fields).some((v) => String(v || '').trim() !== '');
+    // Owner fields filled from the account aren't the owner's own input.
+    const ownerIds = ['ownerName', 'ownerContact', 'ownerEmail', 'ownerBarangay', 'ownerAddress'];
+    const hasContent = draft.slot || Object.entries(draft.fields).some(([id, v]) =>
+      !(draft.useAccount !== false && ownerIds.includes(id)) && String(v || '').trim() !== '');
     if (!hasContent) return;
 
     pendingRestoreVetId = draft.vetId || null;
@@ -1326,6 +1354,25 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
   function validateStep(n) {
     let valid = true;
 
+    // With the account switch on, step 1 holds the account's own details:
+    // the server takes the owner from the login and ignores these fields, so
+    // there is nothing for the owner to get wrong.
+    if (n === 1 && usingAccountDetails()) {
+      return true;
+    }
+
+    // Switch off: name, number and email are the contact person for this
+    // appointment. Barangay and address stay the account's, so they aren't
+    // checked here.
+    if (n === 1 && !usingAccountDetails() && accountDetails) {
+      if (!validateRequiredField('ownerName', 'Please enter the name of the person bringing the pet.')) valid = false;
+      if (!VBForm.validatePHPhone('ownerContact'))                                                      valid = false;
+      if (!VBForm.validateEmail('ownerEmail'))                                                          valid = false;
+      if (!VBForm.validateNoMarkup('ownerName', 'Full name'))                                           valid = false;
+      if (!valid) document.querySelector('#step1 .has-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return valid;
+    }
+
     if (n === 1) {
       if (!validateRequiredField('ownerName',     'Please enter your full name.'))        valid = false;
       // Format, not just presence. These two used to be checked for emptiness
@@ -1343,13 +1390,25 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       if (!validateRequiredField('petName',  "Please enter your pet's name."))    valid = false;
       if (!validateRequiredField('petType',  'Please select a pet type.'))        valid = false;
       if (!validateRequiredField('petBreed', "Please enter your pet's breed."))   valid = false;
-      if (!validateRequiredField('petAgeValue', "Please enter your pet's age."))  valid = false;
+      // Age is optional for an appointment; Castration & Spay checks it in
+      // step 3, where that visit type is chosen.
       if (!validateRequiredField('petSex',   "Please select your pet's sex."))    valid = false;
       if (!VBForm.validateNoMarkup('petName',  "Pet's name"))                     valid = false;
       if (!VBForm.validateNoMarkup('petBreed', 'Breed'))                          valid = false;
       // petVaccDate is optional — not validated
     } else if (n === 3) {
       if (!validateRequiredField('visitType', 'Please select the type of visit.')) valid = false;
+      // The program screens pets by age, so it is required here -- but the
+      // field lives on step 2, so send the owner back to it.
+      if (isCspMode() && !(document.getElementById('petAgeValue')?.value || '').trim()) {
+        valid = false;
+        vbAlert("Castration & Spay registration needs your pet's age. Please add it in Pet Information.").then(() => {
+          goStep(2);
+          validateRequiredField('petAgeValue', "Please enter your pet's age for Castration & Spay.");
+          document.getElementById('petAgeValue')?.focus();
+        });
+        return valid;
+      }
       if (!isCspMode()) {
         if (!validateRequiredField('apptDate', 'Please select a preferred date.')) valid = false;
         else if (!validateApptDateWeekend())                                      valid = false;
@@ -1424,9 +1483,10 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       return;
     }
 
+    const bookedSet = new Set(booked.map(canonicalSlot));
     slotButtons.forEach(btn => {
       const slot = btn.dataset.slot;
-      const isUnavailable = booked.includes(slot) || isSlotPast(dateVal, slot);
+      const isUnavailable = bookedSet.has(canonicalSlot(slot)) || isSlotPast(dateVal, slot);
       btn.classList.toggle('unavailable', isUnavailable);
       if (isUnavailable && btn.classList.contains('selected')) {
         btn.classList.remove('selected');
@@ -1481,6 +1541,83 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
   /* ── Castration & Spay is a waiting-list registration, not a scheduled
      visit — swap the date/time-slot step for a static notice and make
      "Additional Details" optional whenever it's selected. ── */
+  /* ── "Use my account details" switch (step 1) ─────────────
+     On by default: the fields are filled from the owner's account and
+     locked, so nobody retypes them -- the server takes the owner from the
+     login anyway. Off means someone else is bringing the pet: name, number
+     and email become editable and are saved as this appointment's contact.
+     Barangay and address always stay the account's (they are the pet's
+     home, which the disease reports count). */
+  let accountDetails = null;
+
+  function usingAccountDetails() {
+    return document.getElementById('useAccountDetails')?.checked !== false;
+  }
+
+  function setOwnerField(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.tagName === 'SELECT' && value && ![...el.options].some(o => o.value === value || o.textContent === value)) {
+      el.add(new Option(value, value));
+    }
+    el.value = value || '';
+    VBForm.clearGroupError(el.closest('.form-group'));
+  }
+
+  function applyAccountSwitch() {
+    const on = usingAccountDetails();
+    const a = accountDetails || {};
+    if (on) {
+      setOwnerField('ownerName', a.name);
+      setOwnerField('ownerContact', a.phone);
+      setOwnerField('ownerEmail', a.email);
+    }
+    // Always the account's.
+    setOwnerField('ownerBarangay', a.barangay);
+    setOwnerField('ownerAddress', a.address);
+
+    ['ownerName', 'ownerContact', 'ownerEmail'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.readOnly = on;
+    });
+    const barangay = document.getElementById('ownerBarangay');
+    if (barangay) barangay.disabled = true;
+    const address = document.getElementById('ownerAddress');
+    if (address) address.readOnly = true;
+    document.getElementById('step1')?.classList.toggle('uses-account', on);
+
+    const hint = document.getElementById('useAccountHint');
+    if (hint) {
+      hint.textContent = on
+        ? 'Filled in from your account. Turn off if someone else is bringing your pet.'
+        : 'Enter the details of the person bringing your pet. The clinic will contact them about this appointment.';
+    }
+  }
+
+  async function loadAccountDetails() {
+    const session = window.VBetterAuth?.getSession?.() || {};
+    accountDetails = { name: session.name || '', phone: session.phone || '', email: session.email || '', barangay: '', address: '' };
+    applyAccountSwitch();
+    try {
+      const result = await api.getProfile();
+      if (result?.success && result.data) {
+        accountDetails = {
+          name: result.data.fullName || accountDetails.name,
+          phone: result.data.phone || accountDetails.phone,
+          email: result.data.email || accountDetails.email,
+          barangay: result.data.barangay || '',
+          address: result.data.address || ''
+        };
+        applyAccountSwitch();
+      }
+    } catch {
+      // Session values are already in place.
+    }
+  }
+
+  document.getElementById('useAccountDetails')?.addEventListener('change', applyAccountSwitch);
+  loadAccountDetails();
+
   function isCspMode() {
     return (document.getElementById('visitType')?.value || '') === 'Castration & Spay';
   }
@@ -1598,6 +1735,7 @@ const selectedSlot = document.querySelector('.slot-btn.selected');
     const payload = {
       action:               'create',
       owner_id:             session?.userId || session?.id || '',
+      use_account_details:  usingAccountDetails() ? '1' : '0',
       veterinarian_id:      selectedVetId || '',           // ← vet selected on page 1
       owner_name:           document.getElementById('ownerName')?.value.trim()    || '',
       owner_contact:        document.getElementById('ownerContact')?.value.trim() || '',

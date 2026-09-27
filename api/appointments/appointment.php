@@ -214,6 +214,51 @@ function ensureRescheduleSchema($pdo)
     return $ready = true;
 }
 
+/**
+ * contact_name / contact_phone: who to reach about this appointment when it
+ * isn't the account holder -- the booking form's "Use my account details"
+ * switch turned off because a family member or helper is bringing the pet.
+ * NULL means "the account holder", which is every booking made with the
+ * switch on. contact_email already existed and keeps its meaning.
+ */
+function ensureAppointmentContactSchema($pdo)
+{
+    static $ready = null;
+    if ($ready !== null) return $ready;
+    try {
+        if (!$pdo->query("SHOW COLUMNS FROM appointments LIKE 'contact_name'")->fetch()) {
+            $pdo->exec('ALTER TABLE appointments ADD COLUMN contact_name VARCHAR(150) NULL, ADD COLUMN contact_phone VARCHAR(30) NULL');
+        }
+    } catch (PDOException $e) {
+        error_log('[BVetter] appointment contact columns: ' . $e->getMessage());
+        return $ready = false;
+    }
+    return $ready = true;
+}
+
+/**
+ * The other person's name and number when the booking form's account switch
+ * is off. Returns [name, phone], or [null, null] when the account holder is
+ * the contact. Validated here because they are only kept in that case.
+ */
+function appointmentContactPerson($data)
+{
+    $usesAccount = (string) ($data['use_account_details'] ?? '1') !== '0';
+    if ($usesAccount || (int) ($data['owner_id'] ?? 0) <= 0) {
+        return [null, null];
+    }
+
+    $name = clean($data['owner_name'] ?? '');
+    $phone = clean($data['owner_contact'] ?? '');
+    $fieldError = firstIdentityFieldError([[$name, 'Contact name', 150, 2]]);
+    if ($name === '' || $fieldError !== null) {
+        respond(422, ['success' => false, 'message' => $fieldError ?? 'Please enter the name of the person bringing the pet.']);
+    }
+    assertValidPHMobile($phone);
+
+    return [$name, $phone];
+}
+
 function findOrCreateOwner($pdo, $data)
 {
     $ownerId = (int) ($data['owner_id'] ?? 0);
@@ -332,14 +377,18 @@ function findOrCreatePet($pdo, $ownerId, $data)
     $age     = clean($data['age'] ?? $data['pet_age'] ?? '');
     $sex     = clean($data['sex'] ?? $data['pet_sex'] ?? '');
 
-    // Breed, age and sex are asterisked on the booking form but used to fall
-    // through to '', '' and a 'male' default -- so a pet could be recorded as
+    // Breed and sex are asterisked on the booking form but used to fall
+    // through to '' and a 'male' default -- so a pet could be recorded as
     // male without anyone having said so.
+    //
+    // Age is optional for an appointment: many owners don't know it exactly,
+    // and the vet records it at the visit. Castration & Spay registration
+    // (api/castration-spay/program.php) still requires it, because it decides
+    // whether a pet is old enough for the procedure.
     $missing = [];
     if ($petName === '') $missing[] = 'name';
     if ($species === '') $missing[] = 'type';
     if ($breed === '')   $missing[] = 'breed';
-    if ($age === '')     $missing[] = 'age';
     if ($sex === '')     $missing[] = 'sex';
 
     if ($missing) {
@@ -434,6 +483,9 @@ function listAppointments($pdo, $data)
                    NULL AS proposed_time_slot,
                    NULL AS reschedule_reason,') . '
         ' . (ensureTimedRulesSchema($pdo) ? 'appointments.expires_at,' : 'NULL AS expires_at,') . '
+        ' . (ensureAppointmentContactSchema($pdo)
+                ? 'appointments.contact_name, appointments.contact_phone,'
+                : 'NULL AS contact_name, NULL AS contact_phone,') . '
         appointments.description,
         appointments.notes,
         appointments.created_at,
@@ -501,6 +553,12 @@ function listAppointments($pdo, $data)
                 'email' => $row['owner_email'],
                 'phone' => $row['owner_phone'],
             ],
+            // Set only when someone other than the account holder is bringing
+            // the pet (the booking form's account switch turned off).
+            'contact' => $row['contact_name'] ? [
+                'name' => $row['contact_name'],
+                'phone' => $row['contact_phone'],
+            ] : null,
         ];
     }, $rows);
 
@@ -636,6 +694,8 @@ function createAppointment($pdo, $data)
         ]);
     }
 
+    [$contactName, $contactPhone] = appointmentContactPerson($data);
+
     $ownerId = findOrCreateOwner($pdo, $data);
     $petId = findOrCreatePet($pdo, $ownerId, $data);
 
@@ -668,6 +728,10 @@ function createAppointment($pdo, $data)
     ]);
 
     $appointmentId = (int) $pdo->lastInsertId();
+    if ($contactName !== null && ensureAppointmentContactSchema($pdo)) {
+        $pdo->prepare('UPDATE appointments SET contact_name = :name, contact_phone = :phone WHERE id = :id')
+            ->execute([':name' => $contactName, ':phone' => $contactPhone, ':id' => $appointmentId]);
+    }
     $pdo->commit();
     unlockSlot($pdo, $slotLock);
 
@@ -1466,6 +1530,7 @@ if (in_array($action, ['list', 'create', 'submit_review'], true)) {
 $rescheduleSchemaReady = ensureRescheduleSchema($pdo);
 // Same reason: the time-limit columns are settled before any transaction.
 ensureTimedRulesSchema($pdo);
+ensureAppointmentContactSchema($pdo);
 runTimedRules($pdo);
 loadClinicCalendar($pdo);
 
