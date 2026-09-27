@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
   <link rel="stylesheet" href="../../shared/css/form-validation.css"/>
-  <link rel="stylesheet" href="../css/book-appointment.css?v=20260925-holidays"/>
+  <link rel="stylesheet" href="../css/book-appointment.css?v=20260928-bookingform"/>
 </head>
 <body>
 
@@ -263,6 +263,20 @@
     <div id="step1" class="step-content">
       <div class="form-card">
         <div class="form-card-title">Owner Information</div>
+        <!--
+          On by default: the fields come from the owner's account, so nobody
+          retypes them. Off means someone else is bringing the pet -- name,
+          number and email then become this appointment's contact.
+          Barangay and address always stay the account's (see book-appointment.js).
+        -->
+        <label class="account-switch" for="useAccountDetails">
+          <input type="checkbox" id="useAccountDetails" checked/>
+          <span class="account-switch-track" aria-hidden="true"><span class="account-switch-knob"></span></span>
+          <span class="account-switch-text">
+            <strong>Use my account details</strong>
+            <span id="useAccountHint">Filled in from your account. Turn off if someone else is bringing your pet.</span>
+          </span>
+        </label>
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label">Full Name *</label>
@@ -296,6 +310,7 @@
           <div class="form-group full">
             <label class="form-label">Complete Address *</label>
             <input type="text" class="form-input" placeholder="House No., Street, Purok / Subdivision" id="ownerAddress" required/>
+            <span class="field-hint">Your pet's barangay and address come from your account. <a href="account-settings.html">Change them in Account Settings</a>.</span>
           </div>
         </div>
         <div class="step-nav">
@@ -330,9 +345,9 @@
             <input type="text" class="form-input" placeholder="e.g. Golden Retriever" id="petBreed" required/>
           </div>
           <div class="form-group">
-            <label class="form-label">Age *</label>
+            <label class="form-label">Age <span class="label-optional">(optional, needed for Castration &amp; Spay)</span></label>
             <div class="field-row">
-              <input type="number" min="0" step="1" class="form-input" placeholder="e.g. 2" id="petAgeValue" required/>
+              <input type="number" min="0" step="1" class="form-input" placeholder="e.g. 2" id="petAgeValue"/>
               <select class="form-input" id="petAgeUnit">
                 <option>Years</option>
                 <option>Months</option>
@@ -718,7 +733,7 @@
   <script src="../js/api.js?v=20260819-authfix"></script>
   <!-- Must load before book-appointment.js, which calls VBForm at validate time. -->
   <script src="../../shared/js/form-validation.js"></script>
-  <script src="../js/book-appointment.js?v=20260925-holidays"></script>
+  <script src="../js/book-appointment.js?v=20260928-bookingform"></script>
   <script src="../js/site-settings.js?v=20260829-preview"></script>
 </body>
 </html>

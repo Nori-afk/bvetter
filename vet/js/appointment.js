@@ -121,7 +121,11 @@ function normalizeAppointment(item, index) {
 		veterinarianId: item.veterinarian_id ? Number(item.veterinarian_id) : null,
 		veterinarian: item.veterinarian ? String(item.veterinarian) : '',
 		timeSlot: canonicalSlot(item.time_slot || ''),
-		expiresAt: item.expires_at || null
+		expiresAt: item.expires_at || null,
+		ownerPhone: item.owner_info?.phone || '',
+		// Someone other than the account holder bringing the pet (the owner
+		// turned off "Use my account details" when booking).
+		contact: item.contact && item.contact.name ? { name: String(item.contact.name), phone: String(item.contact.phone || '') } : null
 	};
 }
 
@@ -526,6 +530,8 @@ function detailsModalTemplate(appointment) {
 					</div>
 					<div class="appt-info-rows">
 						<div class="appt-info-row"><span>Owner</span><strong>${appointment.owner}</strong></div>
+						${appointment.ownerPhone ? `<div class="appt-info-row"><span>Owner Phone</span><strong>${escapeAttr(appointment.ownerPhone)}</strong></div>` : ''}
+						${appointment.contact ? `<div class="appt-info-row"><span>Bringing the Pet</span><strong>${escapeAttr(appointment.contact.name)}${appointment.contact.phone ? ' &middot; ' + escapeAttr(appointment.contact.phone) : ''}</strong></div>` : ''}
 						<div class="appt-info-row"><span>Patient</span><strong>${appointment.patient}</strong></div>
 						<div class="appt-info-row"><span>Type</span><strong>${appointment.type}</strong></div>
 					</div>
