@@ -1162,10 +1162,10 @@ function renderList() {
 				` : ''}
 
 				<div class="table-wrap">
-					<table class="records-table">
+					<table class="records-table" data-cards>
 						<thead>
 							<tr>
-								<th class="th-select"><input type="checkbox" id="select-all-checkbox" class="row-select-checkbox" data-page-ids="${pageIds.join(',')}" ${allSelectedOnPage ? 'checked' : ''} aria-label="Select all patients on this page"></th>
+								<th class="th-select" data-card="select"><input type="checkbox" id="select-all-checkbox" class="row-select-checkbox" data-page-ids="${pageIds.join(',')}" ${allSelectedOnPage ? 'checked' : ''} aria-label="Select all patients on this page"></th>
 								<th>Patient</th>
 								<th>Owner</th>
 								<th>Last Visit</th>

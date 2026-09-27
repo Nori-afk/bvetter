@@ -745,16 +745,9 @@ body {
 		align-items: flex-start;
 	}
 
-	/* Patient report table stays a real table (same look as desktop) —
-	   just scrolls horizontally to reach the columns that don't fit,
-	   with a visible thin scrollbar so it's clear there's more to see. */
+	/* Each report row is a card on phones (shared/css/table-cards.css),
+	   so every column shows without scrolling sideways. */
 	.table-wrap {
-		-webkit-overflow-scrolling: touch;
-		scrollbar-width: thin;
-		scrollbar-color: #c3c6d2 transparent;
+		padding: 12px;
 	}
-
-	.table-wrap::-webkit-scrollbar { height: 6px; }
-	.table-wrap::-webkit-scrollbar-thumb { background: #c3c6d2; border-radius: 4px; }
-	.table-wrap::-webkit-scrollbar-track { background: transparent; }
 }

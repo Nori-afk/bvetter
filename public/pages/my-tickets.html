@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
   <link rel="stylesheet" href="../css/my-tickets.css?v=20260928-mobile"/>
+    <link rel="stylesheet" href="../../shared/css/table-cards.css?v=20260928-mobile">
 </head>
 <body>
 
@@ -93,11 +94,11 @@
     <section class="card mt-table-card">
       <div class="card-head"><h3>My Tickets</h3></div>
       <div class="table-wrap">
-        <table>
+        <table data-cards>
           <thead>
             <tr>
               <th>Ticket #</th>
-              <th>Subject</th>
+              <th data-card="title">Subject</th>
               <th>Status</th>
               <th>Submitted</th>
             </tr>
@@ -116,5 +117,6 @@
   <script src="../js/nav.js?v=20260829-preview"></script>
   <script src="../js/api.js?v=20260819-authfix"></script>
   <script src="../js/my-tickets.js?v=20260819-idor"></script>
+    <script src="../../shared/js/table-cards.js?v=20260928-mobile"></script>
 </body>
 </html>
