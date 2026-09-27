@@ -71,6 +71,12 @@
             width: calc(100% - var(--sidebar-width-expanded) - var(--sidebar-main-gap) - var(--shell-gap));
         }
 
+        /* .sec-main is only as tall as the screen, and flex items shrink to
+           fit by default. The session card clips its overflow, so it was
+           the one that gave way: cut to a single row on a laptop and to
+           nothing at all on a phone. */
+        .sec-main > * { flex-shrink: 0; }
+
         /* ── BREADCRUMB ── */
         .sec-breadcrumb {
             display: flex;
