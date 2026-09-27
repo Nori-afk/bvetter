@@ -829,7 +829,10 @@ html, body {
         margin-left: calc(var(--shell-gap) + var(--sidebar-width-expanded) + 12px);
         width: calc(100% - (var(--shell-gap) + var(--sidebar-width-expanded) + 12px));
     }
-    .content-grid { grid-template-columns: 1fr; }
+    /* minmax(0, 1fr), not 1fr: a 1fr column never shrinks below its widest
+       unbreakable content (the recent-accounts emails), which made every
+       card ~140px wider than a phone and clipped the right edge. */
+    .content-grid { grid-template-columns: minmax(0, 1fr); }
     .KPI { grid-template-columns: repeat(2, 1fr); }
     .card { padding: 20px; }
     .chart-container { height: 230px; }
@@ -847,9 +850,24 @@ html, body {
 @media (max-width: 768px) {
     .mainContent { margin-left: 0; width: 100%; height: auto; padding-top: 0; }
     .topHeader { flex-direction: column; gap: 12px; padding: 16px; }
+
+    /* Same rule as the vet dashboard (vet/css/index.css): the name/avatar
+       and the notification/settings/help icons repeat what the shared
+       sidebar's mobile bar already shows, so only the two actions stay. */
+    .header-identity,
+    .iconheader,
+    .header-divider { display: none; }
+
     .rightSide { flex-direction: column; width: 100%; gap: 12px; }
-    .buttonHolder { flex-direction: column; width: 100%; gap: 8px; }
-    .btn-secondary { width: 100%; padding: 10px 12px; font-size: 12px; }
+    .buttonHolder { flex-direction: row; width: 100%; gap: 8px; }
+    .btn-secondary {
+        flex: 1;
+        min-width: 0;
+        width: auto;
+        padding: 10px 12px;
+        font-size: 12px;
+        justify-content: center;
+    }
     .Greetings { padding: 20px 16px; margin: 16px; }
     .Greetings h1 { font-size: 24px; }
     .KPI { grid-template-columns: repeat(2, 1fr); padding: 0 16px 16px; gap: 12px; }
