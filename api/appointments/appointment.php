@@ -839,7 +839,7 @@ function updateAppointmentStatus($pdo, $data)
     respond(200, [
         'success' => true,
         'message' => $declined
-            ? 'Appointment confirmed. ' . count($declined) . ' other request(s) for the same time were declined and their owners notified.'
+            ? 'Confirmed. ' . count($declined) . (count($declined) === 1 ? ' other request for this time was' : ' other requests for this time were') . ' declined.'
             : 'Appointment status updated.',
         'declined' => $declined,
     ]);

@@ -61,11 +61,11 @@ function registrationEmailMessage(string $state): string
 {
     switch ($state) {
         case 'registered':
-            return 'This email is already registered. Log in, or use Forgot Password if you can\'t remember your password.';
+            return 'This email is already registered.';
         case 'pending':
-            return 'An application with this email is already waiting for review. You will get an email once it is decided.';
+            return 'An application with this email is already under review.';
         case 'rejected':
-            return 'Your previous application with this email was not approved. You can submit a new one below.';
+            return 'Your previous application was not approved. You can apply again.';
         case 'walk_in':
             return 'The clinic already has a record under this email address from an earlier visit. You have not set a password yet, so use "Forgot Password" on the login page to create one. Your pet records will already be there.';
         default:

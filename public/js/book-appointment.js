@@ -320,29 +320,14 @@ function isSlotPast(dateIso, slot) {
   return slotMinutes <= (now.getHours() * 60 + now.getMinutes());
 }
 
-/* Shown under a time grid when the picked time already has a request the
-   vet hasn't confirmed: it can still be requested, but the vet confirms
-   only one request per time. */
-const REQUESTED_NOTE = 'Another owner has requested this time. The vet will confirm one request; if it isn\'t yours, you\'ll be asked to choose another time.';
-
-function slotNote(anchor, id, show) {
-  let note = document.getElementById(id);
-  if (!note && anchor) {
-    note = document.createElement('p');
-    note.id = id;
-    note.className = 'slot-requested-note';
-    note.textContent = REQUESTED_NOTE;
-    anchor.insertAdjacentElement('afterend', note);
-  }
-  if (note) note.hidden = !show;
-}
-
+/* A time another owner has requested but the vet hasn't confirmed shows as
+   "Requested" (see the legend). It can still be requested -- the vet
+   confirms one request per time and the rest are declined. */
 function buildTimeSlots(unavailableSlots = [], requestedSlots = []) {
   const grid = document.getElementById('timeGrid');
   if (!grid) return;
   grid.innerHTML = '';
   selectedPreviewSlot = null;   // grid rebuilt — any earlier pick no longer applies
-  slotNote(grid, 'timeGridNote', false);
 
   const booked = new Set(unavailableSlots.map(canonicalSlot));
   const requested = new Set(requestedSlots.map(canonicalSlot));
@@ -352,14 +337,13 @@ function buildTimeSlots(unavailableSlots = [], requestedSlots = []) {
     const isRequested = !isNA && requested.has(canonicalSlot(slot));
     div.className   = 'time-slot ' + (isNA ? 'na' : 'available') + (isRequested ? ' requested' : '');
     div.textContent = slot;
-    if (isRequested) div.title = 'Requested by another owner — not confirmed yet';
+    if (isRequested) div.title = 'Requested';
 
     if (!isNA) {
       div.addEventListener('click', () => {
         grid.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
         div.classList.add('selected');
         selectedPreviewSlot = slot;
-        slotNote(grid, 'timeGridNote', isRequested);
       });
     }
 
@@ -1424,7 +1408,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       // field lives on step 2, so send the owner back to it.
       if (isCspMode() && !(document.getElementById('petAgeValue')?.value || '').trim()) {
         valid = false;
-        vbAlert("Castration & Spay registration needs your pet's age. Please add it in Pet Information.").then(() => {
+        vbAlert("Castration & Spay needs your pet's age.").then(() => {
           goStep(2);
           validateRequiredField('petAgeValue', "Please enter your pet's age for Castration & Spay.");
           document.getElementById('petAgeValue')?.focus();
@@ -1514,7 +1498,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       const isUnavailable = bookedSet.has(canonicalSlot(slot)) || isSlotPast(dateVal, slot);
       btn.classList.toggle('unavailable', isUnavailable);
       btn.classList.toggle('requested', !isUnavailable && requestedSet.has(canonicalSlot(slot)));
-      btn.title = !isUnavailable && requestedSet.has(canonicalSlot(slot)) ? 'Requested by another owner — not confirmed yet' : '';
+      btn.title = !isUnavailable && requestedSet.has(canonicalSlot(slot)) ? 'Requested' : '';
       if (isUnavailable && btn.classList.contains('selected')) {
         btn.classList.remove('selected');
       }
@@ -1612,13 +1596,6 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     const address = document.getElementById('ownerAddress');
     if (address) address.readOnly = true;
     document.getElementById('step1')?.classList.toggle('uses-account', on);
-
-    const hint = document.getElementById('useAccountHint');
-    if (hint) {
-      hint.textContent = on
-        ? 'Filled in from your account. Turn off if someone else is bringing your pet.'
-        : 'Enter the details of the person bringing your pet. The clinic will contact them about this appointment.';
-    }
   }
 
   async function loadAccountDetails() {
@@ -1835,7 +1812,7 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
         await vbAlert(result.message || 'Failed to book appointment.');
         return;
       }
-      showBookingSuccess('Request sent! The clinic confirms within 1 working day.');
+      showBookingSuccess('Request sent! We’ve sent a confirmation to your email.');
       await new Promise((resolve) => setTimeout(resolve, 400));
       hideBookingOverlay();
       showDefaultSuccess();
@@ -1888,7 +1865,6 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
       document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       clearGroupError(btn.closest('.form-group'));
-      slotNote(btn.closest('.slot-grid'), 'step3SlotNote', btn.classList.contains('requested'));
     });
   });
 

@@ -312,7 +312,7 @@
             <div class="wm-form-group" style="margin-bottom:10px;">
               <label class="wm-label" for="cp-closed-dates">Extra closed days (one per line)</label>
               <textarea class="wm-textarea" id="cp-closed-dates" placeholder="2026-03-20 Eid'l Fitr&#10;2026-05-15 Baliwag Town Fiesta"></textarea>
-              <span style="font-size:12px;color:var(--text-tertiary);">Write each date as YYYY-MM-DD, optionally followed by its name. Regular holidays, Holy Week, National Heroes Day, Ninoy Aquino Day, All Saints' Day, Dec 8 and Dec 31 are already included — add Eid, Chinese New Year, proclaimed special days and local closures here.</span>
+              <span style="font-size:12px;color:var(--text-tertiary);">One per line, e.g. 2026-03-20 Eid'l Fitr. Regular holidays are already included.</span>
             </div>
             <p class="wm-label" style="margin:12px 0 6px;">Closed in the next 4 months</p>
             <ul class="wm-closed-list" id="cp-closed-upcoming"></ul>
@@ -429,7 +429,7 @@
   <script src="../../public/js/api.js?v=20260818-notif"></script>
   <!-- Must load before website-management.js, which calls VBForm at save time. -->
   <script src="../../shared/js/form-validation.js"></script>
-  <script src="../js/website-management.js?v=20260925-closed"></script>
+  <script src="../js/website-management.js?v=20260928-wording"></script>
 
 </body>
 </html>
