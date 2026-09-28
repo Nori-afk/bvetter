@@ -142,9 +142,9 @@ function expiryLabel(item) {
 }
 
 /**
- * Pending requests sharing a time with another pending request. New requests
- * can't do this any more (a pending request holds its slot), but ones made
- * before that change can -- and only the first of a pair can be confirmed.
+ * Pending requests sharing a time with another pending request. Several
+ * owners may ask for the same time; the vet picks one to confirm, and the
+ * others for that time are declined automatically when they do.
  */
 function sameSlotPendingIds() {
 	const pending = state.appointments.filter((item) => item.status === 'pending' && item.timeSlot);
@@ -336,7 +336,7 @@ function renderPendingList() {
 	ui.pendingHolder.innerHTML = pending.map((item) => {
 		const dt = formatDateTime(item.datetime);
 		const clash = clashing.has(item.id)
-			? '<p class="slot-clash">&#9888; Same time as another request</p>'
+			? '<p class="slot-clash">&#9888; Same time as another request &middot; confirming one declines the rest</p>'
 			: '';
 		return `
 			<article class="pending-item" data-id="${item.id}">
@@ -439,6 +439,10 @@ async function updateStatus(id, nextStatus, { skipReload } = {}) {
 		if (!result.ok) {
 			await vbAlert(result.error || 'Failed to update appointment.');
 			return;
+		}
+		// Confirming a time others had also requested declines theirs.
+		if (Array.isArray(result.data?.declined) && result.data.declined.length && !skipReload) {
+			await vbAlert(result.data.message || 'Other requests for the same time were declined.');
 		}
 	}
 	if (skipReload) {

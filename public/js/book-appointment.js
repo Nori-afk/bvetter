@@ -265,7 +265,7 @@ async function fetchAndBuildSlots() {
     });
     const json = await res.json();
     console.log('[slots] booked:', json.booked);
-    buildTimeSlots(json.success ? (json.booked || []) : []);
+    buildTimeSlots(json.success ? (json.booked || []) : [], json.success ? (json.requested || []) : []);
   } catch (err) {
     console.error('[slots] fetch failed:', err);
     buildTimeSlots([]);
@@ -320,24 +320,46 @@ function isSlotPast(dateIso, slot) {
   return slotMinutes <= (now.getHours() * 60 + now.getMinutes());
 }
 
-function buildTimeSlots(unavailableSlots = []) {
+/* Shown under a time grid when the picked time already has a request the
+   vet hasn't confirmed: it can still be requested, but the vet confirms
+   only one request per time. */
+const REQUESTED_NOTE = 'Another owner has requested this time. The vet will confirm one request; if it isn\'t yours, you\'ll be asked to choose another time.';
+
+function slotNote(anchor, id, show) {
+  let note = document.getElementById(id);
+  if (!note && anchor) {
+    note = document.createElement('p');
+    note.id = id;
+    note.className = 'slot-requested-note';
+    note.textContent = REQUESTED_NOTE;
+    anchor.insertAdjacentElement('afterend', note);
+  }
+  if (note) note.hidden = !show;
+}
+
+function buildTimeSlots(unavailableSlots = [], requestedSlots = []) {
   const grid = document.getElementById('timeGrid');
   if (!grid) return;
   grid.innerHTML = '';
   selectedPreviewSlot = null;   // grid rebuilt — any earlier pick no longer applies
+  slotNote(grid, 'timeGridNote', false);
 
   const booked = new Set(unavailableSlots.map(canonicalSlot));
+  const requested = new Set(requestedSlots.map(canonicalSlot));
   ALL_TIME_SLOTS.forEach(slot => {
     const div    = document.createElement('div');
     const isNA   = booked.has(canonicalSlot(slot)) || isSlotPast(selectedCalDate, slot);
-    div.className   = 'time-slot ' + (isNA ? 'na' : 'available');
+    const isRequested = !isNA && requested.has(canonicalSlot(slot));
+    div.className   = 'time-slot ' + (isNA ? 'na' : 'available') + (isRequested ? ' requested' : '');
     div.textContent = slot;
+    if (isRequested) div.title = 'Requested by another owner — not confirmed yet';
 
     if (!isNA) {
       div.addEventListener('click', () => {
         grid.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
         div.classList.add('selected');
         selectedPreviewSlot = slot;
+        slotNote(grid, 'timeGridNote', isRequested);
       });
     }
 
@@ -1466,6 +1488,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     }
 
     let booked = [];
+    let requested = [];
     try {
       const res = await fetch('/api/appointments/appointment.php', {
         method : 'POST',
@@ -1478,16 +1501,20 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       });
       const json = await res.json();
       booked = json.success ? (json.booked || []) : [];
+      requested = json.success ? (json.requested || []) : [];
     } catch (err) {
       console.error('[step3 slots] fetch failed:', err);
       return;
     }
 
     const bookedSet = new Set(booked.map(canonicalSlot));
+    const requestedSet = new Set(requested.map(canonicalSlot));
     slotButtons.forEach(btn => {
       const slot = btn.dataset.slot;
       const isUnavailable = bookedSet.has(canonicalSlot(slot)) || isSlotPast(dateVal, slot);
       btn.classList.toggle('unavailable', isUnavailable);
+      btn.classList.toggle('requested', !isUnavailable && requestedSet.has(canonicalSlot(slot)));
+      btn.title = !isUnavailable && requestedSet.has(canonicalSlot(slot)) ? 'Requested by another owner — not confirmed yet' : '';
       if (isUnavailable && btn.classList.contains('selected')) {
         btn.classList.remove('selected');
       }
@@ -1861,6 +1888,7 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
       document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       clearGroupError(btn.closest('.form-group'));
+      slotNote(btn.closest('.slot-grid'), 'step3SlotNote', btn.classList.contains('requested'));
     });
   });
 
