@@ -596,6 +596,10 @@ body {
   background: var(--color-green);
 }
 
+.legend-dot.rq {
+  background: #f59e0b;
+}
+
 .time-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -2319,3 +2323,30 @@ body {
   letter-spacing: 0;
   color: var(--text-muted, #64748b);
 }
+
+/* A time another owner has requested but the vet hasn't confirmed. Still
+   bookable -- the vet confirms one request per time and declines the rest. */
+.time-slot.requested,
+.slot-btn.requested {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.time-slot.requested.selected,
+.slot-btn.requested.selected {
+  outline: 2px solid #f59e0b;
+  outline-offset: 1px;
+}
+
+.slot-requested-note {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.slot-requested-note[hidden] { display: none; }

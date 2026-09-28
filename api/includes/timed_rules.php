@@ -7,8 +7,8 @@
  *
  *   Appointment requests -- expire after 1 working day, or at the slot's
  *     start if that comes first. A request nobody confirmed is meaningless
- *     once its time arrives, and a pending request holds its slot, so it
- *     must not hold it forever. The owner is told to book again. They are
+ *     once its time arrives, and its owner shouldn't be left waiting on it.
+ *     The owner is told to book again. They are
  *     never auto-confirmed: nothing blocks clinic slots on field days, so an
  *     auto-confirm while the vets are out would tell residents to come to an
  *     empty clinic.

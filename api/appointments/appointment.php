@@ -678,13 +678,13 @@ function createAppointment($pdo, $data)
 
     $pdo->beginTransaction();
 
-    // Re-check the slot server-side (mirrors getBookedSlots) so a race between
-    // two owners — or a stale slot list on the client — can't double-book a
-    // vet. A PENDING request holds its slot too (first come, first served):
-    // before, only a confirmed booking did, so two owners could request the
-    // same time and a vet could confirm both. Shares slotConflictExists() with
-    // the reschedule path so a slot held for a pending reschedule can't be
-    // booked out from under it.
+    // Re-check the slot server-side (mirrors getBookedSlots) so a stale slot
+    // list on the client can't request a time the vet has already given away.
+    // Only a CONFIRMED booking takes a slot: several owners may request the
+    // same time, the vet confirms one, and the rest are declined then (see
+    // declineOtherRequestsForSlot()). Shares slotConflictExists() with the
+    // reschedule path so a slot held for a pending reschedule can't be booked
+    // out from under it.
     if (slotConflictExists($pdo, $veterinarianId, $preferredDate, $timeSlot, 0)) {
         $pdo->rollBack();
         unlockSlot($pdo, $slotLock);
@@ -767,10 +767,9 @@ function updateAppointmentStatus($pdo, $data)
     }
 
     // Confirming used to skip the slot check entirely, so with two requests
-    // for one time the vet could confirm both. Pending requests aren't counted
-    // here -- this one is itself pending, and so may be a same-slot request
-    // left over from before pending requests held their slot. Whichever of
-    // those the vet confirms first wins; the second is refused.
+    // for one time the vet could confirm both. Several owners may request the
+    // same time; the first one the vet confirms takes it, and any further
+    // confirm for that time is refused.
     $slotLock = null;
     if ($status === 'confirmed') {
         $slotRow = $pdo->prepare('SELECT veterinarian_id, preferred_date, time_slot, status FROM appointments WHERE id = :id LIMIT 1');
@@ -785,7 +784,7 @@ function updateAppointmentStatus($pdo, $data)
         }
         if ($slot) {
             $slotLock = lockSlot($pdo, $slot['preferred_date'], $slot['time_slot']);
-            if (slotConflictExists($pdo, (int) $slot['veterinarian_id'], $slot['preferred_date'], $slot['time_slot'], $appointmentId, false)) {
+            if (slotConflictExists($pdo, (int) $slot['veterinarian_id'], $slot['preferred_date'], $slot['time_slot'], $appointmentId)) {
                 unlockSlot($pdo, $slotLock);
                 respond(409, [
                     'success' => false,
@@ -814,7 +813,17 @@ function updateAppointmentStatus($pdo, $data)
         ':review_notes' => $reviewNotes,
         ':id' => $appointmentId,
     ]);
+
+    // The time now belongs to this booking; everyone else who asked for it
+    // is told straight away rather than waiting for their request to expire.
+    $declined = [];
+    if ($status === 'confirmed' && !empty($slot)) {
+        $declined = declineOtherRequestsForSlot($pdo, $appointmentId, (int) $slot['veterinarian_id'], $slot['preferred_date'], $slot['time_slot']);
+    }
     unlockSlot($pdo, $slotLock);
+    foreach ($declined as $declinedId) {
+        notifyOwnerSlotGivenAway($pdo, $declinedId);
+    }
 
     if ($status === 'confirmed') {
         ensurePatientRecordFromAppointment($pdo, $appointmentId);
@@ -829,8 +838,85 @@ function updateAppointmentStatus($pdo, $data)
 
     respond(200, [
         'success' => true,
-        'message' => 'Appointment status updated.'
+        'message' => $declined
+            ? 'Appointment confirmed. ' . count($declined) . ' other request(s) for the same time were declined and their owners notified.'
+            : 'Appointment status updated.',
+        'declined' => $declined,
     ]);
+}
+
+/**
+ * Once a vet confirms a time, every other pending request for that same
+ * date, time and vet is declined (reviewed_by stays NULL -- the system did
+ * it, not a person). Mirrors slotConflictExists()'s vet rule: a booking with
+ * no vet assigned competes with every vet's requests at that time, and vice
+ * versa. Returns the declined ids; the caller notifies their owners.
+ */
+function declineOtherRequestsForSlot($pdo, $confirmedId, $vetId, $date, $timeSlot)
+{
+    $vetClause = $vetId > 0 ? 'AND (veterinarian_id = :vet_id OR veterinarian_id IS NULL)' : '';
+    $params = [':id' => $confirmedId, ':date' => $date, ':slot' => $timeSlot];
+    if ($vetId > 0) $params[':vet_id'] = $vetId;
+
+    $stmt = $pdo->prepare("
+        SELECT id FROM appointments
+        WHERE id <> :id AND status = 'pending'
+          AND preferred_date = :date AND time_slot = :slot
+          {$vetClause}
+    ");
+    $stmt->execute($params);
+
+    $declined = [];
+    $update = $pdo->prepare("
+        UPDATE appointments
+        SET status = 'rejected', cancelled_at = NOW(),
+            review_notes = 'This time was given to another request.'
+        WHERE id = :id AND status = 'pending'
+    ");
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id) {
+        $update->execute([':id' => $id]);
+        if ($update->rowCount() === 1) $declined[] = (int) $id;
+    }
+    return $declined;
+}
+
+/** Tells an owner the time they asked for went to someone else. */
+function notifyOwnerSlotGivenAway($pdo, $appointmentId)
+{
+    $stmt = $pdo->prepare('
+        SELECT appointments.preferred_date, appointments.time_slot, appointments.contact_email,
+               owners.id AS owner_id, owners.full_name AS owner_name, owners.email AS owner_email
+        FROM appointments
+        INNER JOIN users owners ON owners.id = appointments.owner_id
+        WHERE appointments.id = :id
+        LIMIT 1
+    ');
+    $stmt->execute([':id' => (int) $appointmentId]);
+    $row = $stmt->fetch();
+    if (!$row) return;
+
+    $message = "The time you requested, {$row['preferred_date']} at {$row['time_slot']}, was given to another request. Please choose another slot.";
+
+    try {
+        notifyUser($pdo, (int) $row['owner_id'], 'appointment_status', 'Time Slot Taken', $message, (int) $appointmentId);
+
+        $recipientEmail = $row['contact_email'] ?: $row['owner_email'];
+        if (!$recipientEmail || !userWantsNotification($pdo, (int) $row['owner_id'], 'appointment_reminders')) return;
+
+        sendAppMail(
+            $recipientEmail,
+            clean($row['owner_name'] ?? ''),
+            'BVetter – Please choose another time',
+            notificationEmailWrapper(
+                'Time Slot Taken',
+                '<p>' . htmlspecialchars($message, ENT_QUOTES) . '</p>',
+                null,
+                ['label' => 'Book Again', 'url' => APP_URL . '/public/pages/book-appointment.html']
+            )
+        );
+    } catch (Throwable $e) {
+        error_log('[BVetter] slot-taken notice failed for appointment ' . $appointmentId . ': ' . $e->getMessage());
+    }
 }
 
 function notifyOwnerAppointmentConfirmed($pdo, $appointmentId)
@@ -1037,16 +1123,14 @@ function unlockSlot($pdo, $name)
 
 /**
  * Is this vet's date/time already spoken for? A slot counts as taken when it
- * holds another confirmed booking, on both sides of a reschedule still
+ * holds another confirmed booking, and on both sides of a reschedule still
  * awaiting an answer -- the original is held in case the owner declines, the
- * proposed one in case they accept -- and, unless $includePending is false,
- * when another request for it is still pending: first come, first served.
+ * proposed one in case they accept. A pending request does NOT take a slot:
+ * only the vet's confirmation does.
  */
-function slotConflictExists($pdo, $vetId, $date, $timeSlot, $excludeId, $includePending = true)
+function slotConflictExists($pdo, $vetId, $date, $timeSlot, $excludeId)
 {
-    $heldStatuses = $includePending
-        ? "'pending', 'confirmed', 'completed', 'reschedule_pending'"
-        : "'confirmed', 'completed', 'reschedule_pending'";
+    $heldStatuses = "'confirmed', 'completed', 'reschedule_pending'";
 
     $vetClause = $vetId > 0 ? 'AND (veterinarian_id = :vet_id OR veterinarian_id IS NULL)' : '';
 
@@ -1410,21 +1494,39 @@ function getBookedSlots($pdo, $data)
         ";
     }
 
-    // Pending requests gray their slot out too: a request holds its time
-    // until it is confirmed, declined or expires (see slotConflictExists()).
+    // Only confirmed bookings (and held reschedule slots) take a time.
     $stmt = $pdo->prepare("
         SELECT time_slot FROM appointments
         WHERE preferred_date = :date
-          AND status IN ('pending', 'confirmed', 'completed', 'reschedule_pending')
+          AND status IN ('confirmed', 'completed', 'reschedule_pending')
           {$vetClause}
           {$excludeClause}
         {$proposedUnion}
     ");
     $stmt->execute($params);
+    $booked = array_column($stmt->fetchAll(), 'time_slot');
+
+    // Times someone has requested but the vet hasn't confirmed yet. Still
+    // bookable -- the booking page shows them as "Requested" so an owner
+    // knows the vet may give the time to the earlier request instead.
+    $pendingParams = [':pdate' => $date];
+    $pendingVet = $vetId > 0 ? ' AND (veterinarian_id = :pvet OR veterinarian_id IS NULL)' : '';
+    if ($vetId > 0) $pendingParams[':pvet'] = $vetId;
+    $pendingExclude = $excludeId > 0 ? ' AND id <> :pexclude' : '';
+    if ($excludeId > 0) $pendingParams[':pexclude'] = $excludeId;
+    $pending = $pdo->prepare("
+        SELECT DISTINCT time_slot FROM appointments
+        WHERE preferred_date = :pdate AND status = 'pending'
+          {$pendingVet}
+          {$pendingExclude}
+    ");
+    $pending->execute($pendingParams);
+    $requested = array_values(array_diff(array_column($pending->fetchAll(), 'time_slot'), $booked));
 
     respond(200, [
-        'success' => true,
-        'booked'  => array_column($stmt->fetchAll(), 'time_slot')
+        'success'   => true,
+        'booked'    => $booked,
+        'requested' => $requested,
     ]);
 }
 function submitReview($pdo, $data, $callerSession = null)
