@@ -38,6 +38,7 @@
 require_once __DIR__ . '/../config/notifications.php';
 require_once __DIR__ . '/../config/mailer.php';
 require_once __DIR__ . '/working_hours.php';
+require_once __DIR__ . '/booking_slots.php';
 
 const BV_LF_AUTO_PUBLISH_MINUTES = 120;
 
@@ -189,6 +190,7 @@ function notifyOwnerAppointmentExpired(PDO $pdo, int $appointmentId): void
 {
     $stmt = $pdo->prepare('
         SELECT appointments.preferred_date, appointments.time_slot, appointments.contact_email,
+               appointments.veterinarian_id,
                owners.id AS owner_id, owners.full_name AS owner_name, owners.email AS owner_email
         FROM appointments
         INNER JOIN users owners ON owners.id = appointments.owner_id
@@ -199,8 +201,12 @@ function notifyOwnerAppointmentExpired(PDO $pdo, int $appointmentId): void
     $row = $stmt->fetch();
     if (!$row) return;
 
-    $when = "{$row['preferred_date']} at {$row['time_slot']}";
-    $message = "The clinic couldn't confirm your appointment request for {$when} in time, so it expired and the slot was released. Please book again.";
+    // Same as a request that lost its time to another: free times to pick
+    // from, and a link back to the form with this pet filled in.
+    $free = freeBookingTimes($pdo, (int) ($row['veterinarian_id'] ?? 0), $row['preferred_date']);
+    $message = "The clinic couldn't confirm your " . bookingSlotLabel($row['time_slot']) . ' request on '
+        . (new DateTimeImmutable($row['preferred_date']))->format('M j') . ' in time. '
+        . ($free ? freeTimesSentence($free, $row['preferred_date']) : 'Please book again.');
 
     try {
         notifyUser($pdo, (int) $row['owner_id'], 'appointment_status', 'Appointment Request Expired', $message, $appointmentId);
@@ -215,7 +221,7 @@ function notifyOwnerAppointmentExpired(PDO $pdo, int $appointmentId): void
                     'Appointment Request Expired',
                     '<p>' . htmlspecialchars($message, ENT_QUOTES) . '</p>',
                     null,
-                    ['label' => 'Book Again', 'url' => APP_URL . '/public/pages/book-appointment.html']
+                    ['label' => 'Book Again', 'url' => rebookUrl($appointmentId, $free)]
                 )
             );
         }

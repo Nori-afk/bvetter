@@ -1539,7 +1539,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       // Keep the static fallback options already in the markup
     }
   }
-  populateVisitTypes();
+  const visitTypesReady = populateVisitTypes();
 
   /* ── Show the age-limit notice only for Deworming visits ── */
   function toggleDewormingNotice() {
@@ -1915,8 +1915,91 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     document.getElementById('rv-time').textContent = selSlot ? selSlot.dataset.slot : '—';
   }
 
-  // Bring back any in-progress booking (must run after all wiring above).
-  restoreBookingDraft();
+  /* ── "Book Again" from a request that didn't go through (another request
+     got the time, or it expired). The link carries ?rebook=<id>&date=<a day
+     with free times>, so the same pet, visit type and day are filled in and
+     the owner only picks a time. ── */
+  function rebookParams() {
+    const params = new URLSearchParams(window.location.search);
+    const id = Number(params.get('rebook'));
+    return Number.isInteger(id) && id > 0 ? { id, date: params.get('date') || '' } : null;
+  }
+
+  // A weekday within the booking window the clinic is open, else ''.
+  function bookableDate(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return '';
+    if (value < toLocalIsoDate() || value > toLocalIsoDate(bookingHorizonDate())) return '';
+    return isWeekendIso(value) || CLOSED_DATES[value] ? '' : value;
+  }
+
+  function setRebookField(id, value) {
+    const el = document.getElementById(id);
+    if (!el || value == null || String(value).trim() === '') return;
+    if (el.tagName === 'SELECT') {
+      const option = [...el.options].find(o => o.value.toLowerCase() === String(value).trim().toLowerCase());
+      if (option) el.value = option.value;
+      return;
+    }
+    el.value = value;
+  }
+
+  async function restoreRebook({ id, date }) {
+    let request = null;
+    try {
+      const res = await fetch('/api/appointments/appointment.php', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'list' })
+      });
+      const json = await res.json();
+      request = json.success && Array.isArray(json.data) ? json.data.find(a => Number(a.id) === id) : null;
+    } catch {
+      request = null;
+    }
+    // A reload after this keeps the owner's own changes (the draft).
+    history.replaceState(null, '', window.location.pathname);
+    if (!request) {
+      restoreBookingDraft();
+      return;
+    }
+
+    clearBookingDraft();
+    const pet = request.pet || {};
+    setRebookField('petName', pet.name);
+    setRebookField('petType', pet.species);
+    setRebookField('petBreed', pet.breed);
+    setRebookField('petSex', pet.sex);
+    // Stored as "2 Years" / "5 Months".
+    const age = String(pet.age || '').match(/^(\d+)\s*([a-z]*)/i);
+    if (age) {
+      setRebookField('petAgeValue', age[1]);
+      setRebookField('petAgeUnit', /^m/i.test(age[2]) ? 'Months' : 'Years');
+    }
+    await visitTypesReady;
+    setRebookField('visitType', request.type);
+    setRebookField('apptDate', bookableDate(date) || bookableDate(request.preferred_date));
+    toggleDewormingNotice();
+    toggleCspMode();
+
+    // Same vet. The list may still be loading; bv-vets-loaded picks it up.
+    if (request.veterinarian_id) {
+      const vetItem = document.querySelector(`.vet-item[data-vet-id="${request.veterinarian_id}"]`);
+      if (vetItem) {
+        if (!vetItem.classList.contains('active')) vetItem.click();
+      } else {
+        pendingRestoreVetId = request.veterinarian_id;
+      }
+    }
+
+    showPage(pageBooking);
+    goStep(validateStep(2) ? 3 : 2);
+  }
+
+  // Bring back any in-progress booking (must run after all wiring above),
+  // or start from the request a "Book Again" link points to.
+  const rebook = rebookParams();
+  if (rebook) restoreRebook(rebook);
+  else restoreBookingDraft();
 
 })();
 
