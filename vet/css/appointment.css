@@ -1638,6 +1638,10 @@ body {
 
     .right-content { margin-left: 0; width: 100%; padding: 16px 16px 32px; }
 
+    /* The Settings button won't shrink, so on a 360px phone it was pushed
+       past the header's clipped edge. Let it wrap under the title. */
+    .header { flex-wrap: wrap; padding: 22px 20px; }
+
     /* Stays 2-up on mobile — only the padding/font sizes shrink. */
     .card-holder { gap: 10px; }
 
