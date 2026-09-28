@@ -2086,8 +2086,10 @@ html, body {
         width: calc(100% - (var(--shell-gap) + var(--sidebar-width-expanded) + 12px));
     }
 
+    /* minmax(0, 1fr), not 1fr: a 1fr column never shrinks below its
+       widest content, which pushed the dashboard sideways on 360px phones. */
     .content-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .KPI {
@@ -2260,7 +2262,7 @@ html, body {
     }
 
     .vaccine-section {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
         gap: 16px;
     }
 

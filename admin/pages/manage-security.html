@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260824-tz"/>
+    <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260928-mobile"/>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -70,6 +70,12 @@
             margin-left: calc(var(--sidebar-width-expanded) + var(--sidebar-main-gap) + var(--shell-gap));
             width: calc(100% - var(--sidebar-width-expanded) - var(--sidebar-main-gap) - var(--shell-gap));
         }
+
+        /* .sec-main is only as tall as the screen, and flex items shrink to
+           fit by default. The session card clips its overflow, so it was
+           the one that gave way: cut to a single row on a laptop and to
+           nothing at all on a phone. */
+        .sec-main > * { flex-shrink: 0; }
 
         /* ── BREADCRUMB ── */
         .sec-breadcrumb {
@@ -609,7 +615,16 @@
             .sec-main { margin-left: 0; width: 100%; padding: 20px; }
             .sec-top-row { grid-template-columns: 1fr; }
         }
+
+        @media (max-width: 768px) {
+            .sec-main { padding: 16px; }
+            .sec-session-header { flex-wrap: wrap; gap: 10px; }
+            /* Sessions are cards here (shared/css/table-cards.css); let
+               them flow with the page instead of scrolling in a box. */
+            .sec-session-table-wrap { max-height: none; padding: 12px; }
+        }
     </style>
+    <link rel="stylesheet" href="../../shared/css/table-cards.css?v=20260928-mobile">
 </head>
 <body>
 
@@ -817,7 +832,7 @@
             </div>
 
             <div class="sec-session-table-wrap">
-                <table class="sec-session-table">
+                <table class="sec-session-table" data-cards>
                     <thead>
                         <tr>
                             <th>User</th>
@@ -1446,5 +1461,6 @@
         if (document.visibilityState === 'visible') loadSessions();
     });
     </script>
+    <script src="../../shared/js/table-cards.js?v=20260928-mobile"></script>
 </body>
 </html>

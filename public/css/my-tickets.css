@@ -2,6 +2,15 @@
    BVetter — My Tickets (public/css/my-tickets.css)
    ============================================================ */
 
+/* Same reset every other owner page carries. Without it the browser's 8px
+   body margin inset the navbar, and content-box inputs spilled past their
+   card on phones. */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 body {
   font-family: var(--font-main);
   background: var(--bg-page);
@@ -9,11 +18,14 @@ body {
   overflow-x: hidden;
 }
 
+/* minmax(0, 1fr), not the implicit auto column: an auto column grows to the
+   table's min-content width, which pushed every card past a phone screen. */
 .mt-main {
   max-width: 900px;
   margin: 0 auto;
   padding: 32px 24px 60px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
 
@@ -130,4 +142,11 @@ body {
   text-align: center;
   color: var(--text-muted);
   padding: 24px 0;
+}
+
+@media (max-width: 480px) {
+  .mt-main { padding: 20px 16px 40px; gap: 16px; }
+  .mt-main .card { padding: 16px; }
+  .mt-hero h1 { font-size: 22px; }
+  .mt-attachment-preview { max-width: 100%; }
 }

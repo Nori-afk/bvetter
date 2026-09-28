@@ -15,8 +15,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260824-tz">
-    <link rel="stylesheet" href="../../vet/css/support-tickets.css">
+    <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260928-mobile">
+    <link rel="stylesheet" href="../../vet/css/support-tickets.css?v=20260928-mobile">
+    <link rel="stylesheet" href="../../shared/css/table-cards.css?v=20260928-mobile">
 </head>
 
 <body>
@@ -111,12 +112,12 @@
                     </select>
                 </div>
                 <div class="table-wrap">
-                    <table>
+                    <table data-cards>
                         <thead>
                             <tr>
                                 <th>Ticket #</th>
                                 <th id="st-reporter-col" style="display:none;">Reporter</th>
-                                <th>Subject</th>
+                                <th data-card="title">Subject</th>
                                 <th>Status</th>
                                 <th>Submitted</th>
                             </tr>
@@ -133,5 +134,6 @@
     <script>VBetterAuth.requireAuth(['vet']);</script>
     <script src="../../shared/js/sidebar.js?v=20260824-tz"></script>
     <script src="../../vet/js/support-tickets.js?v=20260925-feedback"></script>
+    <script src="../../shared/js/table-cards.js?v=20260928-mobile"></script>
 </body>
 </html>

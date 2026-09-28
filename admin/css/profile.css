@@ -707,6 +707,12 @@ body {
     flex-shrink: 0;
 }
 
+/* Pill + button ran 5px past a 360px screen; let them wrap. After the
+   base rule on purpose, so it wins. */
+@media (max-width: 480px) {
+    .sec-right { flex-shrink: 1; flex-wrap: wrap; }
+}
+
 /* 2FA / status pills */
 .sec-status-pill {
     display: inline-flex;
