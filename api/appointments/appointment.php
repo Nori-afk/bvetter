@@ -19,6 +19,7 @@ require_once __DIR__ . '/../config/veterinarian_profile.php';
 require_once __DIR__ . '/../includes/patient_tables.php';
 require_once __DIR__ . '/appointment_notifications.php';
 require_once __DIR__ . '/../includes/timed_rules.php';
+require_once __DIR__ . '/../includes/booking_slots.php';
 
 // How far ahead an appointment may be scheduled. Mirrors
 // BOOKING_HORIZON_MONTHS in public/js/book-appointment.js — the date input's
@@ -531,6 +532,9 @@ function listAppointments($pdo, $data)
             'veterinarian' => $row['veterinarian_name'],
             'preferred_date' => $row['preferred_date'],
             'time_slot' => $row['time_slot'],
+            // When the request was made: same-time requests are listed to the
+            // vet in this order, and the earliest is marked "1st request".
+            'requested_at' => $row['created_at'],
             // When an unconfirmed request expires (api/includes/timed_rules.php).
             // NULL for requests made before the time limit existed.
             'expires_at' => $row['expires_at'],
@@ -885,6 +889,7 @@ function notifyOwnerSlotGivenAway($pdo, $appointmentId)
 {
     $stmt = $pdo->prepare('
         SELECT appointments.preferred_date, appointments.time_slot, appointments.contact_email,
+               appointments.veterinarian_id,
                owners.id AS owner_id, owners.full_name AS owner_name, owners.email AS owner_email
         FROM appointments
         INNER JOIN users owners ON owners.id = appointments.owner_id
@@ -895,7 +900,13 @@ function notifyOwnerSlotGivenAway($pdo, $appointmentId)
     $row = $stmt->fetch();
     if (!$row) return;
 
-    $message = "The time you requested, {$row['preferred_date']} at {$row['time_slot']}, was given to another request. Please choose another slot.";
+    // Up to 3 fully free times that day (or the next open day), and a link
+    // back to the form with this pet already filled in.
+    $free = freeBookingTimes($pdo, (int) ($row['veterinarian_id'] ?? 0), $row['preferred_date']);
+    $message = 'Your ' . bookingSlotLabel($row['time_slot']) . ' request on '
+        . (new DateTimeImmutable($row['preferred_date']))->format('M j')
+        . ' was given to another request. '
+        . ($free ? freeTimesSentence($free, $row['preferred_date']) : 'Please choose another time.');
 
     try {
         notifyUser($pdo, (int) $row['owner_id'], 'appointment_status', 'Time Slot Taken', $message, (int) $appointmentId);
@@ -911,7 +922,7 @@ function notifyOwnerSlotGivenAway($pdo, $appointmentId)
                 'Time Slot Taken',
                 '<p>' . htmlspecialchars($message, ENT_QUOTES) . '</p>',
                 null,
-                ['label' => 'Book Again', 'url' => APP_URL . '/public/pages/book-appointment.html']
+                ['label' => 'Book Again', 'url' => rebookUrl((int) $appointmentId, $free)]
             )
         );
     } catch (Throwable $e) {
