@@ -171,13 +171,13 @@ window.PasswordPolicy = (() => {
             const missing = rules().filter(rule => !rule.common && !rule.test(v)).map(rule => rule.label.toLowerCase());
             if (!missing.length) return validate(v) || '';
             const last = missing.pop();
-            return 'Still needed: ' + (missing.length ? missing.join(', ') + ' and ' + last : last) + '.';
+            return 'Missing ' + (missing.length ? missing.join(', ') + ' and ' + last : last);
         }
         if (s === 1) {
             const more = strongLength() - v.length;
-            return `Good. Add ${more} more character${more === 1 ? '' : 's'} to make it Strong.`;
+            return `Add ${more} more character${more === 1 ? '' : 's'} for Strong`;
         }
-        return 'Strong password.';
+        return '';
     }
 
     let stylesInjected = false;
@@ -250,11 +250,14 @@ window.PasswordPolicy = (() => {
             label.textContent = '';
             if (!value) return;
 
-            label.append(level.label + ' · ');
-            const note = document.createElement('span');
-            note.className = 'pw-strength-hint';
-            note.textContent = hint(value);
-            label.appendChild(note);
+            label.append(level.label);
+            const advice = hint(value);
+            if (advice) {
+                const note = document.createElement('span');
+                note.className = 'pw-strength-hint';
+                note.textContent = ' · ' + advice;
+                label.appendChild(note);
+            }
         };
 
         input.addEventListener('input', render);

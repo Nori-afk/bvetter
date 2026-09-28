@@ -427,13 +427,13 @@ function empty(message) {
 	return `<div class="list-note">${escapeHtml(message)}</div>`;
 }
 
-// "Goes live automatically at 3:40 PM" for a pending owner report. Unreviewed
-// reports publish themselves after 2 hours (api/includes/timed_rules.php).
+// When an unreviewed owner report goes live on its own (2 hours after it
+// was submitted -- api/includes/timed_rules.php).
 function autoPublishNote(report) {
 	if (!report.autoPublishAt) return '';
 	const at = new Date(String(report.autoPublishAt).replace(' ', 'T'));
 	if (Number.isNaN(at.getTime())) return '';
-	return `<p class="auto-note">Goes live automatically ${escapeHtml(at.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))} if not reviewed first.</p>`;
+	return `<p class="meta-line">Auto-publishes ${escapeHtml(at.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}</p>`;
 }
 
 function reportCard(report, mode) {
@@ -475,7 +475,7 @@ function renderReportList(root, reports, mode) {
 		source: item.source,
 		type: item.type
 	}));
-	root.innerHTML = `${mode === 'pending' ? '<div class="list-note">Owner reports wait here for vet approval. One nobody reviews within 2 hours goes live on its own and is tagged Auto-published in Active Reports, so a lost pet isn\'t kept waiting while the vets are out.</div>' : ''}${list.length ? list.map((item) => reportCard(item, mode)).join('') : empty('No records found.')}`;
+	root.innerHTML = `${mode === 'pending' ? '<div class="list-note">Owner reports wait here until vet approval. Approved reports become public and active. Unreviewed reports auto-publish after 2 hours.</div>' : ''}${list.length ? list.map((item) => reportCard(item, mode)).join('') : empty('No records found.')}`;
 	bindRootActions(root);
 }
 
@@ -494,14 +494,10 @@ function renderActive(root) {
 				<span class="tag-chip ${(item.type || 'lost').toLowerCase()}">${escapeHtml((item.type || 'Lost').toUpperCase())}</span>
 			</div>
 			<div class="active-card-body">
-				${item.autoPublished ? `
-					<div class="auto-published">
-						<span>Auto-published &middot; awaiting vet review</span>
-						<button type="button" class="btn-link" data-action="mark-reviewed" data-id="${item.id}">Mark Reviewed</button>
-					</div>` : ''}
 				<h4>${escapeHtml(item.title)}</h4>
 				<small>${escapeHtml(item.barangay)} &middot; ${escapeHtml(item.date || '')}</small>
 				<div class="mini-row">
+					${item.autoPublished ? '<span class="lf-status-pill lf-pill-pending">Auto-published</span>' : ''}
 					<span class="mini-chip">${escapeHtml(item.breed || '')}</span>
 					${item.sex ? `<span class="mini-chip">${escapeHtml(item.sex)}</span>` : ''}
 					<span class="mini-chip">${escapeHtml(item.size || '')}</span>
@@ -611,7 +607,7 @@ function renderResolved(root) {
 				</thead>
 				<tbody>
 					${pageRows.map((item) => `
-						<tr>
+						<tr data-action="view-resolved" data-id="${escapeHtml(String(item.id))}">
 							<td>
 								<div class="lf-pet-cell">
 									<div class="lf-pet-avatar">${escapeHtml((item.petName || '?')[0].toUpperCase())}</div>
@@ -635,6 +631,8 @@ function renderResolved(root) {
 		</div>
 		${renderTablePagination(pageRows.length, lfData.resolvedCases.length, lfState.resolvedPage, totalPages)}
 	`;
+	// Rows open the case's details with its Resolution section.
+	bindRootActions(root);
 
 	const paginationEl = root.querySelector('.report-footer');
 	if (paginationEl) {
@@ -712,8 +710,8 @@ function renderSightings(root) {
 const CONFIRM_ACTIONS = {
 	'approve-pending': { tone: 'success', title: 'Approve this report?', message: 'The report will go public and become visible to pet owners.', request: 'approve_report', idKey: 'report_id' },
 	'reject-pending': { tone: 'danger', title: 'Reject this report?', message: 'The submitter will be notified that their report was not approved.', request: 'reject_report', idKey: 'report_id' },
-	'mark-reviewed': { tone: 'success', title: 'Mark this report as reviewed?', message: 'It went live automatically. Marking it reviewed clears the Auto-published tag; reject it instead if it shouldn\'t be public.', request: 'mark_reviewed', idKey: 'report_id' },
-	'resolve-active': { tone: 'success', title: 'Mark this case as resolved?', message: 'The report stays on the public board, grayed out, and leaves the active list.', request: 'resolve_report', idKey: 'report_id' },
+	'mark-reviewed': { tone: 'success', title: 'Mark this report as reviewed?', message: 'It was published without review.', request: 'mark_reviewed', idKey: 'report_id' },
+	'resolve-active': { tone: 'success', title: 'Mark this case as resolved?', message: 'The report will be moved to Resolved Cases.', request: 'resolve_report', idKey: 'report_id' },
 	'approve-match': { tone: 'success', title: 'Approve this match?', message: 'This will mark both the lost and found reports as resolved and notify the submitters.', request: 'approve_match', idKey: 'match_id' },
 	'dismiss-match': { tone: 'danger', title: 'Dismiss this match?', message: 'This suggested match will be removed. This cannot be undone.', confirmLabel: 'Yes, dismiss', request: 'dismiss_match', idKey: 'match_id' },
 	'approve-claim': { tone: 'success', title: 'Approve this claim?', message: 'The claimant will be notified that their claim was approved.', request: 'approve_claim', idKey: 'claim_id' },
@@ -725,14 +723,52 @@ const CONFIRM_ACTIONS = {
 function runConfirmableAction(action, id) {
 	const config = CONFIRM_ACTIONS[action];
 	if (!config) return false;
+	const send = (extra = {}) => lfRequest(config.request, { [config.idKey]: id, ...extra });
+	if (action === 'approve-claim' || action === 'approve-match') {
+		confirmApproval(config, action === 'approve-claim' ? 'claim' : 'match', id, send);
+		return true;
+	}
 	openConfirmDialog({
 		tone: config.tone,
 		title: config.title,
 		message: config.message,
 		confirmLabel: config.confirmLabel,
-		onConfirm: () => lfRequest(config.request, { [config.idKey]: id })
+		onConfirm: () => send()
 	});
 	return true;
+}
+
+// Approving a claim or match for a found pet: if another claimant scores
+// higher, say so and ask why this one. The score is how alike the reports
+// look, not proof of ownership, so a lower pick is allowed with a reason
+// (saved with the decision). Other claims on the pet close on approval.
+async function confirmApproval(config, kind, id, send) {
+	let check = null;
+	try {
+		check = (await lfRequest('approval_check', { kind, id })).data;
+	} catch {
+		// Fall through to the plain confirmation; the server still checks.
+	}
+	const higher = check?.higher || [];
+	if (!higher.length) {
+		openConfirmDialog({ tone: config.tone, title: config.title, message: config.message, onConfirm: () => send() });
+		return;
+	}
+
+	const score = (c) => (c && c.score !== null && c.score !== undefined ? `${c.score}%` : 'No match score');
+	const row = (label, c) => `
+		<div class="summary-row">
+			<span class="summary-label">${label}</span>
+			<span class="summary-value">${escapeHtml(c?.name || '')} &middot; ${score(c)}</span>
+		</div>`;
+	openConfirmDialog({
+		tone: 'danger',
+		title: config.title,
+		message: 'Another claimant has a higher match.',
+		details: row(kind === 'claim' ? 'This claim' : 'This match', check.subject) + higher.map((c) => row('Higher match', c)).join(''),
+		reasonLabel: 'Reason',
+		onConfirm: (reason) => send({ review_notes: reason })
+	});
 }
 
 function bindRootActions(root) {
@@ -753,6 +789,10 @@ function bindRootActions(root) {
 					// Route claims and sightings to their own modal builders
 					if (mode === 'claim') return openModal(buildClaimModal(findRecord(action, id)));
 					if (mode === 'sighting') return openModal(buildSightingModal(findRecord(action, id)));
+					if (mode === 'resolved') {
+						openModal(buildDetailModal(findRecord(action, id), 'resolved'));
+						return loadResolution(id);
+					}
 					// Pending and active reports go to the report detail modal with mode
 					return openModal(buildDetailModal(findRecord(action, id), mode));
 				}
@@ -779,17 +819,69 @@ function findRecord(action, id) {
 	if (action.includes('active')) return lfData.activeReports.find((item) => item.id === id);
 	if (action.includes('claim')) return lfData.claims.find((item) => item.id === id);
 	if (action.includes('sighting')) return lfData.sightings.find((item) => item.id === id);
+	if (action.includes('resolved')) return lfData.resolvedCases.find((item) => item.id === id);
 	return null;
 }
 
+// Resolution section of a resolved case's details (buildDetailModal, mode
+// 'resolved'): how it was closed, who got the pet, on what evidence, who
+// approved it, and any "This is My Pet" disputes filed since.
+const RESOLVED_HOW = {
+	claim: 'Claim approved',
+	match: 'Match approved',
+	sighting: 'Sighting approved',
+	staff: 'Resolved by staff',
+	owner: 'Marked resolved by owner'
+};
+
+async function loadResolution(reportId) {
+	const box = document.getElementById('lfResolution');
+	if (!box) return;
+	let data;
+	try {
+		data = (await lfRequest('resolution', { report_id: reportId })).data;
+	} catch (error) {
+		box.querySelector('.details-section-text').textContent = error.message;
+		return;
+	}
+	const row = (label, value) => (value ? `
+		<div class="summary-row">
+			<span class="summary-label">${label}</span>
+			<span class="summary-value">${value}</span>
+		</div>` : '');
+	const who = (p) => (p ? [p.name, p.phone].filter(Boolean).map(escapeHtml).join(' &middot; ') : '');
+
+	box.innerHTML = `
+		<h4 class="details-section-title green">Resolution</h4>
+		${row('Resolved', escapeHtml(formatDate(data.resolvedAt || '')))}
+		${row('How', escapeHtml(RESOLVED_HOW[data.how] || ''))}
+		${row('Returned to', who(data.returnedTo))}
+		${row('Found by', who(data.foundBy))}
+		${row('Matched with', data.counterpart ? escapeHtml(data.counterpart) : '')}
+		${data.confidence !== null && data.confidence !== undefined ? `<div class="summary-row"><span class="summary-label">Match</span>${confidenceGauge(data.confidence)}</div>` : ''}
+		${row('Proof', data.proof ? `<a href="${escapeHtml(data.proof)}" target="_blank" rel="noopener" style="color:inherit;">View file</a>` : '')}
+		${row('Reason', data.reason ? escapeHtml(data.reason) : '')}
+		${row('Approved by', data.approvedBy ? `${escapeHtml(data.approvedBy)}${data.approvedAt ? ' &middot; ' + escapeHtml(formatDate(data.approvedAt)) : ''}` : '')}
+		${row('Disputes', (data.disputes || []).map((d) => `<a href="support-tickets.html" style="color:inherit;">${escapeHtml(d.ticket)}</a> &middot; ${escapeHtml(d.status.replace('_', ' '))}`).join('<br>'))}
+	`;
+}
+
 // Yes / No, like vbConfirm: the title is the question. Only an action that
-// can't be undone passes its own label ('Yes, dismiss').
-function openConfirmDialog({ tone = 'success', title, message, confirmLabel = 'Yes', cancelLabel = 'No', onConfirm }) {
+// can't be undone passes its own label ('Yes, dismiss'). `details` adds
+// summary rows under the message; `reasonLabel` adds a required text box
+// whose value is passed to onConfirm.
+function openConfirmDialog({ tone = 'success', title, message, confirmLabel = 'Yes', cancelLabel = 'No', details = '', reasonLabel = '', onConfirm }) {
 	document.getElementById('lfModalBody').innerHTML = `
 		<div class="confirm-dialog">
 			<div class="confirm-icon confirm-icon--${tone}">${tone === 'danger' ? '&#33;' : '&#10003;'}</div>
 			<h3 class="confirm-title">${escapeHtml(title)}</h3>
 			<p class="confirm-message">${escapeHtml(message)}</p>
+			${details ? `<div style="width:100%;text-align:left;">${details}</div>` : ''}
+			${reasonLabel ? `
+				<div class="vet-lf-modal" style="width:100%;text-align:left;">
+					<label class="summary-label" for="lfConfirmReason">${escapeHtml(reasonLabel)}</label>
+					<textarea id="lfConfirmReason" class="form-textarea" rows="2" maxlength="500" required></textarea>
+				</div>` : ''}
 			<div class="confirm-actions">
 				<button type="button" class="btn btn-secondary" id="lfConfirmCancel">${escapeHtml(cancelLabel)}</button>
 				<button type="button" class="btn ${tone === 'danger' ? 'btn-danger-solid' : 'btn-success'}" id="lfConfirmOk">${escapeHtml(confirmLabel)}</button>
@@ -800,9 +892,15 @@ function openConfirmDialog({ tone = 'success', title, message, confirmLabel = 'Y
 	document.getElementById('lfConfirmCancel').addEventListener('click', closeModal);
 	document.getElementById('lfConfirmOk').addEventListener('click', async () => {
 		const okButton = document.getElementById('lfConfirmOk');
+		const reasonBox = document.getElementById('lfConfirmReason');
+		if (reasonBox && !reasonBox.value.trim()) {
+			reasonBox.reportValidity();
+			reasonBox.focus();
+			return;
+		}
 		okButton.disabled = true;
 		try {
-			await onConfirm();
+			await onConfirm(reasonBox ? reasonBox.value.trim() : undefined);
 			closeModal();
 			await loadAllData(true);
 		} catch (error) {
@@ -931,10 +1029,20 @@ function buildDetailModal(report, mode = 'view') {
 			<button type="button" class="btn-details-success" data-action="approve-pending" data-id="${report.id}">Approve</button>
 		`;
 	} else if (mode === 'active') {
+		// A report that went live without review is marked reviewed here.
 		footerButtons += `
+			${report.autoPublished ? `<button type="button" class="btn-details-close" data-action="mark-reviewed" data-id="${report.id}" style="white-space:nowrap;">Mark Reviewed</button>` : ''}
 			<button type="button" class="btn-details-success" data-action="resolve-active" data-id="${report.id}">Resolve</button>
 		`;
 	}
+
+	// Filled in by loadResolution() once the details open.
+	const resolutionSection = mode === 'resolved'
+		? `<div class="details-section" id="lfResolution">
+				<h4 class="details-section-title green">Resolution</h4>
+				<p class="details-section-text">Loading...</p>
+			</div>`
+		: '';
 
 	const isLost = String(report.type).toLowerCase() === 'lost';
 	const locationLabel = isLost ? 'Last Seen Location' : 'Found Location';
@@ -997,6 +1105,7 @@ function buildDetailModal(report, mode = 'view') {
             </div>
 
             ${matchesSection}
+            ${resolutionSection}
 
             <div class="details-footer">
                 ${footerButtons}

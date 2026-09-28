@@ -138,7 +138,7 @@ function expiryLabel(item) {
 	if (!item.expiresAt) return '';
 	const at = new Date(String(item.expiresAt).replace(' ', 'T'));
 	if (Number.isNaN(at.getTime())) return '';
-	return 'Confirm by ' + at.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+	return 'Expires ' + at.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
 /**
@@ -336,13 +336,13 @@ function renderPendingList() {
 	ui.pendingHolder.innerHTML = pending.map((item) => {
 		const dt = formatDateTime(item.datetime);
 		const clash = clashing.has(item.id)
-			? '<p class="slot-clash">&#9888; Same time as another request &middot; confirming one declines the rest</p>'
+			? '<span class="status-pill status-pending">Same time as another request</span>'
 			: '';
 		return `
 			<article class="pending-item" data-id="${item.id}">
 				<p class="time">${dt.date} - ${dt.time}</p>
 				${clash}
-				${expiryLabel(item) ? `<p class="expires-at">${expiryLabel(item)}</p>` : ''}
+				${expiryLabel(item) ? `<p>${expiryLabel(item)}</p>` : ''}
 				<h4>${item.patient}</h4>
 				<p>${item.service}</p>
 				<div class="pending-actions">

@@ -312,8 +312,8 @@ function renderPendingApprovals(users) {
             <div class="pending-item" data-id="${u.id}">
                 <div class="${avatarClass}">${initials}</div>
                 <div class="pending-info">
-                    <p class="pending-name">${escapeHtml(u.name || '')}${u.overdueSince ? ' <span class="pending-overdue">Overdue</span>' : ''}</p>
-                    <p class="pending-role">${escapeHtml(u.roleLabel || capitalize(u.role))} • Joined ${formatShortDate(u.created)}</p>
+                    <p class="pending-name">${escapeHtml(u.name || '')}</p>
+                    <p class="pending-role">${escapeHtml(u.roleLabel || capitalize(u.role))} • Joined ${formatShortDate(u.created)}${u.overdueSince ? ' • Overdue' : ''}</p>
                 </div>
                 <div class="pending-actions">
                     <a class="btn-review" href="account-management.html?review=${encodeURIComponent(u.id)}">Review</a>
