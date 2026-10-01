@@ -119,28 +119,42 @@ function findOrCreateOwner($pdo, $data)
     // let a visit for an existing owner skip the field entirely.
     [$barangayId, $isOutside] = resolveBarangay($pdo, $data);
 
+    $existingId = 0;
     if ($email !== '') {
         $stmt = $pdo->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
         $stmt->execute([':email' => $email]);
-        $existing = $stmt->fetch();
-        if ($existing) {
-            // An owner already on file still gets their barangay refreshed from
-            // what was just entered. Without this, an owner carrying the old
-            // defaulted Tiaong could never be corrected by ordinary use, and
-            // visitSnapshot() would keep stamping the wrong barangay on every
-            // new visit -- the original bug, still running.
-            $existingId = (int) $existing['id'];
-            $pdo->prepare('
-                UPDATE owner_profiles
-                SET barangay_id = :barangay_id, is_outside_baliwag = :is_outside
-                WHERE user_id = :user_id
-            ')->execute([
-                ':barangay_id' => $barangayId,
-                ':is_outside' => $isOutside,
-                ':user_id' => $existingId,
-            ]);
-            return $existingId;
+        $existingId = (int) $stmt->fetchColumn();
+    } elseif ($ownerName !== '' && walkInNormalizePhone($phone) !== '') {
+        // No email to match on: the same name and phone is the same person,
+        // so reuse them instead of minting a second account with a fresh
+        // placeholder address. Name alone is not enough -- two owners can
+        // share one.
+        $stmt = $pdo->query("SELECT id, full_name, phone_number FROM users WHERE phone_number IS NOT NULL AND phone_number <> ''");
+        foreach ($stmt->fetchAll() as $row) {
+            if (walkInNormalizePhone($row['phone_number']) === walkInNormalizePhone($phone)
+                && normalizeName($row['full_name']) === normalizeName($ownerName)) {
+                $existingId = (int) $row['id'];
+                break;
+            }
         }
+    }
+
+    if ($existingId > 0) {
+        // An owner already on file still gets their barangay refreshed from
+        // what was just entered. Without this, an owner carrying the old
+        // defaulted Tiaong could never be corrected by ordinary use, and
+        // visitSnapshot() would keep stamping the wrong barangay on every
+        // new visit -- the original bug, still running.
+        $pdo->prepare('
+            UPDATE owner_profiles
+            SET barangay_id = :barangay_id, is_outside_baliwag = :is_outside
+            WHERE user_id = :user_id
+        ')->execute([
+            ':barangay_id' => $barangayId,
+            ':is_outside' => $isOutside,
+            ':user_id' => $existingId,
+        ]);
+        return $existingId;
     }
 
     if ($ownerName === '') {
@@ -840,6 +854,85 @@ function validatePatientIdentityFields($data): void
     }
 }
 
+function normalizeName($value): string
+{
+    return mb_strtolower(trim(preg_replace('/\s+/u', ' ', (string) $value)));
+}
+
+/**
+ * The listed patient this entry would duplicate, or null.
+ *
+ * Add Patient used to insert unconditionally, and findOrCreateOwner() only
+ * reuses an owner on an exact email match -- so re-typing a walk-in with no
+ * email made a second owner account and a second copy of the pet, splitting
+ * one animal's history across two records.
+ *
+ * A duplicate is the same pet name and species under the same owner. The owner
+ * counts as the same when the id, email, phone (last ten digits) or full name
+ * matches. Breed, age and weight are left out on purpose: they change, or get
+ * typed differently, between visits of the one animal.
+ *
+ * Only pets listRecords() would show are checked, so the vet can always open
+ * the record they are pointed to.
+ */
+function findDuplicatePatient($pdo, $owner, $petData)
+{
+    $petName = normalizeName($petData['petName'] ?? '');
+    if ($petName === '') return null;
+
+    $ownerId = (int) ($owner['ownerId'] ?? 0);
+    $ownerName = normalizeName($owner['ownerName'] ?? $owner['owner_name'] ?? '');
+    $email = mb_strtolower(clean($owner['email'] ?? ''));
+    $phone = walkInNormalizePhone($owner['phone'] ?? '');
+
+    $stmt = $pdo->prepare("
+        SELECT pets.id, pets.owner_id, pets.pet_name, pets.species,
+               users.full_name, users.email, users.phone_number
+        FROM pets
+        INNER JOIN users ON users.id = pets.owner_id
+        LEFT JOIN patient_record_profiles ON patient_record_profiles.pet_id = pets.id
+        WHERE LOWER(TRIM(pets.species)) = :species
+          AND COALESCE(patient_record_profiles.is_archived, 0) = 0
+          AND (
+              patient_record_profiles.pet_id IS NOT NULL
+              OR EXISTS (
+                  SELECT 1 FROM appointments a
+                  WHERE a.pet_id = pets.id AND a.status IN ('confirmed', 'completed')
+              )
+          )
+    ");
+    $stmt->execute([':species' => normalizeName($petData['species'] ?? '')]);
+
+    foreach ($stmt->fetchAll() as $row) {
+        if (normalizeName($row['pet_name']) !== $petName) continue;
+
+        $sameOwner = ($ownerId > 0 && (int) $row['owner_id'] === $ownerId)
+            || ($email !== '' && mb_strtolower((string) $row['email']) === $email)
+            || ($phone !== '' && walkInNormalizePhone($row['phone_number']) === $phone)
+            || ($ownerName !== '' && normalizeName($row['full_name']) === $ownerName);
+
+        if ($sameOwner) return $row;
+    }
+
+    return null;
+}
+
+/**
+ * 409 with the existing pet's id, so the page can offer to open that record
+ * instead -- a returning patient's new visit belongs on it via Add Record.
+ */
+function rejectDuplicatePatient($pdo, $owner, $petData)
+{
+    $existing = findDuplicatePatient($pdo, $owner, $petData);
+    if (!$existing) return;
+
+    respond(409, [
+        'success' => false,
+        'message' => $existing['pet_name'] . ' (' . $existing['species'] . ') of ' . $existing['full_name'] . ' is already on file.',
+        'duplicateId' => (int) $existing['id'],
+    ]);
+}
+
 /**
  * Registers another pet under an owner already on file.
  *
@@ -868,6 +961,8 @@ function addPetForOwner($pdo, $data)
         respond(422, ['success' => false, 'message' => 'Pet name is required.']);
     }
 
+    rejectDuplicatePatient($pdo, ['ownerId' => $ownerId], $data);
+
     $pdo->beginTransaction();
     $petId = insertPetRow($pdo, $ownerId, $data);
 
@@ -890,6 +985,8 @@ function saveRecord($pdo, $data)
 
     $petId = (int) ($data['id'] ?? $data['pet_id'] ?? 0);
     $isNewPet = $petId <= 0;
+
+    if ($isNewPet) rejectDuplicatePatient($pdo, $data, $data);
 
     $pdo->beginTransaction();
 
@@ -918,9 +1015,17 @@ function saveBatch($pdo, $data)
     if (!is_array($pets)) $pets = [];
 
     // Each pet in the batch carries its own name/species/breed.
+    $seen = [];
     foreach ($pets as $petData) {
         if (is_array($petData)) {
             validatePatientIdentityFields(array_merge($data, $petData));
+            rejectDuplicatePatient($pdo, $data, $petData);
+
+            $key = normalizeName($petData['petName'] ?? '') . '|' . normalizeName($petData['species'] ?? '');
+            if (normalizeName($petData['petName'] ?? '') !== '' && isset($seen[$key])) {
+                respond(422, ['success' => false, 'message' => clean($petData['petName']) . ' is entered twice.']);
+            }
+            $seen[$key] = true;
         }
     }
 
