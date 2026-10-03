@@ -93,8 +93,44 @@ final class LostFoundMatchingTest extends TestCase
 
         [$score, $reasons] = scoreMatch($lost, $candidate);
 
-        $this->assertSame(0, $score);
+        // Only the unknown breed (7) and unknown sex (4) half-credit remains.
+        $this->assertSame(11, $score);
         $this->assertSame(['Low-confidence candidate'], $reasons);
+    }
+
+    public function testUnknownBreedScoresAboveAKnownMismatch(): void
+    {
+        $lost = $this->pet(['breed' => 'Shih Tzu', 'sex' => 'Male']);
+
+        [$mismatch] = scoreMatch($lost, $this->pet(['breed' => 'Poodle', 'sex' => 'Male']));
+        foreach (['unknown', 'di alam', 'None', ''] as $unknown) {
+            [$score, $reasons] = scoreMatch($lost, $this->pet(['breed' => $unknown, 'sex' => 'Male']));
+            $this->assertSame($mismatch + 7, $score, "breed '$unknown'");
+            $this->assertNotContains('Similar breed', $reasons);
+        }
+    }
+
+    public function testUnknownSexGetsHalfTheSexPoints(): void
+    {
+        $lost = $this->pet(['breed' => 'Aspin', 'sex' => 'Male']);
+
+        [$same] = scoreMatch($lost, $this->pet(['breed' => 'Aspin', 'sex' => 'Male']));
+        [$unknown] = scoreMatch($lost, $this->pet(['breed' => 'Aspin', 'sex' => null]));
+        [$different] = scoreMatch($lost, $this->pet(['breed' => 'Aspin', 'sex' => 'Female']));
+
+        $this->assertSame($same - 4, $unknown);
+        $this->assertSame($same - 8, $different);
+    }
+
+    public function testColorSynonymsCountAsTheSameColor(): void
+    {
+        $this->assertSame('white gray', normalizeColorWords('Puti, Grey'));
+
+        [, $reasons] = scoreMatch(
+            $this->pet(['breed' => 'Aspin', 'color_markings' => 'gray and white']),
+            $this->pet(['breed' => 'Aspin', 'color_markings' => 'grey and puti'])
+        );
+        $this->assertContains('Similar color or markings', $reasons);
     }
 
     private function pet(array $overrides): array
