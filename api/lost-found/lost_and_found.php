@@ -1002,7 +1002,7 @@ function rebuildMatchesForReport($pdo, $reportId)
         $foundReport = $report['report_type'] === 'found' ? $report : $candidate;
         if (strtolower(clean($lostReport['species'] ?? '')) !== strtolower(clean($foundReport['species'] ?? ''))) continue;
         [$score, $reasons] = scoreMatch($lostReport, $foundReport);
-        if ($score < 45) continue;
+        if ($score < MATCH_CUTOFF) continue;
 
         $existing = $pdo->prepare("
             SELECT id

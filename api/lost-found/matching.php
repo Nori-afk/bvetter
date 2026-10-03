@@ -39,6 +39,39 @@ function jaccard($a, $b)
     return $union > 0 ? $intersection / $union : 0.0;
 }
 
+// Lowest score a lost/found pair needs to be suggested. Raised from 45 when
+// unknown fields began earning half credit, to keep the list just as short.
+const MATCH_CUTOFF = 50;
+
+// Words people use for the same color in Baliwag posts (English and Filipino).
+// Only the color/markings comparison uses these, never breed.
+const COLOR_SYNONYMS = [
+    'grey' => 'gray', 'abo' => 'gray',
+    'puti' => 'white', 'whitish' => 'white',
+    'itim' => 'black', 'blackish' => 'black',
+    'brownish' => 'brown', 'kayumanggi' => 'brown', 'chocolate' => 'brown', 'tsokolate' => 'brown',
+    'kahel' => 'orange', 'ginger' => 'orange',
+    'beige' => 'cream',
+];
+
+function normalizeColorWords($text)
+{
+    $tokens = [];
+    foreach (tokenSet($text) as $token) {
+        $tokens[] = COLOR_SYNONYMS[$token] ?? $token;
+    }
+    return implode(' ', $tokens);
+}
+
+// What a reporter types when they don't know a breed or sex. Breed is a
+// required field, so a finder who can't tell writes "unknown", "di alam", etc.
+const UNKNOWN_WORDS = ['unknown', 'none', 'wala', 'na', 'not', 'sure', 'di', 'hindi', 'alam', 'idk'];
+
+function isUnknownValue($value)
+{
+    return !array_diff(tokenSet($value), UNKNOWN_WORDS);
+}
+
 function hammingSimilarity($a, $b)
 {
     if (!$a || !$b || strlen($a) !== strlen($b)) return null;
@@ -83,11 +116,19 @@ function scoreMatch($lost, $candidate)
         $reasons[] = 'Same species';
     }
 
-    $breed = jaccard($lost['breed'], $candidate['breed']);
-    if ($breed >= 0.5) $reasons[] = 'Similar breed';
-    $score += (int) round($breed * 14);
+    // An unknown breed or sex gets half the points: no evidence either way.
+    // Scoring it as a mismatch dropped most finder reports below the cutoff.
+    if (isUnknownValue($lost['breed']) || isUnknownValue($candidate['breed'])) {
+        $score += 7;
+    } else {
+        $breed = jaccard($lost['breed'], $candidate['breed']);
+        if ($breed >= 0.5) $reasons[] = 'Similar breed';
+        $score += (int) round($breed * 14);
+    }
 
-    if (clean($lost['sex']) !== '' && clean($candidate['sex']) !== '' && strtolower($lost['sex']) === strtolower($candidate['sex'])) {
+    if (isUnknownValue($lost['sex']) || isUnknownValue($candidate['sex'])) {
+        $score += 4;
+    } elseif (strtolower(clean($lost['sex'])) === strtolower(clean($candidate['sex']))) {
         $score += 8;
         $reasons[] = 'Same sex';
     }
@@ -97,7 +138,10 @@ function scoreMatch($lost, $candidate)
         $reasons[] = 'Same size';
     }
 
-    $markings = jaccard($lost['color_markings'] . ' ' . $lost['notes'], $candidate['color_markings'] . ' ' . $candidate['notes']);
+    $markings = jaccard(
+        normalizeColorWords($lost['color_markings'] . ' ' . $lost['notes']),
+        normalizeColorWords($candidate['color_markings'] . ' ' . $candidate['notes'])
+    );
     if ($markings >= 0.25) $reasons[] = 'Similar color or markings';
     $score += (int) round($markings * 18);
 
