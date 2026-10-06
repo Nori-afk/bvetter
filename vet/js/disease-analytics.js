@@ -1428,6 +1428,31 @@ async function loadBarangayDifferential(barangay, symptomCluster, animalGroup) {
     const predictions = payload.predictions || [];
     const observed = payload.observed_top || [];
 
+    // A disease filter can open on a pattern outside this barangay's top six.
+    // With no option of its own, the select showed the first pattern instead,
+    // and changing the animal group then quietly switched to that one.
+    const patterns = [...(payload.patterns || [])];
+    if (selected.symptom_cluster && !patterns.some(p => p.symptom_cluster === selected.symptom_cluster)) {
+        patterns.push({ symptom_cluster: selected.symptom_cluster, share: null });
+    }
+    // Once the vet picks a pattern, the service's "chosen from ..." no longer
+    // describes how it was chosen.
+    const basis = symptomCluster ? '' : payload.pattern_basis;
+
+    // With a disease selected, the shortlist answers what else the same
+    // symptoms could be: what to rule out before acting on that disease.
+    const filter = String(payload.disease_filter || '').trim();
+    const isFilter = (name) => filter !== '' && String(name || '').trim().toLowerCase() === filter.toLowerCase();
+    const rank = predictions.findIndex(p => isFilter(p.diagnosis));
+    const others = predictions.filter(p => !isFilter(p.diagnosis)).map(p => `<strong>${esc(p.diagnosis)}</strong>`);
+    let filterLine = '';
+    if (filter && predictions.length) {
+        filterLine = rank === -1
+            ? `<strong>${esc(filter)}</strong> is not in the shortlist for these symptoms.`
+            : `<strong>${esc(filter)}</strong> ranks ${['1st', '2nd', '3rd'][rank] || `#${rank + 1}`} for these symptoms${
+                others.length ? ` — also rule out ${others.join(', ')}` : ''}.`;
+    }
+
     host.innerHTML = `
         <div class="rf-head">
             <h4>Likely diagnoses here</h4>
@@ -1435,15 +1460,15 @@ async function loadBarangayDifferential(barangay, symptomCluster, animalGroup) {
         </div>
         <p class="rf-lede">
             ${esc(payload.cases_for_pattern)} of this barangay’s cases present as
-            <strong>${esc(selected.symptom_cluster)}</strong>${payload.pattern_basis
-                ? ` — chosen from ${esc(payload.pattern_basis)}` : ''}.
+            <strong>${esc(selected.symptom_cluster)}</strong>${basis
+                ? ` — chosen from ${esc(basis)}` : ''}.
             For that pattern the classifier’s shortlist is:
         </p>
         <div class="rf-controls">
             <select id="rfCluster" aria-label="Symptom pattern">
-                ${(payload.patterns || []).map(p => `
+                ${patterns.map(p => `
                     <option value="${esc(p.symptom_cluster)}" ${p.symptom_cluster === selected.symptom_cluster ? 'selected' : ''}>
-                        ${esc(p.symptom_cluster)} — ${esc(p.share)}%
+                        ${esc(p.symptom_cluster)}${p.share != null ? ` — ${esc(p.share)}%` : ''}
                     </option>`).join('')}
             </select>
             <select id="rfAnimal" aria-label="Animal group">
@@ -1455,7 +1480,7 @@ async function loadBarangayDifferential(barangay, symptomCluster, animalGroup) {
             <div class="rf-col">
                 <p class="rf-col-title">Model shortlist</p>
                 ${predictions.length ? predictions.map(p => `
-                    <div class="rf-row">
+                    <div class="rf-row${isFilter(p.diagnosis) ? ' is-filter' : ''}">
                         <span>${esc(p.diagnosis)}</span>
                         <b>${Math.round((p.probability || 0) * 100)}%</b>
                     </div>`).join('') : '<p class="rf-muted">No prediction for this combination.</p>'}
@@ -1463,12 +1488,13 @@ async function loadBarangayDifferential(barangay, symptomCluster, animalGroup) {
             <div class="rf-col">
                 <p class="rf-col-title">Actually recorded here</p>
                 ${observed.length ? observed.map(o => `
-                    <div class="rf-row">
+                    <div class="rf-row${isFilter(o.diagnosis) ? ' is-filter' : ''}">
                         <span>${esc(o.diagnosis)}</span>
                         <b>${esc(o.cases)}</b>
                     </div>`).join('') : '<p class="rf-muted">No cases on record.</p>'}
             </div>
         </div>
+        ${filterLine ? `<p class="rf-lede rf-filter-line">${filterLine}</p>` : ''}
         <p class="rf-note">
             A shortlist to consider, not a diagnosis. It names the right disease first
             ${esc(payload.top1_accuracy)}% of the time and has it among these three

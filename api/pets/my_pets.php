@@ -118,6 +118,9 @@ function mapVisit($row)
         'attendingVet' => $row['attending_vet'],
         'category' => $row['category'],
         'symptoms' => $row['symptoms'],
+        // Picked by the vet under SUGGEST A DIAGNOSIS; see mapVisit() in
+        // api/patient-records/patient_records.php.
+        'symptomCluster' => $row['symptom_cluster'] ?? null,
         'diagnosis' => $row['diagnosis'],
         'treatment' => $row['treatment'],
         'medications' => json_decode($row['medications_json'] ?: '[]', true) ?: [],

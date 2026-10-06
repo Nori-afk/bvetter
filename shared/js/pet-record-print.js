@@ -14,7 +14,7 @@
  * printPetRecord({
  *   recordId, petName, species, breed, sex, age, weight, colorMarkings,
  *   healthStatus, ownerName, ownerPhone,
- *   visits:       [{ date, title, category, symptoms, diagnosis, treatment, medications, attendingVet }],
+ *   visits:       [{ date, title, category, symptoms, symptomCluster, diagnosis, treatment, medications, attendingVet }],
  *   vaccinations: [{ name, date, nextDue, provider, status }]
  * })
  */
@@ -44,6 +44,17 @@
         return Number.isNaN(date.getTime())
             ? esc(v)
             : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    // Typed symptoms, plus the symptom pattern the vet picked when suggesting a
+    // diagnosis -- stored apart from them, so a visit saved with only the
+    // picker printed "—".
+    function symptoms(visit) {
+        const typed = String(visit.symptoms ?? '').trim();
+        const pattern = String(visit.symptomCluster ?? '').trim();
+        if (!pattern || pattern === typed) return text(typed);
+        if (!typed) return esc(pattern);
+        return `${esc(typed)}<br><span class="muted">Symptom pattern: ${esc(pattern)}</span>`;
     }
 
     function medications(list) {
@@ -85,7 +96,7 @@
                 <tr>
                     <td>${formatDate(v.date)}</td>
                     <td><strong>${text(v.title)}</strong>${v.category ? `<br><span class="muted">${esc(v.category)}</span>` : ''}</td>
-                    <td>${text(v.symptoms)}</td>
+                    <td>${symptoms(v)}</td>
                     <td>${text(v.diagnosis)}</td>
                     <td>${text(v.treatment)}</td>
                     <td>${medications(v.medications)}</td>
