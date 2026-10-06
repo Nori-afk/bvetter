@@ -471,6 +471,10 @@ select option { background: #0D2040; color: #fff; }
 
 .rf-row:last-child { border-bottom: 0; }
 .rf-row b { font-variant-numeric: tabular-nums; color: var(--ink-2); }
+/* The disease picked in the page's disease filter. */
+.rf-row.is-filter span { font-weight: 700; }
+
+.rf-filter-line { margin: 12px 0 0; }
 
 .rf-note, .rf-muted {
     margin: 12px 0 0;
