@@ -434,7 +434,10 @@ select option { background: #0D2040; color: #fff; }
     margin-bottom: 14px;
 }
 
-.rf-controls select {
+/* The page-wide select style is white text for the dark header; these two sit
+   on white cards, where it left the chosen value unreadable. */
+.rf-controls select,
+.chart-sort-bar select {
     background-color: var(--surface);
     color: var(--ink);
     border-color: var(--border-mid);
@@ -989,13 +992,18 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     gap: 16px;
 }
 
-/* Follows the reader down the long right column instead of scrolling away.
-   No ancestor sets overflow, so this holds. */
-@media (min-width: 900px) {
-    .insight-left {
-        position: sticky;
-        top: 16px;
+/* No sticky left card: `.insight-left { position: relative }` further down
+   always won, so the old sticky rule only left `top: 16px` behind -- the left
+   card sat 16px below the right one, and touched it once the two stacked. */
+
+/* The left column is too narrow for the three forecast figures side by side;
+   auto-fit wrapped the third onto its own row with an empty half beside it. */
+@media (min-width: 1281px) {
+    .insight-left .td-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        row-gap: 20px;
     }
+    .insight-left .td-cell:last-child { grid-column: 1 / -1; }
 }
 
 .insight-left,
@@ -1989,7 +1997,9 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
    than a warning: nothing is wrong, the two charts simply cover different
    spans and the reader needs that stated once. */
 .pace-note {
-    margin: 10px 2px 0;
+    /* The bottom margin keeps the Insights card off it; with 0 the two touched.
+       Above, .chart-grid's own 16px margin already spaces it. */
+    margin: 0 2px 16px;
     padding: 10px 13px;
     background: #f8fafc;
     border-left: 3px solid #cbd5e1;
