@@ -1095,102 +1095,59 @@
 
         // ── Vaccines Needed per Barangay (ranked list, not a canvas chart —
         //    see renderRankList above)
-        // SOURCE: single municipal ARIMA forecast (real per-barangay history is too
-        //         sparse to fit independent models), distributed across barangays
-        //         by their real historical vaccination share.
-        // ADJUSTMENT: When DB events have actual data, boost the ARIMA total by
-        //             the ratio of (DB actuals / previous ARIMA forecast) so the
-        //             predicted need scales with real-world uptake.
-        // FALLBACK: disease-case-derived predicted values, scaled by DB activity ratio
+        // SOURCE: single municipal ARIMA forecast (no per-barangay vaccination
+        //         history exists to fit independent models), split by each
+        //         barangay's share of the 2025 estimated dog population
+        //         (Barangay_Masterlist, served as dog_population_by_barangay).
+        //         This used to split by past vaccination share, and once the
+        //         seeded 2023-24 events were deleted that fell back to DISEASE
+        //         case counts -- the same proxy Chart 1 dropped as fabricated.
+        //         It also blended the total with live turnout, multiplying by the
+        //         range twice; the recorded turnout now shows as "done" instead.
+        // FALLBACK (forecast service unreachable): Chart 2's moving-average
+        //         estimate, split the same way.
         {
             var tvN   = state.arimaData?.total_vaccinated || {};
             var multi = range === 'Last 3 Months' ? 3 : range === 'This Year' ? 12 : 1;
+            var usingForecast = !!tvN.forecast?.length;
+            // forecastValues is Chart 2's series: the ARIMA forecast, or its
+            // moving-average benchmark when the service is down.
+            var monthDemand  = usingForecast ? (Number(tvN.forecast[0]) || 0) : (Number(forecastValues[0]) || 0);
+            var periodDemand = monthDemand * multi;
 
-            // ── Build the full barangay list from ALL available sources ────────────
-            // Priority: vaccinationDataset.by_barangay (real all-time DB totals) →
-            //           diseaseCasesByBarangay (dashboard Excel) →
-            //           DB event barangays
-            var barangayBaseMap = {}; // { barangay: { actual, predicted } }
+            var dogRows = state.vaccinationDataset?.dog_population_by_barangay || [];
+            // The event form spells it "Sto. Nino", the masterlist "Sto. Niño".
+            var nameKey = (name) => String(name || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+                .toLowerCase().replace(/\s+/g, ' ').trim();
 
-            if (state.vaccinationDataset?.by_barangay?.length) {
-                state.vaccinationDataset.by_barangay.forEach(r => {
-                    var b = r.barangay;
-                    if (!b) return;
-                    if (!barangayBaseMap[b]) barangayBaseMap[b] = { actual: 0, predicted: 0 };
-                    barangayBaseMap[b].actual    += Number(r.total_vaccinated) || 0;
-                    barangayBaseMap[b].predicted += Number(r.total_vaccinated) || 0; // replaced below by RF if available
-                });
-            }
-
-            if (state.dashboardData?.diseaseCasesByBarangay?.length) {
-                state.dashboardData.diseaseCasesByBarangay.forEach(r => {
-                    var b = r.barangay;
-                    if (!b) return;
-                    if (!barangayBaseMap[b]) barangayBaseMap[b] = { actual: 0, predicted: 0 };
-                    // RF-predicted value from PHP backend — use this if available
-                    if (r.predicted > 0) barangayBaseMap[b].predicted = Number(r.predicted);
-                    if (barangayBaseMap[b].actual === 0 && r.actual > 0) {
-                        barangayBaseMap[b].actual = Number(r.actual);
-                    }
-                });
-            }
-
-            // Also add barangays that only exist in DB events (newly added)
+            var doneByKey = {};
             Object.keys(dbBarangayTotals).forEach(b => {
-                if (!barangayBaseMap[b]) barangayBaseMap[b] = { actual: 0, predicted: 0 };
+                doneByKey[nameKey(b)] = (doneByKey[nameKey(b)] || 0) + (dbBarangayTotals[b].total || 0);
             });
 
-            var allBarangays = Object.keys(barangayBaseMap);
-            if (!allBarangays.length) {
-                // Last resort fallback: standard Baliwag barangay list
-                ['Bagong Nayon','Barangca','Calantipay','Catulinan','Concepcion',
-                 'Hinukay','Makinabang','Matangtubig','Pagala','Paitan','Piel',
-                 'Pinagbarilan','Poblacion','Sabang','San Jose','San Roque',
-                 'Sta. Barbara','Sto. Cristo','Sto. Nino','Subic','Sulivan',
-                 'Tangos','Tarcan','Tiaong','Tibag','Tilapayong','Virgen Delas Flores'
-                ].forEach(b => { barangayBaseMap[b] = { actual: 0, predicted: 0 }; });
-                allBarangays = Object.keys(barangayBaseMap);
-            }
+            var labels = dogRows.map(r => r.barangay);
+            var needed = dogRows.map(r => Math.round((Number(r.share) || 0) * periodDemand));
+            var done   = dogRows.map(r => doneByKey[nameKey(r.barangay)] || 0);
 
-            // Total actual across all barangays (for proportional ARIMA distribution)
-            var totalActual = allBarangays.reduce((s, b) => s + (barangayBaseMap[b].actual || 0), 0) || 1;
+            // A barangay missing from the masterlist still shows its recorded turnout.
+            var listed = new Set(labels.map(nameKey));
+            Object.keys(dbBarangayTotals).forEach(b => {
+                if (listed.has(nameKey(b))) return;
+                listed.add(nameKey(b));
+                labels.push(b); needed.push(0); done.push(doneByKey[nameKey(b)]);
+            });
 
-            // ── ARIMA path — distribute forecast across ALL barangays ────────────
-            if (tvN.forecast?.length) {
-                var arimaBase = (tvN.forecast[0] || 0) * multi;
+            var c4Title = !dogRows.length
+                ? 'Dog population data unavailable'
+                : usingForecast
+                    ? `Predicted Vaccine Demand (${range}): ~${Math.round(periodDemand).toLocaleString()} vaccines, split by dog population — highest to lowest`
+                    : periodDemand > 0
+                        ? `Vaccine Demand — ${range} (Estimated — Forecast Unavailable), split by dog population — highest to lowest`
+                        : 'No forecast or vaccination history available';
 
-                // DB-adjust the ARIMA total when live data exists (60% ARIMA / 40% DB-informed blend)
-                var adjustedTotal = arimaBase;
-                if (dbGrandTotal > 0 && tvN.forecast[0] > 0) {
-                    var dbMonthEst = range === 'This Year' ? dbGrandTotal / 12
-                                   : range === 'Last 3 Months' ? dbGrandTotal / 3
-                                   : dbGrandTotal;
-                    var actRatio   = dbMonthEst / tvN.forecast[0];
-                    adjustedTotal  = Math.min(arimaBase * 2,
-                        Math.round(arimaBase * 0.6 + arimaBase * actRatio * 0.4) * multi);
-                }
-
-                var neededByBarangay = allBarangays.map(b =>
-                    Math.round(((barangayBaseMap[b].actual || 0) / totalActual) * adjustedTotal)
-                );
-                var doneByBarangay = allBarangays.map(b => (dbBarangayTotals[b] || {}).total || 0);
-
-                var c4Title = dbGrandTotal > 0
-                    ? `Predicted Vaccine Demand (${range}): ~${Math.round(adjustedTotal).toLocaleString()} needed — highest to lowest`
-                    : `Predicted Vaccine Demand (${range}): ~${Math.round(arimaBase).toLocaleString()} vaccines — highest to lowest`;
-
-                renderRankList('vaccinesNeededList', 'vaccinesNeededTitle', c4Title, '#456084',
-                    allBarangays, neededByBarangay, doneByBarangay, hasDbData);
-
-            } else {
-                // Fallback — RF-predicted values from PHP dashboard (all barangays, no slice)
-                var predictedByBarangay = allBarangays.map(b => Math.round((barangayBaseMap[b].predicted || 0) * multi));
-                var doneByBarangayFb    = allBarangays.map(b => (dbBarangayTotals[b] || {}).total || 0);
-
-                renderRankList('vaccinesNeededList', 'vaccinesNeededTitle',
-                    `Vaccine Demand — ${range} (Estimated — Forecast Unavailable) — highest to lowest`, VIZ.warn,
-                    allBarangays, predictedByBarangay, doneByBarangayFb, hasDbData);
-            }
+            renderRankList('vaccinesNeededList', 'vaccinesNeededTitle', c4Title,
+                usingForecast && dogRows.length ? '#456084' : VIZ.warn,
+                labels, needed, done, hasDbData);
         }
     };
 

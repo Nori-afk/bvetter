@@ -1532,6 +1532,35 @@ function monthly_vaccination_series($pdo, string $dataView = 'historical'): arra
     return array_values($byMonth);
 }
 
+/**
+ * Each barangay's share of the town's dogs, from the workbook's
+ * Barangay_Masterlist (2025 estimated dog population, 16,847 in all).
+ *
+ * The Mass Vaccination page splits the municipal vaccination forecast by these
+ * shares. The clinic keeps no per-barangay vaccination history to split it by,
+ * and the split used to fall back to each barangay's DISEASE case count, which
+ * has nothing to do with how many animals a drive will vaccinate. Dog
+ * population is the documented basis, and the same one the analytics service
+ * uses for /vaccination-forecast-barangay.
+ *
+ * The sheet's TOTAL row has no barangay_id and is skipped.
+ */
+function barangay_dog_population(): array
+{
+    $rows = [];
+    foreach (bv_sheet_rows('Barangay_Masterlist') as $row) {
+        $dogs = (int) ($row['estimated_dog_population_2025'] ?? 0);
+        if (!is_numeric($row['barangay_id'] ?? null) || $dogs <= 0) continue;
+        $rows[] = ['barangay' => bv_clean($row['barangay'] ?? ''), 'dogs' => $dogs];
+    }
+    $total = array_sum(array_column($rows, 'dogs'));
+    foreach ($rows as &$row) {
+        $row['share'] = $total > 0 ? $row['dogs'] / $total : 0;
+    }
+    unset($row);
+    return $rows;
+}
+
 function mass_vaccination_dataset_data($pdo, string $dataView = 'historical')
 {
     if (!in_array($dataView, ['historical', 'current'], true)) $dataView = 'historical';
@@ -1574,6 +1603,7 @@ function mass_vaccination_dataset_data($pdo, string $dataView = 'historical')
         'data_view'   => $dataView,
         'by_month'    => $byMonth,
         'by_barangay' => $barangayVacc,
+        'dog_population_by_barangay' => barangay_dog_population(),
         'latest_year' => $latestYearRows,
         'summary'     => [
             'total_dogs'       => array_sum(array_column($byMonth, 'dogs_vaccinated')),
