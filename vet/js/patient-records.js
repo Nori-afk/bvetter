@@ -658,6 +658,17 @@ function getVisitHistory(record) {
 	}));
 }
 
+// Typed symptoms, plus the symptom pattern picked under SUGGEST A DIAGNOSIS.
+// The pattern is saved in its own column, so a visit saved with only the
+// picker used to show no symptoms at all.
+function symptomsHtml(visit, emptyHtml) {
+	const typed = String(visit.symptoms || '').trim();
+	const pattern = String(visit.symptomCluster || '').trim();
+	if (!pattern || pattern === typed) return escapeHtml(typed) || emptyHtml;
+	if (!typed) return escapeHtml(pattern);
+	return `${escapeHtml(typed)}<br><span class="muted">Symptom pattern: ${escapeHtml(pattern)}</span>`;
+}
+
 function getVaccinationHistory(record) {
 	if (Array.isArray(record.vaccinationHistory) && record.vaccinationHistory.length) return record.vaccinationHistory;
 	if (!record.vaccineBrand && !record.vaccinationStatus) return [];
@@ -914,7 +925,7 @@ function renderPatientInfoTab(record) {
 					<div class="lv-col lv-col-border">
 						<p class="lv-col-label">CLINICAL OBSERVATIONS</p>
 						<p class="lv-sub-label">Symptoms</p>
-						<p class="lv-text">${escapeHtml(record.symptoms) || '—'}</p>
+						<p class="lv-text">${symptomsHtml(record, '—')}</p>
 						<p class="lv-sub-label">Treatment Plan</p>
 						<p class="lv-text">${escapeHtml(record.treatment) || '—'}</p>
 					</div>
@@ -982,7 +993,7 @@ function renderVisitHistoryTab(record) {
 						<div class="history-column">
 							<div class="detail-block">
 								<p class="history-label">Clinical Observation</p>
-								<p class="detail-paragraph">${escapeHtml(visit.symptoms || record.symptoms) || '<span class="muted">Not recorded</span>'}</p>
+								<p class="detail-paragraph">${symptomsHtml(visit, '<span class="muted">Not recorded</span>')}</p>
 							</div>
 							<div class="detail-block">
 								<p class="history-label">Clinical Diagnosis</p>

@@ -307,6 +307,10 @@ function mapVisit($row)
         'category' => $row['category'],
         'diseaseCategory' => $row['disease_category'],
         'symptoms' => $row['symptoms'],
+        // The pattern picked under SUGGEST A DIAGNOSIS. Saved since the picker
+        // was added but never sent back, so a visit recorded with the picker
+        // and no typed symptoms showed none.
+        'symptomCluster' => $row['symptom_cluster'] ?? null,
         'diagnosis' => apiSafeText($row['diagnosis']),
         'treatment' => $row['treatment'],
         'medications' => json_decode($row['medications_json'] ?: '[]', true) ?: [],
@@ -389,6 +393,7 @@ function mapRecord($pdo, $row)
         'visitDate' => $latest['date'] ?? '',
         'followUpDate' => $latest['followUp'] ?? '',
         'symptoms' => $latest['symptoms'] ?? '',
+        'symptomCluster' => $latest['symptomCluster'] ?? '',
         'diagnosis' => apiSafeText($latest['diagnosis'] ?? ''),
         'treatment' => $latest['treatment'] ?? '',
         'medications' => $latest['medications'] ?? [],

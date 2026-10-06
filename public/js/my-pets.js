@@ -193,6 +193,14 @@ function renderPetDetail(pet) {
   `;
 }
 
+// The vet's typed symptoms and the symptom pattern they picked are saved apart;
+// a visit can have either, so show both rather than only the typed text.
+function visitSymptoms(visit) {
+  const typed = String(visit.symptoms || '').trim();
+  const pattern = String(visit.symptomCluster || '').trim();
+  return [...new Set([typed, pattern].filter(Boolean))].join('; ');
+}
+
 function renderVisitItem(visit) {
   return `
     <div class="mp-timeline-item">
@@ -205,7 +213,7 @@ function renderVisitItem(visit) {
         ${visit.attendingVet ? `<p class="mp-timeline-vet">Attending: ${escapeHtmlPets(visit.attendingVet)}</p>` : ''}
         ${visit.diagnosis ? `<p class="mp-timeline-diag"><strong>Diagnosis:</strong> ${escapeHtmlPets(visit.diagnosis)}</p>` : ''}
         ${visit.treatment ? `<p class="mp-timeline-diag"><strong>Treatment:</strong> ${escapeHtmlPets(visit.treatment)}</p>` : ''}
-        ${visit.symptoms ? `<p class="mp-timeline-diag"><strong>Symptoms:</strong> ${escapeHtmlPets(visit.symptoms)}</p>` : ''}
+        ${visitSymptoms(visit) ? `<p class="mp-timeline-diag"><strong>Symptoms:</strong> ${escapeHtmlPets(visitSymptoms(visit))}</p>` : ''}
       </div>
     </div>
   `;
