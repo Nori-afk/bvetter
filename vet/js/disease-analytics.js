@@ -1681,16 +1681,11 @@ function heatColor(t) {
     return HEAT_STOPS[HEAT_STOPS.length - 1][1];
 }
 
-function rgbCss(color) {
-    return `rgb(${color[0]},${color[1]},${color[2]})`;
-}
-
-function markerCaseColor(value, minValue, maxValue) {
-    const span = (maxValue - minValue) || 1;
-    const t = Math.max(0, Math.min(1, ((Number(value) || 0) - minValue) / span));
-    // Keep marker colours in the readable part of the ramp: low stays cool,
-    // high reaches red/orange without turning white against the white stroke.
-    return rgbCss(heatColor(0.14 + t * 0.77));
+function markerActionColor(value) {
+    const level = actionStatus(value).level;
+    if (level === 'high') return '#DC2626';
+    if (level === 'medium') return '#FBBF24';
+    return '#15803D';
 }
 
 function symbolRadius(value, maxValue) {
@@ -1793,13 +1788,12 @@ function refreshMapLayers() {
         const needsAction = spot.risk === 'critical';
         const selected = state.selectedHotspotId === spot.id;
 
-        // Marker fill follows case volume, like the heat surface. Action tier
-        // stays in the tooltip and side panel so Normal/Watch/Needs Action does
-        // not visually contradict a high-count barangay.
+        // Marker fill follows the action tier. The heat surface already carries
+        // recorded case volume, while the circles answer what action to take.
         const marker = L.circleMarker([spot.lat, spot.lng], {
             radius: symbolRadius(actual, maxValue),
             color: selected ? '#0f172a' : '#ffffff',
-            fillColor: markerCaseColor(actual, minValue, maxValue),
+            fillColor: markerActionColor(spot.risk),
             fillOpacity: 0.95,
             weight: selected ? 3.5 : (needsAction ? 2.5 : 1.8),
             className: needsAction ? 'da-marker da-marker-urgent' : 'da-marker',
@@ -1847,8 +1841,8 @@ function renderMapLegend(range) {
         <div class="heat-scale-caption">
             <strong>Cases</strong>
             <span>Circle = barangay, sized by cases</span>
-            <span>Circle colour = recorded case volume</span>
-            <span>Tooltip/action tab = Normal / Watch / Needs Action</span>
+            <span>Shading = recorded case volume</span>
+            <span>Circle colour = action status: green Normal, yellow Watch, red Needs Action</span>
             <span class="heat-scale-note">Shading between barangays is estimated</span>
         </div>`;
 }
