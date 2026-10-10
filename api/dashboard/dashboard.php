@@ -1003,7 +1003,7 @@ function disease_analytics_data($pdo)
                  'trend' => ($isAllDiseases ? 'All diseases' : ucwords($selected)) . ' · ' . $periodLabel],
                 ['label' => 'Disease Filter', 'value' => $isAllDiseases ? 'All Diseases' : ucwords($selected),
                  'trend' => 'Currently selected'],
-                ['label' => 'Active Barangay','value' => $topBarangay, 'trend' => 'Highest case count'],
+                ['label' => 'Highest Case Barangay','value' => $topBarangay, 'trend' => 'Highest case count'],
             ],
             'hotspots' => $hotspots,
             'forecast' => array_map(fn($r) => (int) ceil($r['value'] * 1.12), array_slice($actualCases, 0, 8)),

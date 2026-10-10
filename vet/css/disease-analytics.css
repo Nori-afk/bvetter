@@ -1425,6 +1425,10 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 }
 
 .hotspot-item:hover { border-color: var(--border-mid); box-shadow: var(--shadow); transform: translateX(2px); }
+.hotspot-item.is-selected {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 2px rgba(0,42,88,0.10);
+}
 
 .hotspot-item h4 {
     font-size: 13px;

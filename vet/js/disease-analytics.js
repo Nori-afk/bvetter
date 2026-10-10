@@ -51,6 +51,7 @@ const state = {
     map: null,
     heatLayer: null,
     hotspotMarkers: [],
+    selectedHotspotId: null,
 };
 
 /* ── Utilities ──────────────────────────────────────────────── */
@@ -1582,7 +1583,7 @@ function renderHotspotList() {
         else if (src.includes('moving') || src.includes('wma')) badge = `<span class="source-badge wma">Basic Estimate</span>`;
         else                                               badge = `<span class="source-badge fallback">Estimate</span>`;
         return `
-            <article class="hotspot-item" data-hotspot-id="${hotspot.id}">
+            <article class="hotspot-item${state.selectedHotspotId === hotspot.id ? ' is-selected' : ''}" data-hotspot-id="${hotspot.id}">
                 <h4>
                     ${hotspot.barangay}
                     <span class="risk-chip risk-${actionStatus(hotspot.risk).level}">${actionStatus(hotspot.risk).label}</span>
@@ -1663,6 +1664,18 @@ function heatColor(t) {
         }
     }
     return HEAT_STOPS[HEAT_STOPS.length - 1][1];
+}
+
+function rgbCss(color) {
+    return `rgb(${color[0]},${color[1]},${color[2]})`;
+}
+
+function markerCaseColor(value, minValue, maxValue) {
+    const span = (maxValue - minValue) || 1;
+    const t = Math.max(0, Math.min(1, ((Number(value) || 0) - minValue) / span));
+    // Keep marker colours in the readable part of the ramp: low stays cool,
+    // high reaches red/orange without turning white against the white stroke.
+    return rgbCss(heatColor(0.14 + t * 0.77));
 }
 
 function symbolRadius(value, maxValue) {
@@ -1763,23 +1776,21 @@ function refreshMapLayers() {
         const actual    = Number(spot.cases) || 0;
         const predicted = Number(spot.predicted) || 0;
         const needsAction = spot.risk === 'critical';
+        const selected = state.selectedHotspotId === spot.id;
 
-        // Solid tier colour, as the original design had it: red for Needs
-        // Action, amber for Watch, green for Normal.
-        //
-        // This does put two colour systems on one map -- the surface uses red
-        // for "many cases", a marker uses red for "needs action". A neutral
-        // scheme was tried and rejected on the look. The white outline and drop
-        // shadow below are what keep the markers legible against the field, so
-        // the two never visually merge even though they share hues.
+        // Marker fill follows case volume, like the heat surface. Action tier
+        // stays in the tooltip and side panel so Normal/Watch/Needs Action does
+        // not visually contradict a high-count barangay.
         const marker = L.circleMarker([spot.lat, spot.lng], {
             radius: symbolRadius(actual, maxValue),
-            color: '#ffffff',
-            fillColor: getRiskColor(spot.risk),
+            color: selected ? '#0f172a' : '#ffffff',
+            fillColor: markerCaseColor(actual, minValue, maxValue),
             fillOpacity: 0.95,
-            weight: needsAction ? 2.5 : 1.8,
+            weight: selected ? 3.5 : (needsAction ? 2.5 : 1.8),
             className: needsAction ? 'da-marker da-marker-urgent' : 'da-marker',
         }).addTo(state.map);
+        marker._vbHotspotId = spot.id;
+        marker._vbBaseWeight = needsAction ? 2.5 : 1.8;
 
         const direction = predicted > actual ? 'expected to rise'
                         : predicted < actual ? 'expected to ease' : 'expected to hold';
@@ -1789,7 +1800,7 @@ function refreshMapLayers() {
             `${actual} recorded &middot; ${predicted.toFixed(0)} forecast<br>` +
             `<span style="opacity:.75">${direction}</span>`,
             { direction: 'top', offset: [0, -4] });
-        marker.on('click', () => { openHotspotAction(spot); });
+        marker.on('click', () => { marker.openTooltip(); openHotspotAction(spot); });
         state.hotspotMarkers.push(marker);
     });
 
@@ -1821,7 +1832,8 @@ function renderMapLegend(range) {
         <div class="heat-scale-caption">
             <strong>Cases</strong>
             <span>Circle = barangay, sized by cases</span>
-            <span>Colour = Needs Action / Watch / Normal</span>
+            <span>Circle colour = recorded case volume</span>
+            <span>Tooltip/action tab = Normal / Watch / Needs Action</span>
             <span class="heat-scale-note">Shading between barangays is estimated</span>
         </div>`;
 }
@@ -1841,18 +1853,16 @@ function initMap() {
     refreshMapLayers();
 }
 
-/* Map fill colours, keyed off the same normalised level as every other
-   status surface -- see actionStatus(). */
-function getRiskColor(risk) {
-    const level = actionStatus(risk).level;
-    return level === 'high' ? '#c31d1d' : level === 'medium' ? '#a4851f' : '#1e8a47';
-}
-
 function toggleMapActionMode(forceOn) {
     state.mapActionMode = typeof forceOn === 'boolean' ? forceOn : !state.mapActionMode;
     document.getElementById('toggleActionBtn').textContent =
         state.mapActionMode ? 'Close Action Tab' : 'Action Tab';
-    if (!state.mapActionMode) { renderHotspotList(); return; }
+    if (!state.mapActionMode) {
+        state.selectedHotspotId = null;
+        updateSelectedHotspotMarker(null);
+        renderHotspotList();
+        return;
+    }
     // The most urgent barangay, not whichever the API happened to return
     // first -- opening the action tab should land on what needs attention.
     const defaultHotspot = sortedHotspots()[0];
@@ -1866,8 +1876,21 @@ function openHotspotAction(hotspot) {
     showHotspotAction(hotspot);
 }
 
+function updateSelectedHotspotMarker(hotspotId) {
+    state.hotspotMarkers.forEach(marker => {
+        const isSelected = hotspotId && marker._vbHotspotId === hotspotId;
+        marker.setStyle({
+            color: isSelected ? '#0f172a' : '#ffffff',
+            weight: isSelected ? 3.5 : (marker._vbBaseWeight || 1.8),
+        });
+        if (isSelected) marker.bringToFront();
+    });
+}
+
 function showHotspotAction(hotspot) {
     if (!hotspot) return;
+    state.selectedHotspotId = hotspot.id;
+    updateSelectedHotspotMarker(hotspot.id);
     const side    = document.getElementById('hotspotList');
     const insight = (diseaseAnalyticsData.insights || []).find(
         r => normalizeBarangayName(r.barangay) === normalizeBarangayName(hotspot.barangay)
@@ -1955,6 +1978,8 @@ function showHotspotAction(hotspot) {
     });
     document.getElementById('backToMapOverviewBtn').addEventListener('click', () => {
         state.mapActionMode = false;
+        state.selectedHotspotId = null;
+        updateSelectedHotspotMarker(null);
         document.getElementById('toggleActionBtn').textContent = 'Action Tab';
         renderHotspotList();
     });
