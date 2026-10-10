@@ -265,7 +265,7 @@ async function fetchAndBuildSlots() {
     });
     const json = await res.json();
     console.log('[slots] booked:', json.booked);
-    buildTimeSlots(json.success ? (json.booked || []) : []);
+    buildTimeSlots(json.success ? (json.booked || []) : [], json.success ? (json.requested || []) : []);
   } catch (err) {
     console.error('[slots] fetch failed:', err);
     buildTimeSlots([]);
@@ -320,18 +320,24 @@ function isSlotPast(dateIso, slot) {
   return slotMinutes <= (now.getHours() * 60 + now.getMinutes());
 }
 
-function buildTimeSlots(unavailableSlots = []) {
+/* A time another owner has requested but the vet hasn't confirmed shows as
+   "Requested" (see the legend). It can still be requested -- the vet
+   confirms one request per time and the rest are declined. */
+function buildTimeSlots(unavailableSlots = [], requestedSlots = []) {
   const grid = document.getElementById('timeGrid');
   if (!grid) return;
   grid.innerHTML = '';
   selectedPreviewSlot = null;   // grid rebuilt — any earlier pick no longer applies
 
   const booked = new Set(unavailableSlots.map(canonicalSlot));
+  const requested = new Set(requestedSlots.map(canonicalSlot));
   ALL_TIME_SLOTS.forEach(slot => {
     const div    = document.createElement('div');
     const isNA   = booked.has(canonicalSlot(slot)) || isSlotPast(selectedCalDate, slot);
-    div.className   = 'time-slot ' + (isNA ? 'na' : 'available');
+    const isRequested = !isNA && requested.has(canonicalSlot(slot));
+    div.className   = 'time-slot ' + (isNA ? 'na' : 'available') + (isRequested ? ' requested' : '');
     div.textContent = slot;
+    if (isRequested) div.title = 'Requested';
 
     if (!isNA) {
       div.addEventListener('click', () => {
@@ -1402,7 +1408,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       // field lives on step 2, so send the owner back to it.
       if (isCspMode() && !(document.getElementById('petAgeValue')?.value || '').trim()) {
         valid = false;
-        vbAlert("Castration & Spay registration needs your pet's age. Please add it in Pet Information.").then(() => {
+        vbAlert("Castration & Spay needs your pet's age.").then(() => {
           goStep(2);
           validateRequiredField('petAgeValue', "Please enter your pet's age for Castration & Spay.");
           document.getElementById('petAgeValue')?.focus();
@@ -1466,6 +1472,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     }
 
     let booked = [];
+    let requested = [];
     try {
       const res = await fetch('/api/appointments/appointment.php', {
         method : 'POST',
@@ -1478,16 +1485,20 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       });
       const json = await res.json();
       booked = json.success ? (json.booked || []) : [];
+      requested = json.success ? (json.requested || []) : [];
     } catch (err) {
       console.error('[step3 slots] fetch failed:', err);
       return;
     }
 
     const bookedSet = new Set(booked.map(canonicalSlot));
+    const requestedSet = new Set(requested.map(canonicalSlot));
     slotButtons.forEach(btn => {
       const slot = btn.dataset.slot;
       const isUnavailable = bookedSet.has(canonicalSlot(slot)) || isSlotPast(dateVal, slot);
       btn.classList.toggle('unavailable', isUnavailable);
+      btn.classList.toggle('requested', !isUnavailable && requestedSet.has(canonicalSlot(slot)));
+      btn.title = !isUnavailable && requestedSet.has(canonicalSlot(slot)) ? 'Requested' : '';
       if (isUnavailable && btn.classList.contains('selected')) {
         btn.classList.remove('selected');
       }
@@ -1528,7 +1539,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       // Keep the static fallback options already in the markup
     }
   }
-  populateVisitTypes();
+  const visitTypesReady = populateVisitTypes();
 
   /* ── Show the age-limit notice only for Deworming visits ── */
   function toggleDewormingNotice() {
@@ -1585,13 +1596,6 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     const address = document.getElementById('ownerAddress');
     if (address) address.readOnly = true;
     document.getElementById('step1')?.classList.toggle('uses-account', on);
-
-    const hint = document.getElementById('useAccountHint');
-    if (hint) {
-      hint.textContent = on
-        ? 'Filled in from your account. Turn off if someone else is bringing your pet.'
-        : 'Enter the details of the person bringing your pet. The clinic will contact them about this appointment.';
-    }
   }
 
   async function loadAccountDetails() {
@@ -1808,7 +1812,7 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
         await vbAlert(result.message || 'Failed to book appointment.');
         return;
       }
-      showBookingSuccess('Request sent! The clinic confirms within 1 working day.');
+      showBookingSuccess('Request sent! We’ve sent a confirmation to your email.');
       await new Promise((resolve) => setTimeout(resolve, 400));
       hideBookingOverlay();
       showDefaultSuccess();
@@ -1911,8 +1915,91 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     document.getElementById('rv-time').textContent = selSlot ? selSlot.dataset.slot : '—';
   }
 
-  // Bring back any in-progress booking (must run after all wiring above).
-  restoreBookingDraft();
+  /* ── "Book Again" from a request that didn't go through (another request
+     got the time, or it expired). The link carries ?rebook=<id>&date=<a day
+     with free times>, so the same pet, visit type and day are filled in and
+     the owner only picks a time. ── */
+  function rebookParams() {
+    const params = new URLSearchParams(window.location.search);
+    const id = Number(params.get('rebook'));
+    return Number.isInteger(id) && id > 0 ? { id, date: params.get('date') || '' } : null;
+  }
+
+  // A weekday within the booking window the clinic is open, else ''.
+  function bookableDate(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return '';
+    if (value < toLocalIsoDate() || value > toLocalIsoDate(bookingHorizonDate())) return '';
+    return isWeekendIso(value) || CLOSED_DATES[value] ? '' : value;
+  }
+
+  function setRebookField(id, value) {
+    const el = document.getElementById(id);
+    if (!el || value == null || String(value).trim() === '') return;
+    if (el.tagName === 'SELECT') {
+      const option = [...el.options].find(o => o.value.toLowerCase() === String(value).trim().toLowerCase());
+      if (option) el.value = option.value;
+      return;
+    }
+    el.value = value;
+  }
+
+  async function restoreRebook({ id, date }) {
+    let request = null;
+    try {
+      const res = await fetch('/api/appointments/appointment.php', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'list' })
+      });
+      const json = await res.json();
+      request = json.success && Array.isArray(json.data) ? json.data.find(a => Number(a.id) === id) : null;
+    } catch {
+      request = null;
+    }
+    // A reload after this keeps the owner's own changes (the draft).
+    history.replaceState(null, '', window.location.pathname);
+    if (!request) {
+      restoreBookingDraft();
+      return;
+    }
+
+    clearBookingDraft();
+    const pet = request.pet || {};
+    setRebookField('petName', pet.name);
+    setRebookField('petType', pet.species);
+    setRebookField('petBreed', pet.breed);
+    setRebookField('petSex', pet.sex);
+    // Stored as "2 Years" / "5 Months".
+    const age = String(pet.age || '').match(/^(\d+)\s*([a-z]*)/i);
+    if (age) {
+      setRebookField('petAgeValue', age[1]);
+      setRebookField('petAgeUnit', /^m/i.test(age[2]) ? 'Months' : 'Years');
+    }
+    await visitTypesReady;
+    setRebookField('visitType', request.type);
+    setRebookField('apptDate', bookableDate(date) || bookableDate(request.preferred_date));
+    toggleDewormingNotice();
+    toggleCspMode();
+
+    // Same vet. The list may still be loading; bv-vets-loaded picks it up.
+    if (request.veterinarian_id) {
+      const vetItem = document.querySelector(`.vet-item[data-vet-id="${request.veterinarian_id}"]`);
+      if (vetItem) {
+        if (!vetItem.classList.contains('active')) vetItem.click();
+      } else {
+        pendingRestoreVetId = request.veterinarian_id;
+      }
+    }
+
+    showPage(pageBooking);
+    goStep(validateStep(2) ? 3 : 2);
+  }
+
+  // Bring back any in-progress booking (must run after all wiring above),
+  // or start from the request a "Book Again" link points to.
+  const rebook = rebookParams();
+  if (rebook) restoreRebook(rebook);
+  else restoreBookingDraft();
 
 })();
 

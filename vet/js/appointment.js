@@ -122,6 +122,8 @@ function normalizeAppointment(item, index) {
 		veterinarian: item.veterinarian ? String(item.veterinarian) : '',
 		timeSlot: canonicalSlot(item.time_slot || ''),
 		expiresAt: item.expires_at || null,
+		// When the owner made the request ('YYYY-MM-DD HH:MM:SS').
+		requestedAt: String(item.requested_at || ''),
 		ownerPhone: item.owner_info?.phone || '',
 		// Someone other than the account holder bringing the pet (the owner
 		// turned off "Use my account details" when booking).
@@ -138,27 +140,39 @@ function expiryLabel(item) {
 	if (!item.expiresAt) return '';
 	const at = new Date(String(item.expiresAt).replace(' ', 'T'));
 	if (Number.isNaN(at.getTime())) return '';
-	return 'Confirm by ' + at.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+	return 'Expires ' + at.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
 /**
- * Pending requests sharing a time with another pending request. New requests
- * can't do this any more (a pending request holds its slot), but ones made
- * before that change can -- and only the first of a pair can be confirmed.
+ * Other pending requests for the same date, time and vet. Several owners
+ * may ask for the same time; the vet picks one to confirm, and the others
+ * for that time are declined automatically when they do.
  */
-function sameSlotPendingIds() {
-	const pending = state.appointments.filter((item) => item.status === 'pending' && item.timeSlot);
-	const clashing = new Set();
-	pending.forEach((a, i) => {
-		pending.slice(i + 1).forEach((b) => {
-			const sameVet = !a.veterinarianId || !b.veterinarianId || a.veterinarianId === b.veterinarianId;
-			if (a.preferredDate === b.preferredDate && a.timeSlot === b.timeSlot && sameVet) {
-				clashing.add(a.id);
-				clashing.add(b.id);
-			}
-		});
-	});
-	return clashing;
+function sameSlotRequests(item) {
+	if (!item.timeSlot) return [];
+	return state.appointments.filter((other) => other.id !== item.id
+		&& other.status === 'pending'
+		&& other.preferredDate === item.preferredDate
+		&& other.timeSlot === item.timeSlot
+		&& (!other.veterinarianId || !item.veterinarianId || other.veterinarianId === item.veterinarianId));
+}
+
+/** Orders requests by when they were made (the id breaks ties). */
+function compareRequested(a, b) {
+	if (a.requestedAt !== b.requestedAt) return a.requestedAt < b.requestedAt ? -1 : 1;
+	return a.id - b.id;
+}
+
+/** Requests for this time made before this one, earliest first. */
+function earlierRequests(item) {
+	return sameSlotRequests(item)
+		.filter((other) => compareRequested(other, item) < 0)
+		.sort(compareRequested);
+}
+
+function ordinal(n) {
+	const suffix = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
+	return n + suffix;
 }
 
 function loadAppointments(dataset) {
@@ -323,7 +337,7 @@ function updateCounters() {
 function renderPendingList() {
 	const pending = state.appointments
 		.filter((item) => item.status === 'pending')
-		.sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+		.sort((a, b) => (new Date(a.datetime) - new Date(b.datetime)) || compareRequested(a, b));
 
 	ui.pendingHolder.innerHTML = '';
 	if (!pending.length) {
@@ -332,17 +346,17 @@ function renderPendingList() {
 	}
 
 	ui.pendingEmpty.hidden = true;
-	const clashing = sameSlotPendingIds();
 	ui.pendingHolder.innerHTML = pending.map((item) => {
 		const dt = formatDateTime(item.datetime);
-		const clash = clashing.has(item.id)
-			? '<p class="slot-clash">&#9888; Same time as another request</p>'
+		// Same-time requests are listed in the order they came in.
+		const clash = sameSlotRequests(item).length
+			? `<span class="status-pill status-pending">${ordinal(earlierRequests(item).length + 1)} request</span>`
 			: '';
 		return `
 			<article class="pending-item" data-id="${item.id}">
 				<p class="time">${dt.date} - ${dt.time}</p>
 				${clash}
-				${expiryLabel(item) ? `<p class="expires-at">${expiryLabel(item)}</p>` : ''}
+				${expiryLabel(item) ? `<p>${expiryLabel(item)}</p>` : ''}
 				<h4>${item.patient}</h4>
 				<p>${item.service}</p>
 				<div class="pending-actions">
@@ -433,21 +447,48 @@ async function reloadFromServer() {
 
 async function updateStatus(id, nextStatus, { skipReload } = {}) {
 	const selected = getAppointmentById(id);
-	if (!selected) return;
+	if (!selected) return [];
+	// Ids of other requests for the same time the server declined.
+	let declined = [];
 	if (window.VetAPI?.updateAppointmentStatus) {
 		const result = await window.VetAPI.updateAppointmentStatus(id, nextStatus);
 		if (!result.ok) {
 			await vbAlert(result.error || 'Failed to update appointment.');
-			return;
+			return [];
+		}
+		// Confirming a time others had also requested declines theirs.
+		if (Array.isArray(result.data?.declined)) declined = result.data.declined;
+		if (declined.length && !skipReload) {
+			await vbAlert(result.data.message || 'Other requests for the same time were declined.');
 		}
 	}
 	if (skipReload) {
 		selected.status = nextStatus;
-		return;
+		return declined;
 	}
 	// Re-fetch from the server (rather than just patching the local copy) so the
 	// table reflects the real DB state instead of going stale until a manual reload.
 	await reloadFromServer();
+	return declined;
+}
+
+/**
+ * Accept one request. When someone else asked for the same time first,
+ * the vet is asked before passing them over.
+ */
+async function acceptRequest(id) {
+	const item = getAppointmentById(id);
+	if (!item) return;
+	const first = earlierRequests(item)[0];
+	if (first) {
+		// Same owner twice: tell the requests apart by pet.
+		const [earlierName, thisName] = first.owner === item.owner
+			? [first.patient, item.patient]
+			: [first.owner, item.owner];
+		const ok = await vbConfirm(`${earlierName} requested this time first. Confirm ${thisName} instead?`);
+		if (!ok) return;
+	}
+	await updateStatus(id, 'confirmed');
 }
 
 function removeAppointment(id) {
@@ -1024,11 +1065,17 @@ function setupEvents() {
 	ui.settingsButton?.addEventListener('click', openSettingsModal);
 
 	ui.acceptAllButton.addEventListener('click', async () => {
-		// One at a time, not in parallel: two requests for the same slot can
-		// only have one winner, and the server decides it in arrival order.
-		const pending = state.appointments.filter((item) => item.status === 'pending');
+		// One at a time, in the order the requests came in: for a time several
+		// owners asked for, the first request is confirmed and the rest are
+		// declined by the server, so they're skipped here.
+		const pending = state.appointments
+			.filter((item) => item.status === 'pending')
+			.sort(compareRequested);
+		const declined = new Set();
 		for (const item of pending) {
-			await updateStatus(item.id, 'confirmed', { skipReload: true });
+			if (declined.has(item.id)) continue;
+			const ids = await updateStatus(item.id, 'confirmed', { skipReload: true });
+			ids.forEach((declinedId) => declined.add(Number(declinedId)));
 		}
 		await reloadFromServer();
 	});
@@ -1038,7 +1085,7 @@ function setupEvents() {
 		if (!button) return;
 
 		const id = Number(button.dataset.id);
-		if (button.dataset.action === 'accept') updateStatus(id, 'confirmed');
+		if (button.dataset.action === 'accept') acceptRequest(id);
 		if (button.dataset.action === 'decline') {
 			state.selectedAppointmentId = id;
 			openCancelModal();

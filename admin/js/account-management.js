@@ -166,10 +166,11 @@ function renderTable() {
         const selfClosed = u.status === 'blocked' && u.blockedReason === 'user_request'
             ? '<span class="am-status-note"> · Left by request</span>'
             : '';
-        const overdueEl = u.overdueSince
-            ? ` <span class="am-overdue" title="Waiting more than 2 working days">Overdue</span>`
-            : '';
-        const statusEl = `<span class="am-status ${u.status}"${blockedTitle}><span class="am-status-dot"></span>${capitalize(u.status)}${selfClosed}</span>${overdueEl}`;
+        // Pending past 2 working days (api/includes/timed_rules.php) reads as
+        // Overdue, in the table's own status style.
+        const statusEl = u.overdueSince
+            ? `<span class="am-status blocked" title="Pending for more than 2 working days"><span class="am-status-dot"></span>Overdue</span>`
+            : `<span class="am-status ${u.status}"${blockedTitle}><span class="am-status-dot"></span>${capitalize(u.status)}${selfClosed}</span>`;
 
         let actionsEl = `
             <button class="am-btn-delete" onclick="openDeleteModal('${u.id}')" title="Delete user">

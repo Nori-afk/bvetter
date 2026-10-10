@@ -139,7 +139,7 @@ function renderUpcomingClosedDates() {
   if (!days.length) {
     const li = document.createElement('li');
     li.className = 'wm-closed-empty';
-    li.textContent = 'No closed weekdays in the next 4 months.';
+    li.textContent = 'None';
     list.appendChild(li);
     return;
   }

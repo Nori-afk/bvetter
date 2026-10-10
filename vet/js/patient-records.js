@@ -431,7 +431,9 @@ async function patientRequest(action, payload = {}) {
 	});
 	const result = await response.json();
 	if (!response.ok || !result.success) {
-		throw new Error(result.message || 'Patient records request failed.');
+		const error = new Error(result.message || 'Patient records request failed.');
+		error.duplicateId = Number(result.duplicateId || 0);
+		throw error;
 	}
 	return result;
 }
@@ -654,6 +656,17 @@ function getVisitHistory(record) {
 		medications: record.medications,
 		vaccinationStatus: record.vaccinationStatus
 	}));
+}
+
+// Typed symptoms, plus the symptom pattern picked under SUGGEST A DIAGNOSIS.
+// The pattern is saved in its own column, so a visit saved with only the
+// picker used to show no symptoms at all.
+function symptomsHtml(visit, emptyHtml) {
+	const typed = String(visit.symptoms || '').trim();
+	const pattern = String(visit.symptomCluster || '').trim();
+	if (!pattern || pattern === typed) return escapeHtml(typed) || emptyHtml;
+	if (!typed) return escapeHtml(pattern);
+	return `${escapeHtml(typed)}<br><span class="muted">Symptom pattern: ${escapeHtml(pattern)}</span>`;
 }
 
 function getVaccinationHistory(record) {
@@ -912,7 +925,7 @@ function renderPatientInfoTab(record) {
 					<div class="lv-col lv-col-border">
 						<p class="lv-col-label">CLINICAL OBSERVATIONS</p>
 						<p class="lv-sub-label">Symptoms</p>
-						<p class="lv-text">${escapeHtml(record.symptoms) || '—'}</p>
+						<p class="lv-text">${symptomsHtml(record, '—')}</p>
 						<p class="lv-sub-label">Treatment Plan</p>
 						<p class="lv-text">${escapeHtml(record.treatment) || '—'}</p>
 					</div>
@@ -980,7 +993,7 @@ function renderVisitHistoryTab(record) {
 						<div class="history-column">
 							<div class="detail-block">
 								<p class="history-label">Clinical Observation</p>
-								<p class="detail-paragraph">${escapeHtml(visit.symptoms || record.symptoms) || '<span class="muted">Not recorded</span>'}</p>
+								<p class="detail-paragraph">${symptomsHtml(visit, '<span class="muted">Not recorded</span>')}</p>
 							</div>
 							<div class="detail-block">
 								<p class="history-label">Clinical Diagnosis</p>
@@ -1796,6 +1809,41 @@ function renderEditModal(record) {
 	`;
 }
 
+function renderDuplicateModal(record) {
+	return `
+		<div class="delete-modal-wrap">
+			<div class="delete-modal-icon">
+				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+			</div>
+			<h2 id="records-modal-title" class="delete-modal-title">Patient Already Exists</h2>
+			<p class="delete-modal-sub">Use Add New Record on this patient instead.</p>
+			<div class="delete-warning">
+				<div class="delete-warning-inner">
+					<div class="delete-pet-avatar">${escapeHtml(record.petName.slice(0,1))}</div>
+					<div>
+						<strong>${escapeHtml(record.petName)}</strong>
+						<p>${escapeHtml(record.species)} · Owner: ${escapeHtml(record.ownerName)}</p>
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-soft" data-modal-action="close-modal">Cancel</button>
+				<button type="button" class="btn btn-primary" data-modal-action="go-view" data-id="${record.id}">View Patient</button>
+			</div>
+		</div>
+	`;
+}
+
+// True when the error was a duplicate and the existing record is now shown.
+async function showDuplicate(error) {
+	if (!error.duplicateId) return false;
+	if (!getRecordById(error.duplicateId)) await loadRecords();
+	const existing = getRecordById(error.duplicateId);
+	if (!existing) return false;
+	openModal(renderDuplicateModal(existing));
+	return true;
+}
+
 function renderDeleteModal(record) {
 	if (!record) return '<div class="empty-state">Record not found.</div>';
 	return `
@@ -2029,6 +2077,7 @@ async function handleAddSubmit(event) {
 		const record = getRecordById(Number(ids[0]));
 		openModal(renderSuccessModal(record || { ...buildBlankRecord(), ...sharedData, ...petEntries[0], id: ids[0] }, ids.length - 1));
 	} catch (error) {
+		if (await showDuplicate(error)) return;
 		await vbAlert(error.message || 'Failed to save patient record.');
 	}
 }
@@ -2265,6 +2314,7 @@ function openAddPetModal(id) {
 			try {
 				result = await patientRequest('add_pet', { ownerId: record.ownerId, ...data });
 			} catch (error) {
+				if (await showDuplicate(error)) return;
 				await vbAlert(error.message || 'Failed to add pet.');
 				return;
 			}

@@ -325,6 +325,7 @@ function bv_sheet_rows($sheetName)
 
     $headerRows = [
         'Dashboard' => 4,
+        'Barangay_Masterlist' => 3,
         'Barangay_Disease_Monthly' => 3,
         'Prediction_Ready_Aggregated' => 3,
         'Consult_Diagnosis_3Y' => 3,

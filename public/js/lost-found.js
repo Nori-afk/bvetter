@@ -303,14 +303,10 @@ function renderPublicGrid() {
     // A closed case stays on the board, grayed out, so a pet claimed by the
     // wrong person is still visible to its real owner.
     const claimed = report.status === 'resolved';
-    const claimedBadge = claimed
-      ? `<span class="pet-claimed-badge">${claimedLabel(report)}</span>`
-      : '';
     return `
       <div class="pet-card${claimed ? ' is-claimed' : ''}" data-status="${type}">
         <div class="pet-card-img-wrap">
-          <span class="pet-badge ${type}">${escapeHtml(report.type)}</span>
-          ${claimedBadge}
+          <span class="pet-badge ${claimed ? 'resolved' : type}">${claimed ? claimedWord(report) : escapeHtml(report.type)}</span>
           ${expandableImg(reportImage(report), report.petName || report.title || 'Pet', 'pet-card-img')}
         </div>
         <div class="pet-card-body">
@@ -813,10 +809,9 @@ async function submitReport() {
   }
 }
 
-/** "Claimed · Sep 25, 2026" for a found pet, "Reunited · ..." for a lost one. */
-function claimedLabel(report) {
-  const word = normalizeType(report.type) === 'found' ? 'Claimed' : 'Reunited';
-  return report.resolved_at ? `${word} · ${escapeHtml(formatDate(report.resolved_at))}` : word;
+/** "Claimed" for a found pet, "Reunited" for a lost one. */
+function claimedWord(report) {
+  return normalizeType(report.type) === 'found' ? 'Claimed' : 'Reunited';
 }
 
 /**
@@ -833,9 +828,12 @@ function setDetailClaimedState(type, pet) {
   if (dispute) dispute.hidden = !claimed;
   if (note) {
     note.hidden = !claimed;
-    note.innerHTML = claimed
-      ? `<strong>${claimedLabel(pet)}.</strong> This case is closed. If this is your pet and someone else claimed it, press "This is My Pet" to tell the clinic.`
-      : '';
+    const text = note.querySelector('.details-section-text');
+    if (text) {
+      text.textContent = claimed
+        ? `${claimedWord(pet)}${pet.resolved_at ? ' on ' + formatDate(pet.resolved_at) : ''}`
+        : '';
+    }
   }
 }
 
@@ -845,14 +843,13 @@ function openDisputeModal() {
   const report = publicReports.find((item) => item.id === currentReportId);
   if (!report) return;
   if (!sessionUser()) {
-    vbAlert('Please log in first, so the clinic knows who to contact about this pet.').then(() => {
+    vbAlert('Please log in first.').then(() => {
       window.location.href = 'login.html';
     });
     return;
   }
   currentDisputeReport = report;
-  document.getElementById('disputeCaseLabel').textContent =
-    `Case ${report.caseId}: ${report.petName || 'this pet'} was marked ${normalizeType(report.type) === 'found' ? 'claimed' : 'reunited'}.`;
+  document.getElementById('disputeCaseLabel').textContent = `Case ID: ${report.caseId}`;
   document.getElementById('disputeDetailsInput').value = '';
   document.getElementById('disputePhotoInput').value = '';
   updateCharCounter('disputeDetailsInput', 'disputeDetailsCounter');
@@ -866,7 +863,7 @@ async function submitDispute() {
   if (!report) return;
   const details = document.getElementById('disputeDetailsInput').value.trim();
   if (details.length < 10) {
-    await vbAlert('Please tell the clinic a little about your pet and what happened.');
+    await vbAlert('Please describe your pet.');
     return;
   }
   const photo = document.getElementById('disputePhotoInput').files[0];
@@ -896,7 +893,7 @@ async function submitDispute() {
       return;
     }
     closeModal('disputeModal');
-    await vbAlert('Sent. The clinic will look into this case and contact you. You can follow it under My Tickets.');
+    await vbAlert('Sent. The clinic will contact you.');
   } catch {
     await vbAlert('Could not send this to the clinic. Please try again.');
   } finally {
@@ -1363,8 +1360,8 @@ async function handleResolveOwnReport(reportId) {
   const report = myReports.find((item) => String(item.id) === String(reportId));
   const isFound = normalizeType(report?.type) === 'found';
   const confirmMsg = isFound
-    ? 'Mark this case as resolved? It stays on the board, grayed out as claimed, for 30 days.'
-    : 'Mark this case as resolved? It stays on the board, grayed out as reunited, for 30 days.';
+    ? 'Mark this case as resolved?'
+    : 'Mark this case as resolved?';
   if (!(await vbConfirm(confirmMsg))) return;
 
   const result = await api.resolveOwnReport(reportId);

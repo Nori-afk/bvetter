@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
   <link rel="stylesheet" href="../../shared/css/form-validation.css"/>
-  <link rel="stylesheet" href="../css/book-appointment.css?v=20260928-bookingform"/>
+  <link rel="stylesheet" href="../css/book-appointment.css?v=20260928-wording"/>
 </head>
 <body>
 
@@ -188,6 +188,7 @@
           <div class="hours-legend">
             <span class="legend-label"><span class="legend-dot na"></span> Not Available</span>
             <span class="legend-label"><span class="legend-dot av"></span> Available</span>
+            <span class="legend-label"><span class="legend-dot rq"></span> Requested</span>
           </div>
          <div class="time-grid" id="timeGrid">
 </div>
@@ -272,10 +273,7 @@
         <label class="account-switch" for="useAccountDetails">
           <input type="checkbox" id="useAccountDetails" checked/>
           <span class="account-switch-track" aria-hidden="true"><span class="account-switch-knob"></span></span>
-          <span class="account-switch-text">
-            <strong>Use my account details</strong>
-            <span id="useAccountHint">Filled in from your account. Turn off if someone else is bringing your pet.</span>
-          </span>
+          <span class="account-switch-text">Use my account details</span>
         </label>
         <div class="form-grid">
           <div class="form-group">
@@ -310,7 +308,7 @@
           <div class="form-group full">
             <label class="form-label">Complete Address *</label>
             <input type="text" class="form-input" placeholder="House No., Street, Purok / Subdivision" id="ownerAddress" required/>
-            <span class="field-hint">Your pet's barangay and address come from your account. <a href="account-settings.html">Change them in Account Settings</a>.</span>
+            <span class="field-hint">From your account. <a href="account-settings.html" style="color:inherit;">Edit in Account Settings</a></span>
           </div>
         </div>
         <div class="step-nav">
@@ -345,7 +343,7 @@
             <input type="text" class="form-input" placeholder="e.g. Golden Retriever" id="petBreed" required/>
           </div>
           <div class="form-group">
-            <label class="form-label">Age <span class="label-optional">(optional, needed for Castration &amp; Spay)</span></label>
+            <label class="form-label">Age (optional)</label>
             <div class="field-row">
               <input type="number" min="0" step="1" class="form-input" placeholder="e.g. 2" id="petAgeValue"/>
               <select class="form-input" id="petAgeUnit">
@@ -446,7 +444,7 @@
     <div id="step4" class="step-content" style="display:none;">
       <div class="form-card wide">
         <div class="form-card-title">Review &amp; Confirm</div>
-        <p class="review-intro">Please review all details carefully. You will receive a confirmation via SMS/Email once your appointment is approved by the clinic, which it does within 1 working day.</p>
+        <p class="review-intro">Please review all details carefully. You will receive a confirmation via SMS/Email once your appointment is approved by the clinic.</p>
 
         <div class="review-section-label">OWNER INFO</div>
         <div class="review-block">
@@ -485,7 +483,7 @@
           <img src="../images/icons/icon-success.png" alt="booked"/>
         </div>
         <div class="success-title">Appointment Booked!</div>
-        <div class="success-desc">Your appointment request has been submitted and is pending clinic approval. The clinic confirms requests within 1 working day. If it isn't confirmed by then, or by your chosen time, it expires, the slot is released, and you'll be asked to book again.</div>
+        <div class="success-desc">Your appointment request has been submitted and is pending clinic approval. You'll be notified via SMS/Email once confirmed. Unconfirmed requests expire after 1 working day.</div>
         <div class="success-ref">
           <span class="ref-label">Reference No.</span>
           <span class="ref-val" id="rv-refNo">#BB-2025-12</span>
@@ -733,7 +731,7 @@
   <script src="../js/api.js?v=20260819-authfix"></script>
   <!-- Must load before book-appointment.js, which calls VBForm at validate time. -->
   <script src="../../shared/js/form-validation.js"></script>
-  <script src="../js/book-appointment.js?v=20260928-bookingform"></script>
+  <script src="../js/book-appointment.js?v=20260928-fair"></script>
   <script src="../js/site-settings.js?v=20260829-preview"></script>
 </body>
 </html>

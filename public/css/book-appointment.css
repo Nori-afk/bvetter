@@ -596,6 +596,10 @@ body {
   background: var(--color-green);
 }
 
+.legend-dot.rq {
+  background: #f59e0b;
+}
+
 .time-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -1868,13 +1872,11 @@ body {
   opacity: 0.6;
 }
 
-/* Holiday / office closed. pointer-events stays on so the title tooltip
-   with the holiday's name still shows; the click handler is never bound. */
+/* Holiday / office closed: grayed like a weekend. pointer-events stays on
+   so the title tooltip with the holiday's name still shows; the click
+   handler is never bound. */
 .cal-day.disabled.closed {
   pointer-events: auto;
-  text-decoration: line-through;
-  color: #b45309;
-  background: #fff7ed;
 }
 
 .hstep-col {
@@ -2255,16 +2257,13 @@ body {
   border: 1px solid #D1D5DB;
 }
 
-/* ── "Use my account details" switch (step 1) ─────────────── */
+/* "Use my account details" switch (step 1) -- the same toggle as the
+   Lost & Found form's "Use Account Information". */
 .account-switch {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin: 4px 0 18px;
-  padding: 12px 14px;
-  border: 1px solid var(--border-default);
-  border-radius: 10px;
-  background: #f8fafc;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
   cursor: pointer;
 }
 
@@ -2275,47 +2274,55 @@ body {
 }
 
 .account-switch-track {
+  width: 36px;
+  height: 20px;
+  background: var(--border-default);
+  border-radius: 20px;
   position: relative;
-  flex-shrink: 0;
-  width: 38px;
-  height: 22px;
-  margin-top: 1px;
-  border-radius: 99px;
-  background: #cbd5e1;
   transition: background 0.2s;
+  flex-shrink: 0;
 }
 
 .account-switch-knob {
+  width: 14px;
+  height: 14px;
+  background: #ffffff;
+  border-radius: 50%;
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  transition: transform 0.2s;
+  transition: left 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
-.account-switch input:checked + .account-switch-track { background: var(--color-green, #00B928); }
-.account-switch input:checked + .account-switch-track .account-switch-knob { transform: translateX(16px); }
-.account-switch input:focus-visible + .account-switch-track { outline: 2px solid var(--color-navy, #002A58); outline-offset: 2px; }
+.account-switch input:checked + .account-switch-track { background: var(--color-green); }
+.account-switch input:checked + .account-switch-track .account-switch-knob { left: 19px; }
+.account-switch input:focus-visible + .account-switch-track { outline: 2px solid var(--color-navy); outline-offset: 2px; }
 
-.account-switch-text { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
-.account-switch-text strong { font-size: 13.5px; color: var(--color-navy, #002A58); }
-.account-switch-text span { color: var(--text-muted, #64748b); font-size: 12px; }
+.account-switch-text {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-green-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 
-/* Fields filled from the account read as fixed, not as empty inputs. */
+/* Fields filled from the account read as fixed. */
 #step1 .form-input[readonly],
 #step1 .form-select:disabled {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--bg-page);
   cursor: default;
 }
 
-.label-optional {
-  font-weight: 500;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--text-muted, #64748b);
+/* A time another owner has requested but the vet hasn't confirmed: still
+   bookable, in the pending-badge colours. */
+.legend-dot.rq {
+  background: var(--color-yellow);
+}
+
+.time-slot.requested:not(.selected),
+.slot-btn.requested:not(.selected) {
+  border-color: var(--color-yellow);
+  background: var(--color-yellow-light);
+  color: var(--color-yellow);
 }

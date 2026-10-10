@@ -159,7 +159,13 @@ async function updateAppointmentStatus(id, status) {
             body: formData
         });
         const result = await response.json();
-        return { ok: result.success, data: { id, status }, error: result.success ? null : result.message };
+        // declined: other requests for the same time that confirming this one
+        // turned down (appointment.php's declineOtherRequestsForSlot()).
+        return {
+            ok: result.success,
+            data: { id, status, declined: result.declined || [], message: result.message },
+            error: result.success ? null : result.message
+        };
     } catch (error) {
         return { ok: false, data: null, error: error.message };
     }
