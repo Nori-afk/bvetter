@@ -139,6 +139,7 @@ const ACTION_STATUS = {
     routine:  'low',    stable:   'low',    low:    'low', normal: 'low',
 };
 const ACTION_LABEL = { high: 'Needs Action', medium: 'Watch', low: 'Normal' };
+const VOLUME_LABEL = { high: 'High Volume', medium: 'Medium Volume', low: 'Low Volume' };
 
 function actionStatus(value) {
     const key = String(value ?? '').trim().toLowerCase();
@@ -153,6 +154,14 @@ function actionStatus(value) {
               :                                            'low';
     }
     return { level, label: ACTION_LABEL[level] };
+}
+
+function volumeStatus(value) {
+    const key = String(value ?? '').trim().toLowerCase();
+    const level = key === 'high' ? 'high'
+                : key === 'medium' ? 'medium'
+                : 'low';
+    return { level, label: VOLUME_LABEL[level] };
 }
 
 /* ── API calls ──────────────────────────────────────────────── */
@@ -672,14 +681,16 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
         });
     }
 
-    const critical   = rfData.filter(r => r.tier === 'critical').length;
-    const monitor    = rfData.filter(r => r.tier === 'monitor').length;
-    const firstRf    = rfData[0] || {};
+    const critical    = rfData.filter(r => r.tier === 'critical').length;
+    const monitor     = rfData.filter(r => r.tier === 'monitor').length;
+    const highVolume  = rfData.filter(r => String(r.volume_band || r.risk_class || '').toLowerCase() === 'high').length;
+    const medVolume   = rfData.filter(r => String(r.volume_band || r.risk_class || '').toLowerCase() === 'medium').length;
+    const firstRf     = rfData[0] || {};
 
     diseaseAnalyticsData.kpis[2] = {
-        label: 'High Case Volume Barangays',
-        value: String(critical),
-        trend: `${critical} need action · ${monitor} to watch`,
+        label: 'High Forecast Volume',
+        value: String(highVolume),
+        trend: `${medVolume} medium volume · ${critical} need action · ${monitor} watch`,
     };
 
     // Average error margin across every barangay shown, not just whichever
@@ -1104,11 +1115,16 @@ function renderOverview() {
     insightRoot.innerHTML = diseaseAnalyticsData.insights
         .map((insight, idx) => {
             const status = actionStatus(insight.action_level);
+            const volume = volumeStatus(insight.volume_band);
             return `
             <article class="insight-card risk-${status.level}" style="animation-delay:${idx * 55}ms">
                 <div class="insight-card-top">
                     <span class="chip">${insight.barangay}</span>
-                    <span class="risk-indicator">${status.label}</span>
+                    <span class="risk-indicator">Action: ${status.label}</span>
+                </div>
+                <div class="insight-card-meta">
+                    <span class="volume-indicator volume-${volume.level}">${volume.label}</span>
+                    ${insight.action_is_rule ? '<span class="rule-indicator">Threshold rule</span>' : ''}
                 </div>
                 <p>${insight.recommendation || 'No recommendation yet.'}</p>
                 <button class="action-link" data-insight-id="${insight.id}">View Action <span class="arrow">→</span></button>

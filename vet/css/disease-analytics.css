@@ -937,6 +937,49 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 .insight-card.risk-medium .risk-indicator { color: var(--amber); }
 .insight-card.risk-low    .risk-indicator { color: var(--green); }
 
+.insight-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: -2px 0 9px;
+}
+
+.volume-indicator,
+.rule-indicator {
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.volume-indicator.volume-high {
+    background: #FEF2F2;
+    color: #991B1B;
+    border: 1px solid #FECACA;
+}
+
+.volume-indicator.volume-medium {
+    background: #FFFBEB;
+    color: #92400E;
+    border: 1px solid #FDE68A;
+}
+
+.volume-indicator.volume-low {
+    background: #F0FDF4;
+    color: #166534;
+    border: 1px solid #BBF7D0;
+}
+
+.rule-indicator {
+    background: #EFF6FF;
+    color: #1D4ED8;
+    border: 1px solid #BFDBFE;
+}
+
 .insight-card p {
     font-size: 13px;
     color: var(--ink-2);

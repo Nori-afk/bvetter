@@ -1913,8 +1913,8 @@ def _densify_history(agg: pd.DataFrame) -> pd.DataFrame:
 
 def _label_action_tier(df: pd.DataFrame) -> pd.DataFrame:
     """
-    The classifier's target: what should the clinic DO about this barangay NEXT
-    month.
+    Historical action-tier labels: what should the clinic DO about this
+    barangay NEXT month.
 
         ESCALATE  next month exceeds this barangay's own p90, OR contains any
                   zoonotic/reportable case
@@ -1932,8 +1932,8 @@ def _label_action_tier(df: pd.DataFrame) -> pd.DataFrame:
        notifiable; one suspected case warrants a response at any case count.
        Measured on the source data, 59% of ESCALATE months are exactly this
        shape — normal volume, reportable disease present. A forecast of the
-       COUNT cannot flag them, which is the whole reason this classifier is not
-       redundant with ARIMA.
+       COUNT cannot flag them, which is why action status stays separate from
+       SARIMA's case-count forecast.
 
     3. THRESHOLDS ARE TRAILING. own_p75/own_p90 are expanding quantiles over
        months up to and including M, and the label describes M+1, so no future
@@ -2673,13 +2673,19 @@ def _hybrid_predict_one_alldisease(
     # give a vet false confidence in a number with nothing behind it.
     #
     # So the tier reports the barangay's CURRENT state instead of guessing its
-    # next one. Every input is an observed fact about the latest complete month,
-    # which is both honest and what surveillance actually needs: flag what has
-    # happened, now, so someone can act on it.
+    # next one. Every input is an observed fact about a complete month, which is
+    # both honest and what surveillance actually needs: flag what has happened,
+    # now, so someone can act on it.
     #
     # ARIMA still forecasts the case COUNT alongside this, because volume
     # aggregated across the municipality genuinely is forecastable (0.777).
-    cases_now       = float(latest_row.get("cases_now", latest_row["total_cases"]) or 0)
+    # The dashboard sometimes sends a current observed value. Use it only when
+    # the request is monthly: in the annual view that override is a 12-month
+    # total, while own_p75/own_p90 are monthly thresholds.
+    use_override_for_action = current_override is not None and period != "year"
+    cases_now       = (float(current_cases) if use_override_for_action
+                       else float(latest_row.get("cases_now", latest_row["total_cases"]) or 0))
+    action_period   = "selected month" if use_override_for_action else "latest complete month"
     zoonotic_now    = float(latest_row.get("zoonotic_now", 0) or 0)
     zoonotic_recent = float(latest_row.get("zoonotic_3m", 0) or 0)
     own_p75_obs     = float(latest_row.get("own_p75", 0) or 0)
@@ -2692,10 +2698,10 @@ def _hybrid_predict_one_alldisease(
                   "Reportable disease reported in the last 3 months")
     elif cases_now > own_p90_obs:
         tier = "ESCALATE"
-        reason = f"Cases this month ({cases_now:.0f}) are well above this barangay's usual level"
+        reason = f"Cases in the {action_period} ({cases_now:.0f}) are well above this barangay's usual level"
     elif cases_now > own_p75_obs:
         tier = "MONITOR"
-        reason = f"Cases this month ({cases_now:.0f}) are above this barangay's usual level"
+        reason = f"Cases in the {action_period} ({cases_now:.0f}) are above this barangay's usual level"
     else:
         tier = "ROUTINE"
         reason = "Nothing unusual in this barangay's recent cases"
@@ -2704,7 +2710,7 @@ def _hybrid_predict_one_alldisease(
     # and "p90" are the thresholds this rule uses, but printing them raw put
     # statistics notation in front of a clinician; the same two numbers said
     # plainly carry the whole meaning.
-    tier_basis = ("the cases already recorded this month, against what is normal "
+    tier_basis = (f"the cases already recorded for the {action_period}, against what is normal "
                   f"for this barangay: a usual month runs up to {own_p75_obs:.0f} cases, "
                   f"and above {own_p90_obs:.0f} is unusually high")
     # No probability to report: this is a rule, and presenting a made-up
@@ -3649,7 +3655,8 @@ def disease_predict():
                 "fused_predicted": pred["fused_predicted"],
                 "model_agreement": pred["model_agreement"], "tier": tier,
                 "recommendation": (
-                    f"{barangay} — {pred.get('action_tier_label', 'Normal')}: "
+                    f"{barangay} — Action: {pred.get('action_tier_label', 'Normal')}. "
+                    f"Forecast volume: {pred.get('volume_band', 'N/A')}. "
                     f"{pred.get('action_reason', '')}. Trend: {pred['arima_trend']}, "
                     f"predicts {pred['predicted_cases']:.0f} "
                     f"({'annual' if period == 'year' else 'next-month'}) cases."
