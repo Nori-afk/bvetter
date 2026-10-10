@@ -1572,7 +1572,7 @@ function renderHotspotList() {
             const hotspot = diseaseAnalyticsData.map.hotspots.find(r => r.id === item.dataset.hotspotId);
             if (state.map && hotspot) {
                 state.map.flyTo([hotspot.lat, hotspot.lng], 15, { duration: 0.65 });
-                showHotspotAction(hotspot);
+                openHotspotAction(hotspot);
             }
         });
     });
@@ -1763,7 +1763,7 @@ function refreshMapLayers() {
             `${actual} recorded &middot; ${predicted.toFixed(0)} forecast<br>` +
             `<span style="opacity:.75">${direction}</span>`,
             { direction: 'top', offset: [0, -4] });
-        marker.on('click', () => { showHotspotAction(spot); toggleMapActionMode(true); });
+        marker.on('click', () => { openHotspotAction(spot); });
         state.hotspotMarkers.push(marker);
     });
 
@@ -1833,6 +1833,13 @@ function toggleMapActionMode(forceOn) {
     if (defaultHotspot) showHotspotAction(defaultHotspot);
 }
 
+function openHotspotAction(hotspot) {
+    if (!hotspot) return;
+    state.mapActionMode = true;
+    document.getElementById('toggleActionBtn').textContent = 'Close Action Tab';
+    showHotspotAction(hotspot);
+}
+
 function showHotspotAction(hotspot) {
     if (!hotspot) return;
     const side    = document.getElementById('hotspotList');
@@ -1887,6 +1894,15 @@ function showHotspotAction(hotspot) {
 
     side.innerHTML = `
         <section class="action-pane">
+            <div class="action-pane-head">
+                <span class="location-eyebrow">Selected Barangay</span>
+                <h3>${vbEscapeHtml(hotspot.barangay)}</h3>
+                <div class="action-pane-stats">
+                    <span>${Number(hotspot.cases) || 0} cases</span>
+                    <span>${Math.round(Number(hotspot.predicted) || 0)} forecast</span>
+                    <span>${vbEscapeHtml(classification)}</span>
+                </div>
+            </div>
             <div class="protocol-alert">
                 <div class="protocol-title">Protocol: ${hotspot.barangay}</div>
                 <small>${classification}</small>

@@ -1665,6 +1665,20 @@ if ($scope === 'vaccination_forecast' || $scope === 'vaccination-forecast') {
     bv_json_response($result['success'] ? 200 : 502, $result);
 }
 
+if ($scope === 'vaccination_forecast_barangay' || $scope === 'vaccination-forecast-barangay') {
+    $steps     = max(1, min(12, (int) ($input['steps'] ?? 12)));
+    $barangays = $input['barangays'] ?? [];
+    if (!is_array($barangays)) $barangays = [];
+    $barangays = array_values(array_filter(array_map('bv_clean', $barangays), fn($name) => $name !== ''));
+
+    $result = analytics_post('/vaccination-forecast-barangay', [
+        'steps'     => $steps,
+        'metric'    => bv_clean($input['metric'] ?? 'total_vaccinated') ?: 'total_vaccinated',
+        'barangays' => $barangays,
+    ], 60);
+    bv_json_response($result['success'] ? 200 : 502, $result);
+}
+
 if ($scope === 'rf_model_info' || $scope === 'rf-model-info') {
     $result = analytics_get('/rf-model-info');
     bv_json_response($result['success'] ? 200 : 502, $result);
