@@ -1,22 +1,14 @@
 """
-BVetter Analytics Backend — v3.3 (leaked features removed from the classifier)
+BVetter Analytics Backend — v3.4 (threshold action tiers clarified)
 =======================================================================
 Changes from v3.2:
-  MODEL-3  : The four disease-mix ratio features are removed from
-             FEATURE_COLS. They were current-month category counts over
-             total_cases, and risk_class is a band on total_cases, so the
-             classifier could reconstruct the label from its own inputs --
-             it scored a perfect 100.0% held-out, and those four features
-             alone scored 99.4% against a 67.7% baseline. Held-out accuracy
-             is now 97.2%, and the High threshold lands on the band
-             definition instead of firing early. See FEATURE_COLS.
+  MODEL-3  : Barangay case volume and action tiers are threshold/rule outputs,
+             matching the manuscript: top-down SARIMA forecasts case counts,
+             forecast-vs-usual thresholds label volume, and observed recent
+             cases/reportable diseases drive Needs Action / Watch / Normal.
 Changes from v3.1 (retained):
-  MODEL-1  : All-disease risk classification is a RandomForestClassifier again
-             (it started as one, was replaced with a rule-based threshold after
-             a real bug -- see get_all_disease_models() for the full history).
-             This version includes past-only case-count features in training,
-             which the buggy version deliberately excluded; that's what caused
-             the bug, not the idea of a classifier itself.
+  MODEL-1  : RandomForestClassifier is used for differential diagnosis only.
+             It does not assign barangay action tiers.
   MODEL-2  : RandomForestRegressor removed entirely, from both the all-disease
              and disease-specific pipelines. It never actually produced a live
              forecast (RF-for-monthly was built, benchmarked poorly, and
@@ -1019,9 +1011,8 @@ def vaccination_forecast_barangay():
 
 
 # ════════════════════════════════════════════════════════════════════════
-# ALL-DISEASE HYBRID  (ARIMA forecast + RandomForestClassifier risk label —
-# see get_all_disease_models() for why case-count features are included in
-# training this time, unlike an earlier version of this same classifier)
+# ALL-DISEASE PIPELINE  (top-down SARIMA forecast + threshold action tier —
+# see get_all_disease_models() for the documented rule and its model history)
 # ════════════════════════════════════════════════════════════════════════
 
 # Every feature here describes months BEFORE the one being classified:
@@ -1564,9 +1555,9 @@ def load_db_disease_monthly(after_year: int, after_month: int) -> pd.DataFrame:
 
     DB rows have no risk_class (that's a label from the Excel sheet with no
     live equivalent yet), so they're tagged is_db_sourced=True and excluded
-    from the RF risk classifier's training set in get_all_disease_models();
-    they still feed the ARIMA series (subject to _arima_safe_frame's trust
-    gate) and the general case-count history in df/total_cases.
+    from legacy risk_class comparisons in get_all_disease_models(); they still
+    feed the SARIMA series (subject to _arima_safe_frame's trust gate) and the
+    general case-count history in df/total_cases.
     """
     cols = ["barangay", "year", "month_no", "skin_related_cases", "parasitic_cases",
             "respiratory_cases", "gastrointestinal_cases", "total_cases",
@@ -2479,7 +2470,7 @@ def get_all_disease_models():
         "municipality_accuracy": municipality_acc,
         "forecast_method": "top-down SARIMA (municipality forecast x barangay share)",
         "municipality_cache": {},
-        "arima_cache": {}, "rf_model_type": "RandomForestClassifier",
+        "arima_cache": {}, "rf_model_type": "ActionTierRule",
         # Developer-facing explanation for the /hybrid-model-info diagnostic
         # endpoint. Not shown in the vet UI -- see "risk_note_short" for that.
         "action_tier_labels": ACTION_TIER_LABELS,
@@ -2531,11 +2522,10 @@ def get_all_disease_models():
         # Plain-language version shown in the vet-facing insight panel --
         # no model names or stats jargon.
         "risk_note_short": (
-            "The action level is predicted by a trained Random Forest from this "
-            "barangay's recent case history and the mix of diseases seen. "
-            "It flags a barangay when next month looks unusual for that barangay, "
-            "or when a reportable disease such as rabies has been seen — "
-            "even if the number of cases looks normal."
+            "The action level is a documented threshold rule over observed cases. "
+            "It flags a barangay when recent cases exceed that barangay's usual "
+            "level, or when a reportable disease such as rabies or leptospirosis "
+            "has been seen."
         ),
     }
     print(f"All-Disease ready - {n_labelled} barangay-months, "
@@ -3526,8 +3516,8 @@ def _build_all_disease_protocol(barangay, pred, avg_cases, models):
     fc = pred["arima_forecast"]
     fc_phrase = _forecast_phrase(fc, pred.get("quarter_total"))
 
-    # Both models speak here, but to different points: ARIMA supplies the case
-    # NUMBERS (forecast, likely range), the classifier supplies the DECISION
+    # Two rules speak here, but to different points: SARIMA supplies the case
+    # NUMBERS (forecast, likely range), the threshold rule supplies the DECISION
     # (which tier, and why). Previously every step derived from one banded
     # number, so the panel restated a single fact four times.
     if risk == "high":
@@ -3696,7 +3686,7 @@ def model_info():
         return jsonify({
             "success": True,
             "all_disease": {
-                "description": "All-disease barangay totals — ARIMA forecast + Random Forest risk classifier",
+                "description": "All-disease barangay totals — top-down SARIMA forecast + threshold action tier",
                 "arima": {
                     "method": "Auto-ARIMA (5-combo grid + ADF)", "ci_level": "80%",
                     "pooled_mae": models["mae"], "pooled_rmse": models.get("rmse"),
@@ -3705,16 +3695,14 @@ def model_info():
                             "actually produces every live forecast here (month and year views alike).",
                 },
                 "risk_classification": {
-                    "type": "RandomForestClassifier",
-                    "features": FEATURE_COLS,
+                    "type": "ThresholdRule",
+                    "features": [
+                        "recent reportable disease",
+                        "current cases vs barangay p75",
+                        "current cases vs barangay p90",
+                    ],
                     "trained_on_rows": models["trained_on"],
-                    "accuracy": models.get("classifier_accuracy"),
-                    "precision": models.get("classifier_precision"),
-                    "recall": models.get("classifier_recall"),
-                    "f1": models.get("classifier_f1"),
-                    "confusion_matrix": models.get("classifier_confusion_matrix"),
-                    "classes": models.get("classifier_classes"),
-                    "top_features": dict(list(models["importance"].items())[:5]),
+                    "classes": list(ACTION_TIER_LABELS.values()),
                     "risk_note": models.get("risk_note", ""),
                 },
             },
@@ -4012,9 +4000,9 @@ def health():
 
 
 if __name__ == "__main__":
-    # SPEED-4: warm-start the RF model so first page load is instant
+    # Warm-start the disease models and threshold metadata so first page load is instant.
     try:
-        print("Warming up All-Disease RF model at startup…")
+        print("Warming up disease analytics models at startup…")
         get_all_disease_models()
         print("Warm-up complete. Server ready.")
     except Exception as _e:

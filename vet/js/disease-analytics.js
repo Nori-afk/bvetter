@@ -77,9 +77,8 @@ function friendlyModelLabel(modelType) {
     // would otherwise match the "arima" check below and get labeled "Smart
     // Forecast", which is exactly backwards from what it should signal.
     if (s.includes('fallback') || s.includes('movingaverage') || s.includes('wma')) return 'Basic Estimate';
-    // 'alldisease' alone (not just 'arima' && 'alldisease') so the RF-based
-    // monthly forecast for the all-disease pipeline ("AllDiseaseRFMonthlyRegressor...")
-    // still reads as the same "combined pipeline" tier as its ARIMA counterpart.
+    // 'alldisease' alone (not just 'arima' && 'alldisease') so the top-down
+    // all-disease forecast still reads as the combined municipal pipeline.
     if (s.includes('alldisease')) return 'Advanced Forecast';
     if (s.includes('arima') && s.includes('rf')) return 'Advanced Forecast';
     // Disease-specific RF monthly forecast ("DiseaseRFMonthlyRegressor") sits at
@@ -514,7 +513,7 @@ function _mergeRFResults(rfData, disease, period, allDiseases) {
         const arimaLowerCi  = rf.arima_lower_ci  || [];
         const arimaUpperCi  = rf.arima_upper_ci  || [];
 
-        const modelType   = rf.model_type || (allDiseases ? 'AllDiseaseARIMA+RF' : 'DiseaseMovingAverageFallback');
+        const modelType   = rf.model_type || (allDiseases ? 'AllDiseaseTopDownSARIMA' : 'DiseaseMovingAverageFallback');
         // action_is_rule is the all-disease pipeline's own flag; the string
         // check covers the disease-specific "RuleBasedThreshold". Neither
         // path has a model behind its status, and both used to be routed
@@ -1191,8 +1190,8 @@ function renderBarChart(targetId, sourceRows, chartType) {
                 : `<div class="fallback-warning">Showing a ${friendlyModelLabel(modelType).toLowerCase()} estimate.</div>`;
     }
 
-    /* 'rfmonthly' alongside sarima/arima so the RF-based monthly forecast (both
-       all-disease and per-disease) is recognised as a model rather than falling
+    /* 'rfmonthly' alongside sarima/arima so the disease-frequency Random Forest
+       forecast is recognised as a model rather than falling
        through to the generic "Estimate". */
     const sourceOf = (item) => {
         if (chartType !== 'predicted') return null;

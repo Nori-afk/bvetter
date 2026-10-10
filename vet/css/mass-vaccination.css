@@ -1293,6 +1293,13 @@ tr[data-event-id]:hover {
 
 .mv-fc-ci { font-size: 9px; color: #94A3B8; }
 
+.mv-range-note {
+    margin: 8px 0 0;
+    font-size: 10.5px;
+    line-height: 1.4;
+    color: #64748B;
+}
+
 .mv-breakdown-section { padding-top: 16px; border-top: 1px solid #F1F5F9; }
 
 .mv-breakdown-grid {

@@ -170,7 +170,8 @@ function analytics_get(string $path, int $timeout = 15): array
 /**
  * Call the Python /disease-predict endpoint.
  *
- * For All Diseases: omit `disease` field → Python uses all-disease ARIMA+RF.
+ * For All Diseases: omit `disease` field → Python uses top-down SARIMA
+ * plus threshold action tiers.
  * For a specific disease: pass `disease` → Python uses disease-specific
  *   SARIMA/ARIMA/WMA pipeline from Consult_Diagnosis_3Y.
  */
@@ -215,9 +216,8 @@ function disease_name_filter($value): string
  * could never feed both -- selecting "All Diseases" and adding up the 42
  * individual diseases gave different answers.
  *
- * Barangay_Disease_Monthly still backs the risk classifier (it carries the
- * risk_class labels, which Consult_Diagnosis_3Y does not) and the vaccination
- * chart. It is simply no longer a second answer to "how many cases".
+ * Barangay_Disease_Monthly still feeds legacy risk_class comparisons and the
+ * vaccination chart. It is simply no longer a second answer to "how many cases".
  */
 function disease_case_series($pdo, string $selected, string $period = 'year', string $dataView = 'historical', string $currentMonth = ''): array
 {
@@ -1134,7 +1134,7 @@ function vet_dashboard($pdo, string $patientRange = 'monthly', string $disease =
 
     // `predicted` here is the +12% arithmetic fallback from disease_case_series(),
     // NOT a model output. The vet dashboard no longer plots it: it renders the
-    // actuals immediately and then fetches the real SARIMA/RF forecast from the
+    // actuals immediately and then fetches the real SARIMA/threshold output from the
     // analytics service client-side (see vet/js/index.js), hiding the forecast
     // line entirely when that service is unreachable. The field stays in the
     // payload for other consumers of this shape — don't wire it back into a

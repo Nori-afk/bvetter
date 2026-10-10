@@ -617,10 +617,11 @@
                             <span class="mv-fc-label">${sanitize(m)}</span>
                             <span class="mv-fc-val">${tv.forecast?.[i] || 0}</span>
                             <span class="mv-fc-range">${tv.lower_ci?.[i]||0} – ${tv.upper_ci?.[i]||0}</span>
-                            <span class="mv-fc-ci">Likely Range</span>
+                            <span class="mv-fc-ci">80% Range</span>
                         </div>
                     `).join('')}
                 </div>
+                <p class="mv-range-note">Wide range is expected because vaccination drives are scheduled in uneven campaign months.</p>
             </div>
             <div class="mv-breakdown-section">
                 <p class="mv-section-label">Species &amp; Client Breakdown (Next Month)</p>
@@ -1053,8 +1054,6 @@
                 var bridgeIdx = historyValues.length - 1;
                 if (bridgeIdx >= 0) {
                     forecastSeries[bridgeIdx] = historyValues[bridgeIdx];
-                    bandLowerArr[bridgeIdx]   = historyValues[bridgeIdx];
-                    bandUpperArr[bridgeIdx]   = historyValues[bridgeIdx];
                 }
                 forecastValues.forEach((v, i) => { forecastSeries[historyValues.length + i] = v; });
                 lowerCi.forEach((v, i) => { bandLowerArr[historyValues.length + i] = v; });
@@ -1088,7 +1087,7 @@
                     borderWidth: 2, borderDash: [6, 4], pointRadius: 3, pointBackgroundColor: VIZ.dogs,
                     tension: 0, spanGaps: false
                 }, {
-                    label: 'Likely range',
+                    label: '80% range',
                     data: bandUpperArr,
                     borderColor: 'transparent', backgroundColor: 'rgba(47,157,240,0.14)',
                     pointRadius: 0, fill: '+1', tension: 0, spanGaps: false
@@ -1101,7 +1100,7 @@
             }
 
             var c2Title = usingArima
-                ? `Vaccine Demand Trend — next ${forecastLabels.length} month${forecastLabels.length === 1 ? '' : 's'} forecast`
+                ? `Vaccine Demand Trend — next ${forecastLabels.length} month${forecastLabels.length === 1 ? '' : 's'} forecast (80% range)`
                 : (forecastLabels.length
                     ? 'Monthly Trend — Forecast Service Unavailable (3-month average estimate shown)'
                     : 'No historical or forecast data available');
