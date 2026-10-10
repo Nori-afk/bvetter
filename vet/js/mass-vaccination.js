@@ -1131,6 +1131,7 @@
 
         // ── Vaccines Needed per Barangay (ranked list, not a canvas chart —
         //    see renderRankList above)
+
         // SOURCE: single municipal ARIMA forecast (no per-barangay vaccination
         //         history exists to fit independent models), split by each
         //         barangay's share of the 2025 estimated dog population
@@ -1184,6 +1185,47 @@
             renderRankList('vaccinesNeededList', 'vaccinesNeededTitle', c4Title,
                 usingForecast && dogRows.length ? '#456084' : VIZ.warn,
                 labels, needed, done, hasDbData);
+
+        {
+            var forecastRows = Array.isArray(state.barangayForecast)
+                ? state.barangayForecast.filter(r => r && !r.error && r.barangay)
+                : [];
+            var demandRange = isHistoricalView ? 'Next Month' : range;
+            var monthsNeeded = demandRange === 'This Year' ? 12
+                : demandRange === 'Last 3 Months' ? 3 : 1;
+            var titleRange = monthsNeeded === 12 ? 'Next 12 Months'
+                : monthsNeeded === 3 ? 'Next 3 Months' : 'Next Month';
+
+            if (!forecastRows.length) {
+                document.getElementById('vaccinesNeededTitle').textContent =
+                    'Vaccine demand forecast unavailable';
+                setChartEmptyState('vaccinesNeededList',
+                    'The barangay vaccination forecast is unavailable. Start the analytics service and retry.');
+            } else {
+                setChartEmptyState('vaccinesNeededList', '');
+                var barangays = forecastRows.map(r => r.barangay);
+                var needed = forecastRows.map(r => {
+                    var fc = Array.isArray(r.forecast) ? r.forecast.map(Number) : [];
+                    if (fc.length >= monthsNeeded) {
+                        return Math.round(fc.slice(0, monthsNeeded).reduce((s, v) => s + (v || 0), 0));
+                    }
+                    return Math.round((fc[0] || 0) * monthsNeeded);
+                });
+                var done = barangays.map(b => (dbBarangayTotals[b] || {}).total || 0);
+                var totalNeeded = needed.reduce((s, v) => s + v, 0);
+
+                renderRankList(
+                    'vaccinesNeededList',
+                    'vaccinesNeededTitle',
+                    `Predicted Vaccine Demand (${titleRange}): ~${totalNeeded.toLocaleString()} animals — municipal ARIMA split by barangay allocation weight`,
+                    '#456084',
+                    barangays,
+                    needed,
+                    done,
+                    !isHistoricalView && hasDbData
+                );
+            }
+
         }
     };
 
