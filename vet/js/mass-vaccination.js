@@ -64,11 +64,10 @@
         // way). 'current' = live mass_vaccination_events rows dated 2025+.
         // See MASS_VACC_CURRENT_CUTOFF in dashboard.php for the exact split.
         dataView:           'historical',
-        // Which workbook year the Historical monthly chart shows. 2024 is the
-        // default because it is the most recent year of REAL campaign data --
-        // 2025 is one annual total allocated across months, so it plots as a
-        // smooth curve rather than the actual peaks and quiet months.
-        historicalYear:     '2024',
+        // Which workbook year the Historical monthly chart shows. Default to
+        // the most recent workbook year so the first view matches the latest
+        // figures the manuscript discusses.
+        historicalYear:     '2025',
     };
     const MASS_VACC_CUTOFF = new Date('2025-01-01T00:00:00');
 
@@ -817,7 +816,7 @@
             var vaccHeading = document.getElementById('vaccChartHeading');
             if (vaccHeading) {
                 vaccHeading.textContent = isMonthlySeries
-                    ? 'Pets Vaccinated per Month'
+                    ? 'Monthly Vaccination Records'
                     : 'Pets Vaccinated per Barangay';
             }
 
@@ -913,7 +912,7 @@
             }
 
             var chart1Title = isMonthlySeries
-                ? `Vaccinated per Month — Baliwag workbook, ${state.historicalYear === 'all' ? 'all years' : state.historicalYear} `
+                ? `Monthly Vaccination Records — Baliwag workbook, ${state.historicalYear === 'all' ? 'all years' : state.historicalYear} `
                   + `(municipality-wide; the workbook has no per-barangay breakdown)`
                 : hasLiveData
                     ? `Vaccinated per Barangay — ${range} (includes ${dbGrandTotal.toLocaleString()} live records) — highest to lowest`
@@ -1700,7 +1699,7 @@
         // From the BASELINE, not the selector-scoped dataset. This is the workbook
         // year filter, and the workbook is the same in either view; reading the
         // scoped copy meant a Historical -> Current -> Historical round trip
-        // repopulated it with 2026 and silently dropped the 2024 default.
+        // could repopulate it with live years and silently drop the default.
         const source = state.forecastBaseline || state.vaccinationDataset;
         const years = Array.from(new Set(
             (source?.by_month || [])
