@@ -694,6 +694,25 @@ async function getVaccinationForecast(steps) {
     }
 }
 
+async function getVaccinationBarangayForecast(steps, barangays = []) {
+    steps = steps || 12;
+    try {
+        const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?scope=vaccination_forecast_barangay`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                steps,
+                metric: 'total_vaccinated',
+                barangays: Array.isArray(barangays) ? barangays : []
+            })
+        });
+        const result = await response.json();
+        return { ok: result.success, data: result.data || [], error: result.success ? null : result.error };
+    } catch (error) {
+        return { ok: false, data: [], error: error.message };
+    }
+}
+
 /* ── Notifications ──────────────────────────────────────── */
 /** POST notifications.php { action: 'list' } — returns the caller's own rows,
  *  identified from their session rather than a posted role. */
@@ -816,6 +835,7 @@ window.VetAPI = {
     createVaccinationEvent,
     submitVaccinationReport,
     getVaccinationForecast,
+    getVaccinationBarangayForecast,
     getDiseaseRiskPrediction,
     getMassVaccinationDataset,
     getRFModelInfo,
