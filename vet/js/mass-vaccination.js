@@ -48,6 +48,7 @@
     const state = {
         events:             [],   // from DB (mass_vaccination_events table)  ← LIVE SOURCE
         arimaData:          null, // from Python ARIMA service
+        barangayForecast:   null, // from Python: municipal ARIMA split by allocation_weight
         dashboardData:      null, // from PHP vet_dashboard (Excel summary)
         vaccinationDataset: null, // from PHP mass_vaccination_dataset, scoped to state.dataView
         // Chart 2's history fallback. vaccinationDataset above is re-fetched for
@@ -300,6 +301,41 @@
             console.warn('ARIMA PHP proxy unavailable — charts will use Excel fallback:', err);
         }
         // state.arimaData stays null; charts degrade gracefully to Excel fallback
+    };
+
+    // SOURCE: Python ARIMA — municipal vaccination forecast allocated to each
+    // barangay by Barangay_Masterlist allocation_weight. This is the chart that
+    // answers the manuscript's Q2.2; it is not a disease-case proxy and it is
+    // not 27 independently-fitted ARIMA models.
+    const loadBarangayForecast = async () => {
+        try {
+            if (window.VetAPI?.getVaccinationBarangayForecast) {
+                const res = await window.VetAPI.getVaccinationBarangayForecast(12);
+                if (res?.ok && Array.isArray(res.data)) {
+                    state.barangayForecast = res.data;
+                    return;
+                }
+            }
+        } catch (err) {
+            console.warn('VetAPI barangay vaccination forecast failed, trying PHP proxy:', err);
+        }
+
+        try {
+            const res = await fetch(`${DASHBOARD_API}?scope=vaccination_forecast_barangay`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ steps: 12, metric: 'total_vaccinated' })
+            });
+            const result = await res.json();
+            if (result.success && Array.isArray(result.data)) {
+                state.barangayForecast = result.data;
+                return;
+            }
+            console.warn('Barangay vaccination forecast proxy returned no data:', result);
+        } catch (err) {
+            console.warn('Barangay vaccination forecast unavailable:', err);
+        }
+        state.barangayForecast = null;
     };
 
     // SOURCE: Excel — vet_dashboard (vaccinated totals, diseaseCasesByBarangay)
@@ -1095,6 +1131,7 @@
 
         // ── Vaccines Needed per Barangay (ranked list, not a canvas chart —
         //    see renderRankList above)
+
         // SOURCE: single municipal ARIMA forecast (no per-barangay vaccination
         //         history exists to fit independent models), split by each
         //         barangay's share of the 2025 estimated dog population
@@ -1148,6 +1185,7 @@
             renderRankList('vaccinesNeededList', 'vaccinesNeededTitle', c4Title,
                 usingForecast && dogRows.length ? '#456084' : VIZ.warn,
                 labels, needed, done, hasDbData);
+
         }
     };
 
@@ -1685,7 +1723,13 @@
     // ── Init ──────────────────────────────────────────────────────────────
     renderSkeletons();
     applyDataViewVisibility();
-    await Promise.all([loadEvents(), loadArimaForecast(), loadDashboardData(), loadVaccinationDataset()]);
+    await Promise.all([
+        loadEvents(),
+        loadArimaForecast(),
+        loadBarangayForecast(),
+        loadDashboardData(),
+        loadVaccinationDataset()
+    ]);
 
     renderTable();
     updateMetrics();
