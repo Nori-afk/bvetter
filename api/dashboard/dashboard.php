@@ -1462,7 +1462,12 @@ function bv_decumulate_vaccination_months(array $byMonth): array
     return $byMonth;
 }
 
-function monthly_vaccination_series($pdo, string $dataView = 'historical'): array
+function monthly_vaccination_series(
+    $pdo,
+    string $dataView = 'historical',
+    bool $decumulateHistorical = true,
+    bool $includeLiveEvents = true
+): array
 {
     $isCurrent  = $dataView === 'current';
     $rabiesRows = $isCurrent ? [] : bv_sheet_rows('Combined_Rabies_3Years');
@@ -1490,10 +1495,12 @@ function monthly_vaccination_series($pdo, string $dataView = 'historical'): arra
     // totals in the workbook, so summing them as monthly counts inflates the
     // historical figures roughly six-fold. Seeded DB rows used to overwrite
     // those months and hide it; with those removed the raw values would show.
-    $byMonth = bv_decumulate_vaccination_months($byMonth);
+    if ($decumulateHistorical) {
+        $byMonth = bv_decumulate_vaccination_months($byMonth);
+    }
 
     $dbMonthly = [];
-    if (bv_table_exists($pdo, 'mass_vaccination_events')) {
+    if ($includeLiveEvents && bv_table_exists($pdo, 'mass_vaccination_events')) {
         try {
             $dateWhere = $isCurrent
                 ? 'AND event_date >= :cutoff'
@@ -1567,6 +1574,12 @@ function mass_vaccination_dataset_data($pdo, string $dataView = 'historical')
     $isCurrent  = $dataView === 'current';
     $latestYear = bv_latest_dataset_year();
     $byMonth    = monthly_vaccination_series($pdo, $dataView);
+    // The historical chart can show the workbook exactly as entered without
+    // changing the reconstructed series used by summaries and model inputs.
+    // Do not merge live event rows into this raw workbook view.
+    $workbookValuesAsRecorded = $isCurrent
+        ? []
+        : monthly_vaccination_series($pdo, 'historical', false, false);
 
     $barangayVacc = [];
     if (bv_table_exists($pdo, 'mass_vaccination_events')) {
@@ -1602,6 +1615,7 @@ function mass_vaccination_dataset_data($pdo, string $dataView = 'historical')
     return [
         'data_view'   => $dataView,
         'by_month'    => $byMonth,
+        'by_month_as_recorded' => $workbookValuesAsRecorded,
         'by_barangay' => $barangayVacc,
         'dog_population_by_barangay' => barangay_dog_population(),
         'latest_year' => $latestYearRows,

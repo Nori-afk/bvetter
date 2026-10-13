@@ -892,13 +892,13 @@
             var vaccHeading = document.getElementById('vaccChartHeading');
             if (vaccHeading) {
                 vaccHeading.textContent = isMonthlySeries
-                    ? 'Monthly Vaccination Records'
+                    ? 'Workbook Values as Recorded'
                     : 'Pets Vaccinated per Barangay';
             }
 
             if (isMonthlySeries) {
                 var yearPick = state.historicalYear;
-                (state.vaccinationDataset?.by_month || []).filter(r =>
+                (state.vaccinationDataset?.by_month_as_recorded || []).filter(r =>
                     yearPick === 'all' || String(r.year) === String(yearPick)
                 ).forEach(r => {
                     var monthName = String(r.month || '').slice(0, 3);
@@ -988,8 +988,11 @@
             }
 
             var chart1Title = isMonthlySeries
-                ? `Monthly Vaccination Records — Baliwag workbook, ${state.historicalYear === 'all' ? 'all years' : state.historicalYear} `
-                  + `(municipality-wide; the workbook has no per-barangay breakdown)`
+                ? (state.historicalYear === '2025'
+                    ? 'Workbook values as recorded — 2025 monthly distribution allocated from annual total; not observed month by month'
+                    : state.historicalYear === 'all'
+                        ? 'Workbook values as recorded — 2023–24 report figures and 2025 allocated monthly values; municipality-wide, not converted'
+                        : `Workbook values as recorded — Baliwag, ${state.historicalYear}; municipality-wide, not converted to monthly increments`)
                 : hasLiveData
                     ? `Vaccinated per Barangay — ${range} (includes ${dbGrandTotal.toLocaleString()} live records) — highest to lowest`
                     : `Vaccinated per Barangay — ${range} — highest to lowest`;
