@@ -47,7 +47,7 @@
     // ── State ─────────────────────────────────────────────────────────────
     const state = {
         events:             [],   // from DB (mass_vaccination_events table)  ← LIVE SOURCE
-        monthStatuses:      [],   // explicit sign-off for closed months
+        monthStatuses:      [],   // explicit confirmation that past months are fully entered
         arimaData:          null, // from Python ARIMA service
         barangayForecast:   null, // municipal ARIMA split by observed shares or dog-population weights
         dashboardData:      null, // from PHP vet_dashboard (Excel summary)
@@ -735,13 +735,13 @@
                 const forecast = hasForecast ? Math.max(0, Number(row.forecast)) : 0;
                 const pct = Math.max(2, Math.round((forecast / maxVal) * 100));
                 const actual = actualAvailable
-                    ? `<small>${sanitize(actualLabel)}: ${Math.round(row.actual || 0).toLocaleString()}</small>`
-                    : '<small>Actual not signed off</small>';
+                    ? `<small>${sanitize(actualLabel)} recorded: ${Math.round(row.actual || 0).toLocaleString()}</small>`
+                    : '<small>Last month not confirmed yet</small>';
                 return `
                     <div class="rank-row">
                         <span class="rank-name" title="${sanitize(row.name)}">${sanitize(row.name)}</span>
                         <div class="line"><div class="fill fill-blue" style="width:${pct}%"></div></div>
-                        <strong class="rank-value">${hasForecast ? `Forecast ${Math.round(forecast).toLocaleString()}` : 'Forecast unavailable'}${actual}</strong>
+                        <strong class="rank-value">${hasForecast ? `Estimate: ${Math.round(forecast).toLocaleString()}` : 'Estimate unavailable'}${actual}</strong>
                     </div>`;
             }).join('');
 
@@ -776,8 +776,8 @@
         input.max = previousKey;
         if (previousKey < input.min) {
             input.value = '';
-            statusEl.textContent = 'Month sign-off is available after January 2026 closes.';
-            button.textContent = 'Mark month complete';
+            statusEl.textContent = 'You can confirm a month after it has ended.';
+            button.textContent = 'Confirm month';
             button.disabled = true;
             return;
         }
@@ -791,9 +791,9 @@
         statusEl.textContent = !validPastMonth
             ? 'Choose a past month from January 2026 onward.'
             : markedComplete
-                ? `Marked complete${saved.completedAt ? ` on ${new Date(saved.completedAt.replace(' ', 'T')).toLocaleDateString()}` : ''}. New or edited records reopen this month.`
-                : 'Not signed off. Partial totals are excluded from the forecast.';
-        button.textContent = markedComplete ? 'Reopen month' : 'Mark month complete';
+                ? `Records confirmed${saved.completedAt ? ` on ${new Date(saved.completedAt.replace(' ', 'T')).toLocaleDateString()}` : ''}. Adding or editing an event reopens this month.`
+                : 'Not confirmed. The forecast skips this month until its records are complete.';
+        button.textContent = markedComplete ? 'Reopen month' : 'Confirm month';
         button.dataset.complete = markedComplete ? 'false' : 'true';
         button.disabled = !validPastMonth;
     };
@@ -819,7 +819,7 @@
             if (!labels[key]) labels[key] = event.barangay;
         });
         const label = new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
-        return { available: true, label: `Actual · ${label}`, totals, names: labels };
+        return { available: true, label, totals, names: labels };
     };
 
     // Draws a dashed "Now" divider where history ends and the forecast begins,
@@ -904,7 +904,7 @@
             var vaccHeading = document.getElementById('vaccChartHeading');
             if (vaccHeading) {
                 vaccHeading.textContent = isMonthlySeries
-                    ? 'Workbook Values as Recorded'
+                    ? 'Workbook values as entered'
                     : 'Pets Vaccinated per Barangay';
             }
 
@@ -1001,10 +1001,10 @@
 
             var chart1Title = isMonthlySeries
                 ? (state.historicalYear === '2025'
-                    ? 'Workbook values as recorded — confirmed 2025 monthly observations; municipality-wide'
+                    ? '2025 doses by month — whole municipality'
                     : state.historicalYear === 'all'
-                        ? 'Workbook values as recorded — provisional 2023–24 figures and confirmed 2025 monthly observations; municipality-wide'
-                        : `Workbook values as recorded — Baliwag, ${state.historicalYear}; municipality-wide, not converted to monthly increments`)
+                        ? '2023–24 values may be running totals; 2025 values are monthly doses'
+                        : `${state.historicalYear} workbook values as entered — some may be running totals`)
                 : hasLiveData
                     ? `Vaccinated per Barangay — ${range} (includes ${dbGrandTotal.toLocaleString()} live records) — highest to lowest`
                     : `Vaccinated per Barangay — ${range} — highest to lowest`;
@@ -1193,15 +1193,15 @@
             const forecastWithheld = vaccinationForecast.forecast_status === 'stale_history';
             const longRangeEstimate = vaccinationForecast.forecast_status === 'long_gap_estimate';
             const method = forecastRows[0]?.allocation_method === 'completed_vaccination_shares'
-                ? 'allocated by completed vaccination shares'
-                : 'allocated by estimated dog population';
+                ? 'each barangay’s share of past doses'
+                : 'estimated dog counts in each barangay';
             const municipalTotal = Number(forecastRows[0]?.municipal_forecast?.[0]);
             const period = state.arimaData?.total_vaccinated?.forecast_periods?.[0] || 'next month';
             const titleText = forecastRows.length
-                ? `${period}: ${Number.isFinite(municipalTotal) ? municipalTotal.toLocaleString() : '—'} combined doses · ${longRangeEstimate ? 'provisional long-range estimate' : 'point estimate'} · ${method}`
+                ? `${period} estimate: ${Number.isFinite(municipalTotal) ? municipalTotal.toLocaleString() : '—'} doses total${longRangeEstimate ? ', based on older data' : ''}. Each barangay’s amount uses ${method}.`
                 : forecastWithheld
-                    ? `Forecast withheld · latest observed month ${vaccinationForecast.current_period || 'unavailable'}`
-                    : 'Combined-dose ARIMA forecast is currently unavailable.';
+                    ? `No estimate available. Latest month with data: ${vaccinationForecast.current_period || 'unavailable'}.`
+                    : 'A barangay estimate is not available yet.';
             let entries = forecastRows.map((row) => {
                 const name = row.barangay || '';
                 return {
@@ -1216,17 +1216,20 @@
                 }));
             }
             const actualNote = actuals.available
-                ? `${actuals.label} · completed doses`
-                : 'Previous month actuals appear after all that month’s records are entered and signed off.';
+                ? `Smaller figures show doses recorded in ${actuals.label}.`
+                : 'Last month’s recorded doses appear after all reports are entered and the month is confirmed.';
+            const chartNote = forecastRows.length
+                ? `Blue bars show each barangay’s estimate. ${actualNote}`
+                : actualNote;
             const noteEl = document.getElementById('vaccinesNeededTitle');
-            if (noteEl) noteEl.title = `${titleText}. ${forecastWithheld ? (vaccinationForecast.data_quality_note || '') : ''} ${actualNote}`;
+            if (noteEl) noteEl.title = `${titleText} ${chartNote} ${forecastWithheld ? (vaccinationForecast.data_quality_note || '') : ''}`;
             renderRankList('vaccinesNeededList', 'vaccinesNeededTitle',
-                `${titleText} | ${actualNote}`,
+                `${titleText} ${chartNote}`,
                 forecastRows.length ? '#456084' : VIZ.warn,
                 entries, actuals.label, actuals.available,
                 forecastWithheld
-                    ? `No barangay forecast shown. Latest observed month: ${vaccinationForecast.current_period || 'unavailable'}.`
-                    : 'No barangay forecast is available yet.');
+                    ? `No barangay estimate shown. Latest month with data: ${vaccinationForecast.current_period || 'unavailable'}.`
+                    : 'No barangay estimate is available yet.');
         }
     };
 

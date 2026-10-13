@@ -373,6 +373,25 @@ body {
 	font-weight: 500;
 }
 
+.forecast-card-head {
+	align-items: flex-start;
+	justify-content: flex-start;
+}
+
+.forecast-card-heading {
+	width: 100%;
+	min-width: 0;
+}
+
+.forecast-barangay-note {
+	display: block;
+	margin-top: 6px;
+	color: #456084 !important;
+	font-size: 12px !important;
+	line-height: 1.5;
+	font-weight: 500 !important;
+}
+
 select,
 input {
 	width: 100%;

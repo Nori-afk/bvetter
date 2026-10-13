@@ -156,13 +156,14 @@ function bv_xlsx_cell_value($cell, $sharedStrings)
     return $raw;
 }
 
-function bv_xlsx_rows($sheetName, $headerRowNumber)
+function bv_xlsx_rows($sheetName, $headerRowNumber, $requiredHeaders = [])
 {
     static $cache = [];
-    $cacheKey = $sheetName . ':' . $headerRowNumber;
+    $headerKey = $headerRowNumber === null ? 'auto' : (string) $headerRowNumber;
+    $cacheKey = $sheetName . ':' . $headerKey . ':' . implode(',', $requiredHeaders);
     if (isset($cache[$cacheKey])) return $cache[$cacheKey];
 
-    $rows = bv_xlsx_rows_from_path(bv_dataset_path(), $sheetName, $headerRowNumber);
+    $rows = bv_xlsx_rows_from_path(bv_dataset_path(), $sheetName, $headerRowNumber, $requiredHeaders);
     $cache[$cacheKey] = $rows;
     return $rows;
 }
@@ -323,6 +324,15 @@ function bv_sheet_rows($sheetName)
         return $activeRows;
     }
 
+    // The vaccination workbook's notes above the Combined_Rabies_3Years table
+    // were removed, moving its headers from row 3 to row 1. Detect this table
+    // by its column names so either layout continues to load correctly.
+    if ($sheetName === 'Combined_Rabies_3Years') {
+        return bv_xlsx_rows($sheetName, null, [
+            'year', 'month_no', 'dogs_vaccinated', 'cats_vaccinated', 'total_vaccinated',
+        ]);
+    }
+
     $headerRows = [
         'Dashboard' => 4,
         'Barangay_Masterlist' => 3,
@@ -330,7 +340,6 @@ function bv_sheet_rows($sheetName)
         'Prediction_Ready_Aggregated' => 3,
         'Consult_Diagnosis_3Y' => 3,
         'Disease_Monthly_2023_2025' => 3,
-        'Combined_Rabies_3Years' => 3,
         'Combined_DogControl_3Years' => 3,
     ];
     return bv_xlsx_rows($sheetName, $headerRows[$sheetName] ?? 1);
