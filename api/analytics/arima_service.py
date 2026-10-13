@@ -143,6 +143,21 @@ def cache_set(key, data):
     _cache[key] = {"data": data, "expires": time.time() + CACHE_TTL}
 
 
+def _vaccination_workbook_revision():
+    """Change when the bundled workbook is replaced or saved after an edit.
+
+    Forecasts are cached for six hours to avoid repeatedly fitting ARIMA. The
+    workbook has no upload hook that can invalidate that cache, so include its
+    on-disk revision in vaccination forecast keys. A newly saved forecast-input
+    tab will then get a fresh fit on the next request.
+    """
+    try:
+        stat = os.stat(EXCEL_PATH)
+    except OSError:
+        return "workbook-unavailable"
+    return f"{stat.st_mtime_ns}-{stat.st_size}"
+
+
 # ════════════════════════════════════════════════════════════════════════
 # UPLOADED DATASET VERSIONS
 # ════════════════════════════════════════════════════════════════════════
@@ -1121,7 +1136,7 @@ def _get_vaccination_evaluation(series: pd.Series) -> dict:
 
 def _build_vaccination_barangay_forecasts(steps: int = 1) -> list:
     current_period = pd.Timestamp.now(tz="Asia/Manila").tz_localize(None).to_period("M")
-    cache_key = (str(current_period), steps)
+    cache_key = (str(current_period), steps, _vaccination_workbook_revision())
     if cache_key not in _barangay_vacc_cache:
         series_dict, _, _ = load_vaccination_series()
         series = series_dict["total_vaccinated"]
@@ -1187,7 +1202,8 @@ def vaccination_forecast():
     data = request.json or {}
     steps = max(1, min(12, int(data.get("steps", 3) or 3)))
     current_period = pd.Timestamp.now(tz="Asia/Manila").tz_localize(None).to_period("M")
-    cache_key = f"vacc_forecast_{current_period}_{steps}"
+    workbook_revision = _vaccination_workbook_revision()
+    cache_key = f"vacc_forecast_{current_period}_{steps}_{workbook_revision}"
     cached = cache_get(cache_key)
     if cached:
         return jsonify({"success": True, "data": cached, "cached": True})
@@ -1261,7 +1277,8 @@ def vaccination_forecast_barangay():
     metric = str(data.get("metric", "total_vaccinated"))
     requested = data.get("barangays", [])
     current_period = pd.Timestamp.now(tz="Asia/Manila").tz_localize(None).to_period("M")
-    cache_key = f"vacc_barangay_{current_period}_{metric}_{steps}_" + "_".join(sorted(requested))
+    workbook_revision = _vaccination_workbook_revision()
+    cache_key = f"vacc_barangay_{current_period}_{metric}_{steps}_{workbook_revision}_" + "_".join(sorted(requested))
     cached = cache_get(cache_key)
     if cached:
         return jsonify({"success": True, "data": cached, "cached": True})
