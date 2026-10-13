@@ -34,14 +34,12 @@ if (!function_exists('bv_analytics_invalidate_vaccination')) {
     /**
      * Tells the analytics service to drop its cached vaccination forecasts.
      *
-     * Call this when an event BECOMES Completed, or when an already-Completed
-     * event is edited or deleted. Do NOT call it when an event is created --
-     * new events are 'Pending Report' and are excluded from the forecast, so
-     * there is nothing to recompute.
+     * Call this when a month is marked complete/reopened, when an event becomes
+     * Completed, or when a completed event is edited or deleted. A newly created
+     * pending event only matters if it reopens a previously signed-off month.
      *
-     * This asks for a recalculation; it does not make live data eligible. The
-     * plausibility gate in load_vaccination_series() still decides whether the
-     * DB months reach the fit.
+     * This asks for a recalculation; live months enter the model only after
+     * their explicit completion marker is set.
      *
      * Idempotent per request via a static flag, so a handler that touches two
      * rows still issues one call. Never throws and never blocks the write: if

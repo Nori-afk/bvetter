@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260928-mobile">
-    <link rel="stylesheet" href="../../vet/css/mass-vaccination.css?v=20260713-1">
+    <link rel="stylesheet" href="../../vet/css/mass-vaccination.css?v=20261013-forecast">
 </head>
 
 <body>
@@ -105,11 +105,11 @@
                         <p class="metric-value" data-metric="activeBarangay">Sta. Cruz</p>
                         <small class="metric-note">312 pets vaccinated</small>
                     </article>
-                    <article class="metric-card">
-                        <h2>Pending Reports</h2>
-                        <p class="metric-value danger" data-metric="pendingReports">3</p>
+                    <button id="pending-reports-kpi" class="metric-card metric-card-action" type="button" aria-controls="event-table-card">
+                        <span class="metric-card-title">Pending Reports</span>
+                        <span class="metric-value danger" data-metric="pendingReports">3</span>
                         <small class="metric-note">Events awaiting data</small>
-                    </article>
+                    </button>
                 </section>
 
                 <div id="arima-card-placeholder"></div>
@@ -134,7 +134,7 @@
                     </article>
                     <article class="card chart-card">
                         <div class="card-head">
-                            <h2>Predicted Number of Animals to be Vaccinated</h2>
+                            <h2>Observed Vaccinations and Dose Forecast</h2>
                         </div>
                         <canvas id="predictedAnimalsChart"></canvas>
                     </article>
@@ -142,16 +142,30 @@
 
                 <section class="card chart-card">
                     <div class="card-head">
-                        <h3>Number of Vaccines Needed per Barangay</h3>
+                        <h3>Expected Vaccination Doses per Barangay</h3>
                         <small id="vaccinesNeededTitle"></small>
                     </div>
                     <div class="chart-scroll"><div class="chart-scroll-inner"><div id="vaccinesNeededList" class="rank-list"></div></div></div>
                 </section>
 
-                <section class="card table-card">
+                <section class="card table-card" id="event-table-card">
                     <div class="card-head">
-                        <h3>Recent Vaccination Events</h3>
+                        <h3 id="event-table-heading" tabindex="-1">Recent Vaccination Events</h3>
                         <small>Click a row to open event report details</small>
+                    </div>
+                    <div class="month-completeness">
+                        <div class="month-completeness-copy">
+                            <strong>Close a month’s vaccination records</strong>
+                            <small>Mark a past month complete after all events are entered, including a month with zero events. Pending reports block sign-off; adding or editing an event reopens the month.</small>
+                            <span id="month-completeness-status" aria-live="polite">Select a month.</span>
+                        </div>
+                        <label for="month-completeness-month">Month
+                            <input id="month-completeness-month" type="month" min="2026-01">
+                        </label>
+                        <button id="month-completeness-toggle" class="btn btn-secondary" type="button" disabled>Mark month complete</button>
+                    </div>
+                    <div class="table-filter-row">
+                        <button id="show-all-events" class="btn btn-secondary" type="button" hidden>Show all events</button>
                     </div>
                     <div class="table-wrap">
                         <table>
@@ -428,7 +442,7 @@
     <script>VBetterAuth.requireAuth(['vet']);</script>
     <script src="../../shared/js/sidebar.js?v=20260824-tz"></script>
     <script src="../../shared/js/vaccine-types.js"></script>
-    <script src="../../vet/js/mass-vaccination.js?v=20261010-mvrecords"></script>
+    <script src="../../vet/js/mass-vaccination.js?v=20261013-forecast"></script>
 
 </body>
 

@@ -47,18 +47,16 @@
     // ── State ─────────────────────────────────────────────────────────────
     const state = {
         events:             [],   // from DB (mass_vaccination_events table)  ← LIVE SOURCE
+        monthStatuses:      [],   // explicit sign-off for closed months
         arimaData:          null, // from Python ARIMA service
-        barangayForecast:   null, // from Python: municipal ARIMA split by allocation_weight
+        barangayForecast:   null, // municipal ARIMA split by observed shares or dog-population weights
         dashboardData:      null, // from PHP vet_dashboard (Excel summary)
         vaccinationDataset: null, // from PHP mass_vaccination_dataset, scoped to state.dataView
-        // Chart 2's history fallback. vaccinationDataset above is re-fetched for
-        // whichever view is selected, so using it there made that chart follow the
-        // Historical/Current dropdown -- the very thing serving the model's fitted
-        // series was meant to stop. This is captured ONCE from the workbook-backed
-        // view and never re-scoped, so the fallback is as view-independent as the
-        // fitted series it stands in for.
+        // Workbook baseline retained to populate the historical year selector;
+        // the forecast chart now uses only the fitted series returned by ARIMA.
         forecastBaseline:   null,
         eventTablePage:     1,
+        pendingOnly:        false,
         // 'historical' = frozen pre-2025 baseline (Excel + the 2023-2024 rows
         // already sitting in mass_vaccination_events -- training data either
         // way). 'current' = live mass_vaccination_events rows dated 2025+.
@@ -134,13 +132,6 @@
                 ${skeletonBar('40%', '22px', 'margin-bottom:8px;border-radius:8px;')}
                 ${skeletonBar('70%', '9px')}
             </div>`;
-        const bkCard = () => `
-            <div class="mv-breakdown-card">
-                ${skeletonBar('50%', '9px', 'margin-bottom:9px;')}
-                ${skeletonBar('35%', '18px', 'margin-bottom:8px;border-radius:6px;')}
-                ${skeletonBar('45%', '9px')}
-            </div>`;
-
         placeholder.innerHTML = `
             <section class="card mv-arima-card">
                 <div class="mv-arima-header">
@@ -154,10 +145,6 @@
                 <div class="mv-forecast-section">
                     <p class="mv-section-label">${skeletonBar('150px', '10px')}</p>
                     <div class="mv-fc-grid">${[1, 2, 3].map(fcCard).join('')}</div>
-                </div>
-                <div class="mv-breakdown-section">
-                    <p class="mv-section-label">${skeletonBar('220px', '10px')}</p>
-                    <div class="mv-breakdown-grid">${[1, 2, 3].map(bkCard).join('')}</div>
                 </div>
             </section>
         `;
@@ -207,7 +194,7 @@
     // total is set. We never fabricate species splits from a grand total.
     function getDbBarangayTotals(range) {
         var totals = {};
-        getFilteredEvents(range).forEach(function(e) {
+        getFilteredEvents(range).filter(e => e.status === 'Completed').forEach(function(e) {
             if (!e.barangay) return;
 
             var dogs   = Number(e.breakdown?.dogs)   || 0;
@@ -215,10 +202,10 @@
             var others = Number(e.breakdown?.others) || 0;
             var hasBreakdown = dogs > 0 || cats > 0 || others > 0;
 
-            // Total: use breakdown sum when available, otherwise totalVaccinated field
-            var tv = hasBreakdown
-                ? dogs + cats + others
-                : Number(e.totalVaccinated) || 0;
+            // The recorded combined total is authoritative; use a species sum
+            // only for older rows where no combined total was saved.
+            var tv = Number(e.totalVaccinated) || 0;
+            if (tv === 0 && hasBreakdown) tv = dogs + cats + others;
 
             if (tv === 0) return; // nothing to count yet — pending report
 
@@ -238,7 +225,7 @@
 
     // ── NEW: Grand total vaccinated across all filtered DB events ─────────
     function getDbGrandTotal(range) {
-        return getFilteredEvents(range).reduce(function(sum, e) {
+        return getFilteredEvents(range).filter(e => e.status === 'Completed').reduce(function(sum, e) {
             var tv = Number(e.totalVaccinated) || 0;
             if (tv === 0 && e.breakdown) {
                 tv = (Number(e.breakdown.dogs) || 0)
@@ -261,6 +248,7 @@
             });
             const result = await res.json();
             if (Array.isArray(result.data)) state.events = result.data;
+            state.monthStatuses = Array.isArray(result.monthStatuses) ? result.monthStatuses : [];
         } catch (err) {
             console.warn('DB events unavailable:', err);
         }
@@ -299,7 +287,7 @@
         } catch (err) {
             console.warn('ARIMA PHP proxy unavailable — charts will use Excel fallback:', err);
         }
-        // state.arimaData stays null; charts degrade gracefully to Excel fallback
+        // state.arimaData stays null; no other algorithm is presented as ARIMA.
     };
 
     // SOURCE: Python ARIMA — municipal vaccination forecast allocated to each
@@ -309,7 +297,7 @@
     const loadBarangayForecast = async () => {
         try {
             if (window.VetAPI?.getVaccinationBarangayForecast) {
-                const res = await window.VetAPI.getVaccinationBarangayForecast(12);
+                const res = await window.VetAPI.getVaccinationBarangayForecast(1);
                 if (res?.ok && Array.isArray(res.data)) {
                     state.barangayForecast = res.data;
                     return;
@@ -323,7 +311,7 @@
             const res = await fetch(`${DASHBOARD_API}?scope=vaccination_forecast_barangay`, {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ steps: 12, metric: 'total_vaccinated' })
+                body:    JSON.stringify({ steps: 1, metric: 'total_vaccinated' })
             });
             const result = await res.json();
             if (result.success && Array.isArray(result.data)) {
@@ -335,6 +323,20 @@
             console.warn('Barangay vaccination forecast unavailable:', err);
         }
         state.barangayForecast = null;
+    };
+
+    const refreshVaccinationForecasts = async () => {
+        await Promise.all([loadArimaForecast(), loadBarangayForecast()]);
+        renderArimaCard();
+        buildCharts();
+    };
+
+    const refreshEventViews = async () => {
+        await loadEvents();
+        renderTable();
+        updateMetrics();
+        populateBarangayDropdown();
+        renderMonthCompletenessControl();
     };
 
     // SOURCE: Excel — vet_dashboard (vaccinated totals, diseaseCasesByBarangay)
@@ -423,28 +425,16 @@
         const petsEl      = document.querySelector('[data-metric="petsVaccinated"]');
         const barangayEl  = document.querySelector('[data-metric="activeBarangay"]');
 
-        // DB events scoped to the active Historical/Current view -- the pets
-        // and barangay cards read the same split as the charts, not an
-        // all-time mix.
-        const viewEvents = eventsInView();
-
-        // Events and Pending Reports are the vet's to-do list, not training
-        // data, so they always count live events whichever Data View is
-        // selected. Scoped to the view, the page's default Historical view
-        // (pre-2025 only) showed "0 -- All caught up" and "No events recorded
-        // yet" directly above a table listing this year's pending event.
-        const liveEvents = (state.events || []).filter(function(e) {
-            var d = e.date ? new Date(e.date + 'T00:00:00') : null;
-            return !d || isNaN(d.getTime()) || d >= MASS_VACC_CUTOFF;
-        });
+        const allEvents = state.events || [];
         const thisYear = new Date().getFullYear();
-        const eventsThisYear = liveEvents.filter(function(e) {
+        const eventsThisYear = allEvents.filter(function(e) {
             var d = e.date ? new Date(e.date + 'T00:00:00') : null;
             return d && !isNaN(d.getTime()) && d.getFullYear() === thisYear;
         });
 
-        // DB: pending (any live event still awaiting its report) + this year's events
-        const pending   = liveEvents.filter(e => e.status === 'Pending Report').length;
+        // Work queue and completed-dose KPIs always use the live database,
+        // independent of the chart's Historical/Current selector.
+        const pending   = allEvents.filter(e => e.status === 'Pending Report').length;
         const pendingThisYear   = eventsThisYear.filter(e => e.status === 'Pending Report').length;
         const completedThisYear = eventsThisYear.length - pendingThisYear;
         if (pendingEl) pendingEl.textContent = pending;
@@ -461,8 +451,8 @@
         const pendingNoteEl = pendingEl?.nextElementSibling;
         if (pendingNoteEl) pendingNoteEl.textContent = pending > 0 ? 'Events awaiting data' : 'All caught up';
 
-        // DB first (scoped to view), then Excel/vaccinationDataset fallback for total vaccinated
-        const dbTotal = viewEvents.reduce((s, e) => {
+        const completedEvents = allEvents.filter(e => e.status === 'Completed');
+        const dbTotal = completedEvents.reduce((s, e) => {
             var tv = Number(e.totalVaccinated) || 0;
             if (tv === 0 && e.breakdown) {
                 tv = (Number(e.breakdown.dogs) || 0)
@@ -473,21 +463,14 @@
         }, 0);
 
         if (petsEl) {
-            if (dbTotal > 0) {
-                petsEl.textContent = dbTotal.toLocaleString();
-            } else {
-                const excelTotal = state.vaccinationDataset?.summary?.total_vaccinated
-                    || state.dashboardData?.vaccinated?.total || 0;
-                petsEl.textContent = excelTotal > 0 ? excelTotal.toLocaleString() : '-';
-            }
-            // Default caption — overridden below by the ARIMA forecast note when that's available.
+            petsEl.textContent = dbTotal > 0 ? dbTotal.toLocaleString() : '-';
             const petsNoteEl = petsEl.nextElementSibling;
-            if (petsNoteEl) petsNoteEl.textContent = 'Across all barangays';
+            if (petsNoteEl) petsNoteEl.textContent = 'All years · completed live reports';
         }
 
-        // DB: most active barangay by vaccinated count
+        // Most active means completed doses, all years in the live DB.
         const barangayTotals = {};
-        viewEvents.forEach(e => {
+        completedEvents.forEach(e => {
             if (!e.barangay) return;
             var tv = Number(e.totalVaccinated) || 0;
             if (tv === 0 && e.breakdown) {
@@ -498,7 +481,7 @@
             if (tv > 0) barangayTotals[e.barangay] = (barangayTotals[e.barangay] || 0) + tv;
         });
         const topBarangay = Object.keys(barangayTotals)
-            .sort((a, b) => barangayTotals[b] - barangayTotals[a])[0];
+            .sort((a, b) => barangayTotals[b] - barangayTotals[a] || a.localeCompare(b))[0];
         if (barangayEl) barangayEl.textContent = topBarangay || '-';
 
         const barangayNoteEl = barangayEl?.nextElementSibling;
@@ -506,15 +489,6 @@
             ? `${barangayTotals[topBarangay].toLocaleString()} pets vaccinated`
             : 'No completed reports yet';
 
-        // ARIMA: update pets vaccinated note
-        if (state.arimaData?.total_vaccinated?.forecast && petsEl) {
-            const noteEl = petsEl.nextElementSibling;
-            const tv     = state.arimaData.total_vaccinated;
-            if (noteEl) {
-                noteEl.textContent = `Predicted next month: ${tv.forecast[0]} (${tv.trend || 'stable'})`;
-                noteEl.className   = 'metric-note ' + (tv.trend === 'rising' ? 'success' : '');
-            }
-        }
     };
 
     // ── Table (DB source) ─────────────────────────────────────────────────
@@ -522,13 +496,23 @@
         const tableBody = document.getElementById('event-table-body');
         const footer    = document.getElementById('event-table-footer');
 
+        const rows = state.pendingOnly
+            ? state.events.filter(e => e.status === 'Pending Report')
+            : state.events;
+        const heading = document.getElementById('event-table-heading');
+        const showAll = document.getElementById('show-all-events');
+        const filterRow = document.querySelector('.table-filter-row');
+        if (heading) heading.textContent = state.pendingOnly ? 'Pending Vaccination Reports' : 'Recent Vaccination Events';
+        if (showAll) showAll.hidden = !state.pendingOnly;
+        if (filterRow) filterRow.hidden = !state.pendingOnly;
+
         const pageSize   = pageSizeForViewport();
-        const totalPages = Math.max(1, Math.ceil(state.events.length / pageSize));
+        const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
         state.eventTablePage = Math.min(Math.max(1, state.eventTablePage), totalPages);
         const start     = (state.eventTablePage - 1) * pageSize;
-        const pageRows  = state.events.slice(start, start + pageSize);
+        const pageRows  = rows.slice(start, start + pageSize);
 
-        tableBody.innerHTML = pageRows.map(e => `
+        tableBody.innerHTML = pageRows.length ? pageRows.map(e => `
             <tr data-event-id="${sanitize(e.id)}">
                 <td data-label="Date">${sanitize(e.dateLabel)}</td>
                 <td data-label="Barangay">${sanitize(e.barangay)}</td>
@@ -536,13 +520,17 @@
                 <td data-label="Total Vaccinated">${formatNumber(e.totalVaccinated)}</td>
                 <td data-label="Status"><span class="status-pill ${statusClass(e.status)}">${sanitize(e.status)}</span></td>
             </tr>
-        `).join('');
+        `).join('') : `<tr><td colspan="5" class="table-empty">${state.pendingOnly ? 'No pending reports.' : 'No vaccination events have been recorded.'}</td></tr>`;
 
         if (!footer) return;
-        if (totalPages <= 1) { footer.innerHTML = ''; return; }
+        if (totalPages <= 1 && !rows.length) { footer.innerHTML = ''; return; }
+        if (totalPages <= 1) {
+            footer.innerHTML = `<div class="report-footer"><p>Displaying ${pageRows.length} of ${rows.length} Records</p></div>`;
+            return;
+        }
         footer.innerHTML = `
             <div class="report-footer">
-                <p>Displaying ${pageRows.length} of ${state.events.length} Records</p>
+                <p>Displaying ${pageRows.length} of ${rows.length} Records</p>
                 <div class="pagination">
                     <button type="button" class="page-btn" data-event-page="prev" aria-label="Previous page" ${state.eventTablePage <= 1 ? 'disabled' : ''}>&lsaquo;</button>
                     <button type="button" class="page-btn active" disabled>${state.eventTablePage}</button>
@@ -568,17 +556,18 @@
         // sitting there permanently - so an unreachable analytics service was
         // indistinguishable from a page that never finished loading. Clear it
         // and say plainly that the forecast is missing.
-        if (!state.arimaData?.total_vaccinated?.forecast) {
+        if (!Array.isArray(state.arimaData?.total_vaccinated?.forecast)
+            || state.arimaData.total_vaccinated.forecast.length === 0) {
             var emptyHost = document.getElementById('arima-card-placeholder');
+            var unavailableNote = state.arimaData?.total_vaccinated?.data_quality_note
+                || 'The analytics service did not return an ARIMA forecast. Reload the page to retry.';
             if (emptyHost) emptyHost.innerHTML = `
                 <section class="card mv-arima-card" id="arima-vacc-card">
                     <div class="mv-arima-header">
                         <div>
                             <span class="mv-arima-badge" style="background:#F1F5F9;color:#64748B;">Forecast Unavailable</span>
                             <h3 class="mv-arima-title">Vaccine Demand Forecast</h3>
-                            <p class="mv-arima-desc">The analytics service did not return a forecast, so no demand
-                            projection is shown. Vaccination records and the charts below are unaffected. Reload the
-                            page to retry - if it keeps happening, the analytics service needs to be checked.</p>
+                            <p class="mv-arima-desc">${sanitize(unavailableNote)} No substitute forecast is shown.</p>
                         </div>
                     </div>
                 </section>`;
@@ -586,14 +575,14 @@
         }
 
         var tv   = state.arimaData.total_vaccinated || {};
-        var cs   = state.arimaData.clients_served   || {};
-        var dogs = state.arimaData.dogs_vaccinated  || {};
-        var cats = state.arimaData.cats_vaccinated  || {};
 
         const trend    = (tv.trend || 'stable').toLowerCase();
         const trendCls = trend === 'rising' ? 'mv-trend-rising' : trend === 'falling' ? 'mv-trend-falling' : 'mv-trend-stable';
+        const modelLabel = Array.isArray(tv.arima_order) ? `ARIMA(${tv.arima_order.join(',')})` : 'Plain ARIMA';
 
-        const months = tv.months || ['Next Month', 'Month 2', 'Month 3'];
+        const months = tv.forecast_periods || tv.months || ['Next Month', 'Month 2', 'Month 3'];
+        const hasValidatedInterval = tv.interval_status === 'validated_80'
+            && Array.isArray(tv.lower_ci) && Array.isArray(tv.upper_ci);
 
         var card = document.createElement('section');
         card.id        = 'arima-vacc-card';
@@ -601,7 +590,7 @@
         card.innerHTML = `
             <div class="mv-arima-header">
                 <div>
-                    <span class="mv-arima-badge">Smart Forecast</span>
+                    <span class="mv-arima-badge">${sanitize(modelLabel)} · Combined Doses</span>
                     <h3 class="mv-arima-title">Vaccine Demand Forecast</h3>
                     <p class="mv-arima-desc">${sanitize(tv.action || 'Demand forecast based on historical vaccination data.')}</p>
 
@@ -609,38 +598,18 @@
                 <div class="mv-trend-pill ${trendCls}">Overall Trend: ${trend.toUpperCase()}</div>
             </div>
             <div class="mv-forecast-section">
-                <p class="mv-section-label">3-Month Total Forecast</p>
+                    <p class="mv-section-label">Monthly dose forecast</p>
                 <div class="mv-fc-grid">
                     ${months.map((m, i) => `
                         <div class="mv-fc-card">
                             <span class="mv-fc-label">${sanitize(m)}</span>
-                            <span class="mv-fc-val">${tv.forecast?.[i] || 0}</span>
-                            <span class="mv-fc-range">${tv.lower_ci?.[i]||0} – ${tv.upper_ci?.[i]||0}</span>
-                            <span class="mv-fc-ci">80% Range</span>
+                            <span class="mv-fc-val">${Math.round(Number(tv.forecast?.[i]) || 0).toLocaleString()}</span>
+                            ${hasValidatedInterval ? `<span class="mv-fc-range">${Math.round(Number(tv.lower_ci[i]) || 0).toLocaleString()} – ${Math.round(Number(tv.upper_ci[i]) || 0).toLocaleString()}</span>
+                            <span class="mv-fc-ci">Backtest-supported 80% range</span>` : `<span class="mv-fc-ci">Point estimate</span>`}
                         </div>
                     `).join('')}
                 </div>
-                <p class="mv-range-note">Wide range is expected because vaccination drives are scheduled in uneven campaign months.</p>
-            </div>
-            <div class="mv-breakdown-section">
-                <p class="mv-section-label">Species &amp; Client Breakdown (Next Month)</p>
-                <div class="mv-breakdown-grid">
-                    <div class="mv-breakdown-card">
-                        <span class="mv-bk-label">Dogs</span>
-                        <span class="mv-bk-val">${dogs.forecast?.[0]||0}</span>
-                        <span class="mv-bk-trend mv-trend-${(dogs.trend||'stable').toLowerCase()}">${dogs.trend||'stable'}</span>
-                    </div>
-                    <div class="mv-breakdown-card">
-                        <span class="mv-bk-label">Cats</span>
-                        <span class="mv-bk-val">${cats.forecast?.[0]||0}</span>
-                        <span class="mv-bk-trend mv-trend-${(cats.trend||'stable').toLowerCase()}">${cats.trend||'stable'}</span>
-                    </div>
-                    <div class="mv-breakdown-card">
-                        <span class="mv-bk-label">Clients</span>
-                        <span class="mv-bk-val">${cs.forecast?.[0]||0}</span>
-                        <span class="mv-bk-trend mv-trend-${(cs.trend||'stable').toLowerCase()}">${cs.trend||'stable'}</span>
-                    </div>
-                </div>
+                <p class="mv-range-note">${sanitize(tv.data_quality_note || 'Expected doses administered, based on reconstructed 2023–2024 history and completed, signed-off live months. Provisional until monthly records are verified.')}</p>
             </div>
         `;
 
@@ -710,28 +679,105 @@
     // the event-detail comparison card) instead of a canvas chart — a visually
     // distinct way to show "many categories, highest to lowest" so it doesn't
     // just look like a second copy of the barangay bar chart above it.
-    const renderRankList = (listId, titleId, titleText, titleColor, labels, primaryArr, secondaryArr, showSecondary) => {
+    const renderRankList = (listId, titleId, titleText, titleColor, entries, actualLabel, actualAvailable) => {
         const titleEl = document.getElementById(titleId);
         if (titleEl) { titleEl.textContent = titleText; titleEl.style.color = titleColor; }
 
-        const maxVal = Math.max(1, ...primaryArr);
-        const rows = labels
-            .map((name, i) => ({ name, value: primaryArr[i] || 0, done: secondaryArr?.[i] || 0 }))
-            .filter((row) => row.value > 0 || row.done > 0) // skip barangays with nothing to show
-            .sort((a, b) => b.value - a.value)
+        const maxVal = Math.max(1, ...entries.map((entry) => Number(entry.forecast) || 0));
+        const rows = entries
+            .filter((row) => (Number(row.forecast) > 0) || (actualAvailable && row.actual > 0))
+            .sort((a, b) => (Number(b.forecast) || 0) - (Number(a.forecast) || 0) || a.name.localeCompare(b.name))
             .map((row) => {
-                const pct = Math.max(2, Math.round((row.value / maxVal) * 100));
-                const sub = showSecondary && row.done > 0 ? `<small>${row.done.toLocaleString()} done</small>` : '';
+                const hasForecast = row.forecast !== null && row.forecast !== undefined
+                    && Number.isFinite(Number(row.forecast));
+                const forecast = hasForecast ? Math.max(0, Number(row.forecast)) : 0;
+                const pct = Math.max(2, Math.round((forecast / maxVal) * 100));
+                const actual = actualAvailable
+                    ? `<small>${sanitize(actualLabel)}: ${Math.round(row.actual || 0).toLocaleString()}</small>`
+                    : '<small>Actual not signed off</small>';
                 return `
                     <div class="rank-row">
                         <span class="rank-name" title="${sanitize(row.name)}">${sanitize(row.name)}</span>
                         <div class="line"><div class="fill fill-blue" style="width:${pct}%"></div></div>
-                        <strong class="rank-value">${row.value.toLocaleString()}${sub}</strong>
+                        <strong class="rank-value">${hasForecast ? `Forecast ${Math.round(forecast).toLocaleString()}` : 'Forecast unavailable'}${actual}</strong>
                     </div>`;
             }).join('');
 
         const listEl = document.getElementById(listId);
-        if (listEl) listEl.innerHTML = rows;
+        if (listEl) listEl.innerHTML = rows || '<p class="rank-empty">No barangay forecast is available yet.</p>';
+    };
+
+    const normalizeBarangayName = (name) => String(name || '').normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ').trim();
+
+    const lastClosedMonth = () => {
+        const date = new Date();
+        date.setDate(1);
+        date.setMonth(date.getMonth() - 1);
+        return { year: date.getFullYear(), month: date.getMonth() + 1 };
+    };
+
+    const monthStatus = (year, month) => (state.monthStatuses || []).find((item) =>
+        Number(item.year) === Number(year) && Number(item.month) === Number(month)
+    );
+
+    const renderMonthCompletenessControl = () => {
+        const input = document.getElementById('month-completeness-month');
+        const button = document.getElementById('month-completeness-toggle');
+        const statusEl = document.getElementById('month-completeness-status');
+        if (!input || !button || !statusEl) return;
+        const current = new Date();
+        const currentKey = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
+        const previous = lastClosedMonth();
+        const previousKey = `${previous.year}-${String(previous.month).padStart(2, '0')}`;
+        input.min = '2026-01';
+        input.max = previousKey;
+        if (previousKey < input.min) {
+            input.value = '';
+            statusEl.textContent = 'Month sign-off is available after January 2026 closes.';
+            button.textContent = 'Mark month complete';
+            button.disabled = true;
+            return;
+        }
+        if (!input.value || input.value > previousKey || input.value < input.min) input.value = previousKey;
+
+        const [year, month] = input.value.split('-').map(Number);
+        const validPastMonth = Number.isFinite(year) && Number.isFinite(month)
+            && input.value >= input.min && input.value < currentKey;
+        const saved = validPastMonth ? monthStatus(year, month) : null;
+        const markedComplete = Boolean(saved?.complete);
+        statusEl.textContent = !validPastMonth
+            ? 'Choose a past month from January 2026 onward.'
+            : markedComplete
+                ? `Marked complete${saved.completedAt ? ` on ${new Date(saved.completedAt.replace(' ', 'T')).toLocaleDateString()}` : ''}. New or edited records reopen this month.`
+                : 'Not signed off. Partial totals are excluded from the forecast.';
+        button.textContent = markedComplete ? 'Reopen month' : 'Mark month complete';
+        button.dataset.complete = markedComplete ? 'false' : 'true';
+        button.disabled = !validPastMonth;
+    };
+
+    const previousMonthActuals = () => {
+        const { year, month } = lastClosedMonth();
+        const prefix = `${year}-${String(month).padStart(2, '0')}`;
+        if (!monthStatus(year, month)?.complete) {
+            return { available: false, label: '', totals: {} };
+        }
+        const totals = {};
+        const labels = {};
+        (state.events || []).forEach((event) => {
+            if (event.status !== 'Completed' || !String(event.date || '').startsWith(prefix) || !event.barangay) return;
+            let count = Number(event.totalVaccinated) || 0;
+            if (count === 0 && event.breakdown) {
+                count = (Number(event.breakdown.dogs) || 0)
+                    + (Number(event.breakdown.cats) || 0)
+                    + (Number(event.breakdown.others) || 0);
+            }
+            const key = normalizeBarangayName(event.barangay);
+            totals[key] = (totals[key] || 0) + count;
+            if (!labels[key]) labels[key] = event.barangay;
+        });
+        const label = new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+        return { available: true, label: `Actual · ${label}`, totals, names: labels };
     };
 
     // Draws a dashed "Now" divider where history ends and the forecast begins,
@@ -953,8 +999,9 @@
         // This is a trend-over-time story, so it's one continuous line —
         // solid history, dashed forecast continuation, shaded confidence
         // band — instead of disconnected bar slots per data source/month.
-        // SOURCE: Excel monthly history (Combined_Rabies_3Years) + Python ARIMA
-        // FALLBACK (ARIMA unreachable): flat 3-month moving average of history
+        // SOURCE: exact monthly series fitted by Python + plain ARIMA forecast.
+        // Missing months remain gaps; an unavailable ARIMA is not replaced with
+        // a different prediction model.
         destroyChart('predictedAnimals');
         {
             var tv = state.arimaData?.total_vaccinated || {};
@@ -971,62 +1018,24 @@
             var MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
             var fittedHistory = state.arimaData?.history || [];
 
-            var historyLabels, historyValues;
+            var historyLabels = [], historyValues = [];
             if (fittedHistory.length) {
                 historyLabels = fittedHistory.map(h => {
                     var parts = String(h.period || '').split('-');
                     var monthIdx = (parseInt(parts[1], 10) || 1) - 1;
                     return `${MONTH_ABBR[monthIdx] || '?'} ${String(parts[0] || '').slice(-2)}`;
                 });
-                historyValues = fittedHistory.map(h => Number(h.value) || 0);
-            } else {
-                // Analytics service unreachable, or running a build that predates
-                // the fitted-history field: fall back to the workbook-backed
-                // BASELINE, never to vaccinationDataset -- that one is re-scoped by
-                // the Historical/Current dropdown, which is exactly how this chart
-                // started following the selector again.
-                var rawMonthly = (state.forecastBaseline?.by_month || []).slice(-6);
-                var monthlyRows = rawMonthly.filter(r =>
-                    (Number(r.total_vaccinated) || 0) > 0 ||
-                    (Number(r.dogs_vaccinated)  || 0) > 0 ||
-                    (Number(r.cats_vaccinated)  || 0) > 0
-                );
-                historyLabels = monthlyRows.map(r => (r.month || '').slice(0, 3) + ' ' + String(r.year).slice(-2));
-                historyValues = monthlyRows.map(r => {
-                    var total = Number(r.total_vaccinated) || 0;
-                    return total || (Number(r.dogs_vaccinated) || 0) + (Number(r.cats_vaccinated) || 0);
-                });
+                historyValues = fittedHistory.map(h => h.value === null || h.value === undefined || h.value === ''
+                    ? null : (Number.isFinite(Number(h.value)) ? Number(h.value) : null));
             }
 
             var forecastLabels, forecastValues, lowerCi, upperCi, usingArima;
             if (tv.forecast?.length) {
-                forecastLabels = tv.months || ['Next Month', 'Month 2', 'Month 3'];
+                forecastLabels = tv.forecast_periods || tv.months || ['Next Month', 'Month 2', 'Month 3'];
                 forecastValues = tv.forecast;
-                lowerCi = tv.lower_ci || [];
-                upperCi = tv.upper_ci || [];
+                lowerCi = tv.interval_status === 'validated_80' ? (tv.lower_ci || []) : [];
+                upperCi = tv.interval_status === 'validated_80' ? (tv.upper_ci || []) : [];
                 usingArima = true;
-            } else if (historyValues.length) {
-                // Benchmark shown only when the analytics service is unreachable.
-                // This was a hardcoded +12%-on-last-month: a growth rate with no
-                // derivation behind it, asserting a rising trend the data had never
-                // been tested for. A moving average is the standard naive benchmark
-                // a forecasting model is measured against, and it is the same family
-                // the disease side already degrades to ("Basic Estimate"), so both
-                // modules now fail the same way.
-                var maWindow = historyValues.slice(-3);
-                var maMean   = maWindow.reduce((s, v) => s + v, 0) / maWindow.length;
-                // Band = observed spread of that same window, not an invented percentage.
-                var maSd = Math.sqrt(
-                    maWindow.reduce((s, v) => s + Math.pow(v - maMean, 2), 0) / maWindow.length
-                );
-                var maPoint = Math.round(maMean);
-                // Flat projection: a mean-based benchmark models no trend, and a flat
-                // line says so honestly instead of implying one.
-                forecastLabels = ['Next Month (est.)', 'Month 2 (est.)', 'Month 3 (est.)'];
-                forecastValues = [maPoint, maPoint, maPoint];
-                lowerCi = forecastValues.map(v => Math.max(0, Math.round(v - maSd)));
-                upperCi = forecastValues.map(v => Math.round(v + maSd));
-                usingArima = false;
             } else {
                 forecastLabels = []; forecastValues = []; lowerCi = []; upperCi = [];
                 usingArima = false;
@@ -1034,7 +1043,7 @@
 
             if (!historyLabels.length && !forecastLabels.length) {
                 historyLabels = ['No data available'];
-                historyValues = [0];
+                historyValues = [null];
             }
 
             var c2Labels = historyLabels.concat(forecastLabels);
@@ -1061,7 +1070,7 @@
 
             var c2Datasets = [
                 {
-                    label: 'Vaccinated (actual)',
+                    label: 'Observed monthly total',
                     data: actualSeries,
                     borderColor: VIZ.dogs,
                     backgroundColor: (ctx) => {
@@ -1085,7 +1094,8 @@
                     borderColor: VIZ.dogs, backgroundColor: VIZ.dogs,
                     borderWidth: 2, borderDash: [6, 4], pointRadius: 3, pointBackgroundColor: VIZ.dogs,
                     tension: 0, spanGaps: false
-                }, {
+                });
+                if (tv.interval_status === 'validated_80' && lowerCi.length && upperCi.length) c2Datasets.push({
                     label: '80% range',
                     data: bandUpperArr,
                     borderColor: 'transparent', backgroundColor: 'rgba(47,157,240,0.14)',
@@ -1099,10 +1109,8 @@
             }
 
             var c2Title = usingArima
-                ? `Vaccine Demand Trend — next ${forecastLabels.length} month${forecastLabels.length === 1 ? '' : 's'} forecast (80% range)`
-                : (forecastLabels.length
-                    ? 'Monthly Trend — Forecast Service Unavailable (3-month average estimate shown)'
-                    : 'No historical or forecast data available');
+                ? `Combined vaccine doses — plain ARIMA forecast${tv.interval_status === 'validated_80' ? ' with backtest-supported 80% range' : ' (point estimate)'}`
+                : 'ARIMA forecast unavailable — no substitute model shown';
 
             var dividerIndex = (historyValues.length > 0 && forecastLabels.length > 0)
                 ? historyValues.length - 0.5 : null;
@@ -1127,62 +1135,44 @@
             });
         }
 
-        // ── Vaccines Needed per Barangay (ranked list, not a canvas chart —
-        //    see renderRankList above)
-
-        // SOURCE: single municipal ARIMA forecast (no per-barangay vaccination
-        //         history exists to fit independent models), split by each
-        //         barangay's share of the 2025 estimated dog population
-        //         (Barangay_Masterlist, served as dog_population_by_barangay).
-        //         This used to split by past vaccination share, and once the
-        //         seeded 2023-24 events were deleted that fell back to DISEASE
-        //         case counts -- the same proxy Chart 1 dropped as fabricated.
-        //         It also blended the total with live turnout, multiplying by the
-        //         range twice; the recorded turnout now shows as "done" instead.
-        // FALLBACK (forecast service unreachable): Chart 2's moving-average
-        //         estimate, split the same way.
+        // The municipal ARIMA forecast is allocated once by the API. It uses
+        // complete live vaccination shares only after the agreed coverage rule
+        // passes; otherwise the API falls back to estimated dog-population weights.
+        // The actual comparison is the previous calendar month and appears only
+        // after staff have signed that month off as fully entered.
         {
-            var tvN   = state.arimaData?.total_vaccinated || {};
-            var multi = range === 'Last 3 Months' ? 3 : range === 'This Year' ? 12 : 1;
-            var usingForecast = !!tvN.forecast?.length;
-            // forecastValues is Chart 2's series: the ARIMA forecast, or its
-            // moving-average benchmark when the service is down.
-            var monthDemand  = usingForecast ? (Number(tvN.forecast[0]) || 0) : (Number(forecastValues[0]) || 0);
-            var periodDemand = monthDemand * multi;
-
-            var dogRows = state.vaccinationDataset?.dog_population_by_barangay || [];
-            // The event form spells it "Sto. Nino", the masterlist "Sto. Niño".
-            var nameKey = (name) => String(name || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
-                .toLowerCase().replace(/\s+/g, ' ').trim();
-
-            var doneByKey = {};
-            Object.keys(dbBarangayTotals).forEach(b => {
-                doneByKey[nameKey(b)] = (doneByKey[nameKey(b)] || 0) + (dbBarangayTotals[b].total || 0);
+            const forecastRows = Array.isArray(state.barangayForecast) ? state.barangayForecast : [];
+            const actuals = previousMonthActuals();
+            const method = forecastRows[0]?.allocation_method === 'completed_vaccination_shares'
+                ? 'allocated by completed vaccination shares'
+                : 'allocated by estimated dog population';
+            const municipalTotal = Number(forecastRows[0]?.municipal_forecast?.[0]);
+            const period = state.arimaData?.total_vaccinated?.forecast_periods?.[0] || 'next month';
+            const titleText = forecastRows.length
+                ? `${period}: ${Number.isFinite(municipalTotal) ? municipalTotal.toLocaleString() : '—'} combined doses · point estimate · ${method}`
+                : 'Combined-dose ARIMA forecast is currently unavailable.';
+            let entries = forecastRows.map((row) => {
+                const name = row.barangay || '';
+                return {
+                    name,
+                    forecast: Math.max(0, Number(row.forecast?.[0]) || 0),
+                    actual: actuals.totals[normalizeBarangayName(name)] || 0,
+                };
             });
-
-            var labels = dogRows.map(r => r.barangay);
-            var needed = dogRows.map(r => Math.round((Number(r.share) || 0) * periodDemand));
-            var done   = dogRows.map(r => doneByKey[nameKey(r.barangay)] || 0);
-
-            // A barangay missing from the masterlist still shows its recorded turnout.
-            var listed = new Set(labels.map(nameKey));
-            Object.keys(dbBarangayTotals).forEach(b => {
-                if (listed.has(nameKey(b))) return;
-                listed.add(nameKey(b));
-                labels.push(b); needed.push(0); done.push(doneByKey[nameKey(b)]);
-            });
-
-            var c4Title = !dogRows.length
-                ? 'Dog population data unavailable'
-                : usingForecast
-                    ? `Predicted Vaccine Demand (${range}): ~${Math.round(periodDemand).toLocaleString()} vaccines, split by dog population — highest to lowest`
-                    : periodDemand > 0
-                        ? `Vaccine Demand — ${range} (Estimated — Forecast Unavailable), split by dog population — highest to lowest`
-                        : 'No forecast or vaccination history available';
-
-            renderRankList('vaccinesNeededList', 'vaccinesNeededTitle', c4Title,
-                usingForecast && dogRows.length ? '#456084' : VIZ.warn,
-                labels, needed, done, hasDbData);
+            if (!forecastRows.length && actuals.available) {
+                entries = Object.keys(actuals.totals).map((key) => ({
+                    name: actuals.names[key], forecast: null, actual: actuals.totals[key],
+                }));
+            }
+            const actualNote = actuals.available
+                ? `${actuals.label} · completed doses`
+                : 'Previous month actuals appear after all that month’s records are entered and signed off.';
+            const noteEl = document.getElementById('vaccinesNeededTitle');
+            if (noteEl) noteEl.title = `${titleText}. ${actualNote}`;
+            renderRankList('vaccinesNeededList', 'vaccinesNeededTitle',
+                `${titleText} | ${actualNote}`,
+                forecastRows.length ? '#456084' : VIZ.warn,
+                entries, actuals.label, actuals.available);
         }
     };
 
@@ -1265,6 +1255,55 @@
         if (row) hydrateDetail(row.dataset.eventId);
     });
 
+    document.getElementById('pending-reports-kpi')?.addEventListener('click', () => {
+        state.pendingOnly = true;
+        state.eventTablePage = 1;
+        renderTable();
+        const table = document.getElementById('event-table-card');
+        const heading = document.getElementById('event-table-heading');
+        table?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        heading?.focus({ preventScroll: true });
+    });
+
+    document.getElementById('show-all-events')?.addEventListener('click', () => {
+        state.pendingOnly = false;
+        state.eventTablePage = 1;
+        renderTable();
+    });
+
+    document.getElementById('month-completeness-month')?.addEventListener('change', renderMonthCompletenessControl);
+    document.getElementById('month-completeness-toggle')?.addEventListener('click', async (event) => {
+        const input = document.getElementById('month-completeness-month');
+        const [year, month] = String(input?.value || '').split('-').map(Number);
+        if (!year || !month) return;
+        const button = event.currentTarget;
+        button.disabled = true;
+        try {
+            const res = await fetch(MASS_VACC_API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'set_month_completeness', year, month,
+                    complete: button.dataset.complete === 'true'
+                })
+            });
+            const result = await res.json();
+            if (!result.success) {
+                await vbAlert(result.message || 'Could not update this month’s completion status.');
+                return;
+            }
+            if (Array.isArray(result.monthStatuses)) state.monthStatuses = result.monthStatuses;
+            renderMonthCompletenessControl();
+            await refreshEventViews();
+            await refreshVaccinationForecasts();
+        } catch (err) {
+            await vbAlert('Could not update this month’s completion status.');
+        } finally {
+            button.disabled = false;
+            renderMonthCompletenessControl();
+        }
+    });
+
     document.getElementById('back-to-dashboard').addEventListener('click', () => setPanel('dashboard'));
 
     document.getElementById('delete-event-btn')?.addEventListener('click', async () => {
@@ -1285,10 +1324,8 @@
             await vbAlert('Failed to delete event.'); return;
         }
 
-        state.events = state.events.filter(item => item.id !== activeId);
-        renderTable();
-        updateMetrics();
-        buildCharts();
+        await refreshEventViews();
+        await refreshVaccinationForecasts();
         setPanel('dashboard');
     });
 
@@ -1357,16 +1394,16 @@
                 })
             });
             const result = await res.json();
-            if (result.success) Object.assign(e, result.data);
+            if (!result.success) { await vbAlert(result.message || 'Failed to save report.'); return; }
+            Object.assign(e, result.data);
         } catch (err) {
             await vbAlert('Failed to save report.'); return;
         }
 
         // Re-render everything with fresh state — charts now pick up the new totals
-        renderTable();
-        updateMetrics();
-        buildCharts();
-        hydrateDetail(e.id);
+        await refreshEventViews();
+        await refreshVaccinationForecasts();
+        hydrateDetail(activeId);
         await vbAlert('Vaccination report saved.');
     });
 
@@ -1645,12 +1682,10 @@
                 })
             });
             const result = await res.json();
-            if (result.success) state.events.unshift(result.data);
-            else { await vbAlert(result.message || 'Failed to create event.'); return; }
+            if (!result.success) { await vbAlert(result.message || 'Failed to create event.'); return; }
 
-            renderTable();
-            updateMetrics();
-            buildCharts();
+            await refreshEventViews();
+            await refreshVaccinationForecasts();
             closeModal();
             showEventSummary(result.data);
         } catch (err) { await vbAlert('Failed to create event.'); return; }
@@ -1720,8 +1755,8 @@
     // ── Init ──────────────────────────────────────────────────────────────
     renderSkeletons();
     applyDataViewVisibility();
+    await loadEvents();
     await Promise.all([
-        loadEvents(),
         loadArimaForecast(),
         loadBarangayForecast(),
         loadDashboardData(),
@@ -1730,6 +1765,7 @@
 
     renderTable();
     updateMetrics();
+    renderMonthCompletenessControl();
     setPanel('dashboard');
     closeModal();
     await loadForecastBaseline();

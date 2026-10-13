@@ -69,10 +69,6 @@ function attemptLogin(PDO $pdo, string $email, string $password, string $otpCode
     $user = $stmt->fetch();
 
     if (!$user || !password_verify($password, $user['password_hash'])) {
-        // Same generic response whether the email exists or not, and even on
-        // the attempt that triggers the block — the endpoint never reveals
-        // which addresses have accounts. The owner learns about the block
-        // from the email sent inside recordFailedLoginAttempt().
         if ($user) {
             $wasblocked= recordFailedLoginAttempt($pdo, $user);
 

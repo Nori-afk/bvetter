@@ -1695,6 +1695,11 @@ if ($scope === 'vaccination_forecast' || $scope === 'vaccination-forecast') {
     bv_json_response($result['success'] ? 200 : 502, $result);
 }
 
+if ($scope === 'vaccination_model_evaluation') {
+    $result = analytics_post('/vaccination-model-evaluation', [], 60);
+    bv_json_response($result['success'] ? 200 : 502, $result);
+}
+
 if ($scope === 'vaccination_forecast_barangay' || $scope === 'vaccination-forecast-barangay') {
     $steps     = max(1, min(12, (int) ($input['steps'] ?? 12)));
     $barangays = $input['barangays'] ?? [];

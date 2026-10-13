@@ -165,12 +165,30 @@ body {
 	box-shadow: 0 6px 20px rgba(12, 35, 64, 0.10);
 }
 
+.metric-card-action {
+	appearance: none;
+	width: 100%;
+	font: inherit;
+	text-align: left;
+	color: inherit;
+	cursor: pointer;
+}
+
+.metric-card-action:focus-visible,
+.month-completeness button:focus-visible,
+.table-filter-row button:focus-visible {
+	outline: 3px solid rgba(47, 157, 240, 0.35);
+	outline-offset: 2px;
+}
+
 .metric-card:nth-child(1) { border-left-color: #002A58; }
 .metric-card:nth-child(2) { border-left-color: #3B82F6; }
 .metric-card:nth-child(3) { border-left-color: #059669; }
 .metric-card:nth-child(4) { border-left-color: #EF4444; }
 
-.metric-card h2 {
+.metric-card h2,
+.metric-card-title {
+	display: block;
 	margin: 0;
 	font-size: 10px;
 	font-weight: 700;
@@ -373,6 +391,72 @@ input {
 
 .table-card {
 	margin-top: 18px;
+}
+
+.month-completeness {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+	margin: 2px 0 14px;
+	padding: 13px 14px;
+	border: 1px solid #E8EEF6;
+	border-radius: 10px;
+	background: #F8FAFC;
+}
+
+.month-completeness-copy {
+	display: flex;
+	flex: 1 1 360px;
+	flex-direction: column;
+	gap: 4px;
+	color: #334155;
+	font-size: 12px;
+}
+
+.month-completeness-copy small,
+.month-completeness-copy span { color: #64748B; line-height: 1.45; }
+
+.month-completeness label {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	color: #64748B;
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.month-completeness input {
+	min-height: 36px;
+	border: 1px solid #CBD5E1;
+	border-radius: 7px;
+	padding: 6px 8px;
+	background: #fff;
+	color: #0F172A;
+	font: inherit;
+}
+
+.table-filter-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin: 8px 0;
+}
+
+.table-filter-row[hidden],
+.table-filter-row button[hidden] { display: none; }
+
+.table-filter-row:empty { display: none; }
+
+.table-filter-row button,
+.month-completeness button { font: inherit; }
+
+.table-empty,
+.rank-empty {
+	padding: 18px;
+	color: #64748B;
+	text-align: center;
 }
 
 .table-wrap {
@@ -731,14 +815,17 @@ tr[data-event-id]:hover {
 	font-size: 13px;
 	font-weight: 700;
 	color: #0F172A;
-	white-space: nowrap;
+	white-space: normal;
+	text-align: right;
 }
 
 .rank-value small {
+	display: block;
+	margin: 3px 0 0;
 	font-size: 11px;
 	font-weight: 500;
 	color: var(--mv-muted);
-	margin-left: 4px;
+	white-space: normal;
 }
 
 .modal {
@@ -1373,7 +1460,8 @@ tr[data-event-id]:hover {
 	.detail-header h2 { font-size: 22px; }
 
 	.card-head h3,
-	.metric-card h2 {
+	.metric-card h2,
+	.metric-card-title {
 		font-size: 22px;
 		font-weight: normal;
 	}
@@ -1481,7 +1569,10 @@ tr[data-event-id]:hover {
 
 	.metric-card { padding: 12px 14px; }
 
-	.metric-card h2 { font-size: 9.5px; }
+	.metric-card h2,
+	.metric-card-title { font-size: 9.5px; }
+
+	.month-completeness button { width: 100%; }
 
 	.metric-value { font-size: 22px; }
 

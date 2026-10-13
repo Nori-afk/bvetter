@@ -30,6 +30,9 @@ Everything else is identical to v3.
 """
 
 import os
+import json
+import math
+import unicodedata
 import warnings
 import time
 import numpy as np
@@ -112,6 +115,7 @@ def db_connect():
     return pymysql.connect(cursorclass=pymysql.cursors.DictCursor, **DB_CONFIG)
 
 _cache    = {}
+_vaccination_evaluation_cache = None
 # SPEED-7: raised 600s -> 6h. This was originally justified by "the source Excel
 # only changes on a service restart", which stopped being true when the clinic
 # gained the ability to upload a dataset. The TTL is still right, but it is no
@@ -577,52 +581,212 @@ def _seasonal_vaccination_baseline(series: pd.Series, steps: int, diagnostics: d
     return baseline
 
 
-def run_vaccination_arima(series: pd.Series, steps: int = 3) -> dict:
-    ar = run_arima(series, steps=steps)
-    diagnostics = _vaccination_regime_diagnostics(series)
-    baseline = _seasonal_vaccination_baseline(series, steps, diagnostics)
-    raw_forecast = [round(float(v), 1) for v in ar.get("forecast", [])]
-    baseline_floor = [max(1.0, value * 0.25) for value in baseline]
-    forecast_collapse = any(
-        (raw_forecast[i] if i < len(raw_forecast) else 0.0) < baseline_floor[i]
-        for i in range(steps)
+def _longest_contiguous_observed_run(series: pd.Series) -> pd.Series:
+    """Return the longest adjacent run used for the ADF differencing check."""
+    observed = series.dropna().astype(float)
+    if observed.empty or not isinstance(observed.index, pd.PeriodIndex):
+        return observed
+
+    runs, current, previous = [], [], None
+    for period, value in observed.items():
+        if previous is not None and period.ordinal != previous.ordinal + 1:
+            runs.append(current)
+            current = []
+        current.append((period, value))
+        previous = period
+    if current:
+        runs.append(current)
+    longest = max(runs, key=len)
+    return pd.Series([value for _, value in longest],
+                     index=pd.PeriodIndex([period for period, _ in longest], freq="M"),
+                     name=series.name, dtype=float)
+
+
+def _select_vaccination_arima_order(series: pd.Series) -> tuple:
+    """Select a plain ARIMA(p,d,q); never include seasonal terms or guards."""
+    contiguous = _longest_contiguous_observed_run(series)
+    d = _adf_d(contiguous if not contiguous.empty else series.dropna())
+    best_aic, best_order = np.inf, (1, d, 1)
+    for p, q in [(1, 1), (1, 0), (0, 1), (0, 0), (2, 1)]:
+        try:
+            fitted = ARIMA(series.astype(float), order=(p, d, q), missing="none").fit(
+                method_kwargs={"maxiter": 80}
+            )
+            if np.isfinite(fitted.aic) and fitted.aic < best_aic:
+                best_aic, best_order = fitted.aic, (p, d, q)
+        except Exception:
+            continue
+    return best_order
+
+
+def _fit_vaccination_arima(series: pd.Series, steps: int) -> dict:
+    observed = series.dropna().astype(float)
+    if len(observed) < 12:
+        raise ValueError("At least 12 observed monthly totals are needed for vaccination ARIMA.")
+    order = _select_vaccination_arima_order(series)
+    fitted = ARIMA(series.astype(float), order=order, missing="none").fit(
+        method_kwargs={"maxiter": 100}
     )
+    prediction = fitted.get_forecast(steps=steps)
+    interval = prediction.conf_int(alpha=0.2)
+    forecasts = [max(0.0, float(value)) for value in prediction.predicted_mean.values]
+    lower = [max(0.0, float(value)) for value in interval.iloc[:, 0].values]
+    upper = [max(0.0, float(value)) for value in interval.iloc[:, 1].values]
+    trend_delta = forecasts[-1] - forecasts[0] if len(forecasts) > 1 else 0.0
+    trend = "rising" if trend_delta > 0.5 else ("falling" if trend_delta < -0.5 else "stable")
+    return {
+        "forecast": [round(value, 1) for value in forecasts],
+        "lower_ci": [round(value, 1) for value in lower],
+        "upper_ci": [round(value, 1) for value in upper],
+        "order": list(order),
+        "trend": trend,
+        "model_type": "ARIMA",
+    }
 
-    if diagnostics.get("regime_shift") or forecast_collapse:
-        adjusted = [round(max(raw_forecast[i] if i < len(raw_forecast) else 0.0, baseline[i]), 1)
-                    for i in range(steps)]
-        ar["raw_forecast"] = raw_forecast
-        ar["forecast"] = adjusted
-        ar["lower_ci"] = [round(max(0.0, value * 0.8), 1) for value in adjusted]
-        ar["upper_ci"] = [round(value * 1.2, 1) for value in adjusted]
-        ar["trend"] = "rising" if adjusted[-1] - adjusted[0] > 0.5 else (
-            "falling" if adjusted[-1] - adjusted[0] < -0.5 else "stable"
-        )
-        ar["model_type"] = "ARIMARegimeAdjusted" if diagnostics.get("regime_shift") else "ARIMABaselineGuard"
-        ar["regime_shift"] = bool(diagnostics.get("regime_shift"))
-        ar["forecast_collapse"] = bool(forecast_collapse)
-        ar["seasonal_baseline"] = baseline
-        if diagnostics.get("regime_shift"):
-            ar["data_quality_note"] = (
-                f"Latest period total ({diagnostics['latest_year_total']}) is only "
-                f"{round(diagnostics['latest_vs_previous_ratio'] * 100)}% of the "
-                f"comparable earlier median ({diagnostics['previous_year_median']}), "
-                f"compared on {diagnostics.get('comparison_basis', 'full calendar year')}. "
-                "Forecast is floored to a seasonal demand baseline; verify the latest-year records."
+
+def evaluate_vaccination_arima(series: pd.Series, max_horizon: int = 3,
+                               rolling_origins: int = 12) -> dict:
+    """Rolling-origin holdout metrics on observed months only; missing months are never scored."""
+    observed_periods = list(series.dropna().index)
+    if not observed_periods:
+        return {"status": "unavailable", "reason": "No observed monthly totals.", "horizons": {}}
+
+    first_period, last_period = min(observed_periods), max(observed_periods)
+    series_end = series.index[-1]
+    trailing_gap_months = max(0, series_end.ordinal - last_period.ordinal)
+    earliest_origin = first_period + 12
+    possible_origins = pd.period_range(earliest_origin, last_period - 1, freq="M")
+    eligible_origins = []
+    for origin in possible_origins:
+        train = series.loc[:origin]
+        targets = [origin + horizon for horizon in range(1, max_horizon + 1)]
+        if int(train.notna().sum()) >= 12 and any(
+                target in series.index and pd.notna(series.loc[target]) for target in targets):
+            eligible_origins.append(origin)
+    # Spread the cap across the complete record so the provisional workbook
+    # period remains represented after newer live months arrive.
+    if rolling_origins and len(eligible_origins) > rolling_origins:
+        picks = np.linspace(0, len(eligible_origins) - 1, rolling_origins).round().astype(int)
+        eligible_origins = [eligible_origins[index] for index in sorted(set(picks))]
+    records = {horizon: [] for horizon in range(1, max_horizon + 1)}
+
+    for origin in eligible_origins:
+        train = series.loc[:origin]
+        targets = [origin + horizon for horizon in range(1, max_horizon + 1)]
+        try:
+            order = _select_vaccination_arima_order(train)
+            fitted = ARIMA(train.astype(float), order=order, missing="none").fit(
+                method_kwargs={"maxiter": 80}
             )
-        else:
-            ar["data_quality_note"] = (
-                "The forecast dropped below the usual seasonal demand for vaccinations. "
-                "It's been floored for operational stock planning."
-            )
+            prediction = fitted.get_forecast(steps=max_horizon)
+            intervals = prediction.conf_int(alpha=0.2)
+            means = prediction.predicted_mean.values
+            for horizon, target in enumerate(targets, start=1):
+                if target not in series.index or pd.isna(series.loc[target]):
+                    continue
+                actual = float(series.loc[target])
+                forecast = max(0.0, float(means[horizon - 1]))
+                lower = max(0.0, float(intervals.iloc[horizon - 1, 0]))
+                upper = max(0.0, float(intervals.iloc[horizon - 1, 1]))
+                records[horizon].append({
+                    "period": str(target), "actual": actual, "forecast": forecast,
+                    "lower": lower, "upper": upper,
+                })
+        except Exception as exc:
+            print(f"[vaccination-evaluation] skipped origin {origin}: {exc}")
+
+    horizons = {}
+    for horizon, rows in records.items():
+        if not rows:
+            horizons[str(horizon)] = {"n": 0, "mae": None, "wape": None, "coverage": None}
+            continue
+        errors = [abs(row["actual"] - row["forecast"]) for row in rows]
+        actual_sum = sum(abs(row["actual"]) for row in rows)
+        coverage = sum(row["lower"] <= row["actual"] <= row["upper"] for row in rows) / len(rows)
+        horizons[str(horizon)] = {
+            "n": len(rows),
+            "mae": round(float(np.mean(errors)), 2),
+            "wape": round(float(sum(errors) / actual_sum * 100), 2) if actual_sum else None,
+            "coverage": round(float(coverage * 100), 1),
+        }
+
+    coverage_supported = trailing_gap_months <= 1 and all(
+        horizons[str(horizon)]["n"] >= 8
+        and horizons[str(horizon)]["coverage"] is not None
+        and 70 <= horizons[str(horizon)]["coverage"] <= 90
+        for horizon in range(1, max_horizon + 1)
+    )
+    observed = series.dropna()
+    scored_horizons = [item for item in horizons.values() if item["n"]]
+    report = {
+        "status": "complete" if len(scored_horizons) == len(horizons) else (
+            "partial" if scored_horizons else "insufficient_data"
+        ),
+        "model": "plain ARIMA",
+        "method": "rolling origin, monthly holdout; missing months excluded from scoring",
+        "eligible_origins": len(eligible_origins),
+        "observed_months": int(len(observed)),
+        "training_period_start": str(observed.index.min()),
+        "training_period_end": str(observed.index.max()),
+        "forecast_gap_months": int(trailing_gap_months),
+        "interval_gap_eligible": trailing_gap_months <= 1,
+        "data_source_note": "2023–2024 workbook totals are reconstructed and provisional; only signed-off live months are added.",
+        "horizons": horizons,
+        "80_percent_interval_supported": coverage_supported,
+    }
+    return report
+
+
+def run_vaccination_arima(series: pd.Series, steps: int = 3,
+                          evaluation: dict = None) -> dict:
+    """Plain nonseasonal ARIMA, with an 80% range shown only after holdout coverage passes."""
+    try:
+        result = _fit_vaccination_arima(series, steps)
+    except Exception as exc:
+        print(f"[vaccination-arima] fit unavailable: {exc}")
+        return {
+            "forecast": [], "lower_ci": [], "upper_ci": [], "order": None,
+            "trend": "stable", "model_type": "ARIMAUnavailable",
+            "interval_status": "estimate",
+            "data_quality_note": "A plain ARIMA forecast could not be fit to the available completed monthly totals.",
+        }
+
+    if len(series.index):
+        last_period = series.index[-1]
+        result["forecast_periods"] = [
+            (last_period + step).strftime("%b %Y") for step in range(1, steps + 1)
+        ]
     else:
-        ar["regime_shift"] = False
-        ar["forecast_collapse"] = False
-        ar["seasonal_baseline"] = baseline
-        ar["data_quality_note"] = ""
+        result["forecast_periods"] = []
 
-    ar["year_totals"] = diagnostics.get("year_totals", {})
-    return ar
+    if evaluation is None:
+        evaluation = evaluate_vaccination_arima(series, max_horizon=min(3, steps))
+    supported_horizons = set()
+    for horizon, metrics in evaluation.get("horizons", {}).items():
+        coverage = metrics.get("coverage")
+        if metrics.get("n", 0) >= 8 and coverage is not None and 70 <= coverage <= 90:
+            supported_horizons.add(int(horizon))
+    for index in range(steps):
+        if index + 1 not in supported_horizons:
+            result["lower_ci"][index] = None
+            result["upper_ci"][index] = None
+    gap_eligible = evaluation.get("interval_gap_eligible", True)
+    interval_supported = len(supported_horizons) >= steps and gap_eligible
+    result["interval_status"] = "validated_80" if interval_supported else "estimate"
+    if interval_supported:
+        result["data_quality_note"] = ""
+    elif not gap_eligible:
+        result["data_quality_note"] = (
+            f"Point forecast is from plain ARIMA. The latest observed month is "
+            f"{evaluation.get('forecast_gap_months')} months behind the current period, so the rolling holdout "
+            "does not validate an 80% range across this gap; treat the displayed value as an estimate."
+        )
+    else:
+        result["data_quality_note"] = (
+            "Point forecast is from plain ARIMA. The rolling holdout does not support a calibrated 80% range, "
+            "so treat the displayed value as an estimate."
+        )
+    return result
 
 
 def _looks_like_year_to_date(values: list) -> bool:
@@ -680,183 +844,141 @@ def _decumulate_ytd_years(s: pd.Series) -> pd.Series:
     return out
 
 
-def load_db_vaccination_monthly(after_year: int, after_month: int) -> pd.DataFrame:
-    """
-    Live continuation of the workbook's vaccination series, from
-    mass_vaccination_events. Returns only months strictly after
-    (after_year, after_month) -- the workbook's own last covered month -- so a
-    month present in both sources is never counted twice. Same rule
-    load_db_disease_monthly() applies on the disease side.
-
-    Counts only status='Completed', matching monthly_vaccination_series() in
-    api/dashboard/dashboard.php, so the forecast's history and the dashboard's
-    actual-line agree. total falls back to the species breakdown when
-    total_vaccinated was left null, mirroring the same COALESCE there.
-
-    mass_vaccination_events has no clients_served column, so that one metric
-    stays workbook-only; the response reports this rather than inventing it.
-    """
-    cols  = ["year", "month_no", "dogs_vaccinated", "cats_vaccinated", "total_vaccinated"]
-    empty = pd.DataFrame(columns=cols)
-
-    # First day of the month after the workbook ends, so the date index is used.
-    start_year  = after_year + (after_month // 12)
+def load_db_vaccination_monthly(after_year: int = 2024, after_month: int = 12) -> pd.DataFrame:
+    """Return only explicitly complete, closed calendar months from live event records."""
+    columns = ["year", "month_no", "dogs_vaccinated", "cats_vaccinated", "total_vaccinated"]
+    empty = pd.DataFrame(columns=columns)
+    today = pd.Timestamp.now(tz="Asia/Manila")
+    current_year, current_month = int(today.year), int(today.month)
+    start_year = after_year + (after_month // 12)
     start_month = (after_month % 12) + 1
-    start_date  = f"{start_year:04d}-{start_month:02d}-01"
+    start_date = max("2026-01-01", f"{start_year:04d}-{start_month:02d}-01")
 
     try:
         conn = db_connect()
-    except Exception as e:
-        print(f"[DB] vaccination-monthly connect failed, using workbook only: {e}")
+    except Exception as exc:
+        print(f"[DB] vaccination-monthly connect failed: {exc}")
         return empty
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT YEAR(event_date)  AS year,
-                       MONTH(event_date) AS month_no,
-                       SUM(dogs_count)   AS dogs_vaccinated,
-                       SUM(cats_count)   AS cats_vaccinated,
-                       SUM(COALESCE(total_vaccinated,
-                                    dogs_count + cats_count + others_count)) AS total_vaccinated
-                FROM mass_vaccination_events
-                WHERE status = 'Completed'
-                  AND event_date IS NOT NULL
-                  AND event_date >= %s
-                GROUP BY year, month_no
-                ORDER BY year, month_no
-            """, (start_date,))
+                SELECT c.year, c.month_no,
+                       COALESCE(e.dogs_vaccinated, 0) AS dogs_vaccinated,
+                       COALESCE(e.cats_vaccinated, 0) AS cats_vaccinated,
+                       COALESCE(e.total_vaccinated, 0) AS total_vaccinated
+                FROM mass_vaccination_month_completeness c
+                LEFT JOIN (
+                    SELECT YEAR(event_date) AS year, MONTH(event_date) AS month_no,
+                           SUM(CASE WHEN status = 'Completed' THEN dogs_count ELSE 0 END) AS dogs_vaccinated,
+                           SUM(CASE WHEN status = 'Completed' THEN cats_count ELSE 0 END) AS cats_vaccinated,
+                           SUM(CASE WHEN status = 'Completed'
+                                    THEN COALESCE(total_vaccinated, dogs_count + cats_count + others_count)
+                                    ELSE 0 END) AS total_vaccinated
+                    FROM mass_vaccination_events
+                    WHERE event_date >= %s
+                    GROUP BY YEAR(event_date), MONTH(event_date)
+                ) e ON e.year = c.year AND e.month_no = c.month_no
+                WHERE c.is_complete = 1
+                  AND (c.year > %s OR (c.year = %s AND c.month_no >= %s))
+                  AND (c.year < %s OR (c.year = %s AND c.month_no < %s))
+                ORDER BY c.year, c.month_no
+            """, (start_date, start_year, start_year, start_month,
+                  current_year, current_year, current_month))
             rows = cur.fetchall()
-    except Exception as e:
-        print(f"[DB] vaccination-monthly query failed, using workbook only: {e}")
+    except Exception as exc:
+        print(f"[DB] vaccination-monthly query failed: {exc}")
         return empty
     finally:
         conn.close()
 
     if not rows:
         return empty
-    df = pd.DataFrame(rows)
-    for column in cols:
-        if column not in df.columns:
-            df[column] = 0
-    return df[cols].fillna(0).astype(float).astype({"year": int, "month_no": int})
+    frame = pd.DataFrame(rows)
+    return frame[columns].astype(float).astype({"year": int, "month_no": int})
 
 
 def _load_forecast_input_metric(sheet_name: str, metric_col_name: str) -> pd.Series:
-    """Reads one Forecast_Input_* sheet (long format: period/year/month_no/metric/value)."""
+    """Read one workbook metric without turning absent months into zero doses."""
     df = read_excel_sheet(sheet_name)
     df = df[pd.to_numeric(df["year"], errors="coerce").notna()].copy()
-    df["year"]     = df["year"].astype(int)
+    df["year"] = df["year"].astype(int)
     df["month_no"] = pd.to_numeric(df["month_no"], errors="coerce").fillna(1).astype(int)
-    df["value"]    = pd.to_numeric(df["value"], errors="coerce").fillna(0)
-    df["period"]   = pd.to_datetime(
+    df["value"] = pd.to_numeric(df["value"], errors="coerce")
+    df["period"] = pd.to_datetime(
         df["year"].astype(str) + "-" + df["month_no"].astype(str).str.zfill(2)
     ).dt.to_period("M")
     df = df.sort_values("period")
-    s = df.set_index("period")["value"].astype(float).rename(metric_col_name)
-    s = s[~s.index.duplicated(keep="last")].asfreq("M", fill_value=0)
-    return _decumulate_ytd_years(s)
+    series = df.set_index("period")["value"].astype(float).rename(metric_col_name)
+    series = series[~series.index.duplicated(keep="last")].asfreq("M")
+    return _decumulate_ytd_years(series)
 
 
 def load_vaccination_series():
-    """
-    Reads the README-designated Forecast_Input_Dogs_3Y / Forecast_Input_Cats_3Y /
-    Forecast_Input_Clients_3Y sheets ("Model connection: Forecast_Input sheets can
-    be used for vaccination demand forecasting" — README row 8). total_vaccinated
-    is computed as dogs + cats, matching how the source workbook itself derives it
-    (verified: dogs_vaccinated + cats_vaccinated == total_vaccinated in every row).
-    """
-    dogs    = _load_forecast_input_metric("Forecast_Input_Dogs_3Y", "dogs_vaccinated")
-    cats    = _load_forecast_input_metric("Forecast_Input_Cats_3Y", "cats_vaccinated")
-    clients = _load_forecast_input_metric("Forecast_Input_Clients_3Y", "clients_served")
-    total   = (dogs + cats).rename("total_vaccinated")
+    """Build combined demand from provisional 2023-24 history and certified live months."""
+    dogs_all = _load_forecast_input_metric("Forecast_Input_Dogs_3Y", "dogs_vaccinated")
+    cats_all = _load_forecast_input_metric("Forecast_Input_Cats_3Y", "cats_vaccinated")
+    clients_all = _load_forecast_input_metric("Forecast_Input_Clients_3Y", "clients_served")
+    workbook_total = (dogs_all + cats_all).rename("total_vaccinated")
 
-    # ── Live continuation from mass_vaccination_events ────────────────────
-    # The workbook is a frozen 2023-2025 snapshot; every vaccination the clinic
-    # encodes from here on lives in the DB. Those months are appended after the
-    # workbook's last covered month, never merged into it, so nothing is counted
-    # twice. total comes from the DB's own total column rather than dogs + cats,
-    # because an event may carry an others_count or a bare total with no species
-    # breakdown -- deriving it would silently drop those animals.
-    last_period = max(dogs.index.max(), cats.index.max())
-    db = load_db_vaccination_monthly(int(last_period.year), int(last_period.month))
-
-    # Live months are admitted INDIVIDUALLY, on the same plausibility test the
-    # disease side applies to live patient-visit months: a month holding far
-    # less than the historical norm is under-encoded, not a real collapse in
-    # demand. ARIMA is dominated by whatever sits at the tail of a series, so a
-    # single half-entered month at the end can crater the forecast -- exactly
-    # the failure _implausibly_low_live_months() exists to stop. The share is
-    # the shared MIN_PLAUSIBLE_SHARE_OF_MEDIAN, so both modules gate live data
-    # on one rule and one number.
-    #
-    # Two deliberate differences from the disease version:
-    #   - The median is municipality-wide, not per barangay. The workbook has no
-    #     barangay-level vaccination data at all (see load_barangay_allocation_
-    #     weights), so there is nothing to compare a single barangay against.
-    #   - No unbroken-run requirement. Patient visits happen continuously, so a
-    #     gap there means missing data; vaccination campaigns are episodic, and
-    #     a month with no campaign is a genuine zero rather than a coverage hole.
-    workbook_median = float(total.median()) if len(total) else 0.0
-    floor           = workbook_median * MIN_PLAUSIBLE_SHARE_OF_MEDIAN
-
-    live = {
-        "source":                  "workbook",
-        "db_months_available":     int(len(db)),
-        "db_months_used":          0,
-        "db_months_rejected":      0,
-        "workbook_monthly_median": round(workbook_median, 1),
-        "plausibility_floor":      round(floor, 1),
-        "plausibility_share":      MIN_PLAUSIBLE_SHARE_OF_MEDIAN,
-        "rejected_months":         [],
-        "gap_months":              0,
-        "clients_from_db":         False,   # no clients_served column in the events table
+    # The 2025 monthly figures were allocated from the genuine annual summary.
+    # Keep their sum only as a source check; they never enter monthly fit/eval.
+    allocated_2025 = workbook_total[workbook_total.index.year == 2025]
+    annual_check = {
+        "year": 2025,
+        "source_annual_total": 6422.0,
+        "allocated_monthly_sum": round(float(allocated_2025.sum()), 1),
+        "matches": abs(float(allocated_2025.sum()) - 6422.0) < 0.5,
     }
+    if not annual_check["matches"]:
+        print(f"[vaccination-data-check] 2025 annual source total mismatch: {annual_check}")
 
+    historical_total = workbook_total[workbook_total.index.year <= 2024].dropna()
+    historical_dogs = dogs_all[dogs_all.index.year <= 2024]
+    historical_cats = cats_all[cats_all.index.year <= 2024]
+    historical_clients = clients_all[clients_all.index.year <= 2024]
+    db = load_db_vaccination_monthly()
     if len(db):
-        trusted  = db[db["total_vaccinated"] >= floor]
-        rejected = db[db["total_vaccinated"] <  floor]
+        db_index = pd.PeriodIndex(
+            [pd.Period(f"{int(row.year):04d}-{int(row.month_no):02d}", freq="M")
+             for row in db.itertuples()], freq="M")
+        db_total = pd.Series(db["total_vaccinated"].values, index=db_index,
+                             name="total_vaccinated", dtype=float)
+    else:
+        db_index = pd.PeriodIndex([], freq="M")
+        db_total = pd.Series(dtype=float, name="total_vaccinated", index=db_index)
 
-        live["db_months_rejected"] = int(len(rejected))
-        for r in rejected.itertuples():
-            period = f"{int(r.year):04d}-{int(r.month_no):02d}"
-            live["rejected_months"].append({"period": period,
-                                            "total": float(r.total_vaccinated)})
-            print(f"[coverage] vaccination {period}: {int(r.total_vaccinated)} is below "
-                  f"{floor:.1f} ({int(MIN_PLAUSIBLE_SHARE_OF_MEDIAN * 100)}% of the workbook "
-                  f"monthly median {workbook_median:.0f}); kept out of the forecast series")
+    today = pd.Timestamp.now(tz="Asia/Manila").tz_localize(None)
+    current_period = today.to_period("M")
+    first_period = historical_total.index.min() if not historical_total.empty else current_period
+    monthly_index = pd.period_range(first_period, current_period, freq="M")
+    observed_total = pd.concat([historical_total, db_total])
+    observed_total = observed_total[~observed_total.index.duplicated(keep="last")]
+    total = observed_total.reindex(monthly_index).rename("total_vaccinated")
 
-        if len(trusted):
-            live_index = pd.PeriodIndex(
-                [pd.Period(f"{int(r.year):04d}-{int(r.month_no):02d}", freq="M")
-                 for r in trusted.itertuples()], freq="M")
-
-            def extend(series, column):
-                joined = pd.concat([series,
-                                    pd.Series(trusted[column].values, index=live_index, dtype=float)])
-                # Months between the workbook's end and the first trusted event are
-                # zero-filled, the same treatment the workbook's own gaps already get
-                # in _load_forecast_input_metric. gap_months reports how many, since
-                # a long stretch of zeros does depress the fit.
-                return joined.asfreq("M", fill_value=0).rename(series.name)
-
-            live["gap_months"]     = max(0, (live_index.min() - last_period).n - 1)
-            dogs  = extend(dogs,  "dogs_vaccinated")
-            cats  = extend(cats,  "cats_vaccinated")
-            total = extend(total, "total_vaccinated")
-            live["db_months_used"] = int(len(trusted))
-            live["source"]         = "workbook+live"
-            print(f"[DB] vaccination forecast now includes {len(trusted)} trusted live "
-                  f"month(s) from mass_vaccination_events (gap {live['gap_months']}, "
-                  f"{len(rejected)} rejected as under-encoded)")
-
-    series_dict = {
-        "total_vaccinated": total, "dogs_vaccinated": dogs,
-        "cats_vaccinated": cats, "clients_served": clients,
+    first_live = min(db_index) if len(db_index) else None
+    gap_months = max(0, (first_live - historical_total.index.max()).n - 1) if first_live and not historical_total.empty else 0
+    live = {
+        "source": "workbook_2023_2024" if len(db) == 0 else "workbook_2023_2024+completed_db_months",
+        "history_quality": "2023-24 totals reconstructed from cumulative accomplishment reports; provisional",
+        "db_months_used": int(len(db)),
+        "db_months_rejected": 0,
+        "db_months_require_completion_mark": True,
+        "current_month_held_out": True,
+        "missing_months_are_null": True,
+        "gap_months": int(gap_months),
+        "clients_from_db": False,
+        "2025_annual_check": annual_check,
     }
-    df = pd.concat([total, dogs, cats, clients], axis=1).reset_index()
-    df.columns = ["period", "total_vaccinated", "dogs_vaccinated", "cats_vaccinated", "clients_served"]
-    return series_dict, df, live
 
+    series_dict = {"total_vaccinated": total}
+    frame = pd.DataFrame({
+        "period": monthly_index,
+        "total_vaccinated": total.values,
+        "dogs_vaccinated": historical_dogs.reindex(monthly_index).values,
+        "cats_vaccinated": historical_cats.reindex(monthly_index).values,
+        "clients_served": historical_clients.reindex(monthly_index).values,
+    })
+    return series_dict, frame, live
 
 def load_barangay_allocation_weights() -> dict:
     """
@@ -886,131 +1008,278 @@ def load_barangay_allocation_weights() -> dict:
 _barangay_vacc_cache = {}
 
 
-def forecast_vaccination_by_barangay(barangay_name: str, metric: str = "total_vaccinated",
-                                      steps: int = 3) -> dict:
-    """
-    Per-barangay vaccination forecast = the single fitted municipal ARIMA model
-    (run_vaccination_arima, with its regime-shift/seasonal-baseline handling)
-    scaled by that barangay's real dog-population allocation weight. This is
-    NOT an independently-fit per-barangay model (no per-barangay history exists
-    to fit one) — it is the real aggregate trend distributed by a real,
-    documented per-barangay weighting, and is reported as such.
-    """
-    ck = f"{metric}_{steps}"
-    if ck not in _barangay_vacc_cache:
-        series_dict, _, _ = load_vaccination_series()
-        series = series_dict.get(metric)
-        if series is None:
-            return {"error": f"Unknown metric: {metric}"}
-        _barangay_vacc_cache[ck] = run_vaccination_arima(series, steps=steps)
-    muni_ar = _barangay_vacc_cache[ck]
+def _normalize_barangay_name(name: str) -> str:
+    text = unicodedata.normalize("NFKD", str(name or ""))
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    return " ".join(text.casefold().replace(".", "").split())
 
-    weights = load_barangay_allocation_weights()
-    km = next((k for k in weights if k.strip().lower() == barangay_name.strip().lower()), None)
-    weight = weights.get(km, 0.0) if km else 0.0
 
-    return {
-        "barangay": barangay_name, "metric": metric, "allocation_weight": weight,
-        "forecast":  [round(v * weight, 1) for v in muni_ar["forecast"]],
-        "lower_ci":  [round(v * weight, 1) for v in muni_ar["lower_ci"]],
-        "upper_ci":  [round(v * weight, 1) for v in muni_ar["upper_ci"]],
-        "trend": muni_ar["trend"], "model_type": muni_ar.get("model_type", "ARIMA"),
-        "regime_shift": muni_ar.get("regime_shift", False),
-        "data_quality_note": muni_ar.get("data_quality_note", ""),
-        "basis": "municipal ARIMA forecast scaled by Barangay_Masterlist allocation_weight "
-                 "(2025 estimated dog population share) — no per-barangay vaccination "
-                 "history exists in the source data.",
+def _completed_vaccination_shares(population_weights: dict) -> tuple:
+    """Use recent observed shares only after 12 closed months cover every barangay."""
+    normalized_population = {_normalize_barangay_name(name): name for name in population_weights}
+    current_period = pd.Timestamp.now(tz="Asia/Manila").tz_localize(None).to_period("M")
+    last_closed = current_period - 1
+    first_period = last_closed - 11
+    window_start = f"{first_period.year:04d}-{first_period.month:02d}-01"
+    window_end_period = last_closed + 1
+    window_end = f"{window_end_period.year:04d}-{window_end_period.month:02d}-01"
+    required_month_keys = {period.year * 100 + period.month for period in
+                           pd.period_range(first_period, last_closed, freq="M")}
+    coverage = {
+        "window_start": str(first_period),
+        "window_end": str(last_closed),
+        "months_complete": 0,
+        "months_required": 12,
+        "barangays_with_reports": 0,
+        "barangays_required": len(population_weights),
+        "missing_barangays": list(population_weights.keys()),
     }
+
+    try:
+        conn = db_connect()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT year, month_no
+                    FROM mass_vaccination_month_completeness
+                    WHERE is_complete = 1 AND year * 100 + month_no BETWEEN %s AND %s
+                """, (min(required_month_keys), max(required_month_keys)))
+                complete_months = {int(row["year"]) * 100 + int(row["month_no"])
+                                   for row in cur.fetchall()}
+                cur.execute("""
+                    SELECT barangay, COUNT(*) AS report_count,
+                           SUM(COALESCE(total_vaccinated, dogs_count + cats_count + others_count)) AS total
+                    FROM mass_vaccination_events
+                    WHERE status = 'Completed' AND event_date >= %s AND event_date < %s
+                    GROUP BY barangay
+                """, (window_start, window_end))
+                rows = cur.fetchall()
+        finally:
+            conn.close()
+    except Exception as exc:
+        print(f"[vaccination-allocation] live shares unavailable; using dog-population weights: {exc}")
+        return population_weights, "dog_population", coverage
+
+    coverage["months_complete"] = len(required_month_keys.intersection(complete_months))
+    reports_by_key = {}
+    totals_by_key = {}
+    for row in rows:
+        key = _normalize_barangay_name(row["barangay"])
+        if key not in normalized_population:
+            continue
+        reports_by_key[key] = reports_by_key.get(key, 0) + int(row["report_count"] or 0)
+        totals_by_key[key] = totals_by_key.get(key, 0.0) + float(row["total"] or 0)
+
+    missing = [name for key, name in normalized_population.items() if reports_by_key.get(key, 0) < 1]
+    coverage["barangays_with_reports"] = len(normalized_population) - len(missing)
+    coverage["missing_barangays"] = missing
+    if len(required_month_keys.intersection(complete_months)) != 12 or missing:
+        return population_weights, "dog_population", coverage
+
+    observed_total = sum(totals_by_key.values())
+    if observed_total <= 0:
+        return population_weights, "dog_population", coverage
+    shares = {
+        name: totals_by_key.get(_normalize_barangay_name(name), 0.0) / observed_total
+        for name in population_weights
+    }
+    return shares, "completed_vaccination_shares", coverage
+
+
+def _integer_allocation(total: float, weights: dict) -> dict:
+    """Largest-remainder rounding keeps each barangay list equal to the municipal whole-dose total."""
+    names = list(weights.keys())
+    if not names:
+        return {}
+    target = max(0, int(math.floor(float(total) + 0.5)))
+    weight_sum = sum(max(0.0, float(weights[name])) for name in names)
+    if weight_sum <= 0:
+        normalized = {name: 1.0 / len(names) for name in names}
+    else:
+        normalized = {name: max(0.0, float(weights[name])) / weight_sum for name in names}
+    exact = {name: target * normalized[name] for name in names}
+    allocations = {name: int(math.floor(exact[name])) for name in names}
+    remainder = target - sum(allocations.values())
+    order = sorted(names, key=lambda name: (exact[name] - allocations[name], name.casefold()), reverse=True)
+    for name in order[:remainder]:
+        allocations[name] += 1
+    return allocations
+
+
+def _get_vaccination_evaluation(series: pd.Series) -> dict:
+    global _vaccination_evaluation_cache
+    signature = tuple(
+        (str(period), None if pd.isna(value) else float(value))
+        for period, value in series.items()
+    )
+    if _vaccination_evaluation_cache is None or _vaccination_evaluation_cache[0] != signature:
+        report = evaluate_vaccination_arima(series, max_horizon=3, rolling_origins=12)
+        _vaccination_evaluation_cache = (signature, report)
+        print("[vaccination-evaluation] " + json.dumps(report, ensure_ascii=False))
+    return _vaccination_evaluation_cache[1]
+
+
+def _build_vaccination_barangay_forecasts(steps: int = 1) -> list:
+    current_period = pd.Timestamp.now(tz="Asia/Manila").tz_localize(None).to_period("M")
+    cache_key = (str(current_period), steps)
+    if cache_key not in _barangay_vacc_cache:
+        series_dict, _, _ = load_vaccination_series()
+        series = series_dict["total_vaccinated"]
+        evaluation = _get_vaccination_evaluation(series)
+        municipal = run_vaccination_arima(series, steps=steps, evaluation=evaluation)
+        if not municipal.get("forecast"):
+            raise ValueError(municipal.get("data_quality_note", "ARIMA forecast is unavailable."))
+
+        population_weights = load_barangay_allocation_weights()
+        weights, allocation_method, coverage = _completed_vaccination_shares(population_weights)
+        per_barangay = {name: {"forecast": [], "lower_ci": [], "upper_ci": []}
+                        for name in weights}
+        for index, forecast in enumerate(municipal["forecast"]):
+            allocated = _integer_allocation(forecast, weights)
+            lower_value = municipal["lower_ci"][index] if municipal["interval_status"] == "validated_80" else None
+            upper_value = municipal["upper_ci"][index] if municipal["interval_status"] == "validated_80" else None
+            lower_allocated = _integer_allocation(lower_value, weights) if lower_value is not None else {}
+            upper_allocated = _integer_allocation(upper_value, weights) if upper_value is not None else {}
+            for name in weights:
+                per_barangay[name]["forecast"].append(allocated[name])
+                per_barangay[name]["lower_ci"].append(lower_allocated.get(name) if lower_value is not None else None)
+                per_barangay[name]["upper_ci"].append(upper_allocated.get(name) if upper_value is not None else None)
+
+        results = []
+        for name, weight in weights.items():
+            results.append({
+                "barangay": name,
+                "metric": "total_vaccinated",
+                "allocation_weight": float(weight),
+                "allocation_method": allocation_method,
+                "allocation_basis": "Completed-dose shares from the latest 12 complete months"
+                    if allocation_method == "completed_vaccination_shares"
+                    else "Estimated dog-population weights until 12-month completed-report coverage is adequate",
+                "allocation_coverage": coverage,
+                "forecast": per_barangay[name]["forecast"],
+                "forecast_periods": municipal.get("forecast_periods", []),
+                "lower_ci": per_barangay[name]["lower_ci"],
+                "upper_ci": per_barangay[name]["upper_ci"],
+                "interval_status": municipal["interval_status"],
+                "trend": municipal["trend"],
+                "model_type": municipal["model_type"],
+                "data_quality_note": municipal["data_quality_note"],
+                "municipal_forecast": [int(math.floor(value + 0.5)) for value in municipal["forecast"]],
+            })
+        results.sort(key=lambda item: (item["forecast"][0] if item["forecast"] else 0,
+                                      item["barangay"].casefold()), reverse=True)
+        _barangay_vacc_cache[cache_key] = results
+    return _barangay_vacc_cache[cache_key]
+
+
+def forecast_vaccination_by_barangay(barangay_name: str, metric: str = "total_vaccinated",
+                                      steps: int = 1) -> dict:
+    if metric != "total_vaccinated":
+        return {"error": "Only combined vaccination demand is supported until species totals are verified."}
+    key = _normalize_barangay_name(barangay_name)
+    return next((item for item in _build_vaccination_barangay_forecasts(steps)
+                 if _normalize_barangay_name(item["barangay"]) == key),
+                {"error": f"Unknown barangay: {barangay_name}"})
 
 
 @app.route("/vaccination-forecast", methods=["POST"])
 def vaccination_forecast():
-    data  = request.json or {}
-    steps = int(data.get("steps", 3))
-    ck    = f"vacc_forecast_{steps}"
-    cached = cache_get(ck)
+    data = request.json or {}
+    steps = max(1, min(12, int(data.get("steps", 3) or 3)))
+    current_period = pd.Timestamp.now(tz="Asia/Manila").tz_localize(None).to_period("M")
+    cache_key = f"vacc_forecast_{current_period}_{steps}"
+    cached = cache_get(cache_key)
     if cached:
         return jsonify({"success": True, "data": cached, "cached": True})
     try:
         series_dict, _, live_meta = load_vaccination_series()
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-    month_labels = ["Next Month", "Month 2", "Month 3"]
-    results = {}
-    for metric, series in series_dict.items():
-        ar      = run_vaccination_arima(series, steps=steps)
-        current = float(series.iloc[-1]) if len(series) > 0 else 0
-        forecast= ar["forecast"][0]
-        diff_pct= round(((forecast - current) / max(1, current)) * 100)
-        trend   = ar["trend"]
-        if ar.get("regime_shift") or ar.get("forecast_collapse"):
-            action, urgency = (
-                "Vaccination records look off from the usual pattern, so the forecast was "
-                "adjusted to a safer baseline. Use it for stock planning and double-check the source data.",
-                "normal",
-            )
-        elif trend == "rising" and diff_pct > 10:
-            action, urgency = f"Demand projected to increase by {abs(diff_pct)}%. Increase vaccine stock.", "high"
-        elif trend == "falling" and diff_pct < -10:
-            action, urgency = f"Demand projected to drop by {abs(diff_pct)}%. Adjust procurement.", "low"
-        else:
-            action, urgency = "Demand stable. Maintain current stock levels.", "normal"
-        results[metric] = {
-            "current": current, "forecast": ar["forecast"],
-            "lower_ci": ar["lower_ci"], "upper_ci": ar["upper_ci"],
-            "trend": trend, "arima_order": ar["order"],
-            "diff_pct": diff_pct, "action": action, "urgency": urgency,
-            "months": month_labels[:steps],
-            "model_type": ar.get("model_type", "ARIMA"),
-            "raw_forecast": ar.get("raw_forecast"),
-            "seasonal_baseline": ar.get("seasonal_baseline"),
-            "regime_shift": ar.get("regime_shift", False),
-            "forecast_collapse": ar.get("forecast_collapse", False),
-            "year_totals": ar.get("year_totals", {}),
-            "data_quality_note": ar.get("data_quality_note", ""),
-        }
-    # Reported so the UI, and anyone auditing the model, can see whether live
-    # events are driving the fit yet without having to read the service logs.
-    results["live_data"] = live_meta
+        series = series_dict["total_vaccinated"]
+        evaluation = _get_vaccination_evaluation(series)
+        arima = run_vaccination_arima(series, steps=steps, evaluation=evaluation)
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
 
-    # The trailing history the model was ACTUALLY fitted on. The dashboard used to
-    # draw this chart's history from its own by_month query, which follows the
-    # Historical/Current selector -- so in Current view it plotted two live months
-    # (100, 100) under a forecast fitted on 36 months of workbook data it was not
-    # showing. Serving the fitted series here means the two halves of that chart
-    # cannot disagree, whatever the selector is set to.
-    _hist_series = series_dict.get("total_vaccinated")
+    last_series_period = series.index[-1] if len(series.index) else pd.Timestamp.now(tz="Asia/Manila").to_period("M")
+    forecast_periods = [(last_series_period + step).strftime("%b %Y") for step in range(1, steps + 1)]
+    month_labels = forecast_periods
+    actuals = series.dropna()
+    current_value = float(actuals.iloc[-1]) if not actuals.empty else None
+    quality_parts = [live_meta.get("history_quality", "")]
+    annual_check = live_meta.get("2025_annual_check", {})
+    if annual_check:
+        check_result = "matches" if annual_check.get("matches") else "does not match"
+        quality_parts.append(
+            f"Allocated 2025 monthly values are excluded; their sum of "
+            f"{annual_check.get('allocated_monthly_sum')} {check_result} the source annual total "
+            f"of {annual_check.get('source_annual_total')}, used only as a check."
+        )
+    if arima.get("data_quality_note"):
+        quality_parts.append(arima["data_quality_note"])
+    note = " ".join(part for part in quality_parts if part)
+    results = {
+        "total_vaccinated": {
+            "current": current_value,
+            "current_period": str(actuals.index[-1]) if not actuals.empty else None,
+            "forecast": arima["forecast"],
+            "lower_ci": arima["lower_ci"],
+            "upper_ci": arima["upper_ci"],
+            "interval_status": arima["interval_status"],
+            "trend": arima["trend"],
+            "arima_order": arima["order"],
+            "action": "Expected combined vaccine doses based on completed monthly totals.",
+            "urgency": "normal",
+            "months": month_labels,
+            "forecast_periods": forecast_periods,
+            "model_type": arima["model_type"],
+            "data_quality_note": note,
+        },
+        "live_data": live_meta,
+    }
+    history = series.tail(FORECAST_HISTORY_MONTHS)
     results["history"] = [
-        {"period": str(period), "value": round(float(value), 1)}
-        for period, value in (_hist_series.tail(FORECAST_HISTORY_MONTHS).items()
-                              if _hist_series is not None else [])
+        {"period": str(period), "value": None if pd.isna(value) else round(float(value), 1)}
+        for period, value in history.items()
     ]
-    cache_set(ck, results)
+    cache_set(cache_key, results)
     return jsonify({"success": True, "data": results})
+
+
+@app.route("/vaccination-model-evaluation", methods=["GET", "POST"])
+def vaccination_model_evaluation():
+    try:
+        series_dict, _, live_meta = load_vaccination_series()
+        report = _get_vaccination_evaluation(series_dict["total_vaccinated"])
+        return jsonify({"success": True, "data": {"evaluation": report, "live_data": live_meta}})
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
 
 
 @app.route("/vaccination-forecast-barangay", methods=["POST"])
 def vaccination_forecast_barangay():
-    data       = request.json or {}
-    steps      = int(data.get("steps", 3))
-    metric     = str(data.get("metric", "total_vaccinated"))
-    requested  = data.get("barangays", [])
-    ck = f"vacc_barangay_{metric}_{steps}_" + "_".join(sorted(requested))
-    cached = cache_get(ck)
+    data = request.json or {}
+    steps = max(1, min(12, int(data.get("steps", 1) or 1)))
+    metric = str(data.get("metric", "total_vaccinated"))
+    requested = data.get("barangays", [])
+    current_period = pd.Timestamp.now(tz="Asia/Manila").tz_localize(None).to_period("M")
+    cache_key = f"vacc_barangay_{current_period}_{metric}_{steps}_" + "_".join(sorted(requested))
+    cached = cache_get(cache_key)
     if cached:
         return jsonify({"success": True, "data": cached, "cached": True})
+    if metric != "total_vaccinated":
+        return jsonify({"success": False, "error": "Only combined vaccination demand is available."}), 400
     try:
-        weights = load_barangay_allocation_weights()
-        targets = requested if requested else list(weights.keys())
-        results = [forecast_vaccination_by_barangay(b, metric=metric, steps=steps) for b in targets]
-        results.sort(key=lambda r: r.get("allocation_weight", 0), reverse=True)
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-    cache_set(ck, results)
+        all_results = _build_vaccination_barangay_forecasts(steps)
+        if requested:
+            requested_names = {_normalize_barangay_name(name) for name in requested}
+            results = [item for item in all_results
+                       if _normalize_barangay_name(item["barangay"]) in requested_names]
+        else:
+            results = all_results
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 503
+    cache_set(cache_key, results)
     return jsonify({"success": True, "data": results})
 
-
-# ════════════════════════════════════════════════════════════════════════
 # ALL-DISEASE PIPELINE  (top-down SARIMA forecast + threshold action tier —
 # see get_all_disease_models() for the documented rule and its model history)
 # ════════════════════════════════════════════════════════════════════════
@@ -3945,33 +4214,36 @@ def invalidate_vaccination_cache():
     """
     Drops the cached vaccination forecasts so the next request recomputes.
 
-    Called by api/mass-vaccination/events.php when an event becomes Completed,
-    or when an already-Completed event is edited or deleted. Without it a newly
-    completed event waits out CACHE_TTL (6 hours), and the per-barangay numbers
-    never refresh at all -- _barangay_vacc_cache has no expiry and is only
-    cleared by restarting the service.
+    Called by api/mass-vaccination/events.php when a month is marked complete or
+    reopened, or when an event completion changes. Without it a newly eligible
+    month waits out CACHE_TTL (6 hours), and per-barangay numbers never refresh --
+    _barangay_vacc_cache has no expiry and is only cleared by this route or a restart.
 
     Deliberately narrow: it clears the two vacc_* key families and the barangay
     dict, and nothing else. The disease SARIMA entries are the expensive ones
     (~15-20s per filter to rebuild) and have no reason to be dropped when a
     vaccination event is encoded, so they are left alone along with their TTL.
 
-    Invalidation is not eligibility. The plausibility gate still decides whether
-    live months reach the fit -- this only guarantees the decision is made
-    against current data.
+    Completion markers determine eligibility. This clears the forecast,
+    allocation, and rolling-evaluation caches so the next request uses the
+    current set of certified months.
     """
+    global _vaccination_evaluation_cache
     stale = [key for key in list(_cache.keys()) if key.startswith("vacc_")]
     for key in stale:
         _cache.pop(key, None)
 
     barangay_cleared = len(_barangay_vacc_cache)
     _barangay_vacc_cache.clear()
+    evaluation_cleared = _vaccination_evaluation_cache is not None
+    _vaccination_evaluation_cache = None
 
     print(f"[cache] vaccination forecast invalidated: {len(stale)} forecast key(s), "
           f"{barangay_cleared} barangay entr(ies)")
     return jsonify({"success": True, "data": {
         "forecast_keys_cleared":    len(stale),
         "barangay_entries_cleared": barangay_cleared,
+        "evaluation_cleared":       evaluation_cleared,
     }})
 
 
