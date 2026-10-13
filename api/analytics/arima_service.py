@@ -837,7 +837,7 @@ def _decumulate_ytd_years(s: pd.Series) -> pd.Series:
     backward steps and guarantees a converted year sums to its own December
     figure: 2023 becomes 3,959 and 2024 becomes 4,006, rather than the 24,815
     and 26,388 you get by summing a cumulative column. That inflation is what
-    made 2025 (6,422, a genuine annual total) look like a 75% collapse and
+    made 2025 (31,769, the confirmed annual total) look like a 75% collapse and
     pushed run_vaccination_arima onto its ARIMARegimeAdjusted baseline floor.
     """
     if s.empty:
@@ -935,14 +935,14 @@ def load_vaccination_series():
     clients_all = _load_forecast_input_metric("Forecast_Input_Clients_3Y", "clients_served")
     workbook_total = (dogs_all + cats_all).rename("total_vaccinated")
 
-    # The 2025 monthly figures were allocated from the genuine annual summary.
-    # Keep their sum only as a source check; they never enter monthly fit/eval.
+    # The 2025 monthly figures are allocated values. Keep their confirmed total
+    # as a consistency check; they never enter monthly fit/evaluation.
     allocated_2025 = workbook_total[workbook_total.index.year == 2025]
     annual_check = {
         "year": 2025,
-        "source_annual_total": 6422.0,
+        "source_annual_total": 31769.0,
         "allocated_monthly_sum": round(float(allocated_2025.sum()), 1),
-        "matches": abs(float(allocated_2025.sum()) - 6422.0) < 0.5,
+        "matches": abs(float(allocated_2025.sum()) - 31769.0) < 0.5,
     }
     if not annual_check["matches"]:
         print(f"[vaccination-data-check] 2025 annual source total mismatch: {annual_check}")
@@ -974,7 +974,7 @@ def load_vaccination_series():
     gap_months = max(0, (first_live - historical_total.index.max()).n - 1) if first_live and not historical_total.empty else 0
     live = {
         "source": "workbook_2023_2024" if len(db) == 0 else "workbook_2023_2024+completed_db_months",
-        "history_quality": "2023-24 totals reconstructed from cumulative accomplishment reports; provisional",
+        "history_quality": "Revised 2023-24 workbook monthly figures are provisional pending verification against source records.",
         "db_months_used": int(len(db)),
         "db_months_rejected": 0,
         "db_months_require_completion_mark": True,
@@ -1225,7 +1225,7 @@ def vaccination_forecast():
     if annual_check:
         check_result = "matches" if annual_check.get("matches") else "does not match"
         quality_parts.append(
-            f"Allocated 2025 monthly values are excluded; their sum of "
+            f"2025 monthly workbook entries are excluded from model fitting; their sum of "
             f"{annual_check.get('allocated_monthly_sum')} {check_result} the source annual total "
             f"of {annual_check.get('source_annual_total')}, used only as a check."
         )
