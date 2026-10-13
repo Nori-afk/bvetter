@@ -90,6 +90,21 @@
         if (value === '' || value === null || value === undefined) return '-';
         return Number(value).toLocaleString();
     };
+    const formatVaccinationMonth = (period) => {
+        const parts = /^(\d{4})-(\d{2})$/.exec(String(period || ''));
+        if (!parts || Number(parts[2]) < 1 || Number(parts[2]) > 12) return '';
+        return new Date(Number(parts[1]), Number(parts[2]) - 1, 1)
+            .toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+    };
+    const forecastPlanningNote = (forecast) => {
+        const latestMonth = formatVaccinationMonth(forecast.current_period);
+        const basis = latestMonth
+            ? `Based on vaccination records through ${latestMonth}.`
+            : 'Based on the available vaccination records.';
+        return forecast.forecast_status === 'long_gap_estimate'
+            ? `${basis} Recent monthly records are missing, so use these figures as a rough planning guide. Add and confirm recent monthly records to update the estimates.`
+            : `${basis} These figures are estimates for planning; actual doses may differ.`;
+    };
     const setPanel = (panelName) => {
         const showDash = panelName === 'dashboard';
         document.getElementById('mass-vacc-dashboard').classList.toggle('active-panel', showDash);
@@ -589,17 +604,14 @@
         if (!Array.isArray(state.arimaData?.total_vaccinated?.forecast)
             || state.arimaData.total_vaccinated.forecast.length === 0) {
             var emptyHost = document.getElementById('arima-card-placeholder');
-            var unavailableNote = state.arimaData?.total_vaccinated?.data_quality_note
-                || 'The analytics service did not return an ARIMA forecast. Reload the page to retry.';
             var unavailableData = state.arimaData?.total_vaccinated || {};
+            var unavailableNote = state.arimaData?.total_vaccinated
+                ? 'An estimate could not be created from the available records. Check the monthly vaccination records and try again.'
+                : 'The forecast could not be loaded. Refresh the page to try again.';
             var staleHistory = unavailableData.forecast_status === 'stale_history';
-            var periodParts = /^(\d{4})-(\d{2})$/.exec(unavailableData.current_period || '');
-            var latestPeriodLabel = periodParts
-                ? new Date(Number(periodParts[1]), Number(periodParts[2]) - 1, 1)
-                    .toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
-                : (unavailableData.current_period || 'unknown');
+            var latestPeriodLabel = formatVaccinationMonth(unavailableData.current_period);
             var staleNote = staleHistory
-                ? `The latest observed month is ${latestPeriodLabel}. The model has no recent completed totals, so this forecast is withheld until a recent month is entered and signed off.`
+                ? `${latestPeriodLabel ? `Records are available through ${latestPeriodLabel}. ` : ''}Add and confirm recent monthly records to get an updated estimate.`
                 : unavailableNote;
             if (emptyHost) emptyHost.innerHTML = `
                 <section class="card mv-arima-card" id="arima-vacc-card">
@@ -607,7 +619,7 @@
                         <div>
                             <span class="mv-arima-badge" style="background:#F1F5F9;color:#64748B;">Forecast Unavailable</span>
                             <h3 class="mv-arima-title">Vaccine Demand Forecast</h3>
-                            <p class="mv-arima-desc">${sanitize(staleNote)}${staleHistory ? '' : ' No substitute forecast is shown.'}</p>
+                            <p class="mv-arima-desc">${sanitize(staleNote)}</p>
                         </div>
                     </div>
                 </section>`;
@@ -620,7 +632,7 @@
         const trendCls = trend === 'rising' ? 'mv-trend-rising' : trend === 'falling' ? 'mv-trend-falling' : 'mv-trend-stable';
         const modelLabel = Array.isArray(tv.arima_order) ? `ARIMA(${tv.arima_order.join(',')})` : 'Plain ARIMA';
         const estimateLabel = tv.forecast_status === 'long_gap_estimate'
-            ? 'Provisional long-range estimate' : 'Point estimate';
+            ? 'Estimate from older records' : 'Estimated doses';
 
         const months = tv.forecast_periods || tv.months || ['Next Month', 'Month 2', 'Month 3'];
         const hasValidatedInterval = tv.interval_status === 'validated_80'
@@ -647,11 +659,11 @@
                             <span class="mv-fc-label">${sanitize(m)}</span>
                             <span class="mv-fc-val">${Math.round(Number(tv.forecast?.[i]) || 0).toLocaleString()}</span>
                             ${hasValidatedInterval ? `<span class="mv-fc-range">${Math.round(Number(tv.lower_ci[i]) || 0).toLocaleString()} – ${Math.round(Number(tv.upper_ci[i]) || 0).toLocaleString()}</span>
-                            <span class="mv-fc-ci">Backtest-supported 80% range</span>` : `<span class="mv-fc-ci">${sanitize(estimateLabel)}</span>`}
+                            <span class="mv-fc-ci">Estimated range (80%)</span>` : `<span class="mv-fc-ci">${sanitize(estimateLabel)}</span>`}
                         </div>
                     `).join('')}
                 </div>
-                <p class="mv-range-note">${sanitize(tv.data_quality_note || 'Expected doses administered from workbook monthly totals and completed, signed-off live months. Historical values remain provisional where noted.')}</p>
+                <p class="mv-range-note">${sanitize(forecastPlanningNote(tv))}</p>
             </div>
         `;
 
