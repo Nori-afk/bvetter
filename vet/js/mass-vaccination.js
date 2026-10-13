@@ -709,7 +709,7 @@
     // the event-detail comparison card) instead of a canvas chart — a visually
     // distinct way to show "many categories, highest to lowest" so it doesn't
     // just look like a second copy of the barangay bar chart above it.
-    const renderRankList = (listId, titleId, titleText, titleColor, entries, actualLabel, actualAvailable) => {
+    const renderRankList = (listId, titleId, titleText, titleColor, entries, actualLabel, actualAvailable, emptyMessage) => {
         const titleEl = document.getElementById(titleId);
         if (titleEl) { titleEl.textContent = titleText; titleEl.style.color = titleColor; }
 
@@ -734,7 +734,7 @@
             }).join('');
 
         const listEl = document.getElementById(listId);
-        if (listEl) listEl.innerHTML = rows || '<p class="rank-empty">No barangay forecast is available yet.</p>';
+        if (listEl) listEl.innerHTML = rows || `<p class="rank-empty">${sanitize(emptyMessage || 'No barangay forecast is available yet.')}</p>`;
     };
 
     const normalizeBarangayName = (name) => String(name || '').normalize('NFKD')
@@ -1141,9 +1141,13 @@
                 });
             }
 
+            var forecastUnavailable = state.arimaData?.total_vaccinated?.forecast_status === 'stale_history';
+            var lastObservedPeriod = state.arimaData?.total_vaccinated?.current_period || 'unknown';
             var c2Title = usingArima
                 ? `Combined vaccine doses — plain ARIMA forecast${tv.interval_status === 'validated_80' ? ' with backtest-supported 80% range' : ' (point estimate)'}`
-                : 'ARIMA forecast unavailable — no substitute model shown';
+                : forecastUnavailable
+                    ? `Observed monthly doses — forecast withheld; latest observed month ${lastObservedPeriod}`
+                    : 'ARIMA forecast unavailable — no substitute model shown';
 
             var dividerIndex = (historyValues.length > 0 && forecastLabels.length > 0)
                 ? historyValues.length - 0.5 : null;
@@ -1176,6 +1180,8 @@
         {
             const forecastRows = Array.isArray(state.barangayForecast) ? state.barangayForecast : [];
             const actuals = previousMonthActuals();
+            const vaccinationForecast = state.arimaData?.total_vaccinated || {};
+            const forecastWithheld = vaccinationForecast.forecast_status === 'stale_history';
             const method = forecastRows[0]?.allocation_method === 'completed_vaccination_shares'
                 ? 'allocated by completed vaccination shares'
                 : 'allocated by estimated dog population';
@@ -1183,7 +1189,9 @@
             const period = state.arimaData?.total_vaccinated?.forecast_periods?.[0] || 'next month';
             const titleText = forecastRows.length
                 ? `${period}: ${Number.isFinite(municipalTotal) ? municipalTotal.toLocaleString() : '—'} combined doses · point estimate · ${method}`
-                : 'Combined-dose ARIMA forecast is currently unavailable.';
+                : forecastWithheld
+                    ? `Forecast withheld · latest observed month ${vaccinationForecast.current_period || 'unavailable'}`
+                    : 'Combined-dose ARIMA forecast is currently unavailable.';
             let entries = forecastRows.map((row) => {
                 const name = row.barangay || '';
                 return {
@@ -1201,11 +1209,14 @@
                 ? `${actuals.label} · completed doses`
                 : 'Previous month actuals appear after all that month’s records are entered and signed off.';
             const noteEl = document.getElementById('vaccinesNeededTitle');
-            if (noteEl) noteEl.title = `${titleText}. ${actualNote}`;
+            if (noteEl) noteEl.title = `${titleText}. ${forecastWithheld ? (vaccinationForecast.data_quality_note || '') : ''} ${actualNote}`;
             renderRankList('vaccinesNeededList', 'vaccinesNeededTitle',
                 `${titleText} | ${actualNote}`,
                 forecastRows.length ? '#456084' : VIZ.warn,
-                entries, actuals.label, actuals.available);
+                entries, actuals.label, actuals.available,
+                forecastWithheld
+                    ? `No barangay forecast shown. Latest observed month: ${vaccinationForecast.current_period || 'unavailable'}.`
+                    : 'No barangay forecast is available yet.');
         }
     };
 

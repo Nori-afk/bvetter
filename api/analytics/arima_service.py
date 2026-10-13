@@ -132,6 +132,7 @@ CACHE_TTL = 21600
 # dashboard can plot the model's own input instead of a separately-queried
 # series that may not match it.
 FORECAST_HISTORY_MONTHS = 6
+MAX_VACCINATION_FORECAST_GAP_MONTHS = 1
 
 
 def cache_get(key):
@@ -745,7 +746,7 @@ def evaluate_vaccination_arima(series: pd.Series, max_horizon: int = 3,
         "training_period_end": str(observed.index.max()),
         "forecast_gap_months": int(trailing_gap_months),
         "interval_gap_eligible": trailing_gap_months <= 1,
-        "data_source_note": "2023–2024 workbook totals are reconstructed and provisional; only signed-off live months are added.",
+        "data_source_note": "2023–2024 workbook monthly figures are provisional pending source verification; only signed-off live months are added.",
         "horizons": horizons,
         "80_percent_interval_supported": coverage_supported,
     }
@@ -754,7 +755,29 @@ def evaluate_vaccination_arima(series: pd.Series, max_horizon: int = 3,
 
 def run_vaccination_arima(series: pd.Series, steps: int = 3,
                           evaluation: dict = None) -> dict:
-    """Plain nonseasonal ARIMA, with an 80% range shown only after holdout coverage passes."""
+    """Plain ARIMA forecast; withhold it when the latest observation is stale."""
+    observed = series.dropna()
+    series_end = series.index[-1] if len(series.index) else None
+    last_observed = observed.index[-1] if not observed.empty else None
+    trailing_gap_months = (
+        max(0, series_end.ordinal - last_observed.ordinal)
+        if series_end is not None and last_observed is not None else None
+    )
+    if trailing_gap_months is None or trailing_gap_months > MAX_VACCINATION_FORECAST_GAP_MONTHS:
+        latest_label = last_observed.strftime("%b %Y") if last_observed is not None else "not available"
+        current_label = series_end.strftime("%b %Y") if series_end is not None else "the current period"
+        gap_label = f"{trailing_gap_months} months" if trailing_gap_months is not None else "an unknown period"
+        return {
+            "forecast": [], "lower_ci": [], "upper_ci": [], "forecast_periods": [],
+            "order": None, "trend": "unavailable", "model_type": "ARIMAUnavailable",
+            "forecast_status": "stale_history", "interval_status": "unavailable",
+            "data_quality_note": (
+                f"Forecast withheld: the latest observed month is {latest_label}, "
+                f"{gap_label} behind {current_label}. Add and sign off recent completed "
+                "monthly totals to resume forecasting."
+            ),
+        }
+
     try:
         result = _fit_vaccination_arima(series, steps)
     except Exception as exc:
@@ -762,7 +785,7 @@ def run_vaccination_arima(series: pd.Series, steps: int = 3,
         return {
             "forecast": [], "lower_ci": [], "upper_ci": [], "order": None,
             "trend": "stable", "model_type": "ARIMAUnavailable",
-            "interval_status": "estimate",
+            "forecast_status": "model_unavailable", "interval_status": "unavailable",
             "data_quality_note": "A plain ARIMA forecast could not be fit to the available completed monthly totals.",
         }
 
@@ -773,6 +796,7 @@ def run_vaccination_arima(series: pd.Series, steps: int = 3,
         ]
     else:
         result["forecast_periods"] = []
+    result["forecast_status"] = "available"
 
     if evaluation is None:
         evaluation = evaluate_vaccination_arima(series, max_horizon=min(3, steps))
@@ -1215,8 +1239,7 @@ def vaccination_forecast():
     except Exception as exc:
         return jsonify({"success": False, "error": str(exc)}), 500
 
-    last_series_period = series.index[-1] if len(series.index) else pd.Timestamp.now(tz="Asia/Manila").to_period("M")
-    forecast_periods = [(last_series_period + step).strftime("%b %Y") for step in range(1, steps + 1)]
+    forecast_periods = arima.get("forecast_periods", [])
     month_labels = forecast_periods
     actuals = series.dropna()
     current_value = float(actuals.iloc[-1]) if not actuals.empty else None
@@ -1247,11 +1270,18 @@ def vaccination_forecast():
             "months": month_labels,
             "forecast_periods": forecast_periods,
             "model_type": arima["model_type"],
+            "forecast_status": arima.get("forecast_status", "unavailable"),
             "data_quality_note": note,
         },
         "live_data": live_meta,
     }
-    history = series.tail(FORECAST_HISTORY_MONTHS)
+    observed = series.dropna()
+    if observed.empty:
+        history = series.iloc[0:0]
+    else:
+        # End the plotted history at the last real observation, not at the
+        # current calendar month where the series may contain a long null gap.
+        history = series.loc[:observed.index[-1]].tail(FORECAST_HISTORY_MONTHS)
     results["history"] = [
         {"period": str(period), "value": None if pd.isna(value) else round(float(value), 1)}
         for period, value in history.items()
