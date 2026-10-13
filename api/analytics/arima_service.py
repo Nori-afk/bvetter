@@ -128,11 +128,10 @@ _vaccination_evaluation_cache = None
 # matching how _all_disease_models/arima_cache already never expire.
 CACHE_TTL = 21600
 
-# Months of fitted history returned alongside a vaccination forecast, so the
-# dashboard can plot the model's own input instead of a separately-queried
-# series that may not match it.
+# Number of observed months to retain before the dashboard also plots any
+# following missing calendar periods, preserving the distance to the forecast.
 FORECAST_HISTORY_MONTHS = 6
-MAX_VACCINATION_FORECAST_GAP_MONTHS = 1
+MAX_GAP_MONTHS_FOR_INTERVAL_VALIDATION = 1
 
 
 def cache_get(key):
@@ -726,7 +725,7 @@ def evaluate_vaccination_arima(series: pd.Series, max_horizon: int = 3,
             "coverage": round(float(coverage * 100), 1),
         }
 
-    coverage_supported = trailing_gap_months <= 1 and all(
+    coverage_supported = trailing_gap_months <= MAX_GAP_MONTHS_FOR_INTERVAL_VALIDATION and all(
         horizons[str(horizon)]["n"] >= 8
         and horizons[str(horizon)]["coverage"] is not None
         and 70 <= horizons[str(horizon)]["coverage"] <= 90
@@ -745,8 +744,8 @@ def evaluate_vaccination_arima(series: pd.Series, max_horizon: int = 3,
         "training_period_start": str(observed.index.min()),
         "training_period_end": str(observed.index.max()),
         "forecast_gap_months": int(trailing_gap_months),
-        "interval_gap_eligible": trailing_gap_months <= 1,
-        "data_source_note": "2023–2024 workbook monthly figures are provisional pending source verification; only signed-off live months are added.",
+        "interval_gap_eligible": trailing_gap_months <= MAX_GAP_MONTHS_FOR_INTERVAL_VALIDATION,
+        "data_source_note": "2023–2024 workbook monthly figures remain provisional; confirmed 2025 monthly totals are included, along with signed-off live months.",
         "horizons": horizons,
         "80_percent_interval_supported": coverage_supported,
     }
@@ -755,29 +754,8 @@ def evaluate_vaccination_arima(series: pd.Series, max_horizon: int = 3,
 
 def run_vaccination_arima(series: pd.Series, steps: int = 3,
                           evaluation: dict = None) -> dict:
-    """Plain ARIMA forecast; withhold it when the latest observation is stale."""
+    """Plain ARIMA forecast; distant projections remain visible as estimates."""
     observed = series.dropna()
-    series_end = series.index[-1] if len(series.index) else None
-    last_observed = observed.index[-1] if not observed.empty else None
-    trailing_gap_months = (
-        max(0, series_end.ordinal - last_observed.ordinal)
-        if series_end is not None and last_observed is not None else None
-    )
-    if trailing_gap_months is None or trailing_gap_months > MAX_VACCINATION_FORECAST_GAP_MONTHS:
-        latest_label = last_observed.strftime("%b %Y") if last_observed is not None else "not available"
-        current_label = series_end.strftime("%b %Y") if series_end is not None else "the current period"
-        gap_label = f"{trailing_gap_months} months" if trailing_gap_months is not None else "an unknown period"
-        return {
-            "forecast": [], "lower_ci": [], "upper_ci": [], "forecast_periods": [],
-            "order": None, "trend": "unavailable", "model_type": "ARIMAUnavailable",
-            "forecast_status": "stale_history", "interval_status": "unavailable",
-            "data_quality_note": (
-                f"Forecast withheld: the latest observed month is {latest_label}, "
-                f"{gap_label} behind {current_label}. Add and sign off recent completed "
-                "monthly totals to resume forecasting."
-            ),
-        }
-
     try:
         result = _fit_vaccination_arima(series, steps)
     except Exception as exc:
@@ -796,8 +774,6 @@ def run_vaccination_arima(series: pd.Series, steps: int = 3,
         ]
     else:
         result["forecast_periods"] = []
-    result["forecast_status"] = "available"
-
     if evaluation is None:
         evaluation = evaluate_vaccination_arima(series, max_horizon=min(3, steps))
     supported_horizons = set()
@@ -812,13 +788,31 @@ def run_vaccination_arima(series: pd.Series, steps: int = 3,
     gap_eligible = evaluation.get("interval_gap_eligible", True)
     interval_supported = len(supported_horizons) >= steps and gap_eligible
     result["interval_status"] = "validated_80" if interval_supported else "estimate"
+    result["forecast_status"] = "available" if gap_eligible else "long_gap_estimate"
     if interval_supported:
         result["data_quality_note"] = ""
     elif not gap_eligible:
+        latest_observed = observed.index[-1] if not observed.empty else None
+        latest_label = latest_observed.strftime("%b %Y") if latest_observed is not None else "unavailable"
+        current_label = series.index[-1].strftime("%b %Y") if len(series.index) else "the current period"
+        first_horizon = (
+            (series.index[-1] + 1).ordinal - latest_observed.ordinal
+            if latest_observed is not None and len(series.index) else None
+        )
+        last_horizon = (
+            (series.index[-1] + steps).ordinal - latest_observed.ordinal
+            if latest_observed is not None and len(series.index) else None
+        )
+        horizon_note = (
+            f"The displayed months are {first_horizon}–{last_horizon} months ahead of the latest observation, "
+            if first_horizon is not None and last_horizon is not None
+            else "The displayed forecast is beyond the latest observation, "
+        )
         result["data_quality_note"] = (
-            f"Point forecast is from plain ARIMA. The latest observed month is "
-            f"{evaluation.get('forecast_gap_months')} months behind the current period, so the rolling holdout "
-            "does not validate an 80% range across this gap; treat the displayed value as an estimate."
+            f"Provisional long-range estimate from plain ARIMA. Latest observed month: {latest_label}; "
+            f"it is {evaluation.get('forecast_gap_months')} months behind {current_label}. "
+            f"{horizon_note}rolling holdout evaluation covers only 1–3 month horizons, so these values are "
+            "unvalidated estimates and no 80% range is shown."
         )
     else:
         result["data_quality_note"] = (
@@ -833,17 +827,12 @@ def _looks_like_year_to_date(values: list) -> bool:
     True when a calendar year's points are a running year-to-date total rather
     than independent monthly counts.
 
-    The workbook says so itself: Combined_Rabies_3Years labels 2023 and 2024
-    "Photo-derived accomplishment summary" -- an accomplishment report is
-    cumulative by convention -- and 2025 "Uploaded annual summary total
-    allocated by month". We test the shape rather than trust that string, so a
-    future year entered the same way is corrected automatically, and one
-    entered as real monthly counts is left alone.
+    Historical years can have different provenance. This shape heuristic catches
+    smooth running totals; monthly observations with several natural decreases
+    remain unchanged.
 
-    Shape test: an accumulating series ends at its own maximum and almost never
-    steps backwards. Two decreases are tolerated because this workbook has
-    exactly two artifacts -- 2023 July repeats April's 1096 verbatim, and 2024
-    August dips by 5.
+    Shape test: an accumulating series ends near its own maximum, grows steeply
+    from January, and has very few month-to-month decreases.
     """
     if len(values) < 6:
         return False
@@ -857,12 +846,9 @@ def _decumulate_ytd_years(s: pd.Series) -> pd.Series:
     """
     Convert any year-to-date year in `s` into real monthly increments.
 
-    Taking the cumulative maximum before differencing repairs the workbook's
-    backward steps and guarantees a converted year sums to its own December
-    figure: 2023 becomes 3,959 and 2024 becomes 4,006, rather than the 24,815
-    and 26,388 you get by summing a cumulative column. That inflation is what
-    made 2025 (31,769, the confirmed annual total) look like a 75% collapse and
-    pushed run_vaccination_arima onto its ARIMARegimeAdjusted baseline floor.
+    Taking the cumulative maximum before differencing repairs small backward
+    artifacts in a detected cumulative series and makes its monthly increments
+    sum to the final year-to-date value.
     """
     if s.empty:
         return s
@@ -953,28 +939,28 @@ def _load_forecast_input_metric(sheet_name: str, metric_col_name: str) -> pd.Ser
 
 
 def load_vaccination_series():
-    """Build combined demand from provisional 2023-24 history and certified live months."""
+    """Build combined demand from workbook monthly totals and certified live months."""
     dogs_all = _load_forecast_input_metric("Forecast_Input_Dogs_3Y", "dogs_vaccinated")
     cats_all = _load_forecast_input_metric("Forecast_Input_Cats_3Y", "cats_vaccinated")
     clients_all = _load_forecast_input_metric("Forecast_Input_Clients_3Y", "clients_served")
     workbook_total = (dogs_all + cats_all).rename("total_vaccinated")
 
-    # The 2025 monthly figures are allocated values. Keep their confirmed total
-    # as a consistency check; they never enter monthly fit/evaluation.
-    allocated_2025 = workbook_total[workbook_total.index.year == 2025]
+    # Keep the 2025 annual total as a consistency check while using its
+    # confirmed month-by-month observations in the model and evaluation.
+    monthly_2025 = workbook_total[workbook_total.index.year == 2025]
     annual_check = {
         "year": 2025,
         "source_annual_total": 31769.0,
-        "allocated_monthly_sum": round(float(allocated_2025.sum()), 1),
-        "matches": abs(float(allocated_2025.sum()) - 31769.0) < 0.5,
+        "monthly_sum": round(float(monthly_2025.sum()), 1),
+        "matches": abs(float(monthly_2025.sum()) - 31769.0) < 0.5,
     }
     if not annual_check["matches"]:
         print(f"[vaccination-data-check] 2025 annual source total mismatch: {annual_check}")
 
-    historical_total = workbook_total[workbook_total.index.year <= 2024].dropna()
-    historical_dogs = dogs_all[dogs_all.index.year <= 2024]
-    historical_cats = cats_all[cats_all.index.year <= 2024]
-    historical_clients = clients_all[clients_all.index.year <= 2024]
+    historical_total = workbook_total[workbook_total.index.year <= 2025].dropna()
+    historical_dogs = dogs_all[dogs_all.index.year <= 2025]
+    historical_cats = cats_all[cats_all.index.year <= 2025]
+    historical_clients = clients_all[clients_all.index.year <= 2025]
     db = load_db_vaccination_monthly()
     if len(db):
         db_index = pd.PeriodIndex(
@@ -997,8 +983,8 @@ def load_vaccination_series():
     first_live = min(db_index) if len(db_index) else None
     gap_months = max(0, (first_live - historical_total.index.max()).n - 1) if first_live and not historical_total.empty else 0
     live = {
-        "source": "workbook_2023_2024" if len(db) == 0 else "workbook_2023_2024+completed_db_months",
-        "history_quality": "Revised 2023-24 workbook monthly figures are provisional pending verification against source records.",
+        "source": "workbook_2023_2025" if len(db) == 0 else "workbook_2023_2025+completed_db_months",
+        "history_quality": "2023–2024 workbook monthly figures remain provisional; confirmed 2025 monthly totals are included.",
         "db_months_used": int(len(db)),
         "db_months_rejected": 0,
         "db_months_require_completion_mark": True,
@@ -1202,6 +1188,7 @@ def _build_vaccination_barangay_forecasts(steps: int = 1) -> list:
                 "interval_status": municipal["interval_status"],
                 "trend": municipal["trend"],
                 "model_type": municipal["model_type"],
+                "forecast_status": municipal.get("forecast_status", "available"),
                 "data_quality_note": municipal["data_quality_note"],
                 "municipal_forecast": [int(math.floor(value + 0.5)) for value in municipal["forecast"]],
             })
@@ -1248,9 +1235,9 @@ def vaccination_forecast():
     if annual_check:
         check_result = "matches" if annual_check.get("matches") else "does not match"
         quality_parts.append(
-            f"2025 monthly workbook entries are excluded from model fitting; their sum of "
-            f"{annual_check.get('allocated_monthly_sum')} {check_result} the source annual total "
-            f"of {annual_check.get('source_annual_total')}, used only as a check."
+            f"2025 monthly workbook entries are included in model fitting; their sum of "
+            f"{annual_check.get('monthly_sum')} {check_result} the source annual total "
+            f"of {annual_check.get('source_annual_total')}."
         )
     if arima.get("data_quality_note"):
         quality_parts.append(arima["data_quality_note"])
@@ -1281,7 +1268,10 @@ def vaccination_forecast():
     else:
         # End the plotted history at the last real observation, not at the
         # current calendar month where the series may contain a long null gap.
-        history = series.loc[:observed.index[-1]].tail(FORECAST_HISTORY_MONTHS)
+        start_period = observed.index[max(0, len(observed) - FORECAST_HISTORY_MONTHS)]
+        # Preserve the blank calendar gap after the observed history so the
+        # chart doesn't visually compress old observations against future estimates.
+        history = series.loc[start_period:]
     results["history"] = [
         {"period": str(period), "value": None if pd.isna(value) else round(float(value), 1)}
         for period, value in history.items()

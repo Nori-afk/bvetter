@@ -591,13 +591,23 @@
             var emptyHost = document.getElementById('arima-card-placeholder');
             var unavailableNote = state.arimaData?.total_vaccinated?.data_quality_note
                 || 'The analytics service did not return an ARIMA forecast. Reload the page to retry.';
+            var unavailableData = state.arimaData?.total_vaccinated || {};
+            var staleHistory = unavailableData.forecast_status === 'stale_history';
+            var periodParts = /^(\d{4})-(\d{2})$/.exec(unavailableData.current_period || '');
+            var latestPeriodLabel = periodParts
+                ? new Date(Number(periodParts[1]), Number(periodParts[2]) - 1, 1)
+                    .toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+                : (unavailableData.current_period || 'unknown');
+            var staleNote = staleHistory
+                ? `The latest observed month is ${latestPeriodLabel}. The model has no recent completed totals, so this forecast is withheld until a recent month is entered and signed off.`
+                : unavailableNote;
             if (emptyHost) emptyHost.innerHTML = `
                 <section class="card mv-arima-card" id="arima-vacc-card">
                     <div class="mv-arima-header">
                         <div>
                             <span class="mv-arima-badge" style="background:#F1F5F9;color:#64748B;">Forecast Unavailable</span>
                             <h3 class="mv-arima-title">Vaccine Demand Forecast</h3>
-                            <p class="mv-arima-desc">${sanitize(unavailableNote)} No substitute forecast is shown.</p>
+                            <p class="mv-arima-desc">${sanitize(staleNote)}${staleHistory ? '' : ' No substitute forecast is shown.'}</p>
                         </div>
                     </div>
                 </section>`;
@@ -609,6 +619,8 @@
         const trend    = (tv.trend || 'stable').toLowerCase();
         const trendCls = trend === 'rising' ? 'mv-trend-rising' : trend === 'falling' ? 'mv-trend-falling' : 'mv-trend-stable';
         const modelLabel = Array.isArray(tv.arima_order) ? `ARIMA(${tv.arima_order.join(',')})` : 'Plain ARIMA';
+        const estimateLabel = tv.forecast_status === 'long_gap_estimate'
+            ? 'Provisional long-range estimate' : 'Point estimate';
 
         const months = tv.forecast_periods || tv.months || ['Next Month', 'Month 2', 'Month 3'];
         const hasValidatedInterval = tv.interval_status === 'validated_80'
@@ -635,11 +647,11 @@
                             <span class="mv-fc-label">${sanitize(m)}</span>
                             <span class="mv-fc-val">${Math.round(Number(tv.forecast?.[i]) || 0).toLocaleString()}</span>
                             ${hasValidatedInterval ? `<span class="mv-fc-range">${Math.round(Number(tv.lower_ci[i]) || 0).toLocaleString()} – ${Math.round(Number(tv.upper_ci[i]) || 0).toLocaleString()}</span>
-                            <span class="mv-fc-ci">Backtest-supported 80% range</span>` : `<span class="mv-fc-ci">Point estimate</span>`}
+                            <span class="mv-fc-ci">Backtest-supported 80% range</span>` : `<span class="mv-fc-ci">${sanitize(estimateLabel)}</span>`}
                         </div>
                     `).join('')}
                 </div>
-                <p class="mv-range-note">${sanitize(tv.data_quality_note || 'Expected doses administered, based on reconstructed 2023–2024 history and completed, signed-off live months. Provisional until monthly records are verified.')}</p>
+                <p class="mv-range-note">${sanitize(tv.data_quality_note || 'Expected doses administered from workbook monthly totals and completed, signed-off live months. Historical values remain provisional where noted.')}</p>
             </div>
         `;
 
@@ -989,9 +1001,9 @@
 
             var chart1Title = isMonthlySeries
                 ? (state.historicalYear === '2025'
-                    ? 'Workbook values as recorded — 2025 monthly distribution allocated from annual total; not observed month by month'
+                    ? 'Workbook values as recorded — confirmed 2025 monthly observations; municipality-wide'
                     : state.historicalYear === 'all'
-                        ? 'Workbook values as recorded — 2023–24 report figures and 2025 allocated monthly values; municipality-wide, not converted'
+                        ? 'Workbook values as recorded — provisional 2023–24 figures and confirmed 2025 monthly observations; municipality-wide'
                         : `Workbook values as recorded — Baliwag, ${state.historicalYear}; municipality-wide, not converted to monthly increments`)
                 : hasLiveData
                     ? `Vaccinated per Barangay — ${range} (includes ${dbGrandTotal.toLocaleString()} live records) — highest to lowest`
@@ -1141,13 +1153,10 @@
                 });
             }
 
-            var forecastUnavailable = state.arimaData?.total_vaccinated?.forecast_status === 'stale_history';
-            var lastObservedPeriod = state.arimaData?.total_vaccinated?.current_period || 'unknown';
+            var longRangeEstimate = tv.forecast_status === 'long_gap_estimate';
             var c2Title = usingArima
-                ? `Combined vaccine doses — plain ARIMA forecast${tv.interval_status === 'validated_80' ? ' with backtest-supported 80% range' : ' (point estimate)'}`
-                : forecastUnavailable
-                    ? `Observed monthly doses — forecast withheld; latest observed month ${lastObservedPeriod}`
-                    : 'ARIMA forecast unavailable — no substitute model shown';
+                ? `Combined vaccine doses — plain ARIMA${longRangeEstimate ? ' provisional long-range estimate' : ' forecast'}${tv.interval_status === 'validated_80' ? ' with backtest-supported 80% range' : ''}`
+                : 'ARIMA forecast unavailable — no substitute model shown';
 
             var dividerIndex = (historyValues.length > 0 && forecastLabels.length > 0)
                 ? historyValues.length - 0.5 : null;
@@ -1182,13 +1191,14 @@
             const actuals = previousMonthActuals();
             const vaccinationForecast = state.arimaData?.total_vaccinated || {};
             const forecastWithheld = vaccinationForecast.forecast_status === 'stale_history';
+            const longRangeEstimate = vaccinationForecast.forecast_status === 'long_gap_estimate';
             const method = forecastRows[0]?.allocation_method === 'completed_vaccination_shares'
                 ? 'allocated by completed vaccination shares'
                 : 'allocated by estimated dog population';
             const municipalTotal = Number(forecastRows[0]?.municipal_forecast?.[0]);
             const period = state.arimaData?.total_vaccinated?.forecast_periods?.[0] || 'next month';
             const titleText = forecastRows.length
-                ? `${period}: ${Number.isFinite(municipalTotal) ? municipalTotal.toLocaleString() : '—'} combined doses · point estimate · ${method}`
+                ? `${period}: ${Number.isFinite(municipalTotal) ? municipalTotal.toLocaleString() : '—'} combined doses · ${longRangeEstimate ? 'provisional long-range estimate' : 'point estimate'} · ${method}`
                 : forecastWithheld
                     ? `Forecast withheld · latest observed month ${vaccinationForecast.current_period || 'unavailable'}`
                     : 'Combined-dose ARIMA forecast is currently unavailable.';
