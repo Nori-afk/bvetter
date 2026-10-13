@@ -56,6 +56,8 @@
         // the forecast chart now uses only the fitted series returned by ARIMA.
         forecastBaseline:   null,
         eventTablePage:     1,
+        eventTableSortKey:  'date',
+        eventTableSortDirection: 'desc',
         pendingOnly:        false,
         // 'historical' = frozen pre-2025 baseline (Excel + the 2023-2024 rows
         // already sitting in mass_vaccination_events -- training data either
@@ -496,15 +498,43 @@
         const tableBody = document.getElementById('event-table-body');
         const footer    = document.getElementById('event-table-footer');
 
-        const rows = state.pendingOnly
+        const filteredRows = state.pendingOnly
             ? state.events.filter(e => e.status === 'Pending Report')
             : state.events;
+        const sortKey = state.eventTableSortKey || 'date';
+        const sortDirection = state.eventTableSortDirection === 'asc' ? 1 : -1;
+        const rows = filteredRows.slice().sort((a, b) => {
+            let comparison = 0;
+            if (sortKey === 'totalVaccinated') {
+                const aBlank = a.totalVaccinated === '' || a.totalVaccinated == null;
+                const bBlank = b.totalVaccinated === '' || b.totalVaccinated == null;
+                if (aBlank !== bBlank) return aBlank ? 1 : -1;
+                comparison = (Number(a.totalVaccinated) || 0) - (Number(b.totalVaccinated) || 0);
+            } else {
+                comparison = String(a[sortKey] || '').localeCompare(String(b[sortKey] || ''), undefined, {
+                    numeric: sortKey === 'date',
+                    sensitivity: 'base'
+                });
+            }
+            if (comparison !== 0) return comparison * sortDirection;
+            return String(b.date || '').localeCompare(String(a.date || ''));
+        });
         const heading = document.getElementById('event-table-heading');
         const showAll = document.getElementById('show-all-events');
         const filterRow = document.querySelector('.table-filter-row');
         if (heading) heading.textContent = state.pendingOnly ? 'Pending Vaccination Reports' : 'Recent Vaccination Events';
         if (showAll) showAll.hidden = !state.pendingOnly;
         if (filterRow) filterRow.hidden = !state.pendingOnly;
+
+        document.querySelectorAll('#event-table-card thead button[data-event-sort]').forEach((button) => {
+            const active = button.dataset.eventSort === sortKey;
+            const direction = active ? state.eventTableSortDirection : null;
+            const header = button.closest('th');
+            if (header) header.setAttribute('aria-sort', active ? (direction === 'asc' ? 'ascending' : 'descending') : 'none');
+            const indicator = button.querySelector('.event-sort-indicator');
+            if (indicator) indicator.textContent = active ? (direction === 'asc' ? '↑' : '↓') : '↕';
+            button.setAttribute('aria-label', `${button.textContent.trim().replace(/[↑↓↕]/g, '').trim()}, ${active ? `sorted ${direction === 'asc' ? 'ascending' : 'descending'}` : 'not sorted'}; activate to sort`);
+        });
 
         const pageSize   = pageSizeForViewport();
         const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -1253,6 +1283,19 @@
     document.getElementById('event-table-body').addEventListener('click', (ev) => {
         const row = ev.target.closest('tr[data-event-id]');
         if (row) hydrateDetail(row.dataset.eventId);
+    });
+    document.querySelector('#event-table-card thead')?.addEventListener('click', (ev) => {
+        const button = ev.target.closest('button[data-event-sort]');
+        if (!button) return;
+        const key = button.dataset.eventSort;
+        if (state.eventTableSortKey === key) {
+            state.eventTableSortDirection = state.eventTableSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            state.eventTableSortKey = key;
+            state.eventTableSortDirection = (key === 'date' || key === 'totalVaccinated') ? 'desc' : 'asc';
+        }
+        state.eventTablePage = 1;
+        renderTable();
     });
 
     document.getElementById('pending-reports-kpi')?.addEventListener('click', () => {

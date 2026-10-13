@@ -153,17 +153,24 @@
                         <h3 id="event-table-heading" tabindex="-1">Recent Vaccination Events</h3>
                         <small>Click a row to open event report details</small>
                     </div>
-                    <div class="month-completeness">
-                        <div class="month-completeness-copy">
-                            <strong>Close a month’s vaccination records</strong>
-                            <small>Mark a past month complete after all events are entered, including a month with zero events. Pending reports block sign-off; adding or editing an event reopens the month.</small>
+                    <details class="month-completeness">
+                        <summary class="month-completeness-summary">
+                            <span class="month-completeness-summary-copy">
+                                <strong>Monthly data sign-off</strong>
+                                <small>Close a past month after all vaccination records are entered.</small>
+                            </span>
                             <span id="month-completeness-status" aria-live="polite">Select a month.</span>
+                        </summary>
+                        <div class="month-completeness-body">
+                            <div class="month-completeness-copy">
+                                <small>Include every event, even a month with zero events. Pending reports block sign-off. Adding or editing an event reopens the month.</small>
+                            </div>
+                            <label for="month-completeness-month">Month
+                                <input id="month-completeness-month" type="month" min="2026-01">
+                            </label>
+                            <button id="month-completeness-toggle" class="btn btn-secondary" type="button" disabled>Mark month complete</button>
                         </div>
-                        <label for="month-completeness-month">Month
-                            <input id="month-completeness-month" type="month" min="2026-01">
-                        </label>
-                        <button id="month-completeness-toggle" class="btn btn-secondary" type="button" disabled>Mark month complete</button>
-                    </div>
+                    </details>
                     <div class="table-filter-row">
                         <button id="show-all-events" class="btn btn-secondary" type="button" hidden>Show all events</button>
                     </div>
@@ -171,11 +178,11 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Barangay</th>
-                                    <th>Vaccine</th>
-                                    <th>Total Vaccinated</th>
-                                    <th>Status</th>
+                                    <th scope="col" aria-sort="descending"><button class="event-sort-button" type="button" data-event-sort="date">Date <span class="event-sort-indicator" aria-hidden="true">↓</span></button></th>
+                                    <th scope="col" aria-sort="none"><button class="event-sort-button" type="button" data-event-sort="barangay">Barangay <span class="event-sort-indicator" aria-hidden="true">↕</span></button></th>
+                                    <th scope="col" aria-sort="none"><button class="event-sort-button" type="button" data-event-sort="vaccine">Vaccine <span class="event-sort-indicator" aria-hidden="true">↕</span></button></th>
+                                    <th scope="col" aria-sort="none"><button class="event-sort-button" type="button" data-event-sort="totalVaccinated">Total Vaccinated <span class="event-sort-indicator" aria-hidden="true">↕</span></button></th>
+                                    <th scope="col" aria-sort="none"><button class="event-sort-button" type="button" data-event-sort="status">Status <span class="event-sort-indicator" aria-hidden="true">↕</span></button></th>
                                 </tr>
                             </thead>
                             <tbody id="event-table-body"></tbody>

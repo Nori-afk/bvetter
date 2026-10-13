@@ -394,15 +394,48 @@ input {
 }
 
 .month-completeness {
+	margin: 2px 0 14px;
+	border: 1px solid #E8EEF6;
+	border-radius: 10px;
+	background: #F8FAFC;
+}
+
+.month-completeness-summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 11px 14px;
+	cursor: pointer;
+	list-style: none;
+}
+
+.month-completeness-summary::-webkit-details-marker { display: none; }
+.month-completeness-summary::after {
+	content: '⌄';
+	color: #64748B;
+	font-size: 18px;
+	line-height: 1;
+}
+.month-completeness[open] .month-completeness-summary::after { content: '⌃'; }
+
+.month-completeness-summary-copy {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	color: #334155;
+	font-size: 12px;
+}
+
+.month-completeness-summary-copy small { color: #64748B; line-height: 1.4; }
+#month-completeness-status { color: #64748B; font-size: 11px; line-height: 1.4; text-align: right; }
+
+.month-completeness-body {
 	display: flex;
 	align-items: center;
 	gap: 14px;
 	flex-wrap: wrap;
-	margin: 2px 0 14px;
-	padding: 13px 14px;
-	border: 1px solid #E8EEF6;
-	border-radius: 10px;
-	background: #F8FAFC;
+	padding: 0 14px 13px;
 }
 
 .month-completeness-copy {
@@ -526,6 +559,23 @@ th {
 	font-size: 13px;
 	font-weight: 700;
 }
+
+.event-sort-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	border: 0;
+	padding: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+.event-sort-button:hover,
+.event-sort-button:focus-visible { color: #2563EB; }
+.event-sort-button:focus-visible { outline: 2px solid #93C5FD; outline-offset: 3px; border-radius: 3px; }
+.event-sort-indicator { font-size: 11px; color: #94A3B8; }
 
 td {
 	font-size: 14px;
@@ -1572,6 +1622,10 @@ tr[data-event-id]:hover {
 	.metric-card h2,
 	.metric-card-title { font-size: 9.5px; }
 
+	.month-completeness-body { align-items: stretch; }
+	.month-completeness-summary { align-items: flex-start; }
+	#month-completeness-status { text-align: left; }
+	.month-completeness-body label,
 	.month-completeness button { width: 100%; }
 
 	.metric-value { font-size: 22px; }
