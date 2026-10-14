@@ -698,6 +698,84 @@ def _fit_vaccination_arima(series: pd.Series, steps: int) -> dict:
     }
 
 
+def _vaccination_error_metrics(actual, forecast) -> dict:
+    """Score unrounded forecasts. MAPE excludes zero actuals and reports how many."""
+    actual = np.asarray(actual, dtype=float)
+    forecast = np.asarray(forecast, dtype=float)
+    if actual.shape != forecast.shape or actual.ndim != 1:
+        raise ValueError("Actual and predicted vaccination totals must be matching one-dimensional arrays.")
+    if not np.isfinite(actual).all() or not np.isfinite(forecast).all():
+        raise ValueError("Evaluation requires finite actual and predicted vaccination totals.")
+    nonzero = actual != 0
+    errors = np.abs(actual - forecast)
+    denominator = float(np.abs(actual).sum())
+    return {
+        "n": int(len(actual)),
+        "mae": round(float(errors.mean()), 2) if len(actual) else None,
+        "rmse": round(float(np.sqrt(np.mean(errors ** 2))), 2) if len(actual) else None,
+        "mape": round(float(np.mean(errors[nonzero] / np.abs(actual[nonzero])) * 100), 2)
+            if nonzero.any() else None,
+        "mape_n": int(nonzero.sum()),
+        "mape_zero_actuals_excluded": int((~nonzero).sum()),
+        "wape": round(float(errors.sum() / denominator * 100), 2) if denominator else None,
+    }
+
+
+def evaluate_vaccination_holdout(series: pd.Series, test_months: int = 6) -> dict:
+    """One chronological split, with all six predictions made at the same origin.
+
+    This reproduces the manuscript's design on the latest eligible observations.
+    Neither ARIMA order selection nor fitting sees the test outcomes. Current
+    incomplete months already arrive as missing from load_vaccination_series().
+    """
+    observed = series.dropna()
+    if observed.empty:
+        return {"status": "unavailable", "reason": "No observed monthly totals."}
+    test_end = observed.index.max()
+    test_start = test_end - test_months + 1
+    test_index = pd.period_range(test_start, test_end, freq="M")
+    train = series.loc[:test_start - 1]
+    actual = series.reindex(test_index)
+    if train.notna().sum() < 12 or actual.isna().any():
+        return {"status": "insufficient_data",
+                "reason": "Need at least 12 observed training months and six complete test months.",
+                "test_period_start": str(test_start), "test_period_end": str(test_end)}
+    try:
+        order = _select_vaccination_arima_order(train)
+        fitted = ARIMA(train.astype(float), order=order, missing="none").fit(
+            method_kwargs={"maxiter": 100})
+        predictions = np.maximum(0., np.asarray(fitted.get_forecast(steps=test_months).predicted_mean, dtype=float))
+        metrics = _vaccination_error_metrics(actual.values, predictions)
+    except Exception as exc:
+        return {"status": "unavailable", "reason": str(exc)}
+    baseline_values = [float(train.loc[period - 12])
+        if period - 12 in train.index and pd.notna(train.loc[period - 12]) else None
+        for period in test_index]
+    baseline_complete = all(value is not None for value in baseline_values)
+    baseline = {
+        "name": "Same month last year",
+        "status": "complete" if baseline_complete else "unavailable",
+        "metrics": _vaccination_error_metrics(actual.values, baseline_values) if baseline_complete else None,
+    }
+    if not baseline_complete:
+        baseline["reason"] = "A previous-year value is missing for at least one test month; no partial comparison is substituted."
+    rows = [{"period": str(period), "horizon": i + 1,
+             "actual": float(actual.loc[period]), "forecast": float(predictions[i]),
+             "error": float(predictions[i] - actual.loc[period]),
+             "baseline": baseline_values[i]}
+            for i, period in enumerate(test_index)]
+    return {
+        "status": "complete", "method": "single chronological split; six-month forecast from one origin",
+        "model": "plain ARIMA", "arima_order": list(order),
+        "order_selection": "ADF differencing and minimum AIC among candidates, training data only",
+        "training_period_start": str(train.dropna().index.min()),
+        "training_period_end": str(train.index.max()), "training_observed_months": int(train.notna().sum()),
+        "test_period_start": str(test_start), "test_period_end": str(test_end), "test_months": test_months,
+        "scoring": "Unrounded, nonnegative point forecasts; MAPE excludes and counts zero actuals",
+        "metrics": metrics, "baseline": baseline, "predictions": rows,
+    }
+
+
 def evaluate_vaccination_arima(series: pd.Series, max_horizon: int = 3,
                                rolling_origins: int = 12) -> dict:
     """Rolling-origin holdout metrics on observed months only; missing months are never scored."""
@@ -735,6 +813,8 @@ def evaluate_vaccination_arima(series: pd.Series, max_horizon: int = 3,
             prediction = fitted.get_forecast(steps=max_horizon)
             intervals = prediction.conf_int(alpha=0.2)
             means = prediction.predicted_mean.values
+            if not np.isfinite(means).all() or not np.isfinite(intervals).all().all():
+                raise ValueError("Non-finite rolling forecast or interval.")
             for horizon, target in enumerate(targets, start=1):
                 if target not in series.index or pd.isna(series.loc[target]):
                     continue
@@ -752,15 +832,11 @@ def evaluate_vaccination_arima(series: pd.Series, max_horizon: int = 3,
     horizons = {}
     for horizon, rows in records.items():
         if not rows:
-            horizons[str(horizon)] = {"n": 0, "mae": None, "wape": None, "coverage": None}
+            horizons[str(horizon)] = {**_vaccination_error_metrics([], []), "coverage": None}
             continue
-        errors = [abs(row["actual"] - row["forecast"]) for row in rows]
-        actual_sum = sum(abs(row["actual"]) for row in rows)
         coverage = sum(row["lower"] <= row["actual"] <= row["upper"] for row in rows) / len(rows)
         horizons[str(horizon)] = {
-            "n": len(rows),
-            "mae": round(float(np.mean(errors)), 2),
-            "wape": round(float(sum(errors) / actual_sum * 100), 2) if actual_sum else None,
+            **_vaccination_error_metrics([row["actual"] for row in rows], [row["forecast"] for row in rows]),
             "coverage": round(float(coverage * 100), 1),
         }
 
@@ -1271,6 +1347,8 @@ def _get_vaccination_evaluation(series: pd.Series) -> dict:
     )
     if _vaccination_evaluation_cache is None or _vaccination_evaluation_cache[0] != signature:
         report = evaluate_vaccination_arima(series, max_horizon=3, rolling_origins=12)
+        # Keep the manuscript's fixed split distinct from the rolling horizons.
+        report["fixed_holdout"] = evaluate_vaccination_holdout(series, test_months=6)
         _vaccination_evaluation_cache = (signature, report)
         print("[vaccination-evaluation] " + json.dumps(report, ensure_ascii=False))
     return _vaccination_evaluation_cache[1]

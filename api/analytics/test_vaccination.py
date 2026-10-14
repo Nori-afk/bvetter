@@ -141,7 +141,87 @@ def test_rolling_holdout_uses_only_past_values_and_ignores_missing_targets(monke
     report = service.evaluate_vaccination_arima(values)
     assert report['horizons']['1']['mae'] == 1
     assert report['horizons']['2']['mae'] == 2
+    assert report['horizons']['1']['rmse'] == 1
+    assert report['horizons']['2']['rmse'] == 2
+    assert report['horizons']['1']['mape'] > 0
+    assert report['horizons']['1']['mape_zero_actuals_excluded'] == 0
     values.iloc[-1] = np.nan
     missing = service.evaluate_vaccination_arima(values)
     assert missing['observed_months'] == 23
     assert missing['horizons']['1']['n'] == report['horizons']['1']['n'] - 1
+
+
+def test_vaccination_error_metrics_count_zero_actuals_without_dividing_by_zero():
+    assert service._vaccination_error_metrics([100, 200, 0], [110, 180, 10]) == {
+        'n': 3, 'mae': 13.33, 'rmse': 14.14, 'mape': 10.,
+        'mape_n': 2, 'mape_zero_actuals_excluded': 1, 'wape': 13.33,
+    }
+    zero = service._vaccination_error_metrics([0, 0], [0, 1])
+    assert zero['mae'] == .5
+    assert zero['rmse'] == .71
+    assert zero['mape'] is None
+    assert zero['wape'] is None
+    assert zero['mape_zero_actuals_excluded'] == 2
+    empty = service._vaccination_error_metrics([], [])
+    assert empty['n'] == 0
+    assert empty['rmse'] is None
+
+
+@pytest.mark.parametrize('actual,forecast', [([1], [1, 2]), ([[1]], [[1]]),
+                                             ([np.nan], [1]), ([1], [np.inf])])
+def test_vaccination_error_metrics_reject_invalid_values(actual, forecast):
+    with pytest.raises(ValueError):
+        service._vaccination_error_metrics(actual, forecast)
+
+
+def test_fixed_holdout_never_uses_test_values_to_select_or_fit_model(monkeypatch):
+    selection_inputs, fitting_inputs = [], []
+
+    def select(train):
+        selection_inputs.append(train.copy())
+        return (0, 0, 0)
+
+    class FixedArima:
+        def __init__(self, train, **kwargs):
+            fitting_inputs.append(train.copy())
+            self.train = train
+
+        def fit(self, **kwargs):
+            return self
+
+        def get_forecast(self, steps):
+            return type('Prediction', (), {
+                'predicted_mean': pd.Series([float(self.train.iloc[-1])] * steps),
+            })()
+
+    monkeypatch.setattr(service, '_select_vaccination_arima_order', select)
+    monkeypatch.setattr(service, 'ARIMA', FixedArima)
+    values = pd.Series(np.arange(1., 47.), index=pd.period_range('2023-01', periods=46, freq='M'))
+    values.iloc[-1] = np.nan  # October is incomplete, so September is the test end.
+    report = service.evaluate_vaccination_holdout(values)
+    assert report['status'] == 'complete'
+    assert report['training_period_end'] == '2026-03'
+    assert report['training_observed_months'] == 39
+    assert report['test_period_start'] == '2026-04'
+    assert report['test_period_end'] == '2026-09'
+    assert [row['forecast'] for row in report['predictions']] == [39.] * 6
+    assert [row['baseline'] for row in report['predictions']] == list(np.arange(28., 34.))
+    assert report['metrics']['mae'] == 3.5
+    assert report['metrics']['rmse'] == 3.89
+    values.loc['2026-04':'2026-09'] = 10000.
+    changed = service.evaluate_vaccination_holdout(values)
+    pd.testing.assert_series_equal(selection_inputs[0], selection_inputs[1])
+    pd.testing.assert_series_equal(fitting_inputs[0], fitting_inputs[1])
+    assert changed['predictions'][0]['forecast'] == report['predictions'][0]['forecast']
+    assert changed['metrics']['mae'] != report['metrics']['mae']
+
+
+def test_fixed_holdout_does_not_compress_missing_test_months(monkeypatch):
+    values = pd.Series(np.arange(1., 46.), index=pd.period_range('2023-01', periods=45, freq='M'))
+    values.loc['2026-05'] = np.nan
+    select = Mock()
+    monkeypatch.setattr(service, '_select_vaccination_arima_order', select)
+    report = service.evaluate_vaccination_holdout(values)
+    assert report['status'] == 'insufficient_data'
+    assert report['test_period_start'] == '2026-04'
+    select.assert_not_called()

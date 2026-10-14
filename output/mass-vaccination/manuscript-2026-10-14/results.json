@@ -1,0 +1,581 @@
+{
+  "generated_at": "2026-10-14T23:50:31.526417+08:00",
+  "workbook_file": "BaliwagVet_2023-2025.xlsx",
+  "workbook_sha256": "ce2d6e28e9796176b9b7dfdfcf1f033b47b738f70b06af97aaeec2acb63fc102",
+  "versions": {
+    "python": "3.13.0",
+    "numpy": "2.3.3",
+    "pandas": "2.3.3",
+    "statsmodels": "0.14.6"
+  },
+  "live_data": {
+    "source": "workbook_2023_2026",
+    "history_quality": "Workbook monthly vaccination totals as entered (2023-01 to 2026-09); confirmed live months replace overlapping workbook months. Current and future months are excluded.",
+    "workbook_sheet": "Combined_Rabies_3Years",
+    "workbook_period_start": "2023-01",
+    "workbook_period_end": "2026-09",
+    "workbook_months_used": 45,
+    "workbook_year_totals": {
+      "2023": {
+        "months_used": 12,
+        "monthly_sum": 13352.0
+      },
+      "2024": {
+        "months_used": 12,
+        "monthly_sum": 14093.0
+      },
+      "2025": {
+        "months_used": 12,
+        "monthly_sum": 14227.0
+      },
+      "2026": {
+        "months_used": 9,
+        "monthly_sum": 10601.0
+      }
+    },
+    "workbook_current_future_values_excluded": 1,
+    "workbook_blank_months": 2,
+    "overlap_policy": "confirmed_live_month_replaces_workbook_month",
+    "workbook_months_replaced_by_live": [],
+    "db_months_used": 0,
+    "db_status": "unavailable",
+    "db_months_rejected": 0,
+    "db_months_require_completion_mark": true,
+    "current_month_held_out": true,
+    "missing_months_are_null": true,
+    "gap_months": 0,
+    "clients_from_db": false
+  },
+  "input_series": [
+    {
+      "period": "2023-01",
+      "value": 884.0
+    },
+    {
+      "period": "2023-02",
+      "value": 1071.0
+    },
+    {
+      "period": "2023-03",
+      "value": 1151.0
+    },
+    {
+      "period": "2023-04",
+      "value": 1605.0
+    },
+    {
+      "period": "2023-05",
+      "value": 1163.0
+    },
+    {
+      "period": "2023-06",
+      "value": 1068.0
+    },
+    {
+      "period": "2023-07",
+      "value": 918.0
+    },
+    {
+      "period": "2023-08",
+      "value": 1036.0
+    },
+    {
+      "period": "2023-09",
+      "value": 1222.0
+    },
+    {
+      "period": "2023-10",
+      "value": 1246.0
+    },
+    {
+      "period": "2023-11",
+      "value": 990.0
+    },
+    {
+      "period": "2023-12",
+      "value": 998.0
+    },
+    {
+      "period": "2024-01",
+      "value": 989.0
+    },
+    {
+      "period": "2024-02",
+      "value": 1183.0
+    },
+    {
+      "period": "2024-03",
+      "value": 1321.0
+    },
+    {
+      "period": "2024-04",
+      "value": 1345.0
+    },
+    {
+      "period": "2024-05",
+      "value": 1254.0
+    },
+    {
+      "period": "2024-06",
+      "value": 957.0
+    },
+    {
+      "period": "2024-07",
+      "value": 1044.0
+    },
+    {
+      "period": "2024-08",
+      "value": 1107.0
+    },
+    {
+      "period": "2024-09",
+      "value": 1600.0
+    },
+    {
+      "period": "2024-10",
+      "value": 1271.0
+    },
+    {
+      "period": "2024-11",
+      "value": 1137.0
+    },
+    {
+      "period": "2024-12",
+      "value": 885.0
+    },
+    {
+      "period": "2025-01",
+      "value": 960.0
+    },
+    {
+      "period": "2025-02",
+      "value": 1135.0
+    },
+    {
+      "period": "2025-03",
+      "value": 1319.0
+    },
+    {
+      "period": "2025-04",
+      "value": 1281.0
+    },
+    {
+      "period": "2025-05",
+      "value": 1318.0
+    },
+    {
+      "period": "2025-06",
+      "value": 1107.0
+    },
+    {
+      "period": "2025-07",
+      "value": 1104.0
+    },
+    {
+      "period": "2025-08",
+      "value": 1108.0
+    },
+    {
+      "period": "2025-09",
+      "value": 1276.0
+    },
+    {
+      "period": "2025-10",
+      "value": 1468.0
+    },
+    {
+      "period": "2025-11",
+      "value": 1207.0
+    },
+    {
+      "period": "2025-12",
+      "value": 944.0
+    },
+    {
+      "period": "2026-01",
+      "value": 869.0
+    },
+    {
+      "period": "2026-02",
+      "value": 1004.0
+    },
+    {
+      "period": "2026-03",
+      "value": 1310.0
+    },
+    {
+      "period": "2026-04",
+      "value": 1808.0
+    },
+    {
+      "period": "2026-05",
+      "value": 1228.0
+    },
+    {
+      "period": "2026-06",
+      "value": 946.0
+    },
+    {
+      "period": "2026-07",
+      "value": 886.0
+    },
+    {
+      "period": "2026-08",
+      "value": 1186.0
+    },
+    {
+      "period": "2026-09",
+      "value": 1364.0
+    },
+    {
+      "period": "2026-10",
+      "value": null
+    }
+  ],
+  "evaluation": {
+    "status": "complete",
+    "model": "plain ARIMA",
+    "method": "rolling origin, monthly holdout; missing months excluded from scoring",
+    "eligible_origins": 12,
+    "observed_months": 45,
+    "training_period_start": "2023-01",
+    "training_period_end": "2026-09",
+    "forecast_gap_months": 1,
+    "interval_gap_eligible": true,
+    "data_source_note": "Workbook monthly vaccination totals as entered (2023-01 to 2026-09); confirmed live months replace overlapping workbook months. Current and future months are excluded.",
+    "horizons": {
+      "1": {
+        "n": 12,
+        "mae": 115.54,
+        "rmse": 143.99,
+        "mape": 9.75,
+        "mape_n": 12,
+        "mape_zero_actuals_excluded": 0,
+        "wape": 9.82,
+        "coverage": 83.3
+      },
+      "2": {
+        "n": 11,
+        "mae": 237.2,
+        "rmse": 289.68,
+        "mape": 18.81,
+        "mape_n": 11,
+        "mape_zero_actuals_excluded": 0,
+        "wape": 19.35,
+        "coverage": 54.5
+      },
+      "3": {
+        "n": 11,
+        "mae": 178.02,
+        "rmse": 258.72,
+        "mape": 17.02,
+        "mape_n": 11,
+        "mape_zero_actuals_excluded": 0,
+        "wape": 15.16,
+        "coverage": 81.8
+      }
+    },
+    "80_percent_interval_supported": false,
+    "fixed_holdout": {
+      "status": "complete",
+      "method": "single chronological split; six-month forecast from one origin",
+      "model": "plain ARIMA",
+      "arima_order": [
+        2,
+        0,
+        1
+      ],
+      "order_selection": "ADF differencing and minimum AIC among candidates, training data only",
+      "training_period_start": "2023-01",
+      "training_period_end": "2026-03",
+      "training_observed_months": 39,
+      "test_period_start": "2026-04",
+      "test_period_end": "2026-09",
+      "test_months": 6,
+      "scoring": "Unrounded, nonnegative point forecasts; MAPE excludes and counts zero actuals",
+      "metrics": {
+        "n": 6,
+        "mae": 170.63,
+        "rmse": 211.68,
+        "mape": 13.16,
+        "mape_n": 6,
+        "mape_zero_actuals_excluded": 0,
+        "wape": 13.8
+      },
+      "baseline": {
+        "name": "Same month last year",
+        "status": "complete",
+        "metrics": {
+          "n": 6,
+          "mae": 193.67,
+          "rmse": 249.37,
+          "mape": 15.19,
+          "mape_n": 6,
+          "mape_zero_actuals_excluded": 0,
+          "wape": 15.66
+        }
+      },
+      "predictions": [
+        {
+          "period": "2026-04",
+          "horizon": 1,
+          "actual": 1808.0,
+          "forecast": 1379.4558151920605,
+          "error": -428.5441848079395,
+          "baseline": 1281.0
+        },
+        {
+          "period": "2026-05",
+          "horizon": 2,
+          "actual": 1228.0,
+          "forecast": 1253.570909577183,
+          "error": 25.5709095771831,
+          "baseline": 1318.0
+        },
+        {
+          "period": "2026-06",
+          "horizon": 3,
+          "actual": 946.0,
+          "forecast": 1090.2512053537546,
+          "error": 144.25120535375459,
+          "baseline": 1107.0
+        },
+        {
+          "period": "2026-07",
+          "horizon": 4,
+          "actual": 886.0,
+          "forecast": 1028.6460531605967,
+          "error": 142.6460531605967,
+          "baseline": 1104.0
+        },
+        {
+          "period": "2026-08",
+          "horizon": 5,
+          "actual": 1186.0,
+          "forecast": 1086.0021198972208,
+          "error": -99.99788010277916,
+          "baseline": 1108.0
+        },
+        {
+          "period": "2026-09",
+          "horizon": 6,
+          "actual": 1364.0,
+          "forecast": 1181.2590583553906,
+          "error": -182.7409416446094,
+          "baseline": 1276.0
+        }
+      ]
+    }
+  },
+  "current_forecast": {
+    "forecast": [
+      1129.5,
+      1045.7,
+      1087.4
+    ],
+    "lower_ci": [
+      null,
+      null,
+      null
+    ],
+    "upper_ci": [
+      null,
+      null,
+      null
+    ],
+    "order": [
+      2,
+      0,
+      1
+    ],
+    "trend": "falling",
+    "model_type": "ARIMA",
+    "forecast_periods": [
+      "Nov 2026",
+      "Dec 2026",
+      "Jan 2027"
+    ],
+    "interval_status": "estimate",
+    "forecast_status": "available",
+    "data_quality_note": "Point forecast is from plain ARIMA. The rolling holdout does not support a calibrated 80% range, so treat the displayed value as an estimate."
+  },
+  "allocation": {
+    "method": "dog_population",
+    "coverage": {
+      "window_start": "2025-10",
+      "window_end": "2026-09",
+      "months_complete": 0,
+      "months_required": 12,
+      "barangays_with_reports": 0,
+      "barangays_required": 27,
+      "missing_barangays": [
+        "Tiaong",
+        "San Jose",
+        "Poblacion",
+        "Sulivan",
+        "Tangos",
+        "Bagong Nayon",
+        "Pagala",
+        "Pinagbarilan",
+        "Virgen Delas Flores",
+        "Tarcan",
+        "Makinabang",
+        "Tibag",
+        "Subic",
+        "San Roque",
+        "Paitan",
+        "Sto. Cristo",
+        "Hinukay",
+        "Sto. Niño",
+        "Tilapayong",
+        "Concepcion",
+        "Barangca",
+        "Piel",
+        "Catulinan",
+        "Calantipay",
+        "Sta. Barbara",
+        "Sabang",
+        "Matangtubig"
+      ]
+    },
+    "forecast_period": "Nov 2026",
+    "municipal_total": 1130,
+    "barangays": [
+      {
+        "barangay": "Tiaong",
+        "share": 0.05609307295067371,
+        "doses": 63
+      },
+      {
+        "barangay": "San Jose",
+        "share": 0.051047664272570785,
+        "doses": 58
+      },
+      {
+        "barangay": "Poblacion",
+        "share": 0.045942897845313704,
+        "doses": 52
+      },
+      {
+        "barangay": "Sulivan",
+        "share": 0.045942897845313704,
+        "doses": 52
+      },
+      {
+        "barangay": "Tangos",
+        "share": 0.045942897845313704,
+        "doses": 52
+      },
+      {
+        "barangay": "Bagong Nayon",
+        "share": 0.04083813141805663,
+        "doses": 46
+      },
+      {
+        "barangay": "Pagala",
+        "share": 0.04083813141805663,
+        "doses": 46
+      },
+      {
+        "barangay": "Pinagbarilan",
+        "share": 0.038760610197661305,
+        "doses": 44
+      },
+      {
+        "barangay": "Virgen Delas Flores",
+        "share": 0.038760610197661305,
+        "doses": 44
+      },
+      {
+        "barangay": "Tibag",
+        "share": 0.03674244672642014,
+        "doses": 42
+      },
+      {
+        "barangay": "Makinabang",
+        "share": 0.03674244672642014,
+        "doses": 41
+      },
+      {
+        "barangay": "Tarcan",
+        "share": 0.03674244672642014,
+        "doses": 41
+      },
+      {
+        "barangay": "San Roque",
+        "share": 0.03573336499079955,
+        "doses": 40
+      },
+      {
+        "barangay": "Subic",
+        "share": 0.03573336499079955,
+        "doses": 40
+      },
+      {
+        "barangay": "Paitan",
+        "share": 0.03466492550602481,
+        "doses": 39
+      },
+      {
+        "barangay": "Sto. Cristo",
+        "share": 0.03466492550602481,
+        "doses": 39
+      },
+      {
+        "barangay": "Hinukay",
+        "share": 0.033655843770404224,
+        "doses": 38
+      },
+      {
+        "barangay": "Sto. Niño",
+        "share": 0.033655843770404224,
+        "doses": 38
+      },
+      {
+        "barangay": "Concepcion",
+        "share": 0.032646762034783644,
+        "doses": 37
+      },
+      {
+        "barangay": "Tilapayong",
+        "share": 0.032646762034783644,
+        "doses": 37
+      },
+      {
+        "barangay": "Barangca",
+        "share": 0.03163768029916306,
+        "doses": 36
+      },
+      {
+        "barangay": "Piel",
+        "share": 0.03163768029916306,
+        "doses": 36
+      },
+      {
+        "barangay": "Calantipay",
+        "share": 0.03062859856354247,
+        "doses": 35
+      },
+      {
+        "barangay": "Catulinan",
+        "share": 0.03062859856354247,
+        "doses": 35
+      },
+      {
+        "barangay": "Sta. Barbara",
+        "share": 0.03062859856354247,
+        "doses": 35
+      },
+      {
+        "barangay": "Sabang",
+        "share": 0.029619516827921886,
+        "doses": 33
+      },
+      {
+        "barangay": "Matangtubig",
+        "share": 0.027423280109218257,
+        "doses": 31
+      }
+    ]
+  }
+}
