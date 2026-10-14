@@ -58,7 +58,7 @@ function normalizeRole($role)
 function normalizeStatus($status, $fallback = 'pending')
 {
     $status = strtolower(clean($status));
-    $allowed = ['pending', 'active', 'resolved', 'rejected', 'dismissed', 'approved'];
+    $allowed = ['pending', 'active', 'resolved', 'rejected', 'dismissed', 'approved', 'awaiting_handoff'];
     return in_array($status, $allowed, true) ? $status : $fallback;
 }
 
@@ -184,10 +184,11 @@ function ensureLostFoundSchema($pdo)
             case_number VARCHAR(40) NOT NULL UNIQUE,
             report_id INT NOT NULL,
             claimant_user_id INT NULL,
-            status ENUM('pending','approved','rejected','resolved') NOT NULL DEFAULT 'pending',
+            status ENUM('pending','approved','awaiting_handoff','rejected','resolved') NOT NULL DEFAULT 'pending',
             claimant_name VARCHAR(150) NULL,
             claimant_phone VARCHAR(40) NULL,
             claimant_email VARCHAR(150) NULL,
+            match_id INT NULL,
             proof_type VARCHAR(80) NULL,
             proof_notes TEXT NULL,
             proof_file_path VARCHAR(255) NULL,
@@ -197,11 +198,30 @@ function ensureLostFoundSchema($pdo)
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             INDEX idx_lfc_report (report_id),
+            INDEX idx_lfc_match (match_id),
             INDEX idx_lfc_status (status),
             CONSTRAINT fk_lfc_report FOREIGN KEY (report_id) REFERENCES lost_found_reports(id) ON DELETE CASCADE,
             CONSTRAINT fk_lfc_user FOREIGN KEY (claimant_user_id) REFERENCES users(id) ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+}
+
+function ensureClaimWorkflowSchema($pdo)
+{
+    $status = $pdo->query("SHOW COLUMNS FROM lost_found_claims LIKE 'status'")->fetch();
+    if ($status && strpos((string) ($status['Type'] ?? ''), "'awaiting_handoff'") === false) {
+        $pdo->exec("ALTER TABLE lost_found_claims MODIFY status ENUM('pending','approved','awaiting_handoff','rejected','resolved') NOT NULL DEFAULT 'pending'");
+    }
+
+    $matchColumn = $pdo->query("SHOW COLUMNS FROM lost_found_claims LIKE 'match_id'")->fetch();
+    if (!$matchColumn) {
+        $pdo->exec('ALTER TABLE lost_found_claims ADD COLUMN match_id INT NULL AFTER report_id');
+    }
+
+    $matchIndex = $pdo->query("SHOW INDEX FROM lost_found_claims WHERE Key_name = 'idx_lfc_match'")->fetch();
+    if (!$matchIndex) {
+        $pdo->exec('ALTER TABLE lost_found_claims ADD INDEX idx_lfc_match (match_id)');
+    }
 }
 
 function generateCaseNumber($prefix)
@@ -440,6 +460,7 @@ function reportRowToArray($row)
         'case_number' => $row['case_number'],
         'type' => ucfirst($row['report_type']),
         'status' => $row['status'],
+        'claimReserved' => !empty($row['claim_reserved']),
         'source' => $row['source'] === 'owner' ? 'Owner' : 'Admin/Clinic',
         'owner_id' => $row['owner_id'] ? (int) $row['owner_id'] : null,
         'petName' => $row['pet_name'] ?: ($row['report_type'] === 'found' ? 'Found Pet Report' : 'Lost Pet Report'),
@@ -555,7 +576,12 @@ function isStaffViewer($viewer)
 function reportSelectSql()
 {
     return "
-        SELECT lost_found_reports.*, users.full_name AS owner_name
+        SELECT lost_found_reports.*, users.full_name AS owner_name,
+               EXISTS (
+                   SELECT 1 FROM lost_found_claims reserved_claim
+                   WHERE reserved_claim.report_id = lost_found_reports.id
+                     AND reserved_claim.status IN ('awaiting_handoff', 'approved')
+               ) AS claim_reserved
         FROM lost_found_reports
         LEFT JOIN users ON users.id = lost_found_reports.owner_id
     ";
@@ -1201,6 +1227,11 @@ function listMatches($pdo, $data, $viewer)
             lost.contact_name AS lost_contact_name, lost.contact_phone AS lost_contact_phone, lost.contact_email AS lost_contact_email,
             found.case_number AS found_case, found.pet_name AS found_name, found.species AS found_species, found.breed AS found_breed, found.sex AS found_sex, found.size AS found_size, found.color_markings AS found_markings, found.notes AS found_notes, found.photo_path AS found_photo, found.barangay_name AS found_barangay, found.created_at AS found_created_at,
             found.contact_name AS found_contact_name, found.contact_phone AS found_contact_phone, found.contact_email AS found_contact_email,
+            EXISTS (
+                SELECT 1 FROM lost_found_claims reserved_claim
+                WHERE reserved_claim.report_id = found.id
+                  AND reserved_claim.status IN ('awaiting_handoff', 'approved')
+            ) AS found_claim_reserved,
             sightings.case_number AS sighting_case, sightings.photo_path AS sighting_photo, sightings.barangay_name AS sighting_barangay, sightings.notes AS sighting_notes, sightings.created_at AS sighting_created_at,
             sightings.sighting_date AS sighting_spotted_date, sightings.contact_name AS sighting_contact_name, sightings.contact_phone AS sighting_contact_phone, sightings.contact_email AS sighting_contact_email
         FROM lost_found_matches
@@ -1215,6 +1246,7 @@ function listMatches($pdo, $data, $viewer)
     $stmt->execute($params);
     $matches = [];
     foreach ($stmt->fetchAll() as $row) {
+        if ($row['found_report_id'] && clearlyDifferentBreeds($row['lost_breed'], $row['found_breed'])) continue;
         $matches[] = [
             'id' => (int) $row['id'],
             'confidence' => (int) $row['confidence'],
@@ -1256,6 +1288,7 @@ function listMatches($pdo, $data, $viewer)
                 'contactName' => $row['found_report_id'] ? $row['found_contact_name'] : $row['sighting_contact_name'],
                 'contactPhone' => $row['found_report_id'] ? $row['found_contact_phone'] : $row['sighting_contact_phone'],
                 'contactEmail' => $row['found_report_id'] ? $row['found_contact_email'] : $row['sighting_contact_email'],
+                'claimReserved' => (bool) ($row['found_claim_reserved'] ?? false),
             ],
         ];
     }
@@ -1320,15 +1353,17 @@ function foundPetCandidates($pdo, $foundReportId)
     }
 
     $matches = $pdo->prepare("
-        SELECT m.id, m.confidence, lr.owner_id, lr.case_number,
+        SELECT m.id, m.confidence, lr.owner_id, lr.case_number, lr.breed AS lost_breed, fr.breed AS found_breed,
                COALESCE(NULLIF(lr.contact_name, ''), u.full_name) AS name
         FROM lost_found_matches m
         INNER JOIN lost_found_reports lr ON lr.id = m.lost_report_id
+        INNER JOIN lost_found_reports fr ON fr.id = m.found_report_id
         LEFT JOIN users u ON u.id = lr.owner_id
         WHERE m.found_report_id = :found AND m.status = 'suggested' AND lr.status = 'active'
     ");
     $matches->execute([':found' => $foundReportId]);
     foreach ($matches->fetchAll() as $row) {
+        if (clearlyDifferentBreeds($row['lost_breed'] ?? '', $row['found_breed'] ?? '')) continue;
         // Someone who both claimed and has a matching lost report is one
         // person, already listed through their claim.
         if (in_array((int) $row['owner_id'], $claimantIds, true)) continue;
@@ -1427,13 +1462,25 @@ function assertReasonForLowerPick($pdo, $kind, $id, $reason)
  * Once a found pet goes to someone, the other pending claims on it are
  * closed (each claimant notified), and the other suggested matches are
  * dismissed quietly -- those owners' lost reports stay active, because
- * their own pet is still missing. A claim by the owner of the approved
- * match is theirs, so it is approved rather than closed.
+ * their own pet is still missing. The kept owner's best suggested match stays
+ * available until the claimant confirms handoff, so both reports can close then.
  */
-function closeOtherCandidates($pdo, $foundId, $keptKind, $keptId, $keptOwnerId)
+function closeOtherCandidates($pdo, $foundId, $keptKind, $keptId, $keptOwnerId, $keptMatchId = 0)
 {
     $closed = [];
-    foreach (foundPetCandidates($pdo, $foundId) as $candidate) {
+    $candidates = foundPetCandidates($pdo, $foundId);
+    if ($keptKind === 'claim' && $keptMatchId <= 0) {
+        foreach ($candidates as $candidate) {
+            if ($candidate['kind'] === 'match' && (int) $candidate['ownerId'] === (int) $keptOwnerId
+                && (int) $candidate['id'] !== (int) $keptMatchId) {
+                if ($keptMatchId <= 0 || (int) $candidate['score'] > (int) ($keptMatchScore ?? -1)) {
+                    $keptMatchId = (int) $candidate['id'];
+                    $keptMatchScore = (int) $candidate['score'];
+                }
+            }
+        }
+    }
+    foreach ($candidates as $candidate) {
         if ($candidate['kind'] === $keptKind && $candidate['id'] === $keptId) continue;
 
         if ($candidate['kind'] === 'claim') {
@@ -1443,12 +1490,13 @@ function closeOtherCandidates($pdo, $foundId, $keptKind, $keptId, $keptOwnerId)
                 SET status = :status, reviewed_at = NOW(), review_notes = :notes
                 WHERE id = :id AND status = 'pending'
             ")->execute([
-                ':status' => $isKeptOwner ? 'approved' : 'rejected',
-                ':notes' => $isKeptOwner ? 'Approved with the matching report.' : 'Returned to another claimant.',
+                ':status' => 'rejected',
+                ':notes' => $isKeptOwner ? 'Another claim from your account is already awaiting handoff.' : 'Returned to another claimant.',
                 ':id' => $candidate['id'],
             ]);
             if (!$isKeptOwner) $closed[] = $candidate['id'];
         } else {
+            if ($keptMatchId > 0 && $candidate['id'] === $keptMatchId) continue;
             $pdo->prepare("UPDATE lost_found_matches SET status = 'dismissed', reviewed_at = NOW() WHERE id = :id AND status = 'suggested'")
                 ->execute([':id' => $candidate['id']]);
         }
@@ -1700,20 +1748,36 @@ function resolveOwnReport($pdo, $data)
         respond(422, ['success' => false, 'message' => 'Invalid request.']);
     }
 
-    $stmt = $pdo->prepare('SELECT * FROM lost_found_reports WHERE id = :id LIMIT 1');
-    $stmt->execute([':id' => $reportId]);
-    $report = $stmt->fetch();
-    if (!$report) respond(404, ['success' => false, 'message' => 'Report not found.']);
+    $pdo->beginTransaction();
+    try {
+        // Serialize direct reunions against claim submission and vet approval.
+        $stmt = $pdo->prepare('SELECT * FROM lost_found_reports WHERE id = :id LIMIT 1 FOR UPDATE');
+        $stmt->execute([':id' => $reportId]);
+        $report = $stmt->fetch();
+        if (!$report) respond(404, ['success' => false, 'message' => 'Report not found.']);
 
-    if ((int) $report['owner_id'] !== $ownerId) {
-        respond(403, ['success' => false, 'message' => 'You can only resolve your own reports.']);
-    }
-    if ($report['status'] !== 'active') {
-        respond(422, ['success' => false, 'message' => 'Only an active report can be marked resolved.']);
-    }
+        if ((int) $report['owner_id'] !== $ownerId) {
+            respond(403, ['success' => false, 'message' => 'You can only resolve your own reports.']);
+        }
+        if ($report['status'] !== 'active') {
+            respond(422, ['success' => false, 'message' => 'Only an active report can be marked resolved.']);
+        }
 
-    $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id")
-        ->execute([':id' => $reportId]);
+        if ($report['report_type'] === 'found') {
+            $openClaim = $pdo->prepare("SELECT id FROM lost_found_claims WHERE report_id = :id AND status IN ('pending', 'awaiting_handoff', 'approved') LIMIT 1");
+            $openClaim->execute([':id' => $reportId]);
+            if ($openClaim->fetchColumn()) {
+                respond(409, ['success' => false, 'message' => 'This report has an open claim. Use the claim and handoff steps to close it.']);
+            }
+        }
+
+        $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id")
+            ->execute([':id' => $reportId]);
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
 
     $message = $report['report_type'] === 'found'
         ? 'Marked as resolved. Thanks for helping reunite this pet!'
@@ -1872,28 +1936,79 @@ function createClaim($pdo, $data)
 
     $reportId = (int) ($data['report_id'] ?? 0);
     if ($reportId <= 0) respond(422, ['success' => false, 'message' => 'Report id is required for claims.']);
+    $matchId = (int) ($data['match_id'] ?? 0);
+    $pdo->beginTransaction();
+    try {
+        // Lock the report so a new ticket cannot race a vet approval and land
+        // after another claimant has reserved the pet for handoff.
+        $reportStmt = $pdo->prepare('SELECT id, report_type, status, owner_id, case_number, pet_name FROM lost_found_reports WHERE id = :id FOR UPDATE');
+        $reportStmt->execute([':id' => $reportId]);
+        $reportRow = $reportStmt->fetch();
+        if (!$reportRow) respond(404, ['success' => false, 'message' => 'Found report not found.']);
+        if ($reportRow['report_type'] !== 'found' || $reportRow['status'] !== 'active') {
+            respond(409, ['success' => false, 'message' => 'This found report is no longer open for claims.']);
+        }
+        if ((int) ($reportRow['owner_id'] ?? 0) === $claimantId) {
+            respond(403, ['success' => false, 'message' => 'You cannot claim your own found report.']);
+        }
 
-    [$proofPath] = saveUpload('proof_file', 'lost_found_claims', false);
-    $accountContact = userContactFromAccount($pdo, $data);
-    $stmt = $pdo->prepare("
-        INSERT INTO lost_found_claims
-            (case_number, report_id, claimant_user_id, claimant_name, claimant_phone, claimant_email, proof_type, proof_notes, proof_file_path)
-        VALUES
-            (:case_number, :report_id, :claimant_user_id, :claimant_name, :claimant_phone, :claimant_email, :proof_type, :proof_notes, :proof_file_path)
-    ");
-    $stmt->execute([
-        ':case_number' => generateCaseNumber('CLM'),
-        ':report_id' => $reportId,
-        ':claimant_user_id' => (int) ($data['user_id'] ?? $data['owner_id'] ?? 0) ?: null,
-        ':claimant_name' => nullableClean($data['claimant_name'] ?? $data['contact_name'] ?? '') ?: ($accountContact['name'] ?? null),
-        ':claimant_phone' => nullableClean($data['claimant_phone'] ?? $data['contact_phone'] ?? '') ?: ($accountContact['phone'] ?? null),
-        ':claimant_email' => nullableClean($data['claimant_email'] ?? $data['contact_email'] ?? '') ?: ($accountContact['email'] ?? null),
-        ':proof_type' => nullableClean($data['proof_type'] ?? ''),
-        ':proof_notes' => nullableClean($data['proof_notes'] ?? $data['notes'] ?? ''),
-        ':proof_file_path' => $proofPath,
-    ]);
+        $reserved = $pdo->prepare("SELECT id FROM lost_found_claims WHERE report_id = :report_id AND status IN ('awaiting_handoff', 'approved') LIMIT 1");
+        $reserved->execute([':report_id' => $reportId]);
+        if ($reserved->fetchColumn()) {
+            respond(409, ['success' => false, 'message' => 'This pet is reserved while an approved claimant coordinates the handoff.']);
+        }
 
-    $claimId = (int) $pdo->lastInsertId();
+        $duplicate = $pdo->prepare("SELECT id FROM lost_found_claims WHERE report_id = :report_id AND claimant_user_id = :claimant_id AND status IN ('pending', 'awaiting_handoff', 'approved') LIMIT 1");
+        $duplicate->execute([':report_id' => $reportId, ':claimant_id' => $claimantId]);
+        if ($duplicate->fetchColumn()) {
+            respond(409, ['success' => false, 'message' => 'You already have an open claim for this pet.']);
+        }
+
+        if ($matchId > 0) {
+            $matchStmt = $pdo->prepare("
+                SELECT m.id, lr.breed AS lost_breed, found.breed AS found_breed
+                FROM lost_found_matches m
+                INNER JOIN lost_found_reports lr ON lr.id = m.lost_report_id
+                INNER JOIN lost_found_reports found ON found.id = m.found_report_id
+                WHERE m.id = :match_id AND m.found_report_id = :report_id
+                  AND m.status = 'suggested' AND lr.owner_id = :claimant_id AND lr.status = 'active'
+                LIMIT 1
+            ");
+            $matchStmt->execute([':match_id' => $matchId, ':report_id' => $reportId, ':claimant_id' => $claimantId]);
+            $selectedMatch = $matchStmt->fetch();
+            if (!$selectedMatch) respond(422, ['success' => false, 'message' => 'That match is no longer available for a claim.']);
+            if (clearlyDifferentBreeds($selectedMatch['lost_breed'], $selectedMatch['found_breed'])) {
+                respond(422, ['success' => false, 'message' => 'The breed details do not support this suggested match.']);
+            }
+        }
+
+        [$proofPath] = saveUpload('proof_file', 'lost_found_claims', false);
+        $accountContact = userContactFromAccount($pdo, $data);
+        $stmt = $pdo->prepare("
+            INSERT INTO lost_found_claims
+                (case_number, report_id, match_id, claimant_user_id, claimant_name, claimant_phone, claimant_email, proof_type, proof_notes, proof_file_path)
+            VALUES
+                (:case_number, :report_id, :match_id, :claimant_user_id, :claimant_name, :claimant_phone, :claimant_email, :proof_type, :proof_notes, :proof_file_path)
+        ");
+        $stmt->execute([
+            ':case_number' => generateCaseNumber('CLM'),
+            ':report_id' => $reportId,
+            ':match_id' => $matchId ?: null,
+            ':claimant_user_id' => $claimantId,
+            ':claimant_name' => nullableClean($data['claimant_name'] ?? $data['contact_name'] ?? '') ?: ($accountContact['name'] ?? null),
+            ':claimant_phone' => nullableClean($data['claimant_phone'] ?? $data['contact_phone'] ?? '') ?: ($accountContact['phone'] ?? null),
+            ':claimant_email' => nullableClean($data['claimant_email'] ?? $data['contact_email'] ?? '') ?: ($accountContact['email'] ?? null),
+            ':proof_type' => nullableClean($data['proof_type'] ?? ''),
+            ':proof_notes' => nullableClean($data['proof_notes'] ?? $data['notes'] ?? ''),
+            ':proof_file_path' => $proofPath,
+        ]);
+
+        $claimId = (int) $pdo->lastInsertId();
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
 
     notifyStaff(
         $pdo,
@@ -1908,12 +2023,6 @@ function createClaim($pdo, $data)
     // The person who posted the found report also needs to know somebody has
     // claimed their pet — previously only staff heard about it, and the owner
     // saw it only because the browser re-derived it from the claims list.
-    $reportOwner = $pdo->prepare('
-        SELECT owner_id, case_number, pet_name FROM lost_found_reports WHERE id = :id LIMIT 1
-    ');
-    $reportOwner->execute([':id' => $reportId]);
-    $reportRow = $reportOwner->fetch();
-
     if ($reportRow && (int) $reportRow['owner_id'] > 0 && (int) $reportRow['owner_id'] !== $claimantId) {
         notifyUser(
             $pdo,
@@ -1978,117 +2087,227 @@ function listClaims($pdo, $data, $management = false)
 
 function updateClaimStatus($pdo, $data, $status)
 {
+    if (!in_array($status, ['approved', 'rejected'], true)) {
+        respond(422, ['success' => false, 'message' => 'Unsupported staff claim decision.']);
+    }
     $id = (int) ($data['id'] ?? $data['claim_id'] ?? 0);
     if ($id <= 0) respond(422, ['success' => false, 'message' => 'Invalid claim id.']);
 
-    $claimInfoStmt = $pdo->prepare("
-        SELECT lost_found_claims.claimant_user_id, lost_found_claims.claimant_email, lost_found_claims.claimant_name,
-               lost_found_reports.case_number, lost_found_reports.pet_name
-        FROM lost_found_claims
-        INNER JOIN lost_found_reports ON lost_found_reports.id = lost_found_claims.report_id
-        WHERE lost_found_claims.id = :id
-        LIMIT 1
-    ");
-    $claimInfoStmt->execute([':id' => $id]);
-    $claimInfo = $claimInfoStmt->fetch();
+    $lookup = $pdo->prepare('SELECT report_id FROM lost_found_claims WHERE id = :id LIMIT 1');
+    $lookup->execute([':id' => $id]);
+    $reportId = (int) $lookup->fetchColumn();
+    if ($reportId <= 0) respond(404, ['success' => false, 'message' => 'Claim not found.']);
 
     $comparison = $status === 'approved'
         ? assertReasonForLowerPick($pdo, 'claim', $id, clean($data['review_notes'] ?? ''))
         : null;
 
     $pdo->beginTransaction();
-    $stmt = $pdo->prepare('UPDATE lost_found_claims SET status = :status, reviewed_by_user_id = :user_id, reviewed_at = NOW(), review_notes = :notes WHERE id = :id');
-    $stmt->execute([
-        ':status' => $status,
-        ':user_id' => (int) ($data['reviewed_by_user_id'] ?? $data['vet_id'] ?? 0) ?: null,
-        ':notes' => clean($data['review_notes'] ?? ''),
-        ':id' => $id,
-    ]);
+    try {
+        $reportLock = $pdo->prepare('SELECT id, report_type, status FROM lost_found_reports WHERE id = :id FOR UPDATE');
+        $reportLock->execute([':id' => $reportId]);
+        $report = $reportLock->fetch();
+        if (!$report || $report['report_type'] !== 'found') {
+            respond(404, ['success' => false, 'message' => 'Found report not found.']);
+        }
 
-    if (in_array($status, ['approved', 'resolved'], true)) {
-        $claimStmt = $pdo->prepare('SELECT report_id, claimant_user_id FROM lost_found_claims WHERE id = :id LIMIT 1');
+        $claimStmt = $pdo->prepare("
+            SELECT c.*, r.case_number AS report_case, r.pet_name, r.status AS report_status, r.owner_id AS report_owner_id
+            FROM lost_found_claims c
+            INNER JOIN lost_found_reports r ON r.id = c.report_id
+            WHERE c.id = :id
+            FOR UPDATE
+        ");
         $claimStmt->execute([':id' => $id]);
-        $claim = $claimStmt->fetch();
-        if ($claim) {
-            $foundReportId = (int) $claim['report_id'];
-            $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id")
-                ->execute([':id' => $foundReportId]);
-
-            // Also resolve the claimant's own matching lost-pet report so both sides close together.
-            $claimantId = (int) ($claim['claimant_user_id'] ?? 0);
-            if ($claimantId > 0) {
-                $matchStmt = $pdo->prepare("
-                    SELECT m.id AS match_id, m.lost_report_id
-                    FROM lost_found_matches m
-                    INNER JOIN lost_found_reports lr ON lr.id = m.lost_report_id
-                    WHERE m.found_report_id = :found_id AND lr.owner_id = :claimant_id
-                    ORDER BY m.confidence DESC
-                    LIMIT 1
-                ");
-                $matchStmt->execute([
-                    ':found_id' => $foundReportId,
-                    ':claimant_id' => $claimantId,
-                ]);
-                $matchRow = $matchStmt->fetch();
-
-                if ($matchRow) {
-                    $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id")
-                        ->execute([':id' => (int) $matchRow['lost_report_id']]);
-                    $pdo->prepare("UPDATE lost_found_matches SET status = 'approved', reviewed_at = NOW() WHERE id = :id")
-                        ->execute([':id' => (int) $matchRow['match_id']]);
-                } else {
-                    $pdo->prepare("
-                        UPDATE lost_found_reports
-                        SET status = 'resolved', resolved_at = NOW()
-                        WHERE owner_id = :owner_id AND report_type = 'lost' AND status = 'active'
-                    ")->execute([':owner_id' => $claimantId]);
-                }
+        $claimInfo = $claimStmt->fetch();
+        if (!$claimInfo) respond(404, ['success' => false, 'message' => 'Claim not found.']);
+        if ($claimInfo['status'] !== 'pending') {
+            respond(409, ['success' => false, 'message' => 'This claim has already been reviewed.']);
+        }
+        if ($status === 'approved' && $report['status'] !== 'active') {
+            respond(409, ['success' => false, 'message' => 'This found report is no longer open for approval.']);
+        }
+        if ($status === 'approved') {
+            $reservedClaim = $pdo->prepare("SELECT id FROM lost_found_claims WHERE report_id = :report_id AND id <> :claim_id AND status IN ('awaiting_handoff', 'approved') LIMIT 1 FOR UPDATE");
+            $reservedClaim->execute([':report_id' => $reportId, ':claim_id' => $id]);
+            if ($reservedClaim->fetchColumn()) {
+                respond(409, ['success' => false, 'message' => 'Another approved claim is already awaiting handoff for this pet.']);
             }
         }
+
+        $storedStatus = $status === 'approved' ? 'awaiting_handoff' : 'rejected';
+        $update = $pdo->prepare("UPDATE lost_found_claims SET status = :status, reviewed_by_user_id = :user_id, reviewed_at = NOW(), review_notes = :notes WHERE id = :id AND status = 'pending'");
+        $update->execute([
+            ':status' => $storedStatus,
+            ':user_id' => (int) ($data['reviewed_by_user_id'] ?? $data['vet_id'] ?? 0) ?: null,
+            ':notes' => clean($data['review_notes'] ?? ''),
+            ':id' => $id,
+        ]);
+        if ($update->rowCount() !== 1) {
+            respond(409, ['success' => false, 'message' => 'This claim has already been reviewed.']);
+        }
+
+        $closedClaims = [];
+        if ($status === 'approved' && $comparison) {
+            $closedClaims = closeOtherCandidates(
+                $pdo,
+                $comparison['foundId'],
+                'claim',
+                $id,
+                (int) $comparison['subject']['ownerId'],
+                (int) ($claimInfo['match_id'] ?? 0)
+            );
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
     }
 
-    $closedClaims = [];
-    if ($status === 'approved' && $comparison) {
-        $closedClaims = closeOtherCandidates($pdo, $comparison['foundId'], 'claim', $id, (int) $comparison['subject']['ownerId']);
-    }
-
-    $pdo->commit();
     foreach ($closedClaims as $claimId) notifyClaimReturnedToOther($pdo, $claimId);
 
-    if ($claimInfo && in_array($status, ['approved', 'rejected'], true)) {
-        $claimantId = (int) ($claimInfo['claimant_user_id'] ?? 0);
-        $claimantEmail = nullableClean($claimInfo['claimant_email'] ?? '');
-
-        // In-app row is unconditional; only the email honours the preference.
-        // A claimant with no account (claimant_user_id 0) has nowhere to
-        // receive an in-app notification, so they still get email only.
-        if ($claimantId > 0) {
-            notifyUser(
-                $pdo,
-                $claimantId,
-                'lost_found_claim_status',
-                'Claim ' . ucfirst($status),
-                'Your claim' . ($claimInfo['pet_name'] ? " for {$claimInfo['pet_name']}" : '')
-                    . " (case #{$claimInfo['case_number']}) was {$status}.",
-                $id
-            );
-        }
-
-        if ($claimantEmail && userWantsNotification($pdo, $claimantId, 'lost_found_alerts')) {
-            $verb = $status === 'approved' ? 'approved' : 'rejected';
-            $subject = 'BVetter – Your claim has been ' . $verb;
-            $petLabel = $claimInfo['pet_name'] ? " for <strong>" . htmlspecialchars($claimInfo['pet_name']) . "</strong>" : '';
-            $body = notificationEmailWrapper(
-                'Claim Update',
-                "<p>Your claim{$petLabel} (case #{$claimInfo['case_number']}) has been <strong>{$verb}</strong>.</p>",
-                null,
-                ['label' => 'View', 'url' => APP_URL . '/public/pages/my-claims.html']
-            );
-            sendAppMail($claimantEmail, nullableClean($claimInfo['claimant_name'] ?? ''), $subject, $body);
-        }
+    $claimantId = (int) ($claimInfo['claimant_user_id'] ?? 0);
+    $claimantEmail = nullableClean($claimInfo['claimant_email'] ?? '');
+    $claimLabel = $status === 'approved' ? 'approved and is awaiting handoff' : 'rejected';
+    if ($claimantId > 0) {
+        notifyUser(
+            $pdo,
+            $claimantId,
+            'lost_found_claim_status',
+            $status === 'approved' ? 'Claim Approved - Awaiting Handoff' : 'Claim Rejected',
+            'Your claim' . ($claimInfo['pet_name'] ? " for {$claimInfo['pet_name']}" : '')
+                . " (case #{$claimInfo['case_number']}) was {$claimLabel}.",
+            $id
+        );
+    }
+    $reportOwnerId = (int) ($claimInfo['report_owner_id'] ?? 0);
+    if ($status === 'approved' && $reportOwnerId > 0 && $reportOwnerId !== $claimantId) {
+        notifyUser(
+            $pdo,
+            $reportOwnerId,
+            'lost_found_claim_status',
+            'Claim Verified - Handoff Pending',
+            'The clinic verified a claim for this report. The pet is reserved while the claimant coordinates handoff.',
+            $id
+        );
     }
 
-    respond(200, ['success' => true, 'message' => 'Claim updated.']);
+    if ($claimantEmail && userWantsNotification($pdo, $claimantId, 'lost_found_alerts')) {
+        $petLabel = $claimInfo['pet_name'] ? " for <strong>" . htmlspecialchars($claimInfo['pet_name']) . "</strong>" : '';
+        $bodyText = $status === 'approved'
+            ? 'The vet has verified your claim. Coordinate with the finder, then confirm receipt after the handoff.'
+            : 'The vet management team was unable to verify this claim.';
+        $body = notificationEmailWrapper(
+            'Claim Update',
+            "<p>Your claim{$petLabel} (case #{$claimInfo['case_number']}) was <strong>{$status}</strong>.</p><p>{$bodyText}</p>",
+            null,
+            ['label' => 'View', 'url' => APP_URL . '/public/pages/my-claims.html']
+        );
+        sendAppMail($claimantEmail, nullableClean($claimInfo['claimant_name'] ?? ''), 'BVetter - Your claim has been ' . $status, $body);
+    }
+
+    respond(200, [
+        'success' => true,
+        'status' => $status === 'approved' ? 'awaiting_handoff' : 'rejected',
+        'message' => $status === 'approved' ? 'Claim approved. Awaiting handoff confirmation from the claimant.' : 'Claim rejected.',
+    ]);
+}
+
+function confirmClaimHandoff($pdo, $data)
+{
+    $claimId = (int) ($data['claim_id'] ?? $data['id'] ?? 0);
+    $claimantId = (int) ($data['user_id'] ?? $data['owner_id'] ?? 0);
+    if ($claimId <= 0 || $claimantId <= 0) respond(422, ['success' => false, 'message' => 'Invalid handoff confirmation.']);
+
+    $lookup = $pdo->prepare('SELECT report_id FROM lost_found_claims WHERE id = :id LIMIT 1');
+    $lookup->execute([':id' => $claimId]);
+    $reportId = (int) $lookup->fetchColumn();
+    if ($reportId <= 0) respond(404, ['success' => false, 'message' => 'Claim not found.']);
+
+    $pdo->beginTransaction();
+    try {
+        $reportLock = $pdo->prepare('SELECT id, status, report_type, owner_id, case_number FROM lost_found_reports WHERE id = :id FOR UPDATE');
+        $reportLock->execute([':id' => $reportId]);
+        $report = $reportLock->fetch();
+        if (!$report || $report['report_type'] !== 'found') {
+            respond(404, ['success' => false, 'message' => 'Found report not found.']);
+        }
+
+        $claimStmt = $pdo->prepare('SELECT * FROM lost_found_claims WHERE id = :id FOR UPDATE');
+        $claimStmt->execute([':id' => $claimId]);
+        $claim = $claimStmt->fetch();
+        if (!$claim) respond(404, ['success' => false, 'message' => 'Claim not found.']);
+        if ((int) ($claim['claimant_user_id'] ?? 0) !== $claimantId) {
+            respond(403, ['success' => false, 'message' => 'You can only confirm your own claim.']);
+        }
+        if (!in_array($claim['status'], ['awaiting_handoff', 'approved'], true)) {
+            respond(409, ['success' => false, 'message' => 'This claim is not awaiting a handoff confirmation.']);
+        }
+        if (!in_array($report['status'], ['active', 'resolved'], true)) {
+            respond(409, ['success' => false, 'message' => 'This found report can no longer be resolved by this claim.']);
+        }
+
+        $pdo->prepare("UPDATE lost_found_claims SET status = 'resolved' WHERE id = :id AND status IN ('awaiting_handoff', 'approved')")
+            ->execute([':id' => $claimId]);
+        if ($report['status'] === 'active') {
+            $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id AND status = 'active'")
+                ->execute([':id' => $reportId]);
+        }
+
+        $matchId = (int) ($claim['match_id'] ?? 0);
+        if ($matchId > 0) {
+            $matchStmt = $pdo->prepare("\n                SELECT m.id, m.lost_report_id
+                FROM lost_found_matches m
+                INNER JOIN lost_found_reports lr ON lr.id = m.lost_report_id
+                WHERE m.id = :match_id AND m.found_report_id = :found_id AND lr.owner_id = :claimant_id
+                LIMIT 1
+            ");
+            $matchStmt->execute([':match_id' => $matchId, ':found_id' => $reportId, ':claimant_id' => $claimantId]);
+        } else {
+            $matchStmt = $pdo->prepare("\n                SELECT m.id, m.lost_report_id
+                FROM lost_found_matches m
+                INNER JOIN lost_found_reports lr ON lr.id = m.lost_report_id
+                WHERE m.found_report_id = :found_id AND lr.owner_id = :claimant_id AND lr.status = 'active'
+                  AND m.status = 'suggested'
+                ORDER BY m.confidence DESC, m.created_at DESC
+                LIMIT 1
+            ");
+            $matchStmt->execute([':found_id' => $reportId, ':claimant_id' => $claimantId]);
+        }
+        $match = $matchStmt->fetch();
+        if ($match) {
+            $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id AND status = 'active'")
+                ->execute([':id' => (int) $match['lost_report_id']]);
+            $pdo->prepare("UPDATE lost_found_matches SET status = 'approved', reviewed_at = NOW() WHERE id = :id AND status IN ('suggested', 'approved')")
+                ->execute([':id' => (int) $match['id']]);
+        }
+
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
+
+    notifyUser(
+        $pdo,
+        $claimantId,
+        'lost_found_claim_status',
+        'Handoff Confirmed',
+        'You confirmed that you received the pet for case #' . $claim['case_number'] . '. The case is now resolved.',
+        $claimId
+    );
+    $reportOwnerId = (int) ($report['owner_id'] ?? 0);
+    if ($reportOwnerId > 0 && $reportOwnerId !== $claimantId) {
+        notifyUser(
+            $pdo,
+            $reportOwnerId,
+            'lost_found_claim_status',
+            'Pet Handoff Confirmed',
+            'The claimant confirmed they received the pet for case #' . $report['case_number'] . '. The report is now resolved.',
+            $claimId
+        );
+    }
+    respond(200, ['success' => true, 'status' => 'resolved', 'message' => 'Handoff confirmed. The case is resolved.']);
 }
 
 function rebuildImageFeatures($pdo)
@@ -2150,10 +2369,10 @@ $action = clean($input['action'] ?? 'list');
 // review queue calls it. It used to answer anyone, logged in or not.
 $staffActions = [
     'management_list', 'management_claims', 'rebuild_image_features',
-    'approve', 'approve_report', 'reject', 'reject_report', 'resolve', 'resolve_report',
-    'approve_match', 'dismiss_match',
-    'list_sightings', 'approve_sighting', 'reject_sighting', 'resolve_sighting',
-    'approve_claim', 'reject_claim', 'resolve_claim',
+    'approve', 'approve_report', 'reject', 'reject_report',
+    'dismiss_match',
+    'list_sightings', 'approve_sighting', 'reject_sighting',
+    'approve_claim', 'reject_claim',
     'mark_reviewed', 'approval_check', 'resolution',
 ];
 $staffSession = null;
@@ -2201,7 +2420,7 @@ if ($action === 'list' || $action === 'get') {
 $ownerActions = [
     'my_reports',
     'create', 'create_report',
-    'create_claim', 'submit_claim', 'list_claims',
+    'create_claim', 'submit_claim', 'list_claims', 'confirm_claim_handoff',
     'create_sighting', 'submit_sighting',
     'resolve_own_report',
 ];
@@ -2209,6 +2428,11 @@ if (in_array($action, $ownerActions, true)) {
     require_once __DIR__ . '/../config/auth_guard.php';
     $ownerSession = requireRole($pdo, ['pet_owner', 'veterinarian', 'admin']);
     $authId = (int) $ownerSession['user_id'];
+
+    if (in_array($action, ['create_claim', 'submit_claim', 'confirm_claim_handoff'], true)
+        && $ownerSession['role_name'] !== 'pet_owner') {
+        respond(403, ['success' => false, 'message' => 'Only a pet owner can file or confirm an ownership claim.']);
+    }
 
     $input['user_id']  = $authId;
     $input['owner_id'] = $authId;
@@ -2232,6 +2456,7 @@ if (in_array($action, $ownerActions, true)) {
 
 try {
     ensureLostFoundSchema($pdo);
+    ensureClaimWorkflowSchema($pdo);
     ensureMatchReviewNotes($pdo);
     autoPublishDueReports($pdo);
     runTimedRules($pdo);
@@ -2248,22 +2473,19 @@ try {
     if ($action === 'create' || $action === 'create_report') createReport($pdo, $input);
     if ($action === 'approve' || $action === 'approve_report') updateReportStatus($pdo, $input, 'active');
     if ($action === 'reject' || $action === 'reject_report') updateReportStatus($pdo, $input, 'rejected');
-    if ($action === 'resolve' || $action === 'resolve_report') updateReportStatus($pdo, $input, 'resolved');
     if ($action === 'matches' || $action === 'list_matches') listMatches($pdo, $input, $viewer);
-    if ($action === 'approve_match') updateMatchStatus($pdo, $input, 'approved');
     if ($action === 'dismiss_match') updateMatchStatus($pdo, $input, 'dismissed');
     if ($action === 'resolve_own_report') resolveOwnReport($pdo, $input);
     if ($action === 'create_sighting' || $action === 'submit_sighting') createSighting($pdo, $input);
     if ($action === 'list_sightings') listSightings($pdo, $input);
     if ($action === 'approve_sighting') updateSightingStatus($pdo, $input, 'active');
     if ($action === 'reject_sighting') updateSightingStatus($pdo, $input, 'rejected');
-    if ($action === 'resolve_sighting') updateSightingStatus($pdo, $input, 'resolved');
     if ($action === 'create_claim' || $action === 'submit_claim') createClaim($pdo, $input);
     if ($action === 'list_claims') listClaims($pdo, $input, false);
     if ($action === 'management_claims') listClaims($pdo, $input, true);
     if ($action === 'approve_claim') updateClaimStatus($pdo, $input, 'approved');
     if ($action === 'reject_claim') updateClaimStatus($pdo, $input, 'rejected');
-    if ($action === 'resolve_claim') updateClaimStatus($pdo, $input, 'resolved');
+    if ($action === 'confirm_claim_handoff') confirmClaimHandoff($pdo, $input);
     if ($action === 'get_total_reports') {    echo json_encode([
         'success' => true,
         'count' => getTotalReportCount($pdo)

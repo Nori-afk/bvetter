@@ -15,7 +15,8 @@ const lfData = {
 		{ id: 'active', label: 'Active Reports' },
 		{ id: 'potential', label: 'Potential Matches', badge: 'NEW' },
 		{ id: 'resolved', label: 'Resolved Cases' },
-		{ id: 'claims', label: 'Claims' },
+		{ id: 'claims', label: 'Pending Claims' },
+		{ id: 'handoff', label: 'Awaiting Handoff' },
 		{ id: 'sighting', label: 'Sighting' }
 	],
 	pendingReports: [],
@@ -23,6 +24,7 @@ const lfData = {
 	potentialMatches: [],
 	resolvedCases: [],
 	claims: [],
+	handoffClaims: [],
 	sightings: [],
 	// Every report regardless of status (pending/active/resolved/rejected) — separate
 	// from the status-scoped lists above, used only to look up the specific lost report
@@ -257,7 +259,8 @@ function normalizeClaim(claim) {
 		markings: claim.report_markings || '',
 		proofFile: claim.proof_file_path || null,
 		proofType: claim.proof_type || 'Evidence',
-		proofNotes: claim.proof_notes || ''
+		proofNotes: claim.proof_notes || '',
+		status: claim.status || 'pending'
 	};
 }
 
@@ -296,13 +299,14 @@ async function loadAllData() {
 	if (content) content.innerHTML = '<div class="list-note">Loading lost and found records...</div>';
 
 	try {
-		const [pending, active, resolved, all, matches, claims, sightings, barangays] = await Promise.all([
+		const [pending, active, resolved, all, matches, claims, handoffClaims, sightings, barangays] = await Promise.all([
 			lfRequest('management_list', { status: 'pending' }),
 			lfRequest('management_list', { status: 'active' }),
 			lfRequest('management_list', { status: 'resolved' }),
 			lfRequest('management_list', { status: 'all' }),
 			lfRequest('matches'),
 			lfRequest('management_claims', { status: 'pending' }),
+			lfRequest('management_claims', { status: 'awaiting_handoff' }),
 			lfRequest('list_sightings', { status: 'pending' }),
 			fetch('/api/barangays/list.php').then((r) => r.json()).catch(() => null)
 		]);
@@ -313,6 +317,7 @@ async function loadAllData() {
 		lfData.allReports = (all.data || []).map(normalizeReport);
 		lfData.potentialMatches = matches.data || [];
 		lfData.claims = (claims.data || []).map(normalizeClaim);
+		lfData.handoffClaims = (handoffClaims.data || []).map(normalizeClaim);
 		lfData.sightings = (sightings.data || []).map(normalizeSighting);
 		if (barangays?.success) {
 			lfData.filters.barangays = ['Select Barangay', ...barangays.data.map((item) => item.name)];
@@ -419,7 +424,7 @@ function renderContent() {
 	if (lfState.activeTab === 'active') return renderActive(root);
 	if (lfState.activeTab === 'potential') return renderPotential(root);
 	if (lfState.activeTab === 'resolved') return renderResolved(root);
-	if (lfState.activeTab === 'claims') return renderClaims(root);
+	if (lfState.activeTab === 'claims' || lfState.activeTab === 'handoff') return renderClaims(root);
 	return renderSightings(root);
 }
 
@@ -452,9 +457,6 @@ function reportCard(report, mode) {
 					${mode === 'pending' ? `
 						<button type="button" class="btn btn-success" data-action="approve-pending" data-id="${report.id}">Approve</button>
 						<button type="button" class="btn btn-danger" data-action="reject-pending" data-id="${report.id}">Reject</button>
-					` : ''}
-					${mode === 'active' ? `
-						<button type="button" class="btn btn-success" data-action="resolve-active" data-id="${report.id}">Resolve</button>
 					` : ''}
 					<button type="button" class="btn btn-secondary" data-action="view-${mode}" data-id="${report.id}">View</button>
 				</div>
@@ -501,10 +503,10 @@ function renderActive(root) {
 					<span class="mini-chip">${escapeHtml(item.breed || '')}</span>
 					${item.sex ? `<span class="mini-chip">${escapeHtml(item.sex)}</span>` : ''}
 					<span class="mini-chip">${escapeHtml(item.size || '')}</span>
+					${item.claimReserved ? '<span class="lf-status-pill lf-pill-pending">Awaiting Handoff</span>' : ''}
 				</div>
 				<div class="foot">
 					<div class="uploader-info"><span class="uploader-label">Uploaded by</span><strong>${escapeHtml(item.source)}</strong></div>
-					<button type="button" class="btn btn-success resolve-btn" data-action="resolve-active" data-id="${item.id}">Resolve</button>
 				</div>
 			</div>
 		</article>
@@ -546,8 +548,8 @@ function renderPotential(root) {
 				<div class="suggested-banner">
 					<span class="suggested-banner-icon">&#9432;</span>
 					${showingSightings
-						? 'Community-submitted sightings matched to lost reports. Approving marks the sighting as resolved.'
-						: 'Suggested matches are generated from pet details, image metadata, and location similarity.'}
+						? 'Community-submitted sightings matched to lost reports. Review sightings in the Sighting tab.'
+						: 'Suggested matches are generated from pet details, image metadata, and location similarity. Owners start claims; vets verify ownership in the Claims tab.'}
 				</div>
 				${toggleBtn ? `<div class="matches-toggle-row">${toggleBtn}</div>` : ''}
 				${list.length ? list.map((match) => `
@@ -560,21 +562,19 @@ function renderPotential(root) {
 						<div class="reason-row">${(match.reasons || []).map((reason) => `<span class="reason-chip">${escapeHtml(reason)}</span>`).join('')}</div>
 						<div class="match-actions">
 							<button type="button" class="btn btn-danger" data-action="dismiss-match" data-id="${match.id}">Dismiss</button>
-							<button type="button" class="btn btn-success" data-action="approve-match" data-id="${match.id}">Approve Match</button>
 						</div>
 					</article>
 				`).join('') : empty(showingSightings ? 'No sighting matches yet.' : 'No potential matches yet.')}
 			</div>
 			<aside class="approval-card">
-				<h3>Approve The Match</h3>
+				<h3>Suggested Match</h3>
 				${selectedMatch ? `
-					<p>Approving marks the matching case as resolved and notifies both submitters.</p>
+					<p>A suggested match does not confirm ownership. The pet owner must submit a claim before the clinic can verify it.</p>
 					<div class="summary-box">
 						<div class="summary-row"><span class="summary-label">Lost</span><span class="summary-value">${escapeHtml(selectedMatch.lost.name)}</span></div>
 						<div class="summary-row"><span class="summary-label">${showingSightings ? 'Sighting' : 'Found'}</span><span class="summary-value">${escapeHtml(showingSightings ? 'Community Sighting' : selectedMatch.found.name)}</span></div>
 						<div class="summary-row"><span class="summary-label">Confidence</span><span class="summary-value">${escapeHtml(String(selectedMatch.confidence))}%</span></div>
 					</div>
-					<button type="button" class="btn btn-primary approval-card-btn" data-action="approve-match" data-id="${selectedMatch.id}">Approve Match</button>
 				` : '<p>No suggested match selected.</p>'}
 			</aside>
 		</div>
@@ -663,22 +663,24 @@ function renderTablePagination(shown, total, page, totalPages) {
 }
 
 function renderClaims(root) {
-	root.innerHTML = lfData.claims.length ? lfData.claims.map((claim) => `
+	const isHandoff = lfState.activeTab === 'handoff';
+	const rows = isHandoff ? lfData.handoffClaims : lfData.claims;
+	root.innerHTML = rows.length ? rows.map((claim) => `
 		<article class="report-card pending-found">
 			<div class="report-image"><img src="${escapeHtml(claim.image)}" alt="${escapeHtml(claim.petName)}" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"><span class="tag-chip found">CLAIM</span></div>
 			<div class="report-body">
 				<h3>Claimant: ${escapeHtml(claim.title)}</h3>
-				<p class="meta-line">Uploaded: ${escapeHtml(claim.uploadedAt)}</p>
+				<p class="meta-line">${escapeHtml(claim.petName)} &middot; Submitted ${escapeHtml(claim.uploadedAt)}</p>
 				<p class="desc-line">Contact Number: ${escapeHtml(claim.contact)}</p>
 				<div class="card-actions">
-					<button type="button" class="btn btn-success" data-action="approve-claim" data-id="${claim.id}">Approve</button>
-					<button type="button" class="btn btn-danger" data-action="reject-claim" data-id="${claim.id}">Reject</button>
+					${!isHandoff ? `<button type="button" class="btn btn-success" data-action="approve-claim" data-id="${claim.id}">Approve Claim</button>
+					<button type="button" class="btn btn-danger" data-action="reject-claim" data-id="${claim.id}">Reject</button>` : '<span class="lf-status-pill lf-pill-pending">Awaiting Handoff</span>'}
 					<button type="button" class="btn btn-secondary" data-action="view-claim" data-id="${claim.id}">View</button>
 				</div>
 			</div>
 			<div class="report-side"><span class="pill">${escapeHtml(claim.barangay)}</span></div>
 		</article>
-	`).join('') : empty('No claims pending.');
+	`).join('') : empty(isHandoff ? 'No claims are awaiting handoff.' : 'No claims pending review.');
 	bindRootActions(root);
 }
 
@@ -711,10 +713,8 @@ const CONFIRM_ACTIONS = {
 	'approve-pending': { tone: 'success', title: 'Approve this report?', message: 'The report will go public and become visible to pet owners.', request: 'approve_report', idKey: 'report_id' },
 	'reject-pending': { tone: 'danger', title: 'Reject this report?', message: 'The submitter will be notified that their report was not approved.', request: 'reject_report', idKey: 'report_id' },
 	'mark-reviewed': { tone: 'success', title: 'Mark this report as reviewed?', message: 'It was published without review.', request: 'mark_reviewed', idKey: 'report_id' },
-	'resolve-active': { tone: 'success', title: 'Mark this case as resolved?', message: 'The report will be moved to Resolved Cases.', request: 'resolve_report', idKey: 'report_id' },
-	'approve-match': { tone: 'success', title: 'Approve this match?', message: 'This will mark both the lost and found reports as resolved and notify the submitters.', request: 'approve_match', idKey: 'match_id' },
 	'dismiss-match': { tone: 'danger', title: 'Dismiss this match?', message: 'This suggested match will be removed. This cannot be undone.', confirmLabel: 'Yes, dismiss', request: 'dismiss_match', idKey: 'match_id' },
-	'approve-claim': { tone: 'success', title: 'Approve this claim?', message: 'The claimant will be notified that their claim was approved.', request: 'approve_claim', idKey: 'claim_id' },
+	'approve-claim': { tone: 'success', title: 'Verify this claim and reserve the pet?', message: 'The claimant can coordinate handoff. The report stays open until they confirm receiving the pet.', request: 'approve_claim', idKey: 'claim_id' },
 	'reject-claim': { tone: 'danger', title: 'Reject this claim?', message: 'The claimant will be notified that their claim was not approved.', request: 'reject_claim', idKey: 'claim_id' },
 	'approve-sighting': { tone: 'success', title: 'Approve this sighting?', message: 'The sighting will be published and made visible to pet owners.', request: 'approve_sighting', idKey: 'sighting_id' },
 	'reject-sighting': { tone: 'danger', title: 'Reject this sighting?', message: 'The sighting will be rejected and removed from the queue.', request: 'reject_sighting', idKey: 'sighting_id' }
@@ -724,8 +724,8 @@ function runConfirmableAction(action, id) {
 	const config = CONFIRM_ACTIONS[action];
 	if (!config) return false;
 	const send = (extra = {}) => lfRequest(config.request, { [config.idKey]: id, ...extra });
-	if (action === 'approve-claim' || action === 'approve-match') {
-		confirmApproval(config, action === 'approve-claim' ? 'claim' : 'match', id, send);
+	if (action === 'approve-claim') {
+		confirmApproval(config, 'claim', id, send);
 		return true;
 	}
 	openConfirmDialog({
@@ -738,7 +738,7 @@ function runConfirmableAction(action, id) {
 	return true;
 }
 
-// Approving a claim or match for a found pet: if another claimant scores
+// Approving a claim for a found pet: if another claimant scores
 // higher, say so and ask why this one. The score is how alike the reports
 // look, not proof of ownership, so a lower pick is allowed with a reason
 // (saved with the decision). Other claims on the pet close on approval.
@@ -827,8 +827,8 @@ function findRecord(action, id) {
 // 'resolved'): how it was closed, who got the pet, on what evidence, who
 // approved it, and any "This is My Pet" disputes filed since.
 const RESOLVED_HOW = {
-	claim: 'Claim approved',
-	match: 'Match approved',
+	claim: 'Claim verified and handoff completed',
+	match: 'Match resolved after handoff',
 	sighting: 'Sighting approved',
 	staff: 'Resolved by staff',
 	owner: 'Marked resolved by owner'
@@ -992,7 +992,7 @@ function buildDetailModal(report, mode = 'view') {
 		? `
 			<div class="details-section">
 				<h4 class="details-section-title green">Potential Matches</h4>
-				<p class="lf-matches-hint">Suggested from pet details, photo, and location similarity. Click a match for full details and to Approve or Dismiss it.</p>
+				<p class="lf-matches-hint">Suggested from pet details, photo, and location similarity. The owner must file a claim before the clinic can verify ownership.</p>
 				<div class="potential-main" data-report-id="${escapeHtml(report.id)}">
 					${matches.map((m) => `
 						<article class="match-card" data-match-id="${escapeHtml(String(m.id))}">
@@ -1032,7 +1032,6 @@ function buildDetailModal(report, mode = 'view') {
 		// A report that went live without review is marked reviewed here.
 		footerButtons += `
 			${report.autoPublished ? `<button type="button" class="btn-details-close" data-action="mark-reviewed" data-id="${report.id}" style="white-space:nowrap;">Mark Reviewed</button>` : ''}
-			<button type="button" class="btn-details-success" data-action="resolve-active" data-id="${report.id}">Resolve</button>
 		`;
 	}
 
@@ -1141,7 +1140,6 @@ function buildMatchDetailModal(match, report) {
 		<button type="button" class="btn-details-close" data-modal-action="back-to-report" data-report-id="${escapeHtml(String(report.id))}">&larr; Back to Report</button>
 		${isResolved ? '' : `
 			<button type="button" class="btn-details-danger" data-action="dismiss-match" data-id="${escapeHtml(String(match.id))}">Dismiss</button>
-			<button type="button" class="btn-details-success" data-action="approve-match" data-id="${escapeHtml(String(match.id))}">Approve Match</button>
 		`}
 	`;
 
@@ -1227,6 +1225,7 @@ function claimComparisonSection(claim) {
 // image-similarity scoring, staff compare claimComparisonSection's fields directly.
 function buildClaimModal(claim) {
 	if (!claim) return '<div class="upload-success"><h2 id="lfModalTitle">Record not found</h2></div>';
+	const statusLabel = claim.status === 'awaiting_handoff' ? 'Awaiting Handoff' : claim.status === 'resolved' ? 'Handoff Confirmed' : claim.status;
 	return `
 		<div class="details-modal-box">
 			<div class="details-img-side">
@@ -1245,6 +1244,7 @@ function buildClaimModal(claim) {
 					<div class="details-tag"><span class="tag-label">Pet Name</span><span class="tag-value">${escapeHtml(claim.petName || 'Found Pet Report')}</span></div>
 					<div class="details-tag"><span class="tag-label">Barangay</span><span class="tag-value">${escapeHtml(claim.barangay || '')}</span></div>
 					<div class="details-tag"><span class="tag-label">Submitted</span><span class="tag-value">${escapeHtml(claim.uploadedAt || '')}</span></div>
+					<div class="details-tag"><span class="tag-label">Status</span><span class="tag-value">${escapeHtml(statusLabel || 'Pending')}</span></div>
 				</div>
 
 				<div class="details-section">
@@ -1276,8 +1276,8 @@ function buildClaimModal(claim) {
 
 				<div class="details-footer">
 					<button type="button" class="btn-details-close" data-modal-action="close">Close</button>
-					<button type="button" class="btn-details-danger" data-action="reject-claim" data-id="${claim.id}">Reject</button>
-					<button type="button" class="btn-details-success" data-action="approve-claim" data-id="${claim.id}">Approve</button>
+					${claim.status === 'pending' ? `<button type="button" class="btn-details-danger" data-action="reject-claim" data-id="${claim.id}">Reject</button>
+					<button type="button" class="btn-details-success" data-action="approve-claim" data-id="${claim.id}">Approve Claim</button>` : '<span class="lf-status-pill lf-pill-pending">Awaiting Handoff</span>'}
 				</div>
 			</div>
 		</div>

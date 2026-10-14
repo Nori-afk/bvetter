@@ -40,14 +40,18 @@ document.addEventListener('DOMContentLoaded', async function () {
         vaccinationEventsResponse,
         chatbotStatsResponse,
         announcementsResponse,
-        staffNotificationsResponse
+        staffNotificationsResponse,
+        pendingLostReportsResponse,
+        activeLostReportsResponse
     ] = await Promise.all([
         window.VetAPI?.getDashboardSummary ? window.VetAPI.getDashboardSummary({ patient_range: 'weekly' }) : { ok: false, data: null },
         window.VetAPI?.getAppointments ? window.VetAPI.getAppointments({}) : { ok: false, data: [] },
         window.VetAPI?.getVaccinationEvents ? window.VetAPI.getVaccinationEvents() : { ok: false, data: [] },
         window.VetAPI?.getChatbotDashboardStats ? window.VetAPI.getChatbotDashboardStats() : { ok: false, data: {} },
         window.VetAPI?.getAnnouncements ? window.VetAPI.getAnnouncements({ status: 'all' }) : { ok: false, data: [] },
-        window.VetAPI?.getStaffNotifications ? window.VetAPI.getStaffNotifications() : { ok: false, data: [] }
+        window.VetAPI?.getStaffNotifications ? window.VetAPI.getStaffNotifications() : { ok: false, data: [] },
+        window.VetAPI?.getLostAndFound ? window.VetAPI.getLostAndFound('pending', { limit: 4 }) : { ok: false, data: [] },
+        window.VetAPI?.getLostAndFound ? window.VetAPI.getLostAndFound('active', { limit: 4 }) : { ok: false, data: [] }
     ]);
     let dashboardData = dashboardResponse.ok ? dashboardResponse.data : null;
     // Carried to the charts so a failed load can say what went wrong instead of
@@ -61,6 +65,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     const staffNotifications = staffNotificationsResponse.ok && Array.isArray(staffNotificationsResponse.data) ? staffNotificationsResponse.data : [];
     applyDashboardKpis(dashboardData);
     renderTodayTimeline(appointments);
+    renderRecentLostFoundReports(pendingLostReportsResponse, activeLostReportsResponse);
     renderRecentPatientAppointment(appointments);
     renderNextMajorEvent(vaccinationEvents);
     renderChatbotInsights(chatbotStats);
@@ -1593,6 +1598,47 @@ function renderRecentPatientAppointment(appointments) {
             <p class="patient-date">Adm: ${safeHtml(formatDateLabel(latest.preferred_date || latest.datetime, { month: 'short', day: 'numeric', year: 'numeric' }))}</p>
         </div>
     `;
+}
+
+function renderRecentLostFoundReports(pendingResponse, activeResponse) {
+    const list = document.getElementById('dashboardLostFoundReports');
+    if (!list) return;
+
+    const reports = [
+        ...(pendingResponse?.ok && Array.isArray(pendingResponse.data) ? pendingResponse.data : []),
+        ...(activeResponse?.ok && Array.isArray(activeResponse.data) ? activeResponse.data : [])
+    ];
+    const uniqueReports = Array.from(new Map(reports.map((report) => [String(report.id), report])).values());
+    const recentReports = uniqueReports
+        .filter((report) => ['pending', 'active'].includes(String(report.status || '').toLowerCase()))
+        .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+        .slice(0, 4);
+
+    if (!recentReports.length) {
+        const loadFailed = !pendingResponse?.ok && !activeResponse?.ok;
+        list.innerHTML = `<p class="dashboard-lostfound-empty">${loadFailed ? 'Could not load reports right now.' : 'No open Lost & Found reports right now.'} <a href="../../vet/html/lost-and-found.html">Open Lost &amp; Found</a></p>`;
+        return;
+    }
+
+    list.innerHTML = recentReports.map((report) => {
+        const name = report.pet_name || `${report.report_type || 'Pet'} report`;
+        const type = String(report.report_type || 'report').toLowerCase() === 'found' ? 'Found' : 'Lost';
+        const location = report.barangay_name || 'Location not provided';
+        const status = String(report.status || 'active').toLowerCase();
+        const date = formatDateLabel(report.created_at || report.updated_at, { month: 'short', day: 'numeric' });
+        return `
+            <div class="dashboard-lostfound-row">
+                <div class="dashboard-lostfound-copy">
+                    <span class="dashboard-lostfound-name">${safeHtml(name)}</span>
+                    <span class="dashboard-lostfound-detail">${safeHtml(type)} pet &middot; ${safeHtml(location)}</span>
+                </div>
+                <div class="dashboard-lostfound-meta">
+                    <span class="dashboard-lostfound-status ${status === 'pending' ? 'is-pending' : ''}">${safeHtml(status)}</span>
+                    <span class="dashboard-lostfound-date">${safeHtml(date)}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function findNextVaccinationEvent(events) {

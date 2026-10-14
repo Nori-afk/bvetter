@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260928-mobile">
-    <link rel="stylesheet" href="../css/index.css?v=20260928-mobile">
+    <link rel="stylesheet" href="../css/index.css?v=20261014-admin-panels">
     <link rel="stylesheet" href="../../shared/css/table-cards.css?v=20260928-mobile">
 </head>
 <body>
@@ -136,26 +136,26 @@
                 </div>
 
                 <div class="KPI">
-                    <div class="kpi-card">
+                    <a class="kpi-card" href="account-management.html" aria-label="View all accounts in Account Management">
                         <p class="kpi-label">Total Accounts</p>
                         <h2 class="kpi-value" id="kpi-total-accounts">--</h2>
                         <div class="kpi-trend">
                             <span class="trend-text">Across all roles</span>
                         </div>
-                    </div>
-                    <div class="kpi-card">
+                    </a>
+                    <a class="kpi-card" href="account-management.html" aria-label="Review pending account approvals">
                         <p class="kpi-label">Pending Approvals</p>
                         <h2 class="kpi-value" id="kpi-pending-approvals">--</h2>
                         <div class="urgent-badge" id="kpi-pending-badge" hidden>Needs Action</div>
-                    </div>
-                    <div class="kpi-card">
+                    </a>
+                    <a class="kpi-card" href="../../vet/html/lost-and-found.html" aria-label="Review lost and found alerts">
                         <p class="kpi-label">System Alerts</p>
                         <h2 class="kpi-value" id="kpi-system-alerts">--</h2>
                         <div class="kpi-trend">
                             <span class="trend-text">Lost &amp; found reports awaiting review</span>
                         </div>
-                    </div>
-                    <div class="kpi-card">
+                    </a>
+                    <a class="kpi-card" href="../../vet/html/mass-vaccination.html" aria-label="View clinic vaccination activity">
                         <p class="kpi-label success">Clinic Vaccination Rate</p>
                         <div class="vaccination-progress">
                             <div class="progress-bar">
@@ -163,7 +163,7 @@
                             </div>
                             <h2 class="kpi-value" id="kpi-vacc-rate">--</h2>
                         </div>
-                    </div>
+                    </a>
                 </div>
 
                 <div class="content-grid">
@@ -245,38 +245,27 @@
                             <h3 class="card-title" style="margin-bottom:4px;">Clinic Snapshot</h3>
                             <p class="card-subtitle" style="margin-bottom:16px;">Key operational numbers</p>
                             <div class="snapshot-grid">
-                                <div class="snapshot-item">
+                                <a class="snapshot-item" href="../../vet/html/appointment.html" aria-label="View appointments scheduled for today">
                                     <p class="snapshot-label">Appointments Today</p>
                                     <h4 class="snapshot-val" id="snap-appointments-today">--</h4>
                                     <p class="snapshot-trend neutral">Scheduled for today</p>
-                                </div>
-                                <div class="snapshot-item">
+                                </a>
+                                <a class="snapshot-item" href="../../vet/html/lost-and-found.html" aria-label="View active lost and found reports">
                                     <p class="snapshot-label">Active Lost Reports</p>
                                     <h4 class="snapshot-val" id="snap-lost-reports">--</h4>
                                     <p class="snapshot-trend neutral">Awaiting resolution</p>
-                                </div>
-                                <div class="snapshot-item">
+                                </a>
+                                <a class="snapshot-item" href="../../vet/html/chatbot-management.html" aria-label="View chatbot queries">
                                     <p class="snapshot-label">Chatbot Queries</p>
                                     <h4 class="snapshot-val" id="snap-chatbot-queries">--</h4>
                                     <p class="snapshot-trend neutral">Total logged queries</p>
-                                </div>
-                                <div class="snapshot-item">
+                                </a>
+                                <a class="snapshot-item" href="../../vet/html/appointment.html" aria-label="Review pending appointment actions">
                                     <p class="snapshot-label">Pending Actions</p>
                                     <h4 class="snapshot-val" id="snap-pending-actions">--</h4>
                                     <p class="snapshot-trend neutral">Appointments needing action</p>
-                                </div>
+                                </a>
                             </div>
-                        </div>
-
-                        <div class="card coverage-card">
-                            <h3 class="card-title" style="margin-bottom:4px;">Disease Data Coverage</h3>
-                            <p class="card-subtitle" style="margin-bottom:16px;">Month visit records are declared complete through</p>
-                            <p class="coverage-state" id="coverage-state">Loading…</p>
-                            <div class="coverage-row">
-                                <select id="coverage-month" aria-label="Month records are complete through"></select>
-                                <button class="btn-coverage-save" type="button" id="coverage-save">Update</button>
-                            </div>
-                            <p class="coverage-hint">Affects which months can train the risk model.</p>
                         </div>
 
                         <div class="card activity-card">

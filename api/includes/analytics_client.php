@@ -4,7 +4,7 @@
  *
  * Used by write endpoints that need to tell the forecast its inputs changed.
  * The analytics service caches aggressively on purpose (CACHE_TTL is 6 hours,
- * and _barangay_vacc_cache has no expiry at all), which is right for the
+ * and barangay allocations share those inputs), which is right for the
  * expensive disease SARIMA searches but means a newly completed vaccination
  * event would otherwise sit invisible for hours.
  *
@@ -43,8 +43,8 @@ if (!function_exists('bv_analytics_invalidate_vaccination')) {
      *
      * Idempotent per request via a static flag, so a handler that touches two
      * rows still issues one call. Never throws and never blocks the write: if
-     * the service is unreachable the change is simply picked up when the
-     * existing TTL expires.
+     * the service is unreachable, its next request detects the changed live
+     * input signature and recalculates without waiting for the cache TTL.
      *
      * @return bool true if a service acknowledged the invalidation
      */
@@ -55,6 +55,10 @@ if (!function_exists('bv_analytics_invalidate_vaccination')) {
             return true;
         }
         $alreadyInvalidated = true;
+        if (!function_exists('curl_init')) {
+            error_log('[BVetter] vaccination cache notification skipped: PHP cURL is unavailable.');
+            return false;
+        }
 
         foreach (bv_analytics_urls() as $baseUrl) {
             $ch = curl_init($baseUrl . '/invalidate-vaccination-cache');
@@ -82,7 +86,7 @@ if (!function_exists('bv_analytics_invalidate_vaccination')) {
         }
 
         error_log('[BVetter] vaccination forecast cache not invalidated: analytics service '
-                . 'unreachable. The change will be picked up when the cache expires.');
+                . 'unreachable. Its next request will check the live input revision.');
         return false;
     }
 }

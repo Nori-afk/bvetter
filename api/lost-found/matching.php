@@ -72,6 +72,27 @@ function isUnknownValue($value)
     return !array_diff(tokenSet($value), UNKNOWN_WORDS);
 }
 
+function isGenericBreed($value)
+{
+    $tokens = tokenSet($value);
+    if (!$tokens || isUnknownValue($value)) return true;
+
+    $normalized = implode(' ', $tokens);
+    $genericPhrases = [
+        'aspin', 'askal', 'asong pinoy', 'mixed', 'mixed breed', 'mix',
+        'mongrel', 'crossbreed', 'cross breed', 'unknown breed',
+    ];
+    if (in_array($normalized, $genericPhrases, true)) return true;
+
+    return (bool) array_intersect($tokens, ['aspin', 'askal', 'mixed', 'mongrel', 'crossbreed']);
+}
+
+function clearlyDifferentBreeds($first, $second)
+{
+    if (isGenericBreed($first) || isGenericBreed($second)) return false;
+    return jaccard($first, $second) === 0.0;
+}
+
 function hammingSimilarity($a, $b)
 {
     if (!$a || !$b || strlen($a) !== strlen($b)) return null;
@@ -116,9 +137,13 @@ function scoreMatch($lost, $candidate)
         $reasons[] = 'Same species';
     }
 
-    // An unknown breed or sex gets half the points: no evidence either way.
-    // Scoring it as a mismatch dropped most finder reports below the cutoff.
-    if (isUnknownValue($lost['breed']) || isUnknownValue($candidate['breed'])) {
+    if (clearlyDifferentBreeds($lost['breed'] ?? '', $candidate['breed'] ?? '')) {
+        return [0, ['Different breed']];
+    }
+
+    // Generic/unknown breeds are neutral evidence: they neither create a breed
+    // match nor hide a real match as a mismatch.
+    if (isGenericBreed($lost['breed'] ?? '') || isGenericBreed($candidate['breed'] ?? '')) {
         $score += 7;
     } else {
         $breed = jaccard($lost['breed'], $candidate['breed']);

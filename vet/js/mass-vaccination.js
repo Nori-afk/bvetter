@@ -59,15 +59,13 @@
         eventTableSortKey:  'date',
         eventTableSortDirection: 'desc',
         pendingOnly:        false,
-        // 'historical' = frozen pre-2025 baseline (Excel + the 2023-2024 rows
-        // already sitting in mass_vaccination_events -- training data either
-        // way). 'current' = live mass_vaccination_events rows dated 2025+.
-        // See MASS_VACC_CURRENT_CUTOFF in dashboard.php for the exact split.
+        // Historical shows workbook months, including newly appended years.
+        // Current shows live event records.
         dataView:           'historical',
         // Which workbook year the Historical monthly chart shows. Default to
         // the most recent workbook year so the first view matches the latest
         // figures the manuscript discusses.
-        historicalYear:     '2025',
+        historicalYear:     null,
     };
     const MASS_VACC_CUTOFF = new Date('2025-01-01T00:00:00');
 
@@ -278,6 +276,7 @@
     const ARIMA_PROXY_API = `${appBasePath()}/api/dashboard/dashboard.php?scope=vaccination_forecast`;
 
     const loadArimaForecast = async () => {
+        state.arimaData = null;
         // Attempt 1: VetAPI wrapper (if the shared JS file loaded it)
         try {
             if (window.VetAPI?.getVaccinationForecast) {
@@ -302,7 +301,7 @@
             }
             console.warn('PHP ARIMA proxy returned no data:', result);
         } catch (err) {
-            console.warn('ARIMA PHP proxy unavailable — charts will use Excel fallback:', err);
+            console.warn('ARIMA PHP proxy unavailable:', err);
         }
         // state.arimaData stays null; no other algorithm is presented as ARIMA.
     };
@@ -618,7 +617,7 @@
                     <div class="mv-arima-header">
                         <div>
                             <span class="mv-arima-badge" style="background:#F1F5F9;color:#64748B;">Forecast Unavailable</span>
-                            <h3 class="mv-arima-title">Vaccine Demand Forecast</h3>
+                            <h3 class="mv-arima-title">Anti-rabies vaccine demand</h3>
                             <p class="mv-arima-desc">${sanitize(staleNote)}</p>
                         </div>
                     </div>
@@ -645,7 +644,7 @@
             <div class="mv-arima-header">
                 <div>
                     <span class="mv-arima-badge">${sanitize(modelLabel)} · Combined Doses</span>
-                    <h3 class="mv-arima-title">Vaccine Demand Forecast</h3>
+                    <h3 class="mv-arima-title">Anti-rabies vaccine demand</h3>
                     <p class="mv-arima-desc">${sanitize(tv.action || 'Demand forecast based on historical vaccination data.')}</p>
 
                 </div>
@@ -821,7 +820,9 @@
         const totals = {};
         const labels = {};
         (state.events || []).forEach((event) => {
-            if (event.status !== 'Completed' || !String(event.date || '').startsWith(prefix) || !event.barangay) return;
+            const vaccineKey = String(event.vaccine || '').toLowerCase().replace(/[\s-]+/g, '');
+            if (!['antirabies', 'rabies'].includes(vaccineKey) || event.status !== 'Completed'
+                || !String(event.date || '').startsWith(prefix) || !event.barangay) return;
             let count = Number(event.totalVaccinated) || 0;
             if (count === 0 && event.breakdown) {
                 count = (Number(event.breakdown.dogs) || 0)
@@ -835,7 +836,7 @@
         return { available: true, label, shortLabel, totals, names: labels };
     };
 
-    // Draws a dashed "Now" divider where history ends and the forecast begins,
+    // Draws a dashed divider where history ends and the estimates begin,
     // so the trend line's two halves read as distinct at a glance instead of
     // relying on solid-vs-dashed alone.
     const nowDividerPlugin = {
@@ -859,7 +860,10 @@
             ctx.fillStyle = '#94A3B8';
             ctx.font = '10px Inter, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('Now', x, area.top - 4);
+            var labelHalfWidth = ctx.measureText('Estimates').width / 2;
+            var labelX = Math.max(area.left + labelHalfWidth,
+                Math.min(chart.width - labelHalfWidth - 4, x));
+            ctx.fillText('Estimates', labelX, area.top - 4);
             ctx.restore();
         }
     };
@@ -875,7 +879,7 @@
         // isHistoricalView guards below) -- in Historical mode it's purely a
         // display label, so it's overridden here rather than left showing
         // whatever the (now hidden) range-filter select last had selected.
-        if (isHistoricalView) range = 'Historical Baseline (2023–2024)';
+        if (isHistoricalView) range = 'Workbook vaccination records';
 
         document.querySelectorAll('.chart-skeleton').forEach((el) => el.remove());
         ['vaccinatedPerBarangayChart', 'predictedAnimalsChart', 'vaccinesNeededList'].forEach((id) => {
@@ -902,7 +906,7 @@
         // that says why is the correct output when there is nothing to plot.
         destroyChart('vaccinatedPerBarangay');
         {
-            var labels = [], dogsD = [], catsD = [], otherD = [];
+            var labels = [], dogsD = [], catsD = [], otherD = [], workbookTotals = [];
 
             // Historical Baseline plots the workbook's own MONTHLY series, not
             // barangays. The workbook records municipality-wide monthly figures
@@ -912,12 +916,11 @@
             // if it were measured. Chronological, never sorted by size.
             var isMonthlySeries = isHistoricalView;
 
-            // The card is titled "per Barangay" in the markup; the historical view
-            // plots months, so the heading has to follow what is actually drawn.
+            // Match the heading to historical months or current barangay records.
             var vaccHeading = document.getElementById('vaccChartHeading');
             if (vaccHeading) {
                 vaccHeading.textContent = isMonthlySeries
-                    ? 'Workbook values as entered'
+                    ? 'Historical vaccination records'
                     : 'Pets Vaccinated per Barangay';
             }
 
@@ -928,10 +931,13 @@
                 ).forEach(r => {
                     var monthName = String(r.month || '').slice(0, 3);
                     var yearShort = String(r.year || '').slice(-2);
-                    labels.push(`${monthName} ${yearShort}`);
+                    const monthNote = r.month_status === 'in_progress' ? ' (in progress)'
+                        : r.month_status === 'future' ? ' (future)' : '';
+                    labels.push(`${monthName} ${yearShort}${monthNote}`);
                     dogsD.push(Number(r.dogs_vaccinated) || 0);
                     catsD.push(Number(r.cats_vaccinated) || 0);
                     otherD.push(0);
+                    workbookTotals.push(Number(r.total_vaccinated) || 0);
                 });
 
             } else if (hasDbData) {
@@ -939,14 +945,6 @@
                     labels.push(barangay);
                     var db = dbBarangayTotals[barangay];
                     dogsD.push(db.dogs); catsD.push(db.cats); otherD.push(db.others);
-                });
-
-            } else if (state.vaccinationDataset?.by_barangay?.length) {
-                state.vaccinationDataset.by_barangay.forEach(r => {
-                    labels.push(r.barangay);
-                    dogsD.push(r.dogs_vaccinated);
-                    catsD.push(r.cats_vaccinated);
-                    otherD.push(r.others_vaccinated);
                 });
 
             }
@@ -962,7 +960,8 @@
             var dbTotalsArr   = labels.map((_, i) => {
                 var b = dbBarangayTotals[labels[i]] || {};
                 var breakdownSum = (mergedDogs[i] || 0) + (mergedCats[i] || 0) + (mergedOther[i] || 0);
-                return Math.max(0, (b.total || 0) - breakdownSum);
+                const total = isMonthlySeries ? workbookTotals[i] : (b.total || 0);
+                return Math.max(0, total - breakdownSum);
             });
             var hasUnspecified = dbTotalsArr.some(v => v > 0);
             // Tracks whether live DB events fed this chart at all - NOT whether any of
@@ -1013,11 +1012,9 @@
             }
 
             var chart1Title = isMonthlySeries
-                ? (state.historicalYear === '2025'
-                    ? '2025 doses by month — whole municipality'
-                    : state.historicalYear === 'all'
-                        ? '2023–24 values may be running totals; 2025 values are monthly doses'
-                        : `${state.historicalYear} workbook values as entered — some may be running totals`)
+                ? (state.historicalYear === 'all'
+                    ? 'Monthly vaccination records — whole municipality'
+                    : `${state.historicalYear} monthly vaccination records — whole municipality`)
                 : hasLiveData
                     ? `Vaccinated per Barangay — ${range} (includes ${dbGrandTotal.toLocaleString()} live records) — highest to lowest`
                     : `Vaccinated per Barangay — ${range} — highest to lowest`;
@@ -1128,7 +1125,7 @@
 
             var c2Datasets = [
                 {
-                    label: 'Observed monthly total',
+                    label: 'Recorded doses',
                     data: actualSeries,
                     borderColor: VIZ.dogs,
                     backgroundColor: (ctx) => {
@@ -1147,7 +1144,7 @@
 
             if (forecastLabels.length) {
                 c2Datasets.push({
-                    label: 'Forecast',
+                    label: 'Estimated doses',
                     data: forecastSeries,
                     borderColor: VIZ.dogs, backgroundColor: VIZ.dogs,
                     borderWidth: 2, borderDash: [6, 4], pointRadius: 3, pointBackgroundColor: VIZ.dogs,
@@ -1168,8 +1165,10 @@
 
             var longRangeEstimate = tv.forecast_status === 'long_gap_estimate';
             var c2Title = usingArima
-                ? `Combined vaccine doses — plain ARIMA${longRangeEstimate ? ' provisional long-range estimate' : ' forecast'}${tv.interval_status === 'validated_80' ? ' with backtest-supported 80% range' : ''}`
-                : 'ARIMA forecast unavailable — no substitute model shown';
+                ? (longRangeEstimate
+                    ? ['Monthly anti-rabies doses', 'Estimates based on older records']
+                    : 'Monthly anti-rabies doses')
+                : 'No dose estimate available yet';
 
             var dividerIndex = (historyValues.length > 0 && forecastLabels.length > 0)
                 ? historyValues.length - 0.5 : null;
@@ -1274,18 +1273,20 @@
     const catsInput   = document.getElementById('cats-count');
     const othersInput = document.getElementById('others-count');
 
-    function distributeEvenly(total) {
-        const base = Math.floor(total / 3);
-        const remainder = total - base * 3;
-        return [base + (remainder > 0 ? 1 : 0), base + (remainder > 1 ? 1 : 0), base];
-    }
-
     function recomputeTotalFromBreakdown() {
+        if ([dogsInput, catsInput, othersInput].some(input => input.value.trim() === '')) {
+            totalInput.value = '';
+            return;
+        }
         totalInput.value = (Number(dogsInput.value) || 0) + (Number(catsInput.value) || 0) + (Number(othersInput.value) || 0);
     }
 
     function setBreakdownMode(active) {
         totalInput.readOnly = active;
+        [dogsInput, catsInput, othersInput].forEach(input => {
+            input.required = active;
+            input.disabled = !active;
+        });
         if (active) recomputeTotalFromBreakdown();
     }
 
@@ -1314,18 +1315,17 @@
         setBreakdownMode(wb);
         setFieldError(totalInput, totalError, '');
 
-        document.getElementById('event-progress-value').textContent   = e.comparison.event;
-        document.getElementById('average-progress-value').textContent = e.comparison.average;
-        document.getElementById('highest-progress-value').textContent = e.comparison.highest;
-        setProgress(document.getElementById('event-progress'),   e.comparison.event,   e.comparison.highest);
-        setProgress(document.getElementById('average-progress'), e.comparison.average, e.comparison.highest);
-        setProgress(document.getElementById('highest-progress'), e.comparison.highest, e.comparison.highest);
-
-        const delta = Math.round(((e.comparison.event - e.comparison.average) / e.comparison.average) * 100);
+        const comparison = e.comparison || {};
+        const maximum = Math.max(comparison.event || 0, comparison.highest || 0, 1);
+        for (const key of ['event', 'average', 'highest']) {
+            document.getElementById(`${key}-progress-value`).textContent = formatNumber(comparison[key]);
+            setProgress(document.getElementById(`${key}-progress`), comparison[key] || 0, maximum);
+        }
         const noteEl = document.getElementById('comparison-note');
-        noteEl.textContent =
-            `${delta >= 0 ? '↑' : '↓'} ${Math.abs(delta)}% ${delta >= 0 ? 'above' : 'below'} barangay average - ${delta >= 0 ? 'good turnout' : 'needs follow up'}!`;
-        noteEl.className = delta >= 0 ? 'success-note' : 'warning-note';
+        noteEl.textContent = comparison.sampleCount
+            ? `Based on ${comparison.sampleCount} other completed report${comparison.sampleCount === 1 ? '' : 's'} for the same barangay and vaccine.`
+            : 'No other completed reports for this barangay and vaccine yet.';
+        noteEl.className = 'forecast-barangay-note';
 
         document.getElementById('post-event-form').dataset.activeEventId = e.id;
         setPanel('detail');
@@ -1429,16 +1429,10 @@
         document.getElementById('species-breakdown').classList.toggle('hidden', !show);
         document.getElementById('species-breakdown').setAttribute('aria-hidden', String(!show));
 
-        if (show) {
-            // Seed the species fields from whatever's already in Total — but only
-            // if they're still empty, so re-checking never clobbers values the
-            // vet already entered (e.g. after unchecking and checking again).
-            const speciesSum   = (Number(dogsInput.value) || 0) + (Number(catsInput.value) || 0) + (Number(othersInput.value) || 0);
-            const existingTotal = Number(totalInput.value) || 0;
-            if (speciesSum === 0 && existingTotal > 0) {
-                const [d, c, o] = distributeEvenly(existingTotal);
-                dogsInput.value = d; catsInput.value = c; othersInput.value = o;
-            }
+        // Species counts must come from the report; never invent a split of a total.
+        if (show && Number(totalInput.value) > 0
+            && [dogsInput, catsInput, othersInput].every(input => Number(input.value) === 0)) {
+            [dogsInput, catsInput, othersInput].forEach(input => { input.value = ''; });
         }
         setBreakdownMode(show);
     });
@@ -1459,17 +1453,14 @@
         const includeBreakdown = document.getElementById('include-breakdown').checked;
         if (includeBreakdown) recomputeTotalFromBreakdown();
 
-        const total = Number(totalInput.value || 0);
-        if (total <= 0) {
-            setFieldError(totalInput, totalError, includeBreakdown
-                ? 'Dogs + Cats + Others must add up to more than 0.'
-                : 'Total Pets Vaccinated must be greater than 0.');
+        const total = Number(totalInput.value);
+        if (totalInput.value.trim() === '' || !Number.isInteger(total) || total < 0 || total > 2147483647) {
+            setFieldError(totalInput, totalError, 'Enter a whole number of zero or more.');
             return;
         }
         setFieldError(totalInput, totalError, '');
 
-        e.totalVaccinated = total;
-        e.breakdown = includeBreakdown
+        const breakdown = includeBreakdown
             ? {
                 dogs:   Number(document.getElementById('dogs-count').value||0),
                 cats:   Number(document.getElementById('cats-count').value||0),
@@ -1484,8 +1475,8 @@
                 body: JSON.stringify({
                     action: 'submit_report',
                     id: activeId,
-                    totalVaccinated: e.totalVaccinated,
-                    breakdown: e.breakdown
+                    totalVaccinated: total,
+                    breakdown
                 })
             });
             const result = await res.json();
@@ -1645,9 +1636,10 @@
     // Vaccine Type options come from the shared VaccineTypes registry
     // (defaults to Anti-Rabies only; grows as staff add new types).
     function rebuildVaccineOptions(selectValue) {
-        const types = window.VaccineTypes?.getAll ? window.VaccineTypes.getAll() : ['Anti-Rabies'];
+        const types = (window.VaccineTypes?.getAll ? window.VaccineTypes.getAll() : ['Anti-Rabies'])
+            .filter(t => String(t).toLowerCase() !== 'none');
         const previous = selectValue ?? vaccineSelect.value;
-        vaccineSelect.innerHTML = types.map((t) => `<option>${t}</option>`).join('');
+        vaccineSelect.innerHTML = types.map((t) => `<option>${sanitize(t)}</option>`).join('');
         vaccineSelect.value = types.includes(previous) ? previous : types[0];
         vaccineSelectUI?.syncLabel();
     }
@@ -1838,7 +1830,7 @@
         )).sort().reverse();
         if (!years.length) return;
 
-        if (!years.includes(state.historicalYear)) {
+        if (state.historicalYear !== 'all' && !years.includes(state.historicalYear)) {
             // Preferred default is gone from the data; fall back to the newest.
             state.historicalYear = years[0];
         }

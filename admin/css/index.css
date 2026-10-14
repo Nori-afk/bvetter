@@ -59,7 +59,8 @@ html, body {
 
 .mainContent {
     margin-left: calc(var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap));
-    width: calc(100% - (var(--shell-gap) + var(--sidebar-width-collapsed) + var(--sidebar-main-gap)));
+    width: auto;
+    min-width: 0;
     height: 100vh;
     overflow-y: auto;
     padding-top: var(--shell-gap);
@@ -69,7 +70,7 @@ html, body {
 
 .sidebar.expanded ~ .mainContent {
     margin-left: calc(var(--shell-gap) + var(--sidebar-width-expanded) + var(--sidebar-main-gap));
-    width: calc(100% - (var(--shell-gap) + var(--sidebar-width-expanded) + var(--sidebar-main-gap)));
+    width: auto;
 }
 
 /* TOP HEADER */
@@ -271,12 +272,13 @@ html, body {
 
 .KPI {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 20px;
     padding: 0 32px 20px;
 }
 
 .kpi-card {
+    min-width: 0;
     background: var(--bg-white);
     padding: 24px;
     border-radius: var(--radius-md);
@@ -285,10 +287,18 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    transition: box-shadow var(--transition);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
 }
 
-.kpi-card:hover { box-shadow: var(--shadow-md); }
+.kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.kpi-card:focus-visible,
+.snapshot-item:focus-visible {
+    outline: 3px solid rgba(0, 64, 128, 0.45);
+    outline-offset: 3px;
+}
 
 .kpi-label {
     font-size: 12px;
@@ -336,10 +346,13 @@ html, body {
 
 .content-grid {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
     gap: 20px;
     padding: 0 32px 32px;
 }
+
+.left-content,
+.right-content { min-width: 0; }
 
 /* ============================= */
 /* CARD                          */
@@ -720,15 +733,23 @@ html, body {
 /* Snapshot card */
 .snapshot-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
 }
 
 .snapshot-item {
+    min-width: 0;
+    display: block;
     background: var(--background-light);
     padding: 14px;
     border-radius: 10px;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
+
+.snapshot-item:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 
 .snapshot-label {
     font-size: 10px;
@@ -811,23 +832,23 @@ html, body {
 @media (max-width: 1200px) {
     .mainContent {
         margin-left: calc(var(--shell-gap) + var(--sidebar-width-collapsed) + 12px);
-        width: calc(100% - (var(--shell-gap) + var(--sidebar-width-collapsed) + 12px));
+        width: auto;
     }
     .sidebar.expanded ~ .mainContent {
         margin-left: calc(var(--shell-gap) + var(--sidebar-width-expanded) + 12px);
-        width: calc(100% - (var(--shell-gap) + var(--sidebar-width-expanded) + 12px));
+        width: auto;
     }
     /* minmax(0, 1fr), not 1fr: a 1fr column never shrinks below its widest
        unbreakable content (the recent-accounts emails), which made every
        card ~140px wider than a phone and clipped the right edge. */
     .content-grid { grid-template-columns: minmax(0, 1fr); }
-    .KPI { grid-template-columns: repeat(2, 1fr); }
+    .KPI { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .card { padding: 20px; }
     .chart-container { height: 230px; }
 }
 
 @media (max-width: 1024px) {
-    .KPI { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .KPI { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
     .topHeader { flex-direction: column; gap: 12px; }
     .buttonHolder { flex-direction: column; width: 100%; }
     .btn-secondary { width: 100%; }
@@ -836,7 +857,7 @@ html, body {
 }
 
 @media (max-width: 768px) {
-    .mainContent { margin-left: 0; width: 100%; height: auto; padding-top: 0; }
+    .mainContent { margin-left: 0; width: auto; height: auto; padding-top: 0; }
     .topHeader { flex-direction: column; gap: 12px; padding: 16px; }
 
     /* Same rule as the vet dashboard (vet/css/index.css): the name/avatar
@@ -858,7 +879,7 @@ html, body {
     }
     .Greetings { padding: 20px 16px; margin: 16px; }
     .Greetings h1 { font-size: 24px; }
-    .KPI { grid-template-columns: repeat(2, 1fr); padding: 0 16px 16px; gap: 12px; }
+    .KPI { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 16px 16px; gap: 12px; }
     .kpi-card { padding: 16px; }
     .kpi-value { font-size: 24px; }
     .content-grid { padding: 0 16px 16px; }

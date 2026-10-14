@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260928-mobile">
-    <link rel="stylesheet" href="../../vet/css/mass-vaccination.css?v=20261013-forecast">
+    <link rel="stylesheet" href="../../vet/css/mass-vaccination.css?v=20261014-chart-layout">
 </head>
 
 <body>
@@ -117,9 +117,9 @@
                 <section class="chart-grid">
                     <article class="card chart-card span-2">
                         <div class="card-head">
-                            <h3 id="vaccChartHeading">Workbook values as entered</h3>
+                            <h3 id="vaccChartHeading">Historical vaccination records</h3>
                             <select id="data-view-filter" aria-label="Select data view" class="dropdown">
-                                <option value="historical">Workbook history</option>
+                                <option value="historical">Historical records</option>
                                 <option value="current">Current records</option>
                             </select>
                             <select id="historical-year-filter" aria-label="Workbook year filter" class="dropdown" hidden>
@@ -134,19 +134,23 @@
                     </article>
                     <article class="card chart-card">
                         <div class="card-head">
-                            <h2>Observed Vaccinations and Dose Forecast</h2>
+                            <h3>Vaccination history and estimates</h3>
                         </div>
-                        <canvas id="predictedAnimalsChart"></canvas>
+                        <div class="forecast-chart-area">
+                            <canvas id="predictedAnimalsChart"></canvas>
+                        </div>
                     </article>
                 </section>
 
                 <section class="card chart-card">
                     <div class="card-head forecast-card-head">
                         <div class="forecast-card-heading">
-                            <h3>Estimated vaccine doses by barangay</h3>
+                            <h3>Estimated anti-rabies doses by barangay</h3>
                             <p id="vaccinesNeededTitle" class="forecast-barangay-total" aria-live="polite"></p>
-                            <p id="vaccinesNeededExplanation" class="forecast-barangay-note">Each bar shows a barangay’s share of the total.</p>
-                            <p id="vaccinesNeededCaution" class="forecast-barangay-caution" hidden></p>
+                            <div class="forecast-barangay-notes">
+                                <p id="vaccinesNeededExplanation" class="forecast-barangay-note">Each bar shows a barangay’s share of the total.</p>
+                                <p id="vaccinesNeededCaution" class="forecast-barangay-caution" hidden></p>
+                            </div>
                         </div>
                     </div>
                     <div class="chart-scroll"><div class="chart-scroll-inner"><div id="vaccinesNeededList" class="rank-list"></div></div></div>
@@ -277,7 +281,7 @@
                 </section>
 
                 <section class="card comparison-card">
-                    <h3>Barangay Comparison – This Event vs Average</h3>
+                    <h3>Comparison with other completed events</h3>
                     <div class="progress-row">
                         <span>This event</span>
                         <div class="line">
@@ -286,20 +290,20 @@
                         <strong id="event-progress-value">87</strong>
                     </div>
                     <div class="progress-row">
-                        <span>Brgy Average</span>
+                        <span>Average doses</span>
                         <div class="line">
                             <div id="average-progress" class="fill fill-slate"></div>
                         </div>
                         <strong id="average-progress-value">72</strong>
                     </div>
                     <div class="progress-row">
-                        <span>Highest Ever</span>
+                        <span>Highest doses</span>
                         <div class="line">
                             <div id="highest-progress" class="fill fill-green"></div>
                         </div>
                         <strong id="highest-progress-value">100</strong>
                     </div>
-                    <p id="comparison-note" class="success-note">↑ 21% above barangay average – good turnout!</p>
+                    <p id="comparison-note" class="forecast-barangay-note"></p>
                 </section>
             </section>
         </main>
@@ -458,7 +462,7 @@
     <script>VBetterAuth.requireAuth(['vet']);</script>
     <script src="../../shared/js/sidebar.js?v=20260824-tz"></script>
     <script src="../../shared/js/vaccine-types.js"></script>
-    <script src="../../vet/js/mass-vaccination.js?v=20261013-forecast"></script>
+    <script src="../../vet/js/mass-vaccination.js?v=20261014-workbook-months"></script>
 
 </body>
 

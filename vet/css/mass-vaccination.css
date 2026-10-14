@@ -263,11 +263,17 @@ body {
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: 16px;
 	margin-bottom: 16px;
-	/* Cards no longer share a similar natural height — the barangay chart's
-	   height is now data-driven (rows × row-height) while the line chart is
-	   fixed — so stop them stretching to match the tallest sibling; each
-	   card should size to its own content instead of leaving empty space. */
-	align-items: start;
+	align-items: stretch;
+}
+
+.chart-grid > .chart-card {
+	display: flex;
+	flex-direction: column;
+}
+
+.chart-grid .card-head {
+	flex-shrink: 0;
+	flex-wrap: wrap;
 }
 
 .card {
@@ -336,8 +342,20 @@ body {
 	border-radius: 7px;
 }
 
+.forecast-chart-area {
+	position: relative;
+	flex: 1;
+	min-height: 300px;
+	min-width: 0;
+}
+
+/* Size the plot from its card, keeping the canvas out of the grid's
+   intrinsic sizing so Chart.js cannot make the card grow on each resize. */
 #predictedAnimalsChart {
-	height: 355px !important;
+	position: absolute;
+	inset: 0;
+	width: 100% !important;
+	height: 100% !important;
 }
 
 /* vaccinatedPerBarangayChart / vaccinesNeededChart: height is now set per-render
@@ -390,6 +408,18 @@ body {
 	font-size: 12px;
 	line-height: 1.5;
 	font-weight: 500;
+}
+
+.forecast-barangay-notes {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 12px;
+	margin-top: 6px;
+}
+
+.forecast-barangay-notes > p {
+	margin: 0;
 }
 
 .forecast-barangay-total {
@@ -1565,6 +1595,8 @@ tr[data-event-id]:hover {
 
 	.span-2 { grid-column: auto; }
 
+	.forecast-chart-area { flex: none; height: 360px; min-height: 0; }
+
 	.detail-header h2 { font-size: 22px; }
 
 	.card-head h3,
@@ -1598,7 +1630,7 @@ tr[data-event-id]:hover {
 		padding-top: 12px;
 	}
 
-	#predictedAnimalsChart { height: 230px !important; }
+	.forecast-chart-area { height: 300px; }
 
 	.hero { flex-direction: column; align-items: flex-start; }
 
@@ -1693,8 +1725,6 @@ tr[data-event-id]:hover {
 	.card-head { flex-wrap: wrap; gap: 8px; }
 
 	.dropdown { max-width: 100%; }
-
-	#predictedAnimalsChart { height: 200px !important; }
 
 	/* Barangay bar charts are horizontal now (see .chart-scroll in the base
 	   rules) — they already scroll vertically inside their own bounded box

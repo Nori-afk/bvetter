@@ -428,6 +428,11 @@ body {
   color: #ffffff;
 }
 
+.pet-badge.reserved {
+  background: #fff4d6;
+  color: #8a5b00;
+}
+
 .pet-card-body {
   padding: 14px 16px 16px;
   display: flex;
@@ -639,6 +644,10 @@ body {
 
 .status-value.review {
   color: var(--color-navy);
+}
+
+.status-value.handoff {
+  color: #9a6500;
 }
 
 .status-icon {
@@ -3110,6 +3119,13 @@ body {
   color: var(--color-green-dark);
   font-weight: 700;
   font-size: 0.85rem;
+}
+
+.lf-match-reserved-note {
+  align-self: center;
+  color: #8a5b00;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .lf-match-claimant {

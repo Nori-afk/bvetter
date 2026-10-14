@@ -1,0 +1,141 @@
+{
+  "generated_at": "2026-10-14T23:08:10.294532+08:00",
+  "workbook_sha256": "ce2d6e28e9796176b9b7dfdfcf1f033b47b738f70b06af97aaeec2acb63fc102",
+  "live_data": {
+    "source": "workbook_2023_2026",
+    "history_quality": "Workbook monthly vaccination totals as entered (2023-01 to 2026-09); confirmed live months replace overlapping workbook months. Current and future months are excluded.",
+    "workbook_sheet": "Combined_Rabies_3Years",
+    "workbook_period_start": "2023-01",
+    "workbook_period_end": "2026-09",
+    "workbook_months_used": 45,
+    "workbook_year_totals": {
+      "2023": {
+        "months_used": 12,
+        "monthly_sum": 13352.0
+      },
+      "2024": {
+        "months_used": 12,
+        "monthly_sum": 14093.0
+      },
+      "2025": {
+        "months_used": 12,
+        "monthly_sum": 14227.0
+      },
+      "2026": {
+        "months_used": 9,
+        "monthly_sum": 10601.0
+      }
+    },
+    "workbook_current_future_values_excluded": 1,
+    "workbook_blank_months": 2,
+    "overlap_policy": "confirmed_live_month_replaces_workbook_month",
+    "workbook_months_replaced_by_live": [],
+    "db_months_used": 0,
+    "db_status": "unavailable",
+    "db_months_rejected": 0,
+    "db_months_require_completion_mark": true,
+    "current_month_held_out": true,
+    "missing_months_are_null": true,
+    "gap_months": 0,
+    "clients_from_db": false
+  },
+  "evaluation": {
+    "status": "complete",
+    "model": "plain ARIMA",
+    "method": "rolling origin, monthly holdout; missing months excluded from scoring",
+    "eligible_origins": 12,
+    "observed_months": 45,
+    "training_period_start": "2023-01",
+    "training_period_end": "2026-09",
+    "forecast_gap_months": 1,
+    "interval_gap_eligible": true,
+    "data_source_note": "Workbook monthly vaccination totals as entered (2023-01 to 2026-09); confirmed live months replace overlapping workbook months. Current and future months are excluded.",
+    "horizons": {
+      "1": {
+        "n": 12,
+        "mae": 115.54,
+        "wape": 9.82,
+        "coverage": 83.3
+      },
+      "2": {
+        "n": 11,
+        "mae": 237.2,
+        "wape": 19.35,
+        "coverage": 54.5
+      },
+      "3": {
+        "n": 11,
+        "mae": 178.02,
+        "wape": 15.16,
+        "coverage": 81.8
+      }
+    },
+    "80_percent_interval_supported": false
+  },
+  "forecast": {
+    "forecast": [
+      1129.5,
+      1045.7,
+      1087.4
+    ],
+    "lower_ci": [
+      null,
+      null,
+      null
+    ],
+    "upper_ci": [
+      null,
+      null,
+      null
+    ],
+    "order": [
+      2,
+      0,
+      1
+    ],
+    "trend": "falling",
+    "model_type": "ARIMA",
+    "forecast_periods": [
+      "Nov 2026",
+      "Dec 2026",
+      "Jan 2027"
+    ],
+    "interval_status": "estimate",
+    "forecast_status": "available",
+    "data_quality_note": "Point forecast is from plain ARIMA. The rolling holdout does not support a calibrated 80% range, so treat the displayed value as an estimate."
+  },
+  "barangay_allocation": {
+    "basis": "dog_population",
+    "count": 27,
+    "total": 1130,
+    "values": {
+      "Tiaong": 63,
+      "San Jose": 58,
+      "Poblacion": 52,
+      "Sulivan": 52,
+      "Tangos": 52,
+      "Bagong Nayon": 46,
+      "Pagala": 46,
+      "Pinagbarilan": 44,
+      "Virgen Delas Flores": 44,
+      "Tarcan": 41,
+      "Makinabang": 41,
+      "Tibag": 42,
+      "Subic": 40,
+      "San Roque": 40,
+      "Paitan": 39,
+      "Sto. Cristo": 39,
+      "Hinukay": 38,
+      "Sto. Niño": 38,
+      "Tilapayong": 37,
+      "Concepcion": 37,
+      "Barangca": 36,
+      "Piel": 36,
+      "Catulinan": 35,
+      "Calantipay": 35,
+      "Sta. Barbara": 35,
+      "Sabang": 33,
+      "Matangtubig": 31
+    }
+  }
+}

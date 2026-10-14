@@ -51,7 +51,7 @@ async function loadClaims() {
 
 function renderStats() {
   const total = claims.length;
-  const approved = claims.filter((claim) => claim.status === 'approved' || claim.status === 'resolved').length;
+  const approved = claims.filter((claim) => ['approved', 'awaiting_handoff', 'resolved'].includes(claim.status)).length;
   const pending = claims.filter((claim) => claim.status === 'pending').length;
   const stats = document.querySelectorAll('.mc-hero-stat-num');
   if (stats[0]) stats[0].textContent = total;
@@ -82,6 +82,7 @@ function renderClaims() {
 function renderClaimRow(claim) {
   const status = claim.status || 'pending';
   const petName = claim.pet_name || 'Found Pet Report';
+  const statusLabel = status === 'awaiting_handoff' ? 'Awaiting Handoff' : status === 'resolved' ? 'Handoff Confirmed' : status;
   return `
     <div class="mc-table-row" data-status="${escapeHtml(status)}" data-claim="${claim.id}" onclick="openClaimDetail('${claim.id}')">
       <div class="mc-pet-cell">
@@ -93,10 +94,10 @@ function renderClaimRow(claim) {
       </div>
       <span class="mc-cell mc-date">${escapeHtml(formatDate(claim.created_at))}</span>
       <span class="mc-cell">${escapeHtml(claim.claimant_name || 'You')}</span>
-      <span class="mc-cell"><span class="mc-status-badge ${escapeHtml(status)}">${escapeHtml(status)}</span></span>
+      <span class="mc-cell"><span class="mc-status-badge ${escapeHtml(status)}">${escapeHtml(statusLabel)}</span></span>
       <span class="mc-cell">
         <button type="button" class="mc-action-btn ${escapeHtml(status)}" onclick="event.stopPropagation(); openClaimDetail('${claim.id}')">
-          ${status === 'approved' ? 'View Claim Instructions' : 'View Details'}
+          ${['approved', 'awaiting_handoff'].includes(status) ? 'View Handoff Steps' : 'View Details'}
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <path d="M2.5 6h7M6.5 3.5L9 6l-2.5 2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -123,7 +124,9 @@ function openClaimDetail(claimId) {
 
 function buildDetailPanel(claim) {
   const status = claim.status || 'pending';
-  const approved = status === 'approved' || status === 'resolved';
+  const statusLabel = status === 'awaiting_handoff' || status === 'approved' ? 'Awaiting Handoff' : status === 'resolved' ? 'Handoff Confirmed' : status;
+  const awaitingHandoff = status === 'awaiting_handoff' || status === 'approved';
+  const approved = awaitingHandoff || status === 'resolved';
   const rejected = status === 'rejected';
   const bannerClass = approved ? 'mc-approved-banner' : rejected ? 'mc-rejected-banner' : 'mc-pending-banner';
   const iconClass = approved ? 'mc-approved-check' : rejected ? 'mc-rejected-icon' : 'mc-pending-icon';
@@ -156,8 +159,8 @@ function buildDetailPanel(claim) {
           <div class="${bannerClass}">
             <div class="${iconClass}">${bannerIcon}</div>
             <div>
-              <h3 class="${titleClass}">${approved ? 'Claim Approved' : rejected ? 'Claim Rejected' : 'Claim Under Review'}</h3>
-              <p class="${subClass}">${approved ? 'Your claim has been verified. Coordinate safely before marking this case resolved.' : rejected ? reviewNote : 'Your claim is being reviewed by the vet management team.'}</p>
+              <h3 class="${titleClass}">${status === 'resolved' ? 'Handoff Confirmed' : awaitingHandoff ? 'Claim Approved - Awaiting Handoff' : rejected ? 'Claim Rejected' : 'Claim Under Review'}</h3>
+              <p class="${subClass}">${status === 'resolved' ? 'You confirmed receipt of the pet. This case is closed.' : awaitingHandoff ? 'Your claim has been verified. Coordinate with the finder; the report stays open until you confirm receipt after handoff.' : rejected ? reviewNote : 'Your claim is being reviewed by the vet management team.'}</p>
             </div>
           </div>
           <div class="mc-detail-cols">
@@ -190,9 +193,9 @@ function buildDetailPanel(claim) {
                   <span class="mc-info-row-value">${escapeHtml(claim.proof_notes || claim.review_notes || 'No notes provided.')}</span>
                 </div>
               </div>
-              ${approved && status !== 'resolved' ? `
-                <p class="mc-resolve-warning">Only mark as resolved after you've physically received the pet from the finder.</p>
-                <button type="button" class="mc-resolve-btn" onclick="handleResolved('${claim.id}')">Mark as Resolved</button>
+              ${awaitingHandoff ? `
+                <p class="mc-resolve-warning">Confirm only after you have physically received the pet from the finder.</p>
+                <button type="button" class="mc-resolve-btn" onclick="handleResolved('${claim.id}')">Confirm Pet Received</button>
               ` : ''}
             </div>
             <div class="mc-detail-right">
@@ -205,7 +208,7 @@ function buildDetailPanel(claim) {
                   <h3 class="mc-found-pet-name">${escapeHtml(petName)}</h3>
                   <div class="mc-found-detail-row"><span class="mc-found-detail-label">Date Filed</span><span class="mc-found-detail-value">${escapeHtml(formatDate(claim.created_at))}</span></div>
                   <div class="mc-found-detail-row"><span class="mc-found-detail-label">Location</span><span class="mc-found-detail-value">${escapeHtml(claim.barangay_name || 'Baliwag')}</span></div>
-                  <div class="mc-found-detail-row"><span class="mc-found-detail-label">Status</span><span class="mc-found-detail-value">${escapeHtml(status)}</span></div>
+                  <div class="mc-found-detail-row"><span class="mc-found-detail-label">Status</span><span class="mc-found-detail-value">${escapeHtml(statusLabel)}</span></div>
                 </div>
               </div>
             </div>
@@ -249,12 +252,12 @@ function closeModalOutside(event, id) {
 }
 
 async function handleResolved(claimId) {
-  const confirmed = await vbConfirm("Only mark this claim as resolved after you've physically received the pet from the finder. Continue?");
+  const confirmed = await vbConfirm("Have you physically received the pet from the finder? Confirming will close the claim and both reports.");
   if (!confirmed) return;
 
   const panelId = `detailClaim${claimId}`;
   closeDetail(panelId);
-  const result = await api.resolveClaim(claimId);
+  const result = await api.confirmClaimHandoff(claimId);
   if (!result.success) {
     await vbAlert(result.message || 'Could not resolve claim.');
     return;

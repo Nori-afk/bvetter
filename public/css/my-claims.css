@@ -252,6 +252,7 @@
 }
 
 .mc-status-badge.approved { background: var(--color-green-light); color: var(--color-green-dark); }
+.mc-status-badge.awaiting_handoff { background: #fff4d6; color: #8a5b00; }
 .mc-status-badge.pending  { background: var(--color-yellow-light); color: var(--color-yellow); }
 .mc-status-badge.rejected { background: var(--color-red-light);    color: var(--color-red); }
 

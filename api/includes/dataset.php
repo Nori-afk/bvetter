@@ -349,6 +349,58 @@ function bv_sheet_rows($sheetName)
     return bv_xlsx_rows($sheetName, $headerRows[$sheetName] ?? 1);
 }
 
+/** Municipal monthly anti-rabies counts as entered in the historical workbook. */
+function bv_vaccination_workbook_months(): array
+{
+    $months = [];
+    $currentPeriod = date('Y-m');
+    foreach (bv_sheet_rows('Combined_Rabies_3Years') as $row) {
+        if (!is_numeric($row['year'] ?? null)) continue;
+        $year = (float) $row['year'];
+        $monthNo = $row['month_no'] ?? null;
+        if ($year < 1900 || $year > 9999 || floor($year) !== $year
+            || !is_numeric($monthNo) || $monthNo < 1 || $monthNo > 12
+            || floor((float) $monthNo) !== (float) $monthNo) {
+            throw new RuntimeException('The vaccination workbook contains an invalid year or month.');
+        }
+        $key = sprintf('%04d-%02d', (int) $year, (int) $monthNo);
+        if (array_key_exists($key, $months)) {
+            throw new RuntimeException('The vaccination workbook contains a duplicate month: ' . $key);
+        }
+        $counts = [];
+        foreach (['dogs_vaccinated', 'cats_vaccinated', 'total_vaccinated'] as $metric) {
+            $value = $row[$metric] ?? null;
+            if ($value === null || trim((string) $value) === '') {
+                $counts[$metric] = null;
+                continue;
+            }
+            if (!is_numeric($value) || !is_finite((float) $value) || $value < 0
+                || floor((float) $value) !== (float) $value) {
+                throw new RuntimeException('Invalid vaccination count for ' . $key . ': ' . $metric);
+            }
+            $counts[$metric] = (int) $value;
+        }
+        $speciesTotal = $counts['dogs_vaccinated'] !== null && $counts['cats_vaccinated'] !== null
+            ? $counts['dogs_vaccinated'] + $counts['cats_vaccinated'] : null;
+        if ($counts['total_vaccinated'] !== null && $speciesTotal !== null
+            && $counts['total_vaccinated'] !== $speciesTotal) {
+            throw new RuntimeException('Dog and cat counts do not match the vaccination total for ' . $key);
+        }
+        $counts['total_vaccinated'] ??= $speciesTotal;
+        $months[$key] = [
+            'year' => (int) $year, 'month_no' => (int) $monthNo,
+            'month' => date('F', mktime(0, 0, 0, (int) $monthNo, 1)),
+            'period' => $key,
+            'clients_served' => is_numeric($row['clients_served'] ?? null) ? (int) $row['clients_served'] : null,
+            'source_basis' => 'Combined_Rabies_3Years (monthly values as entered)',
+            'month_status' => $key < $currentPeriod ? 'past' : ($key === $currentPeriod ? 'in_progress' : 'future'),
+        ] + $counts;
+    }
+    ksort($months);
+    // Empty future placeholders are not observations of zero vaccinations.
+    return array_filter($months, static fn($row) => $row['total_vaccinated'] !== null);
+}
+
 function bv_date_from_parts($year, $monthNo, $day = 1)
 {
     $year = (int) $year;

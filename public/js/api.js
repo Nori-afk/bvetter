@@ -23,7 +23,7 @@
    - api.submitSighting()   — POST /sightings
    - api.getClaims()        — GET  /claims
    - api.submitClaim()      — POST /claims
-   - api.resolveClaim()     — PATCH /claims/:id/resolve
+   - api.confirmClaimHandoff() — POST /claims/:id/confirm-handoff
    - api.getAppointments()  — GET  /appointments
    - api.bookAppointment()  — POST /appointments
    - api.getProfile()       — GET  /user/profile
@@ -600,12 +600,9 @@ forgotPassword: (email) => {
     return lostFoundRequest('submit_claim', formData);
   },
 
-  /**
-   * Mark a claim as resolved (pet returned home)
-   * @param {string} claimId
-   */
-  resolveClaim: (claimId) =>
-    lostFoundRequest('resolve_claim', { claim_id: claimId }),
+  /** Confirm that the claimant physically received the pet after vet approval. */
+  confirmClaimHandoff: (claimId) =>
+    lostFoundRequest('confirm_claim_handoff', { claim_id: claimId }),
 
   vetLostFoundReports: (filters = {}) =>
     lostFoundRequest('management_list', filters),
@@ -616,14 +613,8 @@ forgotPassword: (email) => {
   rejectLostFoundReport: (reportId, reviewNotes = '') =>
     lostFoundRequest('reject_report', { report_id: reportId, review_notes: reviewNotes }),
 
-  resolveLostFoundReport: (reportId, reviewNotes = '') =>
-    lostFoundRequest('resolve_report', { report_id: reportId, review_notes: reviewNotes }),
-
   lostFoundMatches: (reportId = '') =>
     lostFoundRequest('matches', reportId ? { report_id: reportId } : {}),
-
-  approveLostFoundMatch: (matchId) =>
-    lostFoundRequest('approve_match', { match_id: matchId }),
 
   dismissLostFoundMatch: (matchId) =>
     lostFoundRequest('dismiss_match', { match_id: matchId }),

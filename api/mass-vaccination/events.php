@@ -4,6 +4,8 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/input_validation.php';
+require_once __DIR__ . '/validation.php';
+require_once __DIR__ . '/../includes/dataset.php';
 // Lets a completed event evict the analytics service's cached vaccination
 // forecast, instead of waiting out its 6-hour TTL.
 require_once __DIR__ . '/../includes/analytics_client.php';
@@ -20,8 +22,8 @@ define('MASS_VACC_HORIZON_YEARS', 1);
    scheduled. So this is a floor, not a ban on backdating.
 
    It stops at 2026 because the uploaded vaccination workbook
-   (Combined_Rabies_3Years) owns everything before that, and 2025 in it is an
-   annual summary allocated across months rather than real per-drive rows.
+   (Combined_Rabies_3Years) owns everything before that, including the
+   confirmed 2025 monthly totals, rather than individual event rows.
    mass_vaccination_dataset_data() in api/dashboard/dashboard.php REPLACES a
    workbook month with the live DB sum as soon as any event exists for it, so
    a hand-entered 2025 drive would silently overwrite part of that allocation
@@ -80,13 +82,10 @@ function setupTables($pdo)
     $pdo->exec("CREATE TABLE IF NOT EXISTS mass_vaccination_month_completeness (year SMALLINT UNSIGNED NOT NULL, month_no TINYINT UNSIGNED NOT NULL, is_complete TINYINT(1) NOT NULL DEFAULT 0, completed_by_user_id INT NULL, completed_at DATETIME NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (year, month_no), INDEX idx_mv_month_complete (is_complete, year, month_no)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 
-function formatEvent($row)
+function formatEvent($row, array $comparisonRows = [])
 {
     $date = $row['event_date'];
     $total = $row['total_vaccinated'] === null ? '' : (int) $row['total_vaccinated'];
-    $eventTotal = $total === '' ? 0 : $total;
-    $average = max(1, (int) round(($eventTotal + 65) / 2));
-    $highest = max(100, $eventTotal, $average);
 
     return [
         'id' => 'evt-' . $row['id'],
@@ -104,11 +103,7 @@ function formatEvent($row)
             'cats' => (int) $row['cats_count'],
             'others' => (int) $row['others_count'],
         ],
-        'comparison' => [
-            'event' => $eventTotal,
-            'average' => $average,
-            'highest' => $highest,
-        ],
+        'comparison' => mv_event_comparison($row, $comparisonRows),
     ];
 }
 
@@ -117,7 +112,7 @@ function listEvents($pdo)
     $rows = $pdo->query('SELECT * FROM mass_vaccination_events ORDER BY event_date DESC, id DESC')->fetchAll();
     respond(200, [
         'success' => true,
-        'data' => array_map('formatEvent', $rows),
+        'data' => array_map(static fn($row) => formatEvent($row, $rows), $rows),
         'monthStatuses' => fetchMonthStatuses($pdo),
     ]);
 }
@@ -148,12 +143,26 @@ function reopenMonthIfMarked($pdo, $eventDate)
     return $stmt->rowCount() > 0;
 }
 
+// Every write in a month takes this same row lock. Confirming a month cannot
+// race with an encoder adding, editing or deleting one of its events.
+function lockVaccinationMonth($pdo, string $eventDate): void
+{
+    $year = (int) substr($eventDate, 0, 4);
+    $month = (int) substr($eventDate, 5, 2);
+    $insert = $pdo->prepare('INSERT IGNORE INTO mass_vaccination_month_completeness (year, month_no, is_complete) VALUES (?, ?, 0)');
+    $insert->execute([$year, $month]);
+    $lock = $pdo->prepare('SELECT is_complete FROM mass_vaccination_month_completeness WHERE year = ? AND month_no = ? FOR UPDATE');
+    $lock->execute([$year, $month]);
+    $lock->fetchColumn();
+}
+
 function setMonthCompleteness($pdo, $data)
 {
-    $year = (int) ($data['year'] ?? 0);
-    $month = (int) ($data['month'] ?? $data['month_no'] ?? 0);
-    $complete = filter_var($data['complete'] ?? true, FILTER_VALIDATE_BOOLEAN);
-    if ($year < 2026 || $month < 1 || $month > 12) {
+    $year = mv_whole_count($data['year'] ?? null, 'Year');
+    $month = mv_whole_count($data['month'] ?? $data['month_no'] ?? null, 'Month');
+    $complete = filter_var($data['complete'] ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+    if ($complete === null) throw new InvalidArgumentException('Choose whether the month is complete.');
+    if ($year < 2026 || $year > (int) date('Y') || $month < 1 || $month > 12) {
         respond(422, ['success' => false, 'message' => 'Choose a valid month from 2026 onward.']);
     }
 
@@ -165,13 +174,16 @@ function setMonthCompleteness($pdo, $data)
         ]);
     }
 
+    $pdo->beginTransaction();
+    lockVaccinationMonth($pdo, $period . '-01');
     if ($complete) {
-        $pending = $pdo->prepare("SELECT COUNT(*) FROM mass_vaccination_events WHERE YEAR(event_date) = :year AND MONTH(event_date) = :month_no AND status = 'Pending Report'");
+        $pending = $pdo->prepare("SELECT COUNT(*) FROM mass_vaccination_events WHERE YEAR(event_date) = :year AND MONTH(event_date) = :month_no AND (status <> 'Completed' OR total_vaccinated IS NULL OR total_vaccinated < 0 OR dogs_count < 0 OR cats_count < 0 OR others_count < 0 OR (dogs_count + cats_count + others_count > 0 AND dogs_count + cats_count + others_count <> total_vaccinated))");
         $pending->execute([':year' => $year, ':month_no' => $month]);
         if ((int) $pending->fetchColumn() > 0) {
+            $pdo->rollBack();
             respond(409, [
                 'success' => false,
-                'message' => 'Complete or remove every pending event in this month before marking its records complete.',
+                'message' => 'Finish each event report and correct any invalid totals in this month before confirming its records.',
             ]);
         }
 
@@ -186,6 +198,7 @@ function setMonthCompleteness($pdo, $data)
         $stmt->execute([':year' => $year, ':month_no' => $month]);
     }
 
+    $pdo->commit();
     bv_analytics_invalidate_vaccination();
     respond(200, ['success' => true, 'monthStatuses' => fetchMonthStatuses($pdo)]);
 }
@@ -261,6 +274,28 @@ function createEvent($pdo, $data)
         respond(422, ['success' => false, 'message' => $fieldError]);
     }
 
+    if (strtolower($vaccine) === 'none') throw new InvalidArgumentException('Choose a vaccine for this event.');
+    if (mv_is_anti_rabies($vaccine)) $vaccine = 'Anti-Rabies';
+    $canonicalBarangay = null;
+    foreach (bv_sheet_rows('Barangay_Masterlist') as $row) {
+        if (is_numeric($row['barangay_id'] ?? null)
+            && mv_name_key((string) ($row['barangay'] ?? '')) === mv_name_key($barangay)) {
+            $canonicalBarangay = trim($row['barangay']);
+            break;
+        }
+    }
+    if ($canonicalBarangay === null) throw new InvalidArgumentException('Choose a barangay from the list.');
+    $barangay = $canonicalBarangay;
+
+    $pdo->beginTransaction();
+    lockVaccinationMonth($pdo, $date);
+    $duplicate = $pdo->prepare('SELECT id FROM mass_vaccination_events WHERE event_date = ? AND barangay = ? AND vaccine = ? LIMIT 1');
+    $duplicate->execute([$date, $barangay, $vaccine]);
+    if ($duplicate->fetchColumn()) {
+        $pdo->rollBack();
+        respond(409, ['success' => false, 'message' => 'An event for this barangay and vaccine already exists on that date.']);
+    }
+
     $stmt = $pdo->prepare("
         INSERT INTO mass_vaccination_events (event_date, barangay, vaccine, created_by_user_id)
         VALUES (:event_date, :barangay, :vaccine, :created_by_user_id)
@@ -271,13 +306,15 @@ function createEvent($pdo, $data)
         ':vaccine' => $vaccine,
         ':created_by_user_id' => (int) ($data['user_id'] ?? $data['created_by_user_id'] ?? 0) ?: null,
     ]);
+    $id = (int) $pdo->lastInsertId();
 
     // A late backfill reopens a month that had been signed off.
-    if (reopenMonthIfMarked($pdo, $date)) {
+    $monthReopened = reopenMonthIfMarked($pdo, $date);
+    $pdo->commit();
+    if ($monthReopened) {
         bv_analytics_invalidate_vaccination();
     }
 
-    $id = (int) $pdo->lastInsertId();
     $stmt = $pdo->prepare('SELECT * FROM mass_vaccination_events WHERE id = :id');
     $stmt->execute([':id' => $id]);
     respond(201, ['success' => true, 'data' => formatEvent($stmt->fetch())]);
@@ -285,8 +322,7 @@ function createEvent($pdo, $data)
 
 function deleteEvent($pdo, $data)
 {
-    $id = (int) preg_replace('/^evt-/', '', (string) ($data['id'] ?? $data['event_id'] ?? 0));
-    if ($id <= 0) respond(422, ['success' => false, 'message' => 'Invalid event id.']);
+    $id = mv_event_id($data);
 
     // Read the status BEFORE deleting: only a Completed event was ever part of
     // the forecast, so only its removal changes the model's inputs. Cancelling a
@@ -294,16 +330,21 @@ function deleteEvent($pdo, $data)
     $lookup = $pdo->prepare('SELECT status, event_date FROM mass_vaccination_events WHERE id = :id');
     $lookup->execute([':id' => $id]);
     $beforeDelete = $lookup->fetch();
+    if (!$beforeDelete) respond(404, ['success' => false, 'message' => 'Event not found.']);
     $wasCompleted = $beforeDelete && $beforeDelete['status'] === 'Completed';
 
+    $pdo->beginTransaction();
+    lockVaccinationMonth($pdo, $beforeDelete['event_date']);
     $stmt = $pdo->prepare('DELETE FROM mass_vaccination_events WHERE id = :id');
     $stmt->execute([':id' => $id]);
 
     if ($stmt->rowCount() === 0) {
+        $pdo->rollBack();
         respond(404, ['success' => false, 'message' => 'Event not found.']);
     }
 
     $monthReopened = $beforeDelete ? reopenMonthIfMarked($pdo, $beforeDelete['event_date']) : false;
+    $pdo->commit();
     if ($wasCompleted || $monthReopened) {
         bv_analytics_invalidate_vaccination();
     }
@@ -313,19 +354,21 @@ function deleteEvent($pdo, $data)
 
 function submitReport($pdo, $data)
 {
-    $id = (int) preg_replace('/^evt-/', '', (string) ($data['id'] ?? $data['event_id'] ?? 0));
-    if ($id <= 0) respond(422, ['success' => false, 'message' => 'Invalid event id.']);
+    $id = mv_event_id($data);
 
     $lookup = $pdo->prepare('SELECT event_date FROM mass_vaccination_events WHERE id = :id');
     $lookup->execute([':id' => $id]);
     $eventDate = $lookup->fetchColumn();
     if (!$eventDate) respond(404, ['success' => false, 'message' => 'Event not found.']);
 
-    $total = (int) ($data['totalVaccinated'] ?? $data['total_vaccinated'] ?? 0);
-    $breakdown = $data['breakdown'] ?? [];
-    if (is_string($breakdown)) {
-        $decoded = json_decode($breakdown, true);
-        $breakdown = is_array($decoded) ? $decoded : [];
+    if ($eventDate > date('Y-m-d')) throw new InvalidArgumentException('A future event cannot have a completed report yet.');
+    $counts = mv_report_counts($data);
+    $pdo->beginTransaction();
+    lockVaccinationMonth($pdo, $eventDate);
+    $lookup->execute([':id' => $id]);
+    if (!$lookup->fetchColumn()) {
+        $pdo->rollBack();
+        respond(404, ['success' => false, 'message' => 'Event not found.']);
     }
 
     $stmt = $pdo->prepare("
@@ -338,14 +381,15 @@ function submitReport($pdo, $data)
         WHERE id = :id
     ");
     $stmt->execute([
-        ':total' => $total,
-        ':dogs' => (int) ($breakdown['dogs'] ?? $data['dogs'] ?? 0),
-        ':cats' => (int) ($breakdown['cats'] ?? $data['cats'] ?? 0),
-        ':others' => (int) ($breakdown['others'] ?? $data['others'] ?? 0),
+        ':total' => $counts['total'],
+        ':dogs' => $counts['dogs'],
+        ':cats' => $counts['cats'],
+        ':others' => $counts['others'],
         ':id' => $id,
     ]);
 
     reopenMonthIfMarked($pdo, $eventDate);
+    $pdo->commit();
 
     // This is the only path that sets status = 'Completed', so it covers both
     // the first completion and any later edit. Editing a signed-off month also
@@ -354,7 +398,9 @@ function submitReport($pdo, $data)
 
     $stmt = $pdo->prepare('SELECT * FROM mass_vaccination_events WHERE id = :id');
     $stmt->execute([':id' => $id]);
-    respond(200, ['success' => true, 'data' => formatEvent($stmt->fetch())]);
+    $row = $stmt->fetch();
+    $comparisonRows = $pdo->query("SELECT * FROM mass_vaccination_events WHERE status = 'Completed'")->fetchAll();
+    respond(200, ['success' => true, 'data' => formatEvent($row, $comparisonRows)]);
 }
 
 $input = inputData();
@@ -363,7 +409,9 @@ $action = clean($input['action'] ?? 'list');
 // Event listing is public; creating events and submitting reports is staff-only.
 if (!in_array($action, ['list', 'month_status'], true)) {
     require_once __DIR__ . '/../config/auth_guard.php';
-    requireRole($pdo, ['veterinarian', 'admin']);
+    $session = requireRole($pdo, ['veterinarian', 'admin']);
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') respond(405, ['success' => false, 'message' => 'Use POST to update vaccination records.']);
+    $input['user_id'] = (int) $session['user_id'];
 }
 
 try {
@@ -377,7 +425,11 @@ try {
     if ($action === 'submit_report') submitReport($pdo, $input);
     if ($action === 'delete') deleteEvent($pdo, $input);
     respond(400, ['success' => false, 'message' => 'Unknown mass vaccination action.']);
-} catch (PDOException $e) {
+} catch (InvalidArgumentException $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    respond(422, ['success' => false, 'message' => $e->getMessage()]);
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
     error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     respond(500, ['success' => false, 'message' => 'Mass vaccination request failed.']);
 }

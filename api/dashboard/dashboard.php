@@ -1465,36 +1465,15 @@ function bv_decumulate_vaccination_months(array $byMonth): array
 function monthly_vaccination_series(
     $pdo,
     string $dataView = 'historical',
-    bool $decumulateHistorical = true,
+    bool $decumulateHistorical = false,
     bool $includeLiveEvents = true
 ): array
 {
     $isCurrent  = $dataView === 'current';
-    $rabiesRows = $isCurrent ? [] : bv_sheet_rows('Combined_Rabies_3Years');
-    $byMonth    = [];
+    $byMonth = $isCurrent ? [] : bv_vaccination_workbook_months();
 
-    foreach ($rabiesRows as $row) {
-        $year    = (int) ($row['year']     ?? 0);
-        $monthNo = (int) ($row['month_no'] ?? 0);
-        if (!$year || !$monthNo) continue;
-        $key = sprintf('%04d-%02d', $year, $monthNo);
-        if (!isset($byMonth[$key])) {
-            $byMonth[$key] = [
-                'year' => $year, 'month_no' => $monthNo, 'month' => $row['month'] ?? '',
-                'period' => $key, 'dogs_vaccinated' => 0, 'cats_vaccinated' => 0,
-                'total_vaccinated' => 0, 'clients_served' => 0, 'source_basis' => $row['source_basis'] ?? '',
-            ];
-        }
-        $byMonth[$key]['dogs_vaccinated']  += (int) ($row['dogs_vaccinated']  ?? 0);
-        $byMonth[$key]['cats_vaccinated']  += (int) ($row['cats_vaccinated']  ?? 0);
-        $byMonth[$key]['total_vaccinated'] += (int) ($row['total_vaccinated'] ?? 0);
-        $byMonth[$key]['clients_served']   += (int) ($row['clients_served']   ?? 0);
-    }
-
-    // Before any DB month is merged in: 2023 and 2024 are year-to-date running
-    // totals in the workbook, so summing them as monthly counts inflates the
-    // historical figures roughly six-fold. Seeded DB rows used to overwrite
-    // those months and hide it; with those removed the raw values would show.
+    // Revised workbook records are monthly counts. Keep the legacy conversion
+    // opt-in for old callers; the page and forecast use the values as entered.
     if ($decumulateHistorical) {
         $byMonth = bv_decumulate_vaccination_months($byMonth);
     }
@@ -1572,14 +1551,15 @@ function mass_vaccination_dataset_data($pdo, string $dataView = 'historical')
 {
     if (!in_array($dataView, ['historical', 'current'], true)) $dataView = 'historical';
     $isCurrent  = $dataView === 'current';
-    $latestYear = bv_latest_dataset_year();
     $byMonth    = monthly_vaccination_series($pdo, $dataView);
-    // The historical chart can show the workbook exactly as entered without
-    // changing the reconstructed series used by summaries and model inputs.
-    // Do not merge live event rows into this raw workbook view.
+    // Historical chart and ARIMA share the monthly workbook source. Live event
+    // totals remain a separate view here; confirmed live months may replace
+    // overlapping workbook months in the model's fitted history.
     $workbookValuesAsRecorded = $isCurrent
         ? []
         : monthly_vaccination_series($pdo, 'historical', false, false);
+    if (!$isCurrent) $byMonth = $workbookValuesAsRecorded;
+    $latestYear = $byMonth ? max(array_column($byMonth, 'year')) : (int) date('Y');
 
     $barangayVacc = [];
     if (bv_table_exists($pdo, 'mass_vaccination_events')) {
@@ -1700,7 +1680,12 @@ if ($scope === 'disease_forecast_info' || $scope === 'disease-forecast-info') {
 
 if ($scope === 'mass_vaccination_dataset') {
     $mvDataView = strtolower(bv_clean($input['data_view'] ?? $_GET['data_view'] ?? 'historical'));
-    bv_json_response(200, ['success' => true, 'data' => mass_vaccination_dataset_data($pdo, $mvDataView)]);
+    try {
+        $data = mass_vaccination_dataset_data($pdo, $mvDataView);
+    } catch (RuntimeException $e) {
+        bv_json_response(422, ['success' => false, 'error' => $e->getMessage()]);
+    }
+    bv_json_response(200, ['success' => true, 'data' => $data]);
 }
 
 if ($scope === 'vaccination_forecast' || $scope === 'vaccination-forecast') {

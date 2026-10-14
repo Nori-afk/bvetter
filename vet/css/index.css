@@ -403,12 +403,24 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    transition: box-shadow 0.3s ease;
+    transition: box-shadow 0.3s ease, transform 0.2s ease, border-color 0.2s ease;
     min-width: 0;
+}
+
+.KPI a.kpi-card {
+    color: inherit;
+    text-decoration: none;
 }
 
 .kpi-card:hover {
     box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+    border-color: #BFDBFE;
+}
+
+.KPI a.kpi-card:focus-visible {
+    outline: 3px solid #60A5FA;
+    outline-offset: 3px;
 }
 
 .kpi-label {
@@ -1651,6 +1663,100 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 20px;
+}
+
+.dashboard-lostfound-card {
+    margin-bottom: 0;
+}
+
+.dashboard-lostfound-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #F4F6FB;
+}
+
+.dashboard-lostfound-header .view-link {
+    flex-shrink: 0;
+    font-size: 12px;
+}
+
+.dashboard-lostfound-list {
+    display: grid;
+    gap: 0;
+}
+
+.dashboard-lostfound-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 0;
+    border-bottom: 1px solid #F1F5F9;
+}
+
+.dashboard-lostfound-row:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.dashboard-lostfound-copy {
+    min-width: 0;
+}
+
+.dashboard-lostfound-name {
+    display: block;
+    overflow: hidden;
+    color: #0F172A;
+    font-size: 12px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboard-lostfound-detail {
+    display: block;
+    margin-top: 3px;
+    color: #64748B;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.dashboard-lostfound-meta {
+    display: grid;
+    justify-items: end;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.dashboard-lostfound-status {
+    padding: 3px 8px;
+    border: 1px solid #BFDBFE;
+    border-radius: 999px;
+    background: #EFF6FF;
+    color: #1D4ED8;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.dashboard-lostfound-status.is-pending {
+    border-color: #FDE68A;
+    background: #FFFBEB;
+    color: #A16207;
+}
+
+.dashboard-lostfound-date {
+    color: #94A3B8;
+    font-size: 10px;
+}
+
+.dashboard-lostfound-empty {
+    padding: 16px 0 2px;
+    color: #64748B;
+    font-size: 12px;
 }
 
 /* CALENDAR CARD */

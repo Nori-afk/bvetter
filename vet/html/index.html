@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260928-mobile">
-    <link rel="stylesheet" href="../../vet/css/index.css?v=20260928-mobile">
+    <link rel="stylesheet" href="../../vet/css/index.css?v=20261014-lostfound-panel">
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
 </head>
 
@@ -137,25 +137,25 @@
                 </div>
 
                 <div class="KPI">
-                    <div class="kpi-card">
+                    <a class="kpi-card" href="../../vet/html/appointment.html" aria-label="Open Appointment Management: Total Appointments">
                         <p class="kpi-label">Total Appointments</p>
                         <h2 class="kpi-value">1,284</h2>
                         <div class="kpi-trend">
                             <span class="trend-icon">↑</span>
                             <span class="trend-text">12%</span>
                         </div>
-                    </div>
-                    <div class="kpi-card">
+                    </a>
+                    <a class="kpi-card" href="../../vet/html/appointment.html" aria-label="Open Appointment Management: Pending Actions">
                         <p class="kpi-label">Pending Actions</p>
                         <h2 class="kpi-value">42</h2>
                         <div class="urgent-badge">Urgent</div>
-                    </div>
-                    <div class="kpi-card">
+                    </a>
+                    <a class="kpi-card" href="../../vet/html/lost-and-found.html" aria-label="Open Lost and Found: Active Lost Reports">
                         <p class="kpi-label">Active Lost Reports</p>
                         <h2 class="kpi-value">08</h2>
                         <p class="kpi-location">San Jose District</p>
-                    </div>
-                    <div class="kpi-card">
+                    </a>
+                    <a class="kpi-card" href="../../vet/html/mass-vaccination.html" aria-label="Open Mass Vaccination: Vaccination Rate">
                         <p class="kpi-label success">Vaccination Rate</p>
                         <div class="vaccination-progress">
                             <div class="progress-bar">
@@ -163,7 +163,7 @@
                             </div>
                             <h2 class="kpi-value">94%</h2>
                         </div>
-                    </div>
+                    </a>
                 </div>
 
                 <div class="content-grid">
@@ -265,6 +265,19 @@
 
                     <div class="right-content">
 
+                        <div class="card dashboard-lostfound-card">
+                            <div class="dashboard-lostfound-header">
+                                <div>
+                                    <h3 class="card-title">Recent Lost &amp; Found Reports</h3>
+                                    <p class="card-subtitle">Latest cases needing clinic attention</p>
+                                </div>
+                                <a class="view-link" href="../../vet/html/lost-and-found.html">View all</a>
+                            </div>
+                            <div class="dashboard-lostfound-list" id="dashboardLostFoundReports" aria-live="polite">
+                                <p class="dash-empty">Loading reports...</p>
+                            </div>
+                        </div>
+
                         <div class="card calendar-card">
                             <div class="calendar-header">
                                 <h3>April 2026</h3>
@@ -350,6 +363,6 @@
     <script>VBetterAuth.requireAuth(['vet']);</script>
     <script src="../../shared/js/sidebar.js?v=20260824-tz"></script>
     <script src="../../vet/js/vet-api.js?v=20260819-idor"></script>
-    <script src="../../vet/js/index.js?v=20260825-announce"></script>
+    <script src="../../vet/js/index.js?v=20261014-lostfound-panel"></script>
 </body>
 </html>

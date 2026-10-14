@@ -7,6 +7,8 @@ let publicReports = [];
 let myReports = [];
 let currentReportId = null;
 let currentClaimReportId = null;
+let currentClaimMatchId = null;
+let myReportClaimStatuses = {};
 
 const FALLBACK_IMAGE = '../images/img/upload-pet.png';
 const PET_TYPES = ['Dog', 'Cat'];
@@ -250,7 +252,6 @@ function requiredBarangayValue(selectId, otherId, label) {
 }
 
 let myReportClaimants = {};
-
 async function loadMyReports(options = {}) {
   const silent = options.silent === true;
   const grid = document.querySelector('.my-reports-grid');
@@ -259,17 +260,28 @@ async function loadMyReports(options = {}) {
   const freshReports = result.success ? (result.data || []) : [];
 
   const freshClaimants = {};
+  const freshClaimantPriorities = {};
+  const freshClaimStatuses = {};
   try {
     const session = sessionUser();
     if (session?.userId) {
       const claimsResult = await api.getClaims({ report_owner_id: session.userId });
       (claimsResult.success ? (claimsResult.data || []) : []).forEach((claim) => {
-        if (['approved', 'resolved'].includes(claim.status)) {
-          freshClaimants[claim.report_id] = {
+        const reportId = String(claim.report_id);
+        const status = claim.status || 'pending';
+        const priority = { awaiting_handoff: 3, approved: 3, pending: 2, resolved: 1, rejected: 0 }[status] || 0;
+        const existing = freshClaimStatuses[reportId];
+        if (!existing || priority > existing.priority) {
+          freshClaimStatuses[reportId] = { status, priority };
+        }
+        if (['pending', 'awaiting_handoff', 'approved', 'resolved'].includes(status)
+            && priority > (freshClaimantPriorities[reportId] ?? -1)) {
+          freshClaimants[reportId] = {
             name: claim.claimant_name || 'Unknown',
             phone: claim.claimant_phone || '',
             email: claim.claimant_email || ''
           };
+          freshClaimantPriorities[reportId] = priority;
         }
       });
     }
@@ -280,10 +292,12 @@ async function loadMyReports(options = {}) {
   // Silent (polled) refreshes skip the re-render entirely when nothing
   // actually changed, so the grid doesn't flicker/reset scroll every tick.
   if (silent && JSON.stringify(freshReports) === JSON.stringify(myReports)
-      && JSON.stringify(freshClaimants) === JSON.stringify(myReportClaimants)) return;
+      && JSON.stringify(freshClaimants) === JSON.stringify(myReportClaimants)
+      && JSON.stringify(freshClaimStatuses) === JSON.stringify(myReportClaimStatuses)) return;
 
   myReports = freshReports;
   myReportClaimants = freshClaimants;
+  myReportClaimStatuses = freshClaimStatuses;
   renderMyReports();
 }
 
@@ -303,10 +317,11 @@ function renderPublicGrid() {
     // A closed case stays on the board, grayed out, so a pet claimed by the
     // wrong person is still visible to its real owner.
     const claimed = report.status === 'resolved';
+    const reserved = !claimed && !!report.claimReserved;
     return `
       <div class="pet-card${claimed ? ' is-claimed' : ''}" data-status="${type}">
         <div class="pet-card-img-wrap">
-          <span class="pet-badge ${claimed ? 'resolved' : type}">${claimed ? claimedWord(report) : escapeHtml(report.type)}</span>
+          <span class="pet-badge ${claimed ? 'resolved' : reserved ? 'reserved' : type}">${claimed ? claimedWord(report) : reserved ? 'Awaiting Handoff' : escapeHtml(report.type)}</span>
           ${expandableImg(reportImage(report), report.petName || report.title || 'Pet', 'pet-card-img')}
         </div>
         <div class="pet-card-body">
@@ -359,6 +374,11 @@ function renderMyReports() {
   grid.innerHTML = ongoingReports.map((report) => {
     const type = normalizeType(report.type);
     const pending = report.status === 'pending';
+    const claimStatus = myReportClaimStatuses[String(report.id)]?.status;
+    const claimUnderReview = type === 'found' && claimStatus === 'pending';
+    const awaitingHandoff = type === 'found' && (report.claimReserved || ['awaiting_handoff', 'approved'].includes(claimStatus));
+    const statusLabel = pending ? 'Vet Review' : claimUnderReview ? 'Claim Under Review' : awaitingHandoff ? 'Awaiting Handoff' : report.status;
+    const canOwnerResolve = report.status === 'active' && !(type === 'found' && (report.claimReserved || ['pending', 'awaiting_handoff', 'approved'].includes(claimStatus)));
     return `
       <div class="active-report-card" id="reportCard-${report.id}">
         <div class="active-report-img-wrap">
@@ -372,8 +392,8 @@ function renderMyReports() {
           </span>
           <div class="active-report-status-row">
             <span class="status-label">CURRENT STATUS</span>
-            <span class="status-value ${pending ? 'review' : 'matching'}">
-              <img src="../images/icons/${pending ? 'admin-review.svg' : 'matching-progress.svg'}" alt="" class="status-icon"/> ${escapeHtml(pending ? 'Vet Review' : report.status)}
+            <span class="status-value ${pending || claimUnderReview ? 'review' : awaitingHandoff ? 'handoff' : 'matching'}">
+              <img src="../images/icons/${pending ? 'admin-review.svg' : 'matching-progress.svg'}" alt="" class="status-icon"/> ${escapeHtml(statusLabel)}
             </span>
           </div>
           <div class="active-report-actions">
@@ -381,7 +401,7 @@ function renderMyReports() {
               ${pending ? 'View Details' : report.status === 'resolved' ? 'View Case' : 'View Potential Matches'}
               <img src="../images/icons/icon-right-arrow.svg" alt="" class="btn-arrow"/>
             </button>
-            ${!pending ? `
+            ${canOwnerResolve ? `
               <button type="button" class="btn-mark-resolved" onclick="handleResolveOwnReport('${report.id}')">
                 Mark Resolved
               </button>
@@ -821,18 +841,19 @@ function claimedWord(report) {
 function setDetailClaimedState(type, pet) {
   const prefix = type === 'lost' ? 'detailsLost' : 'detailsFound';
   const claimed = pet.status === 'resolved';
+  const awaitingHandoff = type === 'found' && !claimed && !!pet.claimReserved;
   const note = document.getElementById(prefix + 'Claimed');
   const action = document.getElementById(prefix + 'Action');
   const dispute = document.getElementById(prefix + 'Dispute');
-  if (action) action.hidden = claimed;
+  if (action) action.hidden = claimed || awaitingHandoff;
   if (dispute) dispute.hidden = !claimed;
   if (note) {
-    note.hidden = !claimed;
+    note.hidden = !claimed && !awaitingHandoff;
     const text = note.querySelector('.details-section-text');
     if (text) {
       text.textContent = claimed
         ? `${claimedWord(pet)}${pet.resolved_at ? ' on ' + formatDate(pet.resolved_at) : ''}`
-        : '';
+        : awaitingHandoff ? 'A verified claim is awaiting handoff. New claims are paused until the claimant confirms receipt.' : '';
     }
   }
 }
@@ -949,6 +970,7 @@ function buildMatchCard(match, index, report) {
 	const barClass   = cls === 'high' ? 'lf-match-bar' : `lf-match-bar ${cls}-bar`;
 	const isResolved = match.status === 'approved';
 	const foundId    = match.found?.reportId || '';
+	const reserved    = !!match.found?.claimReserved;
 
 	const ownerIsFound = normalizeType(report?.type) === 'found';
 	const ownerPet    = ownerIsFound ? match.found : match.lost;
@@ -976,12 +998,12 @@ function buildMatchCard(match, index, report) {
 				onclick="handleNotMine(this)">
 				NOT MY PET
 			</button>
-			<button type="button" class="lfd-btn-claim"
+			${ownerIsFound ? '<span class="lf-match-reserved-note">The lost pet owner must submit the claim.</span>' : reserved ? '<span class="lf-match-reserved-note">Awaiting Handoff</span>' : `<button type="button" class="lfd-btn-claim"
 				data-match-id="${match.id}"
 				data-found-id="${foundId}"
 				onclick="handleClaim(this)">
 				CLAIM THIS PET
-			</button>
+			</button>`}
 		`;
 
 	return `
@@ -1107,6 +1129,7 @@ function renderMatchDetailBody(match) {
 	const report = currentMatchesReport;
 	const isResolved = match.status === 'approved';
 	const foundId = match.found?.reportId || '';
+	const reserved = !!match.found?.claimReserved;
 
 	const ownerIsFound = normalizeType(report?.type) === 'found';
 	const ownerPet = ownerIsFound ? match.found : match.lost;
@@ -1131,7 +1154,7 @@ function renderMatchDetailBody(match) {
 		? `<div class="lf-match-resolved-badge">✓ Resolved Match</div>`
 		: `
 			<button type="button" class="lfd-btn-notmine" onclick="handleNotMineModal('${match.id}')">NOT MY PET</button>
-			<button type="button" class="lfd-btn-claim" onclick="handleClaimModal('${match.id}', '${foundId}')">CLAIM THIS PET</button>
+			${ownerIsFound ? '<span class="lf-match-reserved-note">The lost pet owner must submit the claim.</span>' : reserved ? '<span class="lf-match-reserved-note">Awaiting Handoff</span>' : `<button type="button" class="lfd-btn-claim" onclick="handleClaimModal('${match.id}', '${foundId}')">CLAIM THIS PET</button>`}
 		`;
 
 	const subtitleEl = document.getElementById('matchDetailSubtitle');
@@ -1198,7 +1221,7 @@ function handleNotMineModal(matchId) {
 
 function handleClaimModal(matchId, foundId) {
 	closeModal('matchDetailModal');
-	handleClaim({ dataset: { foundId } });
+	handleClaim({ dataset: { foundId, matchId } });
 }
 
 function animateMatchBars(container) {
@@ -1290,6 +1313,8 @@ async function openMyReportMatches(reportId) {
 		if (claimant) {
 			document.getElementById('matchesClaimantName').textContent = claimant.name;
 			document.getElementById('matchesClaimantContact').textContent = claimant.phone || claimant.email || '';
+			const label = claimantBlock.querySelector('.lf-match-claimant-label');
+			if (label) label.textContent = myReportClaimStatuses[String(reportId)]?.status === 'pending' ? 'Claim submitted by' : 'Claimant';
 			claimantBlock.style.display = 'flex';
 		} else {
 			claimantBlock.style.display = 'none';
@@ -1346,11 +1371,12 @@ function handleNotMine(btn) {
 async function handleClaim(btn) {
   const foundId = btn?.dataset?.foundId || '';
   if (foundId) currentClaimReportId = foundId;
+  currentClaimMatchId = btn?.dataset?.matchId || null;
   if (!currentClaimReportId) {
     await vbAlert('Only found pet reports can be claimed. Please contact the clinic for sighting reports.');
     return;
   }
-  openClaimModal();
+  openClaimModal(currentClaimReportId, currentClaimMatchId);
 }
 
 // General "mark resolved" action reachable straight from the report card —
@@ -1360,8 +1386,8 @@ async function handleResolveOwnReport(reportId) {
   const report = myReports.find((item) => String(item.id) === String(reportId));
   const isFound = normalizeType(report?.type) === 'found';
   const confirmMsg = isFound
-    ? 'Mark this case as resolved?'
-    : 'Mark this case as resolved?';
+    ? 'Confirm this pet was reunited with its owner outside BVetter, without an active claim?'
+    : 'Confirm your pet has returned home and this lost report can be closed?';
   if (!(await vbConfirm(confirmMsg))) return;
 
   const result = await api.resolveOwnReport(reportId);
@@ -1606,8 +1632,9 @@ function destroyDetailMap() {
   detailMap = null;
 }
 
-function openClaimModal(reportId = null) {
+function openClaimModal(reportId = null, matchId = null) {
   if (reportId) currentClaimReportId = reportId;
+  currentClaimMatchId = matchId || null;
   closeModal('detailsFoundModal');
   setTimeout(() => {
     openModalById('claimModal');
@@ -1709,6 +1736,7 @@ async function submitClaim() {
   formData.append('claimant_email', claimantEmail);
   formData.append('proof_type', modal.querySelector('.proof-option.active')?.textContent.trim() || 'Photo Evidence');
   formData.append('proof_file', file);
+  if (currentClaimMatchId) formData.append('match_id', currentClaimMatchId);
 
   const result = await api.submitClaim(currentClaimReportId, formData);
   if (!result.success) {
@@ -1716,6 +1744,7 @@ async function submitClaim() {
     return;
   }
   clearDraft('claim');
+  currentClaimMatchId = null;
   closeModal('claimModal');
   setTimeout(() => openModalById('claimSuccessModal'), 150);
 }

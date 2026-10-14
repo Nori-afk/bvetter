@@ -16,8 +16,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
-  <link rel="stylesheet" href="../css/lost-found.css?v=20260928-wording"/>
-  <link rel="stylesheet" href="../css/my-claims.css"/>
+  <link rel="stylesheet" href="../css/lost-found.css?v=20261014-claimhandoff"/>
+  <link rel="stylesheet" href="../css/my-claims.css?v=20261014-claimhandoff"/>
 </head>
 <body>
 
@@ -124,6 +124,8 @@
       <div class="mc-filter-select-wrap">
         <select class="mc-filter-select" id="statusFilter" onchange="filterClaims(this.value)">
           <option value="all">All Status</option>
+          <option value="awaiting_handoff">Awaiting Handoff</option>
+          <option value="resolved">Handoff Confirmed</option>
           <option value="approved">Approved</option>
           <option value="pending">Pending</option>
           <option value="rejected">Rejected</option>
@@ -310,7 +312,7 @@
                 <div class="mc-step-num pending-num">4</div>
                 <div class="mc-step-content">
                   <h4 class="mc-step-title">Receive your pet</h4>
-                  <p class="mc-step-desc">Complete the exchange! Once you have your pet back, click resolve below to close the case.</p>
+                  <p class="mc-step-desc">After the handoff is complete, confirm that you received the pet to close the case.</p>
                 </div>
               </div>
 
@@ -320,7 +322,7 @@
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M3 8l4 4 6-6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
-              Mark as Resolved
+              Confirm Pet Received
             </button>
           </div>
 
@@ -540,8 +542,8 @@
     requireAuth(['owner']);
   </script>
   <script src="../js/nav.js?v=20260829-preview"></script>
-  <script src="../js/api.js?v=20260819-authfix"></script>
-  <script src="../js/my-claims.js?v=20260925-feedback"></script>
+  <script src="../js/api.js?v=20261014-claimhandoff"></script>
+  <script src="../js/my-claims.js?v=20261014-claimhandoff"></script>
   <script src="../js/site-settings.js?v=20260829-preview"></script>
 </body>
 </html>
