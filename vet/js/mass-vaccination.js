@@ -90,11 +90,11 @@
         if (value === '' || value === null || value === undefined) return '-';
         return Number(value).toLocaleString();
     };
-    const formatVaccinationMonth = (period) => {
+    const formatVaccinationMonth = (period, monthStyle = 'long') => {
         const parts = /^(\d{4})-(\d{2})$/.exec(String(period || ''));
         if (!parts || Number(parts[2]) < 1 || Number(parts[2]) > 12) return '';
         return new Date(Number(parts[1]), Number(parts[2]) - 1, 1)
-            .toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+            .toLocaleDateString('en-PH', { month: monthStyle, year: 'numeric' });
     };
     const forecastPlanningNote = (forecast) => {
         const latestMonth = formatVaccinationMonth(forecast.current_period);
@@ -739,21 +739,21 @@
 
         const maxVal = Math.max(1, ...entries.map((entry) => Number(entry.forecast) || 0));
         const rows = entries
-            .filter((row) => (Number(row.forecast) > 0) || (actualAvailable && row.actual > 0))
+            .filter((row) => String(row.name || '').trim())
             .sort((a, b) => (Number(b.forecast) || 0) - (Number(a.forecast) || 0) || a.name.localeCompare(b.name))
             .map((row) => {
                 const hasForecast = row.forecast !== null && row.forecast !== undefined
                     && Number.isFinite(Number(row.forecast));
                 const forecast = hasForecast ? Math.max(0, Number(row.forecast)) : 0;
-                const pct = Math.max(2, Math.round((forecast / maxVal) * 100));
+                const pct = forecast > 0 ? Math.max(2, Math.round((forecast / maxVal) * 100)) : 0;
                 const actual = actualAvailable
-                    ? `<small>${sanitize(actualLabel)} recorded: ${Math.round(row.actual || 0).toLocaleString()}</small>`
-                    : '<small>Last month not confirmed yet</small>';
+                    ? `<small>${sanitize(actualLabel)}: ${Math.round(row.actual || 0).toLocaleString()} given</small>`
+                    : '';
                 return `
                     <div class="rank-row">
                         <span class="rank-name" title="${sanitize(row.name)}">${sanitize(row.name)}</span>
-                        <div class="line"><div class="fill fill-blue" style="width:${pct}%"></div></div>
-                        <strong class="rank-value">${hasForecast ? `Estimate: ${Math.round(forecast).toLocaleString()}` : 'Estimate unavailable'}${actual}</strong>
+                        <div class="line" aria-hidden="true"><div class="fill fill-blue" style="width:${pct}%"></div></div>
+                        <strong class="rank-value">${hasForecast ? `${Math.round(forecast).toLocaleString()} doses` : 'Estimate unavailable'}${actual}</strong>
                     </div>`;
             }).join('');
 
@@ -813,8 +813,10 @@
     const previousMonthActuals = () => {
         const { year, month } = lastClosedMonth();
         const prefix = `${year}-${String(month).padStart(2, '0')}`;
+        const label = formatVaccinationMonth(prefix);
+        const shortLabel = formatVaccinationMonth(prefix, 'short');
         if (!monthStatus(year, month)?.complete) {
-            return { available: false, label: '', totals: {} };
+            return { available: false, label, shortLabel, totals: {} };
         }
         const totals = {};
         const labels = {};
@@ -830,8 +832,7 @@
             totals[key] = (totals[key] || 0) + count;
             if (!labels[key]) labels[key] = event.barangay;
         });
-        const label = new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
-        return { available: true, label, totals, names: labels };
+        return { available: true, label, shortLabel, totals, names: labels };
     };
 
     // Draws a dashed "Now" divider where history ends and the forecast begins,
@@ -1196,29 +1197,30 @@
         // The municipal ARIMA forecast is allocated once by the API. It uses
         // complete live vaccination shares only after the agreed coverage rule
         // passes; otherwise the API falls back to estimated dog-population weights.
-        // The actual comparison is the previous calendar month and appears only
-        // after staff have signed that month off as fully entered.
+        // Previous-month counts appear only after all records for that month
+        // have been entered and confirmed.
         {
             const forecastRows = Array.isArray(state.barangayForecast) ? state.barangayForecast : [];
             const actuals = previousMonthActuals();
             const vaccinationForecast = state.arimaData?.total_vaccinated || {};
             const forecastWithheld = vaccinationForecast.forecast_status === 'stale_history';
             const longRangeEstimate = vaccinationForecast.forecast_status === 'long_gap_estimate';
-            const method = forecastRows[0]?.allocation_method === 'completed_vaccination_shares'
-                ? 'each barangay’s share of past doses'
-                : 'estimated dog counts in each barangay';
+            const usesVaccinationShares = forecastRows[0]?.allocation_method === 'completed_vaccination_shares';
             const municipalTotal = Number(forecastRows[0]?.municipal_forecast?.[0]);
             const period = state.arimaData?.total_vaccinated?.forecast_periods?.[0] || 'next month';
             const titleText = forecastRows.length
-                ? `${period} estimate: ${Number.isFinite(municipalTotal) ? municipalTotal.toLocaleString() : '—'} doses total${longRangeEstimate ? ', based on older data' : ''}. Each barangay’s amount uses ${method}.`
+                ? `${period} · ${Number.isFinite(municipalTotal) ? Math.round(municipalTotal).toLocaleString() : '—'} estimated doses in total`
                 : forecastWithheld
-                    ? `No estimate available. Latest month with data: ${vaccinationForecast.current_period || 'unavailable'}.`
+                    ? 'A new estimate needs more recent monthly records.'
                     : 'A barangay estimate is not available yet.';
             let entries = forecastRows.map((row) => {
                 const name = row.barangay || '';
+                const rawForecast = row.forecast?.[0];
+                const hasForecast = rawForecast !== null && rawForecast !== undefined
+                    && rawForecast !== '' && Number.isFinite(Number(rawForecast));
                 return {
                     name,
-                    forecast: Math.max(0, Number(row.forecast?.[0]) || 0),
+                    forecast: hasForecast ? Math.max(0, Number(rawForecast)) : null,
                     actual: actuals.totals[normalizeBarangayName(name)] || 0,
                 };
             });
@@ -1227,20 +1229,31 @@
                     name: actuals.names[key], forecast: null, actual: actuals.totals[key],
                 }));
             }
-            const actualNote = actuals.available
-                ? `Smaller figures show doses recorded in ${actuals.label}.`
-                : 'Last month’s recorded doses appear after all reports are entered and the month is confirmed.';
-            const chartNote = forecastRows.length
-                ? `Blue bars show each barangay’s estimate. ${actualNote}`
-                : actualNote;
-            const noteEl = document.getElementById('vaccinesNeededTitle');
-            if (noteEl) noteEl.title = `${titleText} ${chartNote} ${forecastWithheld ? (vaccinationForecast.data_quality_note || '') : ''}`;
+            const explanationEl = document.getElementById('vaccinesNeededExplanation');
+            if (explanationEl) explanationEl.textContent = forecastRows.length
+                ? 'Each bar shows a barangay’s share of the total.'
+                : actuals.available ? 'The doses given in the previous month are shown below.' : '';
+            const cautionEl = document.getElementById('vaccinesNeededCaution');
+            if (cautionEl) {
+                cautionEl.hidden = !forecastRows.length || !longRangeEstimate;
+                cautionEl.textContent = 'Estimate based on older vaccination records.';
+            }
+            const recordedNoteEl = document.getElementById('vaccinesRecordedNote');
+            if (recordedNoteEl) recordedNoteEl.textContent = actuals.available
+                ? `The smaller numbers show doses given in ${actuals.label}.`
+                : `${actuals.label || 'Previous month'} vaccination totals are not available yet.`;
+            const allocationDetailsEl = document.getElementById('vaccinesAllocationDetails');
+            if (allocationDetailsEl) allocationDetailsEl.hidden = !forecastRows.length;
+            const allocationInfoEl = document.getElementById('vaccinesAllocationInfo');
+            if (allocationInfoEl) allocationInfoEl.textContent = usesVaccinationShares
+                ? 'The total is shared using past vaccination counts in each barangay. All barangay estimates add up to the total above.'
+                : 'The total is shared using estimated dog counts. Barangays with more estimated dogs receive a larger share. All barangay estimates add up to the total above.';
             renderRankList('vaccinesNeededList', 'vaccinesNeededTitle',
-                `${titleText} ${chartNote}`,
-                forecastRows.length ? '#456084' : VIZ.warn,
-                entries, actuals.label, actuals.available,
+                titleText,
+                forecastRows.length ? '#0c3566' : '#64748B',
+                entries, actuals.shortLabel || actuals.label, actuals.available,
                 forecastWithheld
-                    ? `No barangay estimate shown. Latest month with data: ${vaccinationForecast.current_period || 'unavailable'}.`
+                    ? 'Enter and confirm recent monthly records to get a new estimate.'
                     : 'No barangay estimate is available yet.');
         }
     };

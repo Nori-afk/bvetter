@@ -385,11 +385,50 @@ body {
 
 .forecast-barangay-note {
 	display: block;
-	margin-top: 6px;
-	color: #456084 !important;
-	font-size: 12px !important;
+	margin: 6px 0 0;
+	color: #456084;
+	font-size: 12px;
 	line-height: 1.5;
-	font-weight: 500 !important;
+	font-weight: 500;
+}
+
+.forecast-barangay-total {
+	margin: 8px 0 0;
+	color: var(--mv-navy);
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1.5;
+}
+
+.forecast-barangay-caution,
+.forecast-recorded-note {
+	margin: 8px 0 0;
+	color: var(--mv-muted);
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.forecast-recorded-note {
+	margin-top: 12px;
+}
+
+.forecast-allocation-details {
+	margin-top: 12px;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: #F8FAFC;
+	color: #456084;
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.forecast-allocation-details summary {
+	cursor: pointer;
+	font-weight: 600;
+}
+
+.forecast-allocation-details p {
+	margin: 8px 0 0;
 }
 
 select,
@@ -866,7 +905,7 @@ tr[data-event-id]:hover {
 
 .rank-row {
 	display: grid;
-	grid-template-columns: minmax(90px, 160px) 1fr auto;
+	grid-template-columns: minmax(90px, 160px) minmax(0, 1fr) minmax(90px, 170px);
 	align-items: center;
 	gap: 12px;
 }
@@ -1662,7 +1701,8 @@ tr[data-event-id]:hover {
 	   at every breakpoint, so no mobile-specific override is needed here. */
 	.chart-scroll { max-height: 360px; }
 
-	.rank-row { grid-template-columns: minmax(70px, 110px) 1fr auto; gap: 8px; }
+	.rank-row { grid-template-columns: minmax(70px, 100px) minmax(0, 1fr) minmax(72px, 100px); gap: 8px; }
+	.rank-name { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.4; }
 
 	.back-link { width: 100%; justify-content: center; }
 

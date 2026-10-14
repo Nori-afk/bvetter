@@ -143,11 +143,18 @@
                 <section class="card chart-card">
                     <div class="card-head forecast-card-head">
                         <div class="forecast-card-heading">
-                            <h3>Estimated doses by barangay</h3>
-                            <small id="vaccinesNeededTitle" class="forecast-barangay-note" aria-live="polite"></small>
+                            <h3>Estimated vaccine doses by barangay</h3>
+                            <p id="vaccinesNeededTitle" class="forecast-barangay-total" aria-live="polite"></p>
+                            <p id="vaccinesNeededExplanation" class="forecast-barangay-note">Each bar shows a barangay’s share of the total.</p>
+                            <p id="vaccinesNeededCaution" class="forecast-barangay-caution" hidden></p>
                         </div>
                     </div>
                     <div class="chart-scroll"><div class="chart-scroll-inner"><div id="vaccinesNeededList" class="rank-list"></div></div></div>
+                    <p id="vaccinesRecordedNote" class="forecast-recorded-note"></p>
+                    <details id="vaccinesAllocationDetails" class="forecast-allocation-details" hidden>
+                        <summary>How are these doses shared?</summary>
+                        <p id="vaccinesAllocationInfo"></p>
+                    </details>
                 </section>
 
                 <section class="card table-card" id="event-table-card">

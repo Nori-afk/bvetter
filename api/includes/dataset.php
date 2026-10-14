@@ -324,18 +324,22 @@ function bv_sheet_rows($sheetName)
         return $activeRows;
     }
 
-    // The vaccination workbook's notes above the Combined_Rabies_3Years table
-    // were removed, moving its headers from row 3 to row 1. Detect this table
-    // by its column names so either layout continues to load correctly.
-    if ($sheetName === 'Combined_Rabies_3Years') {
-        return bv_xlsx_rows($sheetName, null, [
+    // Removing workbook notes can move these tables' headers. Identify each
+    // table by its column names so either layout continues to load correctly.
+    $autoHeaderSheets = [
+        'Combined_Rabies_3Years' => [
             'year', 'month_no', 'dogs_vaccinated', 'cats_vaccinated', 'total_vaccinated',
-        ]);
+        ],
+        'Barangay_Masterlist' => [
+            'barangay_id', 'barangay', 'estimated_dog_population_2025',
+        ],
+    ];
+    if (isset($autoHeaderSheets[$sheetName])) {
+        return bv_xlsx_rows($sheetName, null, $autoHeaderSheets[$sheetName]);
     }
 
     $headerRows = [
         'Dashboard' => 4,
-        'Barangay_Masterlist' => 3,
         'Barangay_Disease_Monthly' => 3,
         'Prediction_Ready_Aggregated' => 3,
         'Consult_Diagnosis_3Y' => 3,
