@@ -1033,7 +1033,9 @@ def _load_workbook_vaccination_monthly() -> pd.DataFrame:
         raise ValueError(f"{sheet}: dog and cat counts do not match the total for "
                          f"{int(row['year']):04d}-{int(row['month_no']):02d}.")
     df["total_vaccinated"] = df["total_vaccinated"].fillna(species_total)
-    df.index = pd.PeriodIndex(year=years.astype(int), month=months.astype(int), freq="M")
+    # Field keywords on PeriodIndex were removed in pandas 3.0. from_fields
+    # supports both the project's pandas 2.2 minimum and newer deployments.
+    df.index = pd.PeriodIndex.from_fields(year=years.astype(int), month=months.astype(int), freq="M")
     if df.index.duplicated().any():
         raise ValueError(f"Duplicate vaccination month in {sheet}; keep one municipal total per month.")
     return df[metrics].sort_index()
