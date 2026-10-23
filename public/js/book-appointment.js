@@ -1315,6 +1315,119 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
 
   const validateRequiredField = (id, message) => VBForm.validateRequired(id, message);
 
+  // Several checks can apply to one input. Keep them together so a passing
+  // rule can't clear an error raised by another rule on the same field.
+  function validateIdentityField(id, { label, requiredMessage = '', minLength = 0, maxLength = 0 } = {}) {
+    const el = document.getElementById(id);
+    if (!el) return true;
+    const value = (el.value || '').trim();
+    let error = '';
+    if (!value && requiredMessage) error = requiredMessage;
+    else if (value && minLength > 0 && value.length < minLength) error = `${label} must be at least ${minLength} characters.`;
+    else if (value && maxLength > 0 && value.length > maxLength) error = `${label} must be ${maxLength} characters or fewer.`;
+    else if (/[<>]|[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/u.test(value)) error = `${label} cannot contain the characters < or >.`;
+
+    if (error) {
+      setGroupError(el.closest('.form-group'), error);
+      return false;
+    }
+    clearGroupError(el.closest('.form-group'));
+    return true;
+  }
+
+  function validatePhoneField(id) {
+    const el = document.getElementById(id);
+    if (!el) return true;
+    const value = (el.value || '').trim();
+    let error = '';
+    if (!value) error = 'Please enter your contact number.';
+    else if (value.length > 30) error = 'Contact number must be 30 characters or fewer.';
+    else if (!VBForm.isValidPHPhone(value)) error = 'Please enter a valid Philippine mobile number, e.g. 09171234567.';
+    if (error) {
+      setGroupError(el.closest('.form-group'), error);
+      return false;
+    }
+    clearGroupError(el.closest('.form-group'));
+    return true;
+  }
+
+  function validateEmailField(id) {
+    const el = document.getElementById(id);
+    if (!el) return true;
+    const value = (el.value || '').trim();
+    let error = '';
+    if (!value) error = 'Please enter your email address.';
+    else if (value.length > 190) error = 'Email address must be 190 characters or fewer.';
+    else if (!VBForm.isValidEmail(value)) error = 'Please enter a valid email address, e.g. juan@example.com.';
+    if (error) {
+      setGroupError(el.closest('.form-group'), error);
+      return false;
+    }
+    clearGroupError(el.closest('.form-group'));
+    return true;
+  }
+
+  function validatePetAge(required = false) {
+    const el = document.getElementById('petAgeValue');
+    if (!el) return true;
+    const raw = (el.value || '').trim();
+    if (!raw) {
+      if (el.validity.badInput || el.validity.stepMismatch) {
+        setGroupError(el.closest('.form-group'), 'Age must be a whole number that is zero or greater.');
+        return false;
+      }
+      if (required) return validateRequiredField('petAgeValue', "Please enter your pet's age for Castration & Spay.");
+      clearGroupError(el.closest('.form-group'));
+      return true;
+    }
+
+    const age = Number(raw);
+    if (!Number.isFinite(age) || !Number.isInteger(age) || age < 0) {
+      setGroupError(el.closest('.form-group'), 'Age must be a whole number that is zero or greater.');
+      return false;
+    }
+    clearGroupError(el.closest('.form-group'));
+    return true;
+  }
+
+  function validateVaccinationDate() {
+    const el = document.getElementById('petVaccDate');
+    if (!el) return true;
+    if (el.validity.badInput) {
+      setGroupError(el.closest('.form-group'), 'Please enter a valid vaccination date.');
+      return false;
+    }
+    if (!el.value) {
+      if (el) clearGroupError(el.closest('.form-group'));
+      return true;
+    }
+
+    const match = el.value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) {
+      setGroupError(el.closest('.form-group'), 'Please enter a valid vaccination date.');
+      return false;
+    }
+    const [, year, month, day] = match;
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+    const isRealDate = parsed.getFullYear() === Number(year)
+      && parsed.getMonth() === Number(month) - 1
+      && parsed.getDate() === Number(day);
+    if (!isRealDate) {
+      setGroupError(el.closest('.form-group'), 'Please enter a valid vaccination date.');
+      return false;
+    }
+    if (el.min && el.value < el.min) {
+      setGroupError(el.closest('.form-group'), 'Vaccination date is too far in the past.');
+      return false;
+    }
+    if (el.max && el.value > el.max) {
+      setGroupError(el.closest('.form-group'), 'Vaccination date can be at most one year ahead.');
+      return false;
+    }
+    clearGroupError(el.closest('.form-group'));
+    return true;
+  }
+
   function validateApptDateWeekend() {
     const el = document.getElementById('apptDate');
     if (!el || !el.value) return true;
@@ -1349,8 +1462,14 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
   function validateTimeSlotField() {
     const slotGrid = document.querySelector('#step3 .slot-grid');
     const group = slotGrid ? slotGrid.closest('.form-group') : null;
-    if (!document.querySelector('.slot-btn.selected')) {
+    const selected = document.querySelector('#step3 .slot-btn.selected');
+    const date = document.getElementById('apptDate')?.value || '';
+    if (!selected) {
       setGroupError(group, 'Please select a time slot.');
+      return false;
+    }
+    if (selected.classList.contains('unavailable') || isSlotPast(date, selected.dataset.slot)) {
+      setGroupError(group, 'That time slot is no longer available. Please choose another.');
       return false;
     }
     clearGroupError(group);
@@ -1360,60 +1479,60 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
   function validateStep(n) {
     let valid = true;
 
-    // With the account switch on, step 1 holds the account's own details:
-    // the server takes the owner from the login and ignores these fields, so
-    // there is nothing for the owner to get wrong.
+    // The account fields are read-only when this is on, but the email is
+    // still used for appointment notifications. Validate the account values
+    // so an incomplete/legacy profile gets a useful field error before submit.
     if (n === 1 && usingAccountDetails()) {
-      return true;
+      if (!validateIdentityField('ownerName', { label: 'Full name', requiredMessage: 'Please enter your full name.', minLength: 2, maxLength: 150 })) valid = false;
+      if (!validatePhoneField('ownerContact')) valid = false;
+      if (!validateEmailField('ownerEmail')) valid = false;
+      if (!validateRequiredField('ownerBarangay', 'Please select your barangay.')) valid = false;
+      if (!validateIdentityField('ownerAddress', { label: 'Address', requiredMessage: 'Please enter your complete address.', maxLength: 255 })) valid = false;
+      if (!valid) VBForm.focusFirstError('#step1');
+      return valid;
     }
 
     // Switch off: name, number and email are the contact person for this
-    // appointment. Barangay and address stay the account's, so they aren't
-    // checked here.
+    // appointment. Barangay and address stay the account's and remain required.
     if (n === 1 && !usingAccountDetails() && accountDetails) {
-      if (!validateRequiredField('ownerName', 'Please enter the name of the person bringing the pet.')) valid = false;
-      if (!VBForm.validatePHPhone('ownerContact'))                                                      valid = false;
-      if (!VBForm.validateEmail('ownerEmail'))                                                          valid = false;
-      if (!VBForm.validateNoMarkup('ownerName', 'Full name'))                                           valid = false;
-      if (!valid) document.querySelector('#step1 .has-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (!validateIdentityField('ownerName', { label: 'Contact name', requiredMessage: 'Please enter the name of the person bringing the pet.', minLength: 2, maxLength: 150 })) valid = false;
+      if (!validatePhoneField('ownerContact')) valid = false;
+      if (!validateEmailField('ownerEmail')) valid = false;
+      if (!validateRequiredField('ownerBarangay', 'Please select your barangay.')) valid = false;
+      if (!validateIdentityField('ownerAddress', { label: 'Address', requiredMessage: 'Please enter your complete address.', maxLength: 255 })) valid = false;
+      if (!valid) VBForm.focusFirstError('#step1');
       return valid;
     }
 
     if (n === 1) {
-      if (!validateRequiredField('ownerName',     'Please enter your full name.'))        valid = false;
+      if (!validateIdentityField('ownerName', { label: 'Full name', requiredMessage: 'Please enter your full name.', minLength: 2, maxLength: 150 })) valid = false;
       // Format, not just presence. These two used to be checked for emptiness
       // only, on both the client AND the server, so "asdf" and "abcdefg" booked
       // successfully -- and the email is what the clinic's confirmation mail is
       // sent to. Same rules as signup (api/auth/register.php), because a guest
       // booking creates a real account in the same users columns.
-      if (!VBForm.validatePHPhone('ownerContact'))                                        valid = false;
-      if (!VBForm.validateEmail('ownerEmail'))                                            valid = false;
+      if (!validatePhoneField('ownerContact')) valid = false;
+      if (!validateEmailField('ownerEmail')) valid = false;
       if (!validateRequiredField('ownerBarangay', 'Please select your barangay.'))         valid = false;
-      if (!validateRequiredField('ownerAddress',  'Please enter your complete address.'))  valid = false;
-      if (!VBForm.validateNoMarkup('ownerName', 'Full name'))                             valid = false;
-      if (!VBForm.validateNoMarkup('ownerAddress', 'Address'))                            valid = false;
+      if (!validateIdentityField('ownerAddress', { label: 'Address', requiredMessage: 'Please enter your complete address.', maxLength: 255 })) valid = false;
     } else if (n === 2) {
-      if (!validateRequiredField('petName',  "Please enter your pet's name."))    valid = false;
+      if (!validateIdentityField('petName', { label: "Pet's name", requiredMessage: "Please enter your pet's name.", maxLength: 120 })) valid = false;
       if (!validateRequiredField('petType',  'Please select a pet type.'))        valid = false;
-      if (!validateRequiredField('petBreed', "Please enter your pet's breed."))   valid = false;
+      if (!validateIdentityField('petBreed', { label: 'Breed', requiredMessage: "Please enter your pet's breed.", maxLength: 80 })) valid = false;
       // Age is optional for an appointment; Castration & Spay checks it in
       // step 3, where that visit type is chosen.
       if (!validateRequiredField('petSex',   "Please select your pet's sex."))    valid = false;
-      if (!VBForm.validateNoMarkup('petName',  "Pet's name"))                     valid = false;
-      if (!VBForm.validateNoMarkup('petBreed', 'Breed'))                          valid = false;
-      // petVaccDate is optional — not validated
+      if (!validatePetAge()) valid = false;
+      if (!validateVaccinationDate()) valid = false;
     } else if (n === 3) {
       if (!validateRequiredField('visitType', 'Please select the type of visit.')) valid = false;
       // The program screens pets by age, so it is required here -- but the
       // field lives on step 2, so send the owner back to it.
-      if (isCspMode() && !(document.getElementById('petAgeValue')?.value || '').trim()) {
+      if (isCspMode() && !validatePetAge(true)) {
         valid = false;
-        vbAlert("Castration & Spay needs your pet's age.").then(() => {
-          goStep(2);
-          validateRequiredField('petAgeValue', "Please enter your pet's age for Castration & Spay.");
-          document.getElementById('petAgeValue')?.focus();
-        });
-        return valid;
+        goStep(2);
+        VBForm.focusFirstError('#step2');
+        return false;
       }
       if (!isCspMode()) {
         if (!validateRequiredField('apptDate', 'Please select a preferred date.')) valid = false;
@@ -1531,8 +1650,9 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       if (!result.success || !Array.isArray(result.data) || !result.data.length) return;
       const current = select.value;
       const names = result.data.map((type) => type.name);
-      select.innerHTML = names.map((name) => `<option>${name}</option>`).join('');
-      if (names.includes(current)) select.value = current;
+      select.innerHTML = '<option value="">Select type of visit</option>'
+        + names.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join('');
+      select.value = names.includes(current) ? current : '';
       toggleDewormingNotice();
       toggleCspMode();
     } catch (err) {

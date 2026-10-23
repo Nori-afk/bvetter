@@ -1227,7 +1227,7 @@ function rescheduleAppointment($pdo, $data, $session = null)
     }
 
     $currentStatus = (string) ($appointment['status'] ?? 'pending');
-    if (in_array($currentStatus, ['completed', 'cancelled', 'rejected'], true)) {
+    if (in_array($currentStatus, ['cancelled', 'rejected', 'expired'], true)) {
         respond(409, [
             'success' => false,
             'message' => 'This appointment is already ' . $currentStatus . ' and cannot be rescheduled.'
@@ -1318,10 +1318,11 @@ function respondToReschedule($pdo, $data, $session)
         ]);
     }
 
-    // Falling back to 'confirmed' rather than 'pending' would silently approve
-    // an appointment the vet had never confirmed.
+    // Keep the original status if the owner declines. A completed visit can
+    // be proposed again; if accepted, the proposal becomes a confirmed future
+    // appointment in the accept branch below.
     $previous = $appointment['reschedule_prev_status'] ?: 'pending';
-    if (!in_array($previous, ['pending', 'confirmed'], true)) {
+    if (!in_array($previous, ['pending', 'confirmed', 'completed'], true)) {
         $previous = 'pending';
     }
 

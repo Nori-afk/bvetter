@@ -444,17 +444,8 @@ async function approveLostFoundReport(id, reviewNotes = '') {
     return lostFoundFetch('approve_report', { report_id: id, review_notes: reviewNotes });
 }
 
-/** PATCH /api/vet/lost-and-found/:id/resolve */
-async function resolveLostFoundCase(id, reviewNotes = '') {
-    return lostFoundFetch('resolve_report', { report_id: id, review_notes: reviewNotes });
-}
-
 async function rejectLostFoundReport(id, reviewNotes = '') {
     return lostFoundFetch('reject_report', { report_id: id, review_notes: reviewNotes });
-}
-
-async function approveLostFoundMatch(id) {
-    return lostFoundFetch('approve_match', { match_id: id });
 }
 
 async function dismissLostFoundMatch(id) {
@@ -817,9 +808,7 @@ window.VetAPI = {
     getDiseaseAnalytics,
     getLostAndFound,
     approveLostFoundReport,
-    resolveLostFoundCase,
     rejectLostFoundReport,
-    approveLostFoundMatch,
     dismissLostFoundMatch,
     approveLostFoundClaim,
     rejectLostFoundClaim,

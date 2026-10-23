@@ -1686,6 +1686,10 @@ function reportResolution($pdo, $data)
 
 function updateMatchStatus($pdo, $data, $status)
 {
+    if ($status !== 'dismissed') {
+        respond(422, ['success' => false, 'message' => 'Suggested matches cannot resolve reports.']);
+    }
+
     $id = (int) ($data['id'] ?? $data['match_id'] ?? 0);
     if ($id <= 0) respond(422, ['success' => false, 'message' => 'Invalid match id.']);
 
@@ -1694,44 +1698,24 @@ function updateMatchStatus($pdo, $data, $status)
     $match = $stmt->fetch();
     if (!$match) respond(404, ['success' => false, 'message' => 'Match not found.']);
 
-    $reason = clean($data['review_notes'] ?? '');
-    $comparison = $status === 'approved' ? assertReasonForLowerPick($pdo, 'match', $id, $reason) : null;
-
     $pdo->beginTransaction();
-    $update = $pdo->prepare('UPDATE lost_found_matches SET status = :status, reviewed_by_user_id = :user_id, reviewed_at = NOW() WHERE id = :id');
-    $update->execute([
-        ':status' => $status,
-        ':user_id' => (int) ($data['reviewed_by_user_id'] ?? $data['vet_id'] ?? 0) ?: null,
-        ':id' => $id,
-    ]);
-    if ($reason !== '' && ensureMatchReviewNotes($pdo)) {
-        $pdo->prepare('UPDATE lost_found_matches SET review_notes = :notes WHERE id = :id')
-            ->execute([':notes' => $reason, ':id' => $id]);
-    }
-
-    $closedClaims = [];
-    if ($status === 'approved' && $comparison) {
-        $closedClaims = closeOtherCandidates($pdo, $comparison['foundId'], 'match', $id, (int) $comparison['subject']['ownerId']);
-    }
-
-    if ($status === 'approved') {
-        $resolve = $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id IN (:lost_id, :found_id)");
-        if ($match['found_report_id']) {
-            $resolve->execute([
-                ':lost_id' => (int) $match['lost_report_id'],
-                ':found_id' => (int) $match['found_report_id'],
-            ]);
-        } else {
-            $one = $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id");
-            $one->execute([':id' => (int) $match['lost_report_id']]);
-            if ($match['sighting_id']) {
-                $pdo->prepare("UPDATE lost_found_sightings SET status = 'resolved', reviewed_at = NOW() WHERE id = :id")->execute([':id' => (int) $match['sighting_id']]);
-            }
+    try {
+        $update = $pdo->prepare("UPDATE lost_found_matches SET status = 'dismissed', reviewed_by_user_id = :user_id, reviewed_at = NOW() WHERE id = :id");
+        $update->execute([
+            ':user_id' => (int) ($data['reviewed_by_user_id'] ?? $data['vet_id'] ?? 0) ?: null,
+            ':id' => $id,
+        ]);
+        $reason = clean($data['review_notes'] ?? '');
+        if ($reason !== '' && ensureMatchReviewNotes($pdo)) {
+            $pdo->prepare('UPDATE lost_found_matches SET review_notes = :notes WHERE id = :id')
+                ->execute([':notes' => $reason, ':id' => $id]);
         }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
     }
 
-    $pdo->commit();
-    foreach ($closedClaims as $claimId) notifyClaimReturnedToOther($pdo, $claimId);
     respond(200, ['success' => true, 'message' => 'Match updated.']);
 }
 

@@ -278,15 +278,15 @@
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label">Full Name *</label>
-            <input type="text" class="form-input" placeholder="Enter your full name" id="ownerName" required/>
+            <input type="text" class="form-input" placeholder="Enter your full name" id="ownerName" minlength="2" maxlength="150" required/>
           </div>
           <div class="form-group">
             <label class="form-label">Contact Number *</label>
-            <input type="tel" class="form-input" placeholder="Enter your contact number" id="ownerContact" required/>
+            <input type="tel" class="form-input" placeholder="Enter your contact number" id="ownerContact" maxlength="30" required/>
           </div>
           <div class="form-group">
             <label class="form-label">Email Address *</label>
-            <input type="email" class="form-input" placeholder="Enter your email address" id="ownerEmail" required/>
+            <input type="email" class="form-input" placeholder="Enter your email address" id="ownerEmail" maxlength="190" required/>
             <span class="field-hint">For appointment confirmation</span>
           </div>
           <div class="form-group">
@@ -304,10 +304,11 @@
               </select>
               <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
+            <span class="field-hint">From your account. <a href="account-settings.html" style="color:inherit;">Edit in Account Settings</a></span>
           </div>
           <div class="form-group full">
             <label class="form-label">Complete Address *</label>
-            <input type="text" class="form-input" placeholder="House No., Street, Purok / Subdivision" id="ownerAddress" required/>
+            <input type="text" class="form-input" placeholder="House No., Street, Purok / Subdivision" id="ownerAddress" maxlength="255" required/>
             <span class="field-hint">From your account. <a href="account-settings.html" style="color:inherit;">Edit in Account Settings</a></span>
           </div>
         </div>
@@ -327,20 +328,21 @@
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label">Pet Name *</label>
-            <input type="text" class="form-input" placeholder="e.g. Depa" id="petName" required/>
+            <input type="text" class="form-input" placeholder="e.g. Depa" id="petName" maxlength="120" required/>
           </div>
           <div class="form-group">
             <label class="form-label">Pet Type *</label>
             <div class="select-wrap">
               <select class="form-select" id="petType" required>
-                <option>Dog</option><option>Cat</option>
+                <option value="">Select pet type</option>
+                <option value="Dog">Dog</option><option value="Cat">Cat</option>
               </select>
               <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
           </div>
           <div class="form-group">
             <label class="form-label">Breed *</label>
-            <input type="text" class="form-input" placeholder="e.g. Golden Retriever" id="petBreed" required/>
+            <input type="text" class="form-input" placeholder="e.g. Golden Retriever" id="petBreed" maxlength="80" required/>
           </div>
           <div class="form-group">
             <label class="form-label">Age (optional)</label>
@@ -356,7 +358,8 @@
             <label class="form-label">Sex *</label>
             <div class="select-wrap">
               <select class="form-select" id="petSex" required>
-                <option>Male</option><option>Female</option>
+                <option value="">Select sex</option>
+                <option value="Male">Male</option><option value="Female">Female</option>
               </select>
               <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
@@ -388,8 +391,9 @@
             <label class="form-label">Type of Visit *</label>
             <div class="select-wrap">
               <select class="form-select" id="visitType" required>
-                <option>Consultation</option><option>Anti-Rabies</option>
-                <option>Deworming</option>
+                <option value="">Select type of visit</option>
+                <option value="Consultation">Consultation</option><option value="Anti-Rabies">Anti-Rabies</option>
+                <option value="Deworming">Deworming</option>
               </select>
               <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
@@ -399,7 +403,7 @@
           </div>
           <div class="form-group" id="apptDateGroup">
             <label class="form-label">Preferred Date *</label>
-            <input type="date" class="form-input" id="apptDate"/>
+            <input type="date" class="form-input" id="apptDate" required/>
           </div>
         </div>
         <div class="form-group full is-hidden" id="cspProgramNotice">
@@ -731,7 +735,7 @@
   <script src="../js/api.js?v=20260819-authfix"></script>
   <!-- Must load before book-appointment.js, which calls VBForm at validate time. -->
   <script src="../../shared/js/form-validation.js"></script>
-  <script src="../js/book-appointment.js?v=20260928-fair"></script>
+  <script src="../js/book-appointment.js?v=20261023-owner-validation"></script>
   <script src="../js/site-settings.js?v=20260829-preview"></script>
 </body>
 </html>

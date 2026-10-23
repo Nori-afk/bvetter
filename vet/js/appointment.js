@@ -226,6 +226,24 @@ function isRescheduleSlotPast(dateIso, slotValue) {
 	return (hours * 60 + minutes) <= (now.getHours() * 60 + now.getMinutes());
 }
 
+function canSelectRescheduleDate(dateIso) {
+	if (!dateIso || dateIso < toIsoDate(new Date()) || closedDates[dateIso]) return false;
+	const date = new Date(`${dateIso}T00:00:00`);
+	if (date.getDay() === 0 || date.getDay() === 6) return false;
+	return RESCHEDULE_SLOTS.some((slot) => !isRescheduleSlotPast(dateIso, slot.value));
+}
+
+function nextOpenRescheduleDate() {
+	const date = new Date();
+	date.setHours(0, 0, 0, 0);
+	for (let offset = 0; offset < 370; offset += 1) {
+		const iso = toIsoDate(date);
+		if (canSelectRescheduleDate(iso)) return iso;
+		date.setDate(date.getDate() + 1);
+	}
+	return toIsoDate(new Date());
+}
+
 function formatLongDateFromIso(isoDate) {
 	const date = new Date(`${isoDate}T00:00:00`);
 	if (Number.isNaN(date.getTime())) return isoDate;
@@ -370,7 +388,9 @@ function renderPendingList() {
 
 function renderTable() {
 	const pageSize = pageSizeForViewport();
-	const filtered = getFilteredAppointments().sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+	// Show the most recently requested appointment first. The pending queue
+	// above still stays ordered by appointment time and same-slot request order.
+	const filtered = getFilteredAppointments().sort((a, b) => compareRequested(b, a));
 	const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
 	state.page = Math.min(state.page, totalPages);
 
@@ -865,11 +885,13 @@ function openDetailsModal(appointmentId) {
 function openRescheduleModal() {
 	const selected = getAppointmentById(state.selectedAppointmentId);
 	if (!selected) return;
-	const selectedDate = new Date(selected.datetime);
-	state.selectedDate = toIsoDate(selectedDate);
+	const currentDate = selected.preferredDate || toIsoDate(new Date(selected.datetime));
+	state.selectedDate = canSelectRescheduleDate(currentDate) ? currentDate : nextOpenRescheduleDate();
+	const selectedDate = new Date(`${state.selectedDate}T00:00:00`);
 	state.rescheduleMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
-	const currentTime = `${String(selectedDate.getHours()).padStart(2, '0')}:${String(selectedDate.getMinutes()).padStart(2, '0')}`;
-	const currentTimeStillValid = RESCHEDULE_SLOTS.some((slot) => slot.value === currentTime)
+	const currentTime = canonicalSlot(selected.timeSlot || '');
+	const currentTimeStillValid = state.selectedDate === currentDate
+		&& RESCHEDULE_SLOTS.some((slot) => slot.value === currentTime)
 		&& !isRescheduleSlotPast(state.selectedDate, currentTime);
 	state.selectedSlot = currentTimeStillValid ? currentTime : '';
 	state.rescheduleBookedSlots = [];

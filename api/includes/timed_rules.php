@@ -23,11 +23,9 @@
  *     That rule lives in api/lost-found/lost_and_found.php, next to the
  *     matching it has to trigger.
  *
- * Only requests made after this shipped carry deadlines (the *_at columns
- * below are NULL on older rows), and this sweep never touches the others.
- * Older pending appointments whose time has already passed are closed
- * quietly, with no email, by the migration -- run its dry run first:
- * database/migrations/2026-09-25-time-limits-dryrun.php.
+ * Only requests made after this shipped carry an expires_at deadline. Older
+ * pending appointments with a scheduled date in the past are closed quietly
+ * by this sweep as well, so they no longer remain in the pending queue.
  *
  * There is no scheduler on the server, so runTimedRules() is called from the
  * endpoints staff and owners hit anyway (the notification bell polls it), at
@@ -168,19 +166,28 @@ function runTimedRules(PDO $pdo, bool $force = false): void
 
 function expireUnconfirmedAppointments(PDO $pdo): void
 {
-    // Rows with no expires_at predate the time limit: they are left to the
-    // vets and the migration, never expired (or emailed about) from here.
+    // New rows expire at expires_at. Older rows without a deadline still
+    // expire quietly as soon as their scheduled calendar date has passed.
+    $now = bvNow();
+    $nowText = $now->format('Y-m-d H:i:s');
     $stmt = $pdo->prepare("
-        SELECT id
+        SELECT id, expires_at
         FROM appointments
-        WHERE status = 'pending' AND expires_at IS NOT NULL AND expires_at <= :now
+        WHERE status = 'pending'
+          AND ((expires_at IS NOT NULL AND expires_at <= :now)
+            OR preferred_date < :today)
     ");
-    $stmt->execute([':now' => bvNow()->format('Y-m-d H:i:s')]);
+    $stmt->execute([
+        ':now' => $nowText,
+        ':today' => $now->format('Y-m-d'),
+    ]);
 
     foreach ($stmt->fetchAll() as $row) {
         $update = $pdo->prepare("UPDATE appointments SET status = 'expired', cancelled_at = NOW() WHERE id = :id AND status = 'pending'");
         $update->execute([':id' => $row['id']]);
-        if ($update->rowCount() === 1) {
+        // Preserve the quiet cleanup for legacy rows. New requests have a
+        // deadline and continue to receive the expiry notification.
+        if ($update->rowCount() === 1 && !empty($row['expires_at']) && $row['expires_at'] <= $nowText) {
             notifyOwnerAppointmentExpired($pdo, (int) $row['id']);
         }
     }

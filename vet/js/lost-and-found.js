@@ -925,15 +925,14 @@ function openModal(content) {
 			}
 		});
 	});
-	// ─── BUG FIX: Wire approve/reject/resolve action buttons inside the modal
+	// Wire report, claim, and sighting review actions plus match dismissal.
 	wireModalActionButtons();
 	// Wire embedded Potential Match cards (inside a report's own detail modal) to
 	// open the bigger Match Details view instead of sitting there inert.
 	wireEmbeddedMatchCards();
 }
 
-// ─── BUG FIX: Handle data-action buttons that live inside the modal body
-//             (e.g. Approve / Reject / Resolve in the detail/claim/sighting modals).
+// Handle data-action buttons that live inside the modal body (review or dismiss).
 function wireModalActionButtons() {
 	document.querySelectorAll('#lfModalBody [data-action]').forEach((button) => {
 		button.addEventListener('click', (event) => {
