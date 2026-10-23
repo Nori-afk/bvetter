@@ -694,6 +694,8 @@ body {
 .action-buttons button svg { width: 15px; height: 15px; color: #475569; pointer-events: none; }
 .action-buttons button[title="View"]:hover { background: #EFF6FF; border-color: #BFDBFE; }
 .action-buttons button[title="View"]:hover svg { color: #1D4ED8; }
+.action-buttons button[title="Reschedule"]:hover { background: #ECFDF5; border-color: #A7F3D0; }
+.action-buttons button[title="Reschedule"]:hover svg { color: #047857; }
 .action-buttons button[title="Delete"]:hover { background: #FEF2F2; border-color: #FECACA; }
 .action-buttons button[title="Delete"]:hover svg { color: #DC2626; }
 

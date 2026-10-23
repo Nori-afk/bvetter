@@ -45,6 +45,14 @@ const ICON_TRASH = `
 		<path d="M14 11v6"></path>
 	</svg>
 `;
+const ICON_RESCHEDULE = `
+	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+		<rect x="3" y="4" width="18" height="17" rx="2"></rect>
+		<path d="M16 2v4M8 2v4M3 10h18"></path>
+		<circle cx="16" cy="16" r="3"></circle>
+		<path d="M16 14.5V16l1 1"></path>
+	</svg>
+`;
 
 const ui = {
 	pendingCount: document.getElementById('pending-count'),
@@ -403,6 +411,7 @@ function renderTable() {
 		ui.tbody.innerHTML = pageRows.map((item) => {
 			const dt = formatDateTime(item.datetime);
 			const initials = item.patient.slice(0, 1).toUpperCase();
+			const canReschedule = item.status === 'confirmed' || item.status === 'completed';
 			return `
 				<tr>
 					<td><strong>${dt.date}</strong><br><span>${dt.time}</span></td>
@@ -418,6 +427,7 @@ function renderTable() {
 					<td>
 						<div class="action-buttons">
 							<button type="button" title="View" data-action="view" data-id="${item.id}" aria-label="View">${ICON_EYE}</button>
+							${canReschedule ? `<button type="button" title="Reschedule" data-action="reschedule" data-id="${item.id}" aria-label="Reschedule appointment">${ICON_RESCHEDULE}</button>` : ''}
 							<button type="button" title="Delete" data-action="delete" data-id="${item.id}" aria-label="Delete">${ICON_TRASH}</button>
 						</div>
 					</td>
@@ -1122,6 +1132,7 @@ function setupEvents() {
 		state.selectedAppointmentId = id;
 
 		if (button.dataset.action === 'view') openDetailsModal(id);
+		if (button.dataset.action === 'reschedule') openRescheduleModal();
 		if (button.dataset.action === 'delete') {
 			state.selectedAppointmentId = id;
 			openDeleteModal();
