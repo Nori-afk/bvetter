@@ -490,6 +490,10 @@ body {
     text-align:     center;
 }
 
+.pending-empty[hidden] {
+    display: none;
+}
+
 .pending-empty-icon {
     width:           52px;
     height:          52px;
