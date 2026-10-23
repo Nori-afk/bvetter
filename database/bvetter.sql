@@ -97,7 +97,7 @@ CREATE TABLE `appointments` (
   `reschedule_requested_at` datetime DEFAULT NULL,
   `reschedule_prev_status` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `contact_email` varchar(190) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `status` enum('pending','confirmed','completed','cancelled','rejected','reschedule_pending') COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
+  `status` enum('pending','confirmed','completed','cancelled','rejected','reschedule_pending','owner_reschedule_pending','expired') COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
   `description` text COLLATE utf8mb4_unicode_ci,
   `notes` text COLLATE utf8mb4_unicode_ci,
   `confirmed_at` datetime DEFAULT NULL,

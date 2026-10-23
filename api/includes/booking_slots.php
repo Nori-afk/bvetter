@@ -46,7 +46,7 @@ function busyBookingTimes(PDO $pdo, int $vetId, string $date): array
     $stmt = $pdo->prepare("
         SELECT time_slot FROM appointments
         WHERE preferred_date = :date
-          AND status IN ('pending', 'confirmed', 'completed', 'reschedule_pending')
+          AND status IN ('pending', 'confirmed', 'completed', 'reschedule_pending', 'owner_reschedule_pending')
           {$vetClause}
     ");
     $stmt->execute($params);
@@ -55,7 +55,7 @@ function busyBookingTimes(PDO $pdo, int $vetId, string $date): array
     try {
         $held = $pdo->prepare("
             SELECT proposed_time_slot FROM appointments
-            WHERE proposed_date = :date AND status = 'reschedule_pending'
+            WHERE proposed_date = :date AND status IN ('reschedule_pending', 'owner_reschedule_pending')
               {$vetClause}
         ");
         $held->execute($params);

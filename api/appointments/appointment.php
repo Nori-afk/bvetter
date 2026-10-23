@@ -167,9 +167,8 @@ function getRoleId($pdo, $roleName)
 }
 
 /**
- * A vet-proposed reschedule waits for the owner to accept it, so the proposed
- * date/time is held separately from the confirmed one until they respond --
- * a decline has to be able to fall back to the original booking.
+ * Vet and owner reschedule requests hold the proposed date/time separately
+ * from the current booking until the other side responds.
  *
  * Applied at runtime (same approach as ensureTicketSchema) so deploying is
  * still just a code pull, with no migration to run by hand on the server.
@@ -197,13 +196,18 @@ function ensureRescheduleSchema($pdo)
             ");
         }
 
-        // Widen the status enum for the awaiting-owner state.
+        // Widen the status enum for both sides of the reschedule handshake.
         $status = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'status'")->fetch();
-        if ($status && strpos($status['Type'], 'reschedule_pending') === false) {
+        $statusType = strtolower((string) ($status['Type'] ?? ''));
+        if ($status && (
+            strpos($statusType, "'reschedule_pending'") === false
+            || strpos($statusType, "'owner_reschedule_pending'") === false
+            || strpos($statusType, "'expired'") === false
+        )) {
             $pdo->exec("
                 ALTER TABLE appointments
                 MODIFY COLUMN status
-                ENUM('pending','confirmed','completed','cancelled','rejected','reschedule_pending')
+                ENUM('pending','confirmed','completed','cancelled','rejected','reschedule_pending','owner_reschedule_pending','expired')
                 DEFAULT 'pending'
             ");
         }
@@ -442,10 +446,12 @@ function listAppointments($pdo, $data)
     $where = [];
     $params = [];
 
-    $status = clean($data['status'] ?? '');
+    $status = strtolower(clean($data['status'] ?? ''));
     if ($status !== '' && $status !== 'all') {
+        $filterableStatuses = ['pending', 'confirmed', 'completed', 'cancelled', 'rejected', 'reschedule_pending', 'owner_reschedule_pending', 'expired'];
+        if (!in_array($status, $filterableStatuses, true)) $status = 'pending';
         $where[] = 'appointments.status = :status';
-        $params[':status'] = normalizeStatus($status);
+        $params[':status'] = $status;
     }
 
     $ownerId = (int) ($data['owner_id'] ?? 0);
@@ -479,10 +485,12 @@ function listAppointments($pdo, $data)
         ' . (ensureRescheduleSchema($pdo)
                 ? 'appointments.proposed_date,
                    appointments.proposed_time_slot,
-                   appointments.reschedule_reason,'
+                   appointments.reschedule_reason,
+                   appointments.reschedule_requested_at,'
                 : 'NULL AS proposed_date,
                    NULL AS proposed_time_slot,
-                   NULL AS reschedule_reason,') . '
+                   NULL AS reschedule_reason,
+                   NULL AS reschedule_requested_at,') . '
         ' . (ensureTimedRulesSchema($pdo) ? 'appointments.expires_at,' : 'NULL AS expires_at,') . '
         ' . (ensureAppointmentContactSchema($pdo)
                 ? 'appointments.contact_name, appointments.contact_phone,'
@@ -542,6 +550,7 @@ function listAppointments($pdo, $data)
             'proposed_date' => $row['proposed_date'],
             'proposed_time_slot' => $row['proposed_time_slot'],
             'reschedule_reason' => $row['reschedule_reason'],
+            'reschedule_requested_at' => $row['reschedule_requested_at'],
             'notes' => $row['notes'],
             'description' => $row['description'],
             'owner_rating' => $row['owner_rating'] ? (int)$row['owner_rating'] : null,
@@ -1141,7 +1150,7 @@ function unlockSlot($pdo, $name)
  */
 function slotConflictExists($pdo, $vetId, $date, $timeSlot, $excludeId)
 {
-    $heldStatuses = "'confirmed', 'completed', 'reschedule_pending'";
+    $heldStatuses = "'confirmed', 'completed', 'reschedule_pending', 'owner_reschedule_pending'";
 
     $vetClause = $vetId > 0 ? 'AND (veterinarian_id = :vet_id OR veterinarian_id IS NULL)' : '';
 
@@ -1156,7 +1165,7 @@ function slotConflictExists($pdo, $vetId, $date, $timeSlot, $excludeId)
     $heldClause = '';
     if (ensureRescheduleSchema($pdo)) {
         $heldClause = "OR (proposed_date = :date2 AND proposed_time_slot = :slot2
-                           AND status = 'reschedule_pending')";
+                           AND status IN ('reschedule_pending', 'owner_reschedule_pending'))";
         $params[':date2'] = $date;
         $params[':slot2'] = $timeSlot;
     }
@@ -1191,8 +1200,8 @@ function rescheduleAppointment($pdo, $data, $session = null)
         respond(422, ['success' => false, 'message' => 'Invalid appointment id.']);
     }
     assertSchedulableDate($date, 'Cannot reschedule to a past date.');
-    if (!preg_match('/^\d{2}:\d{2}$/', $timeSlot)) {
-        respond(422, ['success' => false, 'message' => 'A valid time slot is required.']);
+    if (!in_array($timeSlot, BV_BOOKING_SLOTS, true)) {
+        respond(422, ['success' => false, 'message' => 'Choose one of the clinic appointment time slots.']);
     }
     if ($date === date('Y-m-d') && strtotime("{$date} {$timeSlot}") <= time()) {
         respond(422, ['success' => false, 'message' => 'That time slot has already passed today. Please choose a later time.']);
@@ -1239,6 +1248,12 @@ function rescheduleAppointment($pdo, $data, $session = null)
             'message' => 'A reschedule for this appointment is already awaiting the pet owner\'s response.'
         ]);
     }
+    if ($currentStatus === 'owner_reschedule_pending') {
+        respond(409, [
+            'success' => false,
+            'message' => 'The pet owner already requested a new time. Review that request before proposing another reschedule.'
+        ]);
+    }
     if ($date === $appointment['preferred_date'] && $timeSlot === $appointment['time_slot']) {
         respond(422, [
             'success' => false,
@@ -1274,6 +1289,118 @@ function rescheduleAppointment($pdo, $data, $session = null)
     respond(200, [
         'success' => true,
         'message' => 'Reschedule proposed. The pet owner has been asked to confirm.'
+    ]);
+}
+
+/**
+ * Owner asks to move a confirmed appointment. The clinic must approve the
+ * requested slot; until then both the current and requested slots are held.
+ */
+function requestOwnerReschedule($pdo, $data, $session)
+{
+    $appointmentId = (int) ($data['appointment_id'] ?? $data['id'] ?? 0);
+    $date = clean($data['preferred_date'] ?? $data['date'] ?? '');
+    $timeSlot = canonicalTimeSlot($data['time_slot'] ?? '');
+    $reason = clean($data['reason'] ?? '');
+
+    if ($appointmentId <= 0) {
+        respond(422, ['success' => false, 'message' => 'Invalid appointment id.']);
+    }
+    assertSchedulableDate($date, 'Cannot reschedule to a past date.');
+    if (!in_array($timeSlot, BV_BOOKING_SLOTS, true)) {
+        respond(422, ['success' => false, 'message' => 'Choose one of the clinic appointment time slots.']);
+    }
+    if (mb_strlen($reason, 'UTF-8') > 255) {
+        respond(422, ['success' => false, 'message' => 'The reschedule reason must be 255 characters or fewer.']);
+    }
+    if ($date === date('Y-m-d') && strtotime("{$date} {$timeSlot}") <= time()) {
+        respond(422, ['success' => false, 'message' => 'That time slot has already passed today. Please choose a later time.']);
+    }
+
+    $stmt = $pdo->prepare('
+        SELECT appointments.id, appointments.owner_id, appointments.veterinarian_id,
+               appointments.status, appointments.preferred_date, appointments.time_slot,
+               owners.full_name AS owner_name, pets.pet_name
+        FROM appointments
+        INNER JOIN users owners ON owners.id = appointments.owner_id
+        LEFT JOIN pets ON pets.id = appointments.pet_id
+        WHERE appointments.id = :id
+        LIMIT 1
+    ');
+    $stmt->execute([':id' => $appointmentId]);
+    $appointment = $stmt->fetch();
+    if (!$appointment) {
+        respond(404, ['success' => false, 'message' => 'Appointment not found.']);
+    }
+    if ((int) $appointment['owner_id'] !== (int) ($session['user_id'] ?? 0)) {
+        respond(403, ['success' => false, 'message' => 'You can only reschedule your own appointments.']);
+    }
+
+    $currentStatus = (string) ($appointment['status'] ?? '');
+    if (!in_array($currentStatus, ['confirmed', 'completed'], true)) {
+        respond(409, ['success' => false, 'message' => 'Only confirmed or completed appointments can be rescheduled.']);
+    }
+    if ($date === $appointment['preferred_date'] && $timeSlot === canonicalTimeSlot($appointment['time_slot'])) {
+        respond(422, ['success' => false, 'message' => 'That is already the scheduled date and time.']);
+    }
+
+    $vetId = (int) ($appointment['veterinarian_id'] ?? 0);
+    $slotLock = lockSlot($pdo, $date, $timeSlot);
+    if (slotConflictExists($pdo, $vetId, $date, $timeSlot, $appointmentId)) {
+        unlockSlot($pdo, $slotLock);
+        respond(409, ['success' => false, 'message' => 'That time slot is already booked. Please choose another slot.']);
+    }
+
+    $update = $pdo->prepare("
+        UPDATE appointments
+        SET proposed_date = :date,
+            proposed_time_slot = :time_slot,
+            reschedule_reason = :reason,
+            reschedule_requested_by = :by,
+            reschedule_requested_at = NOW(),
+            reschedule_prev_status = :prev_status,
+            status = 'owner_reschedule_pending'
+        WHERE id = :id AND status = :current_status
+    ");
+    $update->execute([
+        ':date' => $date,
+        ':time_slot' => $timeSlot,
+        ':reason' => $reason !== '' ? $reason : null,
+        ':by' => (int) ($session['user_id'] ?? 0),
+        ':prev_status' => $currentStatus,
+        ':id' => $appointmentId,
+        ':current_status' => $currentStatus,
+    ]);
+    unlockSlot($pdo, $slotLock);
+
+    if ($update->rowCount() !== 1) {
+        respond(409, ['success' => false, 'message' => 'This appointment changed. Refresh the page and try again.']);
+    }
+
+    $ownerName = clean($appointment['owner_name'] ?? 'A pet owner');
+    $petName = clean($appointment['pet_name'] ?? 'their pet');
+    $originalTime = canonicalTimeSlot($appointment['time_slot']);
+    notifyUser(
+        $pdo,
+        (int) $appointment['owner_id'],
+        'appointment_reschedule_requested',
+        'Reschedule Request Sent',
+        "Your request to move the appointment to {$date} at {$timeSlot} was sent to the clinic. Your current booking remains in place until the clinic responds.",
+        $appointmentId
+    );
+    notifyStaff(
+        $pdo,
+        'both',
+        'appointment_reschedule_requested',
+        'Owner Requested Reschedule',
+        "{$ownerName} requested a new time for {$petName}: {$appointment['preferred_date']} at {$originalTime} to {$date} at {$timeSlot}.",
+        $appointmentId,
+        true
+    );
+
+    respond(200, [
+        'success' => true,
+        'message' => 'Reschedule request sent. Your current appointment stays in place until the clinic responds.'
     ]);
 }
 
@@ -1394,6 +1521,103 @@ function respondToReschedule($pdo, $data, $session)
     ]);
 }
 
+/** Clinic's approval or decline of a pet owner's proposed appointment time. */
+function respondToOwnerReschedule($pdo, $data, $session)
+{
+    $appointmentId = (int) ($data['appointment_id'] ?? $data['id'] ?? 0);
+    $decision = clean($data['decision'] ?? '');
+    if ($appointmentId <= 0) {
+        respond(422, ['success' => false, 'message' => 'Invalid appointment id.']);
+    }
+    if (!in_array($decision, ['accept', 'decline'], true)) {
+        respond(422, ['success' => false, 'message' => 'Decision must be accept or decline.']);
+    }
+
+    $stmt = $pdo->prepare('
+        SELECT appointments.id, appointments.owner_id, appointments.veterinarian_id,
+               appointments.status, appointments.preferred_date, appointments.time_slot,
+               appointments.proposed_date, appointments.proposed_time_slot,
+               appointments.reschedule_prev_status
+        FROM appointments
+        WHERE appointments.id = :id
+        LIMIT 1
+    ');
+    $stmt->execute([':id' => $appointmentId]);
+    $appointment = $stmt->fetch();
+    if (!$appointment) {
+        respond(404, ['success' => false, 'message' => 'Appointment not found.']);
+    }
+    if (($session['role_name'] ?? '') === 'veterinarian'
+        && !empty($appointment['veterinarian_id'])
+        && (int) $appointment['veterinarian_id'] !== (int) ($session['user_id'] ?? 0)
+    ) {
+        respond(403, ['success' => false, 'message' => 'You can only review reschedule requests for appointments assigned to you.']);
+    }
+    if ($appointment['status'] !== 'owner_reschedule_pending') {
+        respond(409, ['success' => false, 'message' => 'This appointment has no owner reschedule request awaiting review.']);
+    }
+
+    $ownerId = (int) $appointment['owner_id'];
+    $date = (string) $appointment['proposed_date'];
+    $timeSlot = canonicalTimeSlot($appointment['proposed_time_slot']);
+    $previous = in_array($appointment['reschedule_prev_status'], ['confirmed', 'completed'], true)
+        ? $appointment['reschedule_prev_status']
+        : 'confirmed';
+
+    if ($decision === 'accept') {
+        assertSchedulableDate($date, 'The requested date has passed. Decline the request and ask the owner to submit another time.');
+        if ($date === date('Y-m-d') && strtotime("{$date} {$timeSlot}") <= time()) {
+            respond(409, ['success' => false, 'message' => 'The requested time has passed today. Decline the request and ask the owner to choose another time.']);
+        }
+        $slotLock = lockSlot($pdo, $date, $timeSlot);
+        if (slotConflictExists($pdo, (int) ($appointment['veterinarian_id'] ?? 0), $date, $timeSlot, $appointmentId)) {
+            unlockSlot($pdo, $slotLock);
+            respond(409, ['success' => false, 'message' => 'That requested time is no longer available. Decline the request so the owner can choose another slot.']);
+        }
+        $update = $pdo->prepare("
+            UPDATE appointments
+            SET preferred_date = :date,
+                time_slot = :time_slot,
+                status = 'confirmed',
+                confirmed_at = NOW(),
+                proposed_date = NULL,
+                proposed_time_slot = NULL,
+                reschedule_reason = NULL,
+                reschedule_requested_by = NULL,
+                reschedule_requested_at = NULL,
+                reschedule_prev_status = NULL
+            WHERE id = :id AND status = 'owner_reschedule_pending'
+        ");
+        $update->execute([':date' => $date, ':time_slot' => $timeSlot, ':id' => $appointmentId]);
+        unlockSlot($pdo, $slotLock);
+        if ($update->rowCount() !== 1) {
+            respond(409, ['success' => false, 'message' => 'This request changed. Refresh the page and try again.']);
+        }
+        notifyUser($pdo, $ownerId, 'appointment_reschedule_approved', 'Reschedule Approved', "The clinic approved your appointment for {$date} at {$timeSlot}.", $appointmentId);
+        notifyStaff($pdo, 'both', 'appointment_reschedule_approved', 'Reschedule Approved', "The clinic approved the owner's requested time for appointment #{$appointmentId}.", $appointmentId, false);
+        respond(200, ['success' => true, 'message' => 'Reschedule approved. The new appointment time is confirmed.']);
+    }
+
+    $update = $pdo->prepare("
+        UPDATE appointments
+        SET status = :status,
+            proposed_date = NULL,
+            proposed_time_slot = NULL,
+            reschedule_reason = NULL,
+            reschedule_requested_by = NULL,
+            reschedule_requested_at = NULL,
+            reschedule_prev_status = NULL
+        WHERE id = :id AND status = 'owner_reschedule_pending'
+    ");
+    $update->execute([':status' => $previous, ':id' => $appointmentId]);
+    if ($update->rowCount() !== 1) {
+        respond(409, ['success' => false, 'message' => 'This request changed. Refresh the page and try again.']);
+    }
+    notifyUser($pdo, $ownerId, 'appointment_reschedule_declined', 'Reschedule Request Declined', "The clinic could not approve the requested time ({$date} at {$timeSlot}). Your original appointment remains scheduled.", $appointmentId);
+    notifyStaff($pdo, 'both', 'appointment_reschedule_declined', 'Reschedule Declined', "The clinic declined the owner's requested time for appointment #{$appointmentId}; the original booking remains in place.", $appointmentId, false);
+    respond(200, ['success' => true, 'message' => 'Reschedule request declined. The original appointment remains scheduled.']);
+}
+
 function deleteAppointment($pdo, $data)
 {
     $appointmentId = (int) ($data['appointment_id'] ?? $data['id'] ?? 0);
@@ -1499,18 +1723,18 @@ function getBookedSlots($pdo, $data)
             UNION
             SELECT proposed_time_slot AS time_slot FROM appointments
             WHERE proposed_date = :date2
-              AND status = 'reschedule_pending'
+              AND status IN ('reschedule_pending', 'owner_reschedule_pending')
               AND proposed_time_slot IS NOT NULL
               {$vetClause2}
               {$excludeClause2}
         ";
     }
 
-    // Only confirmed bookings (and held reschedule slots) take a time.
+    // Confirmed bookings and both sides of a reschedule request hold a time.
     $stmt = $pdo->prepare("
         SELECT time_slot FROM appointments
         WHERE preferred_date = :date
-          AND status IN ('confirmed', 'completed', 'reschedule_pending')
+          AND status IN ('confirmed', 'completed', 'reschedule_pending', 'owner_reschedule_pending')
           {$vetClause}
           {$excludeClause}
         {$proposedUnion}
@@ -1601,7 +1825,7 @@ $action = clean($input['action'] ?? 'list');
 // Owner booking/listing/reviews — and the booking page's get_total /
 // common_cases stats — keep working as before (owner-side identity
 // enforcement is handled separately).
-$staffActions = ['update_status', 'delete', 'add_visit_type', 'remove_visit_type', 'reschedule'];
+$staffActions = ['update_status', 'delete', 'add_visit_type', 'remove_visit_type', 'reschedule', 'respond_owner_reschedule'];
 $staffSession = null;
 if (in_array($action, $staffActions, true)) {
     require_once __DIR__ . '/../config/auth_guard.php';
@@ -1612,7 +1836,7 @@ if (in_array($action, $staffActions, true)) {
 // authenticates as the pet owner rather than as staff. respondToReschedule()
 // additionally checks the appointment actually belongs to them.
 $ownerSession = null;
-if ($action === 'respond_reschedule') {
+if (in_array($action, ['respond_reschedule', 'request_reschedule'], true)) {
     require_once __DIR__ . '/../config/auth_guard.php';
     $ownerSession = requireRole($pdo, ['pet_owner']);
 }
@@ -1650,7 +1874,7 @@ loadClinicCalendar($pdo);
 
 // The handshake can't run without its columns. Everything else on this
 // endpoint works regardless, so only these two actions are blocked.
-if (in_array($action, ['reschedule', 'respond_reschedule'], true) && !$rescheduleSchemaReady) {
+if (in_array($action, ['reschedule', 'respond_reschedule', 'request_reschedule', 'respond_owner_reschedule'], true) && !$rescheduleSchemaReady) {
     respond(503, [
         'success' => false,
         'message' => 'Rescheduling is temporarily unavailable. Please contact the clinic directly.'
@@ -1663,6 +1887,8 @@ try {
     if ($action === 'update_status') updateAppointmentStatus($pdo, $input);
     if ($action === 'reschedule') rescheduleAppointment($pdo, $input, $staffSession);
     if ($action === 'respond_reschedule') respondToReschedule($pdo, $input, $ownerSession);
+    if ($action === 'request_reschedule') requestOwnerReschedule($pdo, $input, $ownerSession);
+    if ($action === 'respond_owner_reschedule') respondToOwnerReschedule($pdo, $input, $staffSession);
     if ($action === 'delete') deleteAppointment($pdo, $input);
     if ($action === 'vets') listVeterinarians($pdo);
     if ($action === 'booked_slots') getBookedSlots($pdo, $input);

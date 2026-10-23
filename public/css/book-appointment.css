@@ -1508,6 +1508,12 @@ body {
   border: 1px solid #C7D2FE;
 }
 
+.s-owner_reschedule_pending {
+  background: #FFF7ED;
+  color: #9A3412;
+  border: 1px solid #FED7AA;
+}
+
 /* ── Proposed reschedule ──
    The original date is struck through rather than replaced, so the owner can
    see exactly what they'd be giving up before they accept. */
@@ -1534,6 +1540,30 @@ body {
 .reschedule-actions {
   display: flex;
   gap: 8px;
+}
+
+.btn-request-reschedule {
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: 1px solid #BFDBFE;
+  background: #EFF6FF;
+  color: #1E40AF;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'Manrope', sans-serif;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+
+.btn-request-reschedule:hover { background: #DBEAFE; border-color: #93C5FD; }
+
+.owner-reschedule-pending-note {
+  max-width: 210px;
+  color: #9A3412;
+  font-size: 10px;
+  font-weight: 600;
+  text-align: right;
 }
 
 .btn-reschedule-accept,
@@ -1563,6 +1593,46 @@ body {
 }
 
 .btn-reschedule-decline:hover { background: #F3F4F6; }
+
+.owner-reschedule-body {
+  padding: 20px 24px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.owner-reschedule-current,
+.owner-reschedule-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #F1F5F9;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.owner-reschedule-body .form-group { margin: 0; }
+.owner-reschedule-body .form-group label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 700; color: #334155; }
+.owner-reschedule-body .form-group label span { color: #64748B; font-weight: 500; }
+.owner-reschedule-body .form-input,
+.owner-reschedule-body .form-textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  background: #fff;
+  color: #0F172A;
+  font: inherit;
+  font-size: 13px;
+}
+.owner-reschedule-body .form-textarea { min-height: 76px; resize: vertical; }
+.owner-reschedule-hint { display: block; margin-top: 5px; color: #64748B; font-size: 11px; }
+.owner-reschedule-error { margin: 0; color: #B91C1C; font-size: 12px; font-weight: 700; }
+.owner-reschedule-error[hidden] { display: none; }
+.owner-reschedule-modal .modal-footer { gap: 10px; }
 
 /* ── Rate & Review button — navy, matches Figma ── */
 .btn-rate-review {

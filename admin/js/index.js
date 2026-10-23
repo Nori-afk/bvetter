@@ -358,7 +358,7 @@ const NOTIF_ICONS = {
 };
 
 function notifCategoryFromType(type) {
-    if (type === 'appointment_new' || type === 'appointment_status') return 'appointment';
+    if (type === 'appointment_new' || type === 'appointment_status' || String(type || '').startsWith('appointment_reschedule')) return 'appointment';
     if (type === 'lost_found_new') return 'lostfound';
     if (type === 'csp_registration') return 'vaccination';
     if (type === 'account_application') return 'account';

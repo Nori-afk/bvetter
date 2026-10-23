@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
   <link rel="stylesheet" href="../../shared/css/form-validation.css"/>
-  <link rel="stylesheet" href="../css/book-appointment.css?v=20260928-wording"/>
+  <link rel="stylesheet" href="../css/book-appointment.css?v=20261023-owner-reschedule"/>
 </head>
 <body>
 
@@ -694,6 +694,54 @@
     </div>
   </footer>
 
+  <div class="modal-overlay" id="ownerRescheduleModal" onclick="if(event.target===this) closeOwnerRescheduleModal()">
+    <div class="modal-box rating-modal-box owner-reschedule-modal" role="dialog" aria-modal="true" aria-labelledby="ownerRescheduleTitle">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="ownerRescheduleTitle">Request a New Appointment Time</h2>
+          <p class="modal-subtitle">The clinic will review your requested date and time.</p>
+        </div>
+        <button type="button" class="modal-close" onclick="closeOwnerRescheduleModal()" aria-label="Close">
+          <img src="../images/icons/icon-close.svg" alt="" class="close-icon-img"/>
+        </button>
+      </div>
+      <form id="ownerRescheduleForm">
+        <div class="owner-reschedule-body">
+          <p class="owner-reschedule-current" id="ownerRescheduleCurrent"></p>
+          <div class="form-group">
+            <label for="ownerRescheduleDate">New date</label>
+            <input class="form-input" id="ownerRescheduleDate" type="date" required/>
+          </div>
+          <div class="form-group">
+            <label for="ownerRescheduleTime">Available time</label>
+            <select class="form-input" id="ownerRescheduleTime" required disabled>
+              <option value="">Select a date first</option>
+              <option value="8:00 AM">8:00 AM</option>
+              <option value="9:00 AM">9:00 AM</option>
+              <option value="10:00 AM">10:00 AM</option>
+              <option value="11:00 AM">11:00 AM</option>
+              <option value="1:00 PM">1:00 PM</option>
+              <option value="2:00 PM">2:00 PM</option>
+              <option value="3:00 PM">3:00 PM</option>
+              <option value="4:00 PM">4:00 PM</option>
+            </select>
+            <small class="owner-reschedule-hint" id="ownerRescheduleAvailability">Choose a date to check available times.</small>
+          </div>
+          <div class="form-group">
+            <label for="ownerRescheduleReason">Reason <span>(optional)</span></label>
+            <textarea class="form-textarea" id="ownerRescheduleReason" maxlength="255" placeholder="Tell the clinic why you need to change the time."></textarea>
+          </div>
+          <p class="owner-reschedule-error" id="ownerRescheduleError" role="alert" hidden></p>
+          <p class="owner-reschedule-note">Your current appointment remains booked until the clinic approves this request.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeOwnerRescheduleModal()">Cancel</button>
+          <button type="submit" class="btn-submit" id="ownerRescheduleSubmit">Send Request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="ratingModal" onclick="if(event.target===this) closeRatingModal()">
     <div class="modal-box rating-modal-box">
       <div class="modal-header">
@@ -735,7 +783,7 @@
   <script src="../js/api.js?v=20260819-authfix"></script>
   <!-- Must load before book-appointment.js, which calls VBForm at validate time. -->
   <script src="../../shared/js/form-validation.js"></script>
-  <script src="../js/book-appointment.js?v=20261023-owner-history-latest"></script>
+  <script src="../js/book-appointment.js?v=20261023-owner-reschedule"></script>
   <script src="../js/site-settings.js?v=20260829-preview"></script>
 </body>
 </html>

@@ -11,7 +11,7 @@
 	{ id: 10, datetime: '2026-04-25T16:00:00', patient: 'Rocky', owner: 'Monica Reyes', service: 'Ear Infection Follow-up', status: 'pending', type: 'Follow-up' }
 ];
 
-const VALID_STATUSES = new Set(['pending', 'confirmed', 'completed', 'canceled', 'cancelled', 'rejected', 'reschedule_pending', 'expired']);
+const VALID_STATUSES = new Set(['pending', 'confirmed', 'completed', 'canceled', 'cancelled', 'rejected', 'reschedule_pending', 'owner_reschedule_pending', 'expired']);
 const RESCHEDULE_SLOTS = [
 	{ label: 'Morning', value: '08:00', display: '8:00 AM' },
 	{ label: 'Morning', value: '09:00', display: '9:00 AM' },
@@ -59,6 +59,8 @@ const ui = {
 	confirmedCount: document.getElementById('confirmed-count'),
 	pendingHolder: document.getElementById('appt-Holder'),
 	pendingEmpty: document.getElementById('pending-empty'),
+	rescheduleRequestHolder: document.getElementById('reschedule-request-holder'),
+	rescheduleRequestEmpty: document.getElementById('reschedule-request-empty'),
 	tbody: document.getElementById('appointment-tbody'),
 	tableSummary: document.getElementById('table-summary'),
 	searchInput: document.getElementById('search-input'),
@@ -129,6 +131,10 @@ function normalizeAppointment(item, index) {
 		veterinarianId: item.veterinarian_id ? Number(item.veterinarian_id) : null,
 		veterinarian: item.veterinarian ? String(item.veterinarian) : '',
 		timeSlot: canonicalSlot(item.time_slot || ''),
+		proposedDate: extractDatePart(String(item.proposed_date || '')),
+		proposedTimeSlot: canonicalSlot(item.proposed_time_slot || ''),
+		rescheduleReason: String(item.reschedule_reason || ''),
+		rescheduleRequestedAt: String(item.reschedule_requested_at || ''),
 		expiresAt: item.expires_at || null,
 		// When the owner made the request ('YYYY-MM-DD HH:MM:SS').
 		requestedAt: String(item.requested_at || ''),
@@ -303,6 +309,7 @@ function buildRescheduleCalendar(monthDate, selectedIsoDate) {
 function statusClass(status) {
 	if (status === 'confirmed') return 'status-confirmed';
 	if (status === 'completed') return 'status-completed';
+	if (status === 'reschedule_pending' || status === 'owner_reschedule_pending') return 'status-reschedule';
 	if (status === 'canceled' || status === 'cancelled' || status === 'rejected') return 'status-canceled';
 	if (status === 'expired') return 'status-expired';
 	return 'status-pending';
@@ -313,6 +320,7 @@ function statusClass(status) {
 // reach the screen -- a raw enum like 'reschedule_pending' is not a label.
 function statusLabel(status) {
 	if (status === 'reschedule_pending') return 'Awaiting owner';
+	if (status === 'owner_reschedule_pending') return 'Owner requested';
 	const text = String(status || '').replace(/_/g, ' ');
 	return text.charAt(0).toUpperCase() + text.slice(1);
 }
@@ -354,7 +362,7 @@ function getFilteredAppointments() {
 
 function updateCounters() {
 	const pendingCount = state.appointments.filter((item) => item.status === 'pending').length;
-	const confirmedCount = state.appointments.filter((item) => item.status === 'confirmed').length;
+	const confirmedCount = state.appointments.filter((item) => item.status === 'confirmed' || item.status === 'owner_reschedule_pending').length;
 	ui.pendingCount.textContent = String(pendingCount).padStart(2, '0');
 	ui.confirmedCount.textContent = String(confirmedCount).padStart(2, '0');
 	ui.acceptAllButton.disabled = pendingCount === 0;
@@ -388,6 +396,35 @@ function renderPendingList() {
 				<div class="pending-actions">
 					<button class="accept" data-action="accept" data-id="${item.id}" type="button">Accept</button>
 					<button class="decline" data-action="decline" data-id="${item.id}" type="button">Decline</button>
+				</div>
+			</article>
+		`;
+	}).join('');
+}
+
+function renderOwnerRescheduleRequests() {
+	if (!ui.rescheduleRequestHolder || !ui.rescheduleRequestEmpty) return;
+	const requests = state.appointments
+		.filter((item) => item.status === 'owner_reschedule_pending')
+		.sort((a, b) => String(b.rescheduleRequestedAt || '').localeCompare(String(a.rescheduleRequestedAt || '')) || compareRequested(b, a));
+
+	ui.rescheduleRequestHolder.innerHTML = '';
+	ui.rescheduleRequestEmpty.hidden = requests.length > 0;
+	if (!requests.length) return;
+
+	ui.rescheduleRequestHolder.innerHTML = requests.map((item) => {
+		const current = formatDateTime(`${item.preferredDate}T${item.timeSlot || '00:00'}`);
+		const requested = formatDateTime(`${item.proposedDate}T${item.proposedTimeSlot || '00:00'}`);
+		return `
+			<article class="pending-item owner-reschedule-item" data-id="${item.id}">
+				<p class="time">Current: ${current.date} at ${current.time}</p>
+				<p class="time owner-requested-time">Requested: ${requested.date} at ${requested.time}</p>
+				<h4>${escapeAttr(item.patient)}</h4>
+				<p>${escapeAttr(item.owner)} &middot; ${escapeAttr(item.service)}</p>
+				${item.rescheduleReason ? `<p class="owner-reschedule-reason">Reason: ${escapeAttr(item.rescheduleReason)}</p>` : ''}
+				<div class="pending-actions">
+					<button class="accept" data-action="approve-owner-reschedule" data-id="${item.id}" type="button">Approve</button>
+					<button class="decline" data-action="decline-owner-reschedule" data-id="${item.id}" type="button">Decline</button>
 				</div>
 			</article>
 		`;
@@ -465,6 +502,7 @@ function rebuildCalendarEvents() {
 function refreshUI() {
 	updateCounters();
 	renderPendingList();
+	renderOwnerRescheduleRequests();
 	renderTable();
 	rebuildCalendarEvents();
 }
@@ -472,7 +510,37 @@ function refreshUI() {
 async function reloadFromServer() {
 	if (!window.VetAPI?.getAppointments) return;
 	const result = await window.VetAPI.getAppointments();
-	if (result.ok) loadAppointments(result.data);
+	if (!result.ok) return;
+	lastAppointmentSnapshot = JSON.stringify(result.data || []);
+	loadAppointments(result.data);
+}
+
+let lastAppointmentSnapshot = null;
+
+function startAppointmentPolling() {
+	let inFlight = false;
+
+	const refreshSilently = async () => {
+		if (inFlight || document.hidden || !ui.modalOverlay.hidden || !window.VetAPI?.getAppointments) return;
+		inFlight = true;
+		try {
+			const result = await window.VetAPI.getAppointments();
+			if (!result.ok) return;
+			const snapshot = JSON.stringify(result.data || []);
+			if (snapshot === lastAppointmentSnapshot) return;
+			lastAppointmentSnapshot = snapshot;
+			loadAppointments(result.data);
+		} catch {
+			// Keep the current view; the next poll will retry.
+		} finally {
+			inFlight = false;
+		}
+	};
+
+	window.setInterval(refreshSilently, 15000);
+	document.addEventListener('visibilitychange', () => {
+		if (!document.hidden) refreshSilently();
+	});
 }
 
 async function updateStatus(id, nextStatus, { skipReload } = {}) {
@@ -552,6 +620,31 @@ function detailsModalTemplate(appointment) {
 	const dt = formatDateTime(appointment.datetime);
 	const initial = (appointment.patient || '?').charAt(0).toUpperCase();
 	const statusSlug = (appointment.status || 'unknown').toLowerCase().replace(/\s+/g, '-');
+	const ownerReschedulePending = appointment.status === 'owner_reschedule_pending';
+	const clinicReschedulePending = appointment.status === 'reschedule_pending';
+	const canReschedule = ['pending', 'confirmed', 'completed'].includes(appointment.status);
+	const actionRow = ownerReschedulePending
+		? `<div class="appt-action-row">
+			<button class="appt-action-btn appt-action-complete" type="button" data-modal-action="approve-owner-reschedule"><i data-lucide="check-circle-2"></i>Approve Requested Time</button>
+			<button class="appt-action-btn appt-action-cancel" type="button" data-modal-action="decline-owner-reschedule"><i data-lucide="x-circle"></i>Decline Request</button>
+		</div>`
+		: clinicReschedulePending
+			? ''
+			: `<div class="appt-action-row">
+				<button class="appt-action-btn appt-action-complete" type="button" data-modal-action="open-complete"><i data-lucide="check-circle-2"></i>Mark as Completed</button>
+				${canReschedule ? '<button class="appt-action-btn appt-action-reschedule" type="button" data-modal-action="open-reschedule"><i data-lucide="calendar-clock"></i>Reschedule</button>' : ''}
+				<button class="appt-action-btn appt-action-cancel" type="button" data-modal-action="open-cancel"><i data-lucide="x-circle"></i>Cancel</button>
+			</div>`;
+	const requestedCurrent = formatDateTime(`${appointment.preferredDate}T${appointment.timeSlot || '00:00'}`);
+	const requestedNew = formatDateTime(`${appointment.proposedDate}T${appointment.proposedTimeSlot || '00:00'}`);
+	const ownerRescheduleSummary = ownerReschedulePending
+		? `<div class="appt-notes-card owner-reschedule-summary">
+				<div class="appt-info-label"><i data-lucide="calendar-clock"></i>Owner's Requested Time</div>
+				<p><strong>Current:</strong> ${requestedCurrent.date} at ${requestedCurrent.time}</p>
+				<p><strong>Requested:</strong> ${requestedNew.date} at ${requestedNew.time}</p>
+				${appointment.rescheduleReason ? `<p><strong>Reason:</strong> ${escapeAttr(appointment.rescheduleReason)}</p>` : ''}
+			</div>`
+		: '';
 
 	return `
 		<div class="appt-modal-header appt-accent-${statusSlug}">
@@ -564,22 +657,8 @@ function detailsModalTemplate(appointment) {
 		</div>
 
 		<div class="appt-modal-body">
-			<p class="appt-modal-eyebrow">Track status and take action for this appointment.</p>
-
-			<div class="appt-action-row">
-				<button class="appt-action-btn appt-action-complete" type="button" data-modal-action="open-complete">
-					<i data-lucide="check-circle-2"></i>
-					Mark as Completed
-				</button>
-				<button class="appt-action-btn appt-action-reschedule" type="button" data-modal-action="open-reschedule">
-					<i data-lucide="calendar-clock"></i>
-					Reschedule
-				</button>
-				<button class="appt-action-btn appt-action-cancel" type="button" data-modal-action="open-cancel">
-					<i data-lucide="x-circle"></i>
-					Cancel
-				</button>
-			</div>
+			<p class="appt-modal-eyebrow">${ownerReschedulePending ? 'Review the owner’s requested appointment time.' : clinicReschedulePending ? 'A new time is waiting for the pet owner to respond.' : 'Track status and take action for this appointment.'}</p>
+			${actionRow}
 
 			<div class="appt-info-grid">
 				<div class="appt-info-card">
@@ -608,6 +687,7 @@ function detailsModalTemplate(appointment) {
 					</div>
 				</div>
 			</div>
+			${ownerRescheduleSummary}
 
 			<div class="appt-notes-card">
 				<div class="appt-info-label">
@@ -1019,6 +1099,24 @@ async function applyReschedule() {
 	await vbAlert('The pet owner has been asked to confirm the new time. Their original booking stands until they accept.');
 }
 
+async function respondToOwnerReschedule(appointmentId, decision) {
+	const verb = decision === 'accept' ? 'approve this new appointment time' : 'decline this reschedule request';
+	if (!(await vbConfirm(`Are you sure you want to ${verb}?`))) return;
+
+	if (!window.VetAPI?.respondToOwnerReschedule) {
+		await vbAlert('Reschedule review is temporarily unavailable. Please refresh the page and try again.');
+		return;
+	}
+	const result = await window.VetAPI.respondToOwnerReschedule(appointmentId, decision);
+	if (!result.ok) {
+		await vbAlert(result.error || 'Could not update the reschedule request.');
+		return;
+	}
+	if (state.selectedAppointmentId === appointmentId && !ui.modalOverlay.hidden) closeModal();
+	await reloadFromServer();
+	await vbAlert(result.data?.message || (decision === 'accept' ? 'Reschedule approved.' : 'Reschedule declined.'));
+}
+
 function applyComplete() {
 	updateStatus(state.selectedAppointmentId, 'completed');
 	closeModal();
@@ -1124,6 +1222,14 @@ function setupEvents() {
 		}
 	});
 
+	ui.rescheduleRequestHolder?.addEventListener('click', (event) => {
+		const button = event.target.closest('button[data-action]');
+		if (!button) return;
+		const id = Number(button.dataset.id);
+		const decision = button.dataset.action === 'approve-owner-reschedule' ? 'accept' : 'decline';
+		respondToOwnerReschedule(id, decision);
+	});
+
 	ui.tbody.addEventListener('click', (event) => {
 		const button = event.target.closest('button[data-action]');
 		if (!button) return;
@@ -1160,6 +1266,8 @@ function setupEvents() {
 			if (action === 'open-cancel') openCancelModal();
 			if (action === 'open-delete') openDeleteModal();
 			if (action === 'confirm-reschedule') applyReschedule();
+			if (action === 'approve-owner-reschedule') respondToOwnerReschedule(state.selectedAppointmentId, 'accept');
+			if (action === 'decline-owner-reschedule') respondToOwnerReschedule(state.selectedAppointmentId, 'decline');
 			if (action === 'confirm-complete') applyComplete();
 			if (action === 'confirm-cancel') applyCancel();
 			if (action === 'confirm-delete') applyDelete();
@@ -1257,11 +1365,13 @@ async function init() {
 	setupEvents();
 	if (window.VetAPI?.getAppointments) {
 		const result = await window.VetAPI.getAppointments();
+		if (result.ok) lastAppointmentSnapshot = JSON.stringify(result.data || []);
 		loadAppointments(result.ok ? result.data : undefined);
 	} else {
 		loadAppointments();
 	}
 	exposeApi();
+	startAppointmentPolling();
 }
 
 init();

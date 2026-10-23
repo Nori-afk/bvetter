@@ -1154,7 +1154,7 @@ function vet_dashboard($pdo, string $patientRange = 'monthly', string $disease =
     if (bv_table_exists($pdo, 'appointments')) {
         try {
             $appointmentTotal  = (int) $pdo->query('SELECT COUNT(*) FROM appointments')->fetchColumn();
-            $pendingActions    = (int) $pdo->query("SELECT COUNT(*) FROM appointments WHERE status IN ('pending','confirmed')")->fetchColumn();
+            $pendingActions    = (int) $pdo->query("SELECT COUNT(*) FROM appointments WHERE status IN ('pending','confirmed','owner_reschedule_pending')")->fetchColumn();
             $appointmentsToday = (int) $pdo->query('SELECT COUNT(*) FROM appointments WHERE preferred_date = CURDATE()')->fetchColumn();
         } catch (Throwable $e) { $appointmentTotal = 0; }
     }

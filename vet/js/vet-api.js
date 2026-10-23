@@ -193,6 +193,26 @@ async function rescheduleAppointment(id, preferredDate, timeSlot, reason = '') {
     }
 }
 
+/** Review a pet owner's requested appointment time. */
+async function respondToOwnerReschedule(id, decision) {
+    const formData = new FormData();
+    formData.append('action', 'respond_owner_reschedule');
+    formData.append('appointment_id', id);
+    formData.append('decision', decision);
+
+    try {
+        const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {
+            method: 'POST',
+            headers: formAuthHeaders(),
+            body: formData
+        });
+        const result = await response.json();
+        return { ok: result.success, data: { id, decision, message: result.message }, error: result.success ? null : result.message };
+    } catch (error) {
+        return { ok: false, data: null, error: error.message };
+    }
+}
+
 /** POST /api/vet/appointments (action: booked_slots) */
 async function getBookedSlots({ veterinarian_id, preferred_date, exclude_id } = {}) {
     const formData = new FormData();
@@ -783,6 +803,7 @@ window.VetAPI = {
     getAppointments,
     updateAppointmentStatus,
     rescheduleAppointment,
+    respondToOwnerReschedule,
     deleteAppointment,
     getBookedSlots,
     getVisitTypes,

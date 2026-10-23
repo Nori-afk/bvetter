@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260928-mobile">
-    <link rel="stylesheet" href="../../vet/css/appointment.css?v=20261023-visible-reschedule">
+    <link rel="stylesheet" href="../../vet/css/appointment.css?v=20261023-owner-reschedule">
     <link rel="stylesheet" href="../../vet/css/castration-spay.css">
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js" defer></script>
@@ -133,6 +133,18 @@
                         </div>
                         <button id="accept-butt" type="button">Accept All</button>
                     </div>
+
+                    <div class="pending-appointment reschedule-requests">
+                        <h2>Owner Reschedule Requests</h2>
+                        <div class="appointment-holder" id="reschedule-request-holder"></div>
+                        <div class="pending-empty" id="reschedule-request-empty" hidden>
+                            <div class="pending-empty-icon">
+                                <i data-lucide="calendar-clock"></i>
+                            </div>
+                            <p class="pending-empty-title">No reschedule requests</p>
+                            <p>Owner requests will appear here for review.</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="right-side">
@@ -149,6 +161,8 @@
                                 <option value="pending">Pending</option>
                                 <option value="confirmed">Confirmed</option>
                                 <option value="completed">Completed</option>
+                                <option value="owner_reschedule_pending">Owner Reschedule</option>
+                                <option value="reschedule_pending">Awaiting Owner</option>
                                 <option value="cancelled">Cancelled</option>
                                 <option value="expired">Expired</option>
                             </select>
@@ -368,8 +382,8 @@
     <script src="../../shared/js/auth.js?v=20260925-yesno"></script>
     <script>VBetterAuth.requireAuth(['vet']);</script>
     <script src="../../shared/js/sidebar.js?v=20260824-tz"></script>
-    <script src="../../vet/js/vet-api.js?v=20261015-claimworkflow"></script>
-    <script src="../../vet/js/appointment.js?v=20261023-visible-reschedule"></script>
+    <script src="../../vet/js/vet-api.js?v=20261023-owner-reschedule"></script>
+    <script src="../../vet/js/appointment.js?v=20261023-owner-reschedule-poll"></script>
     <script src="../../vet/js/castration-spay.js?v=20260925-feedback"></script>
     <script src="../../vet/js/appointment-tabs.js"></script>
     <script src="https://unpkg.com/lucide@1.46.0/dist/umd/lucide.min.js"></script>

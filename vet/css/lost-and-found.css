@@ -212,11 +212,12 @@ body {
 
 .lf-stats {
 	display: grid;
-	grid-template-columns: repeat(6, minmax(110px, 1fr));
+	grid-template-columns: repeat(6, minmax(0, 1fr));
 	gap: 14px;
 }
 
 .stat-card {
+	min-width: 0;
 	background: #ffffff;
 	border-radius: var(--lf-radius);
 	border: 1px solid rgba(195, 210, 235, 0.60);

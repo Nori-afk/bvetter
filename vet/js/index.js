@@ -9,7 +9,7 @@ const NOTIF_ICONS = {
 };
 
 function notifCategoryFromItem(item) {
-    if (item.type === 'appointment_new' || item.type === 'appointment_status') return 'appointment';
+    if (item.type === 'appointment_new' || item.type === 'appointment_status' || String(item.type || '').startsWith('appointment_reschedule')) return 'appointment';
     if (item.type === 'lost_found_new') return 'lostfound';
     if (item.type === 'csp_registration') return 'vaccination';
     if (typeof item.id === 'string' && item.id.indexOf('N-event-') === 0) return 'vaccination';

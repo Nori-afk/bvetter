@@ -668,7 +668,7 @@ async function respondToReschedule(appointmentId, decision) {
   try {
     const res = await fetch('/api/appointments/appointment.php', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({
         action: 'respond_reschedule',
         appointment_id: appointmentId,
@@ -689,6 +689,178 @@ async function respondToReschedule(appointmentId, decision) {
     await vbAlert('Could not save your response — check your connection.');
   }
 }
+
+let activeOwnerRescheduleId = null;
+
+async function openOwnerReschedule(appointmentId) {
+  const appointment = ownerAppointmentHistory.find(item => Number(item.id) === Number(appointmentId));
+  if (!appointment || !['confirmed', 'completed'].includes(appointment.status)) return;
+
+  activeOwnerRescheduleId = Number(appointmentId);
+  await loadClosedDates();
+  const dateInput = document.getElementById('ownerRescheduleDate');
+  const timeSelect = document.getElementById('ownerRescheduleTime');
+  const overlay = document.getElementById('ownerRescheduleModal');
+  const error = document.getElementById('ownerRescheduleError');
+  const availability = document.getElementById('ownerRescheduleAvailability');
+  if (!dateInput || !timeSelect || !overlay) return;
+
+  dateInput.min = toLocalIsoDate();
+  dateInput.max = toLocalIsoDate(bookingHorizonDate());
+  dateInput.value = '';
+  timeSelect.value = '';
+  timeSelect.disabled = true;
+  document.getElementById('ownerRescheduleReason').value = '';
+  availability.textContent = 'Choose a date to check available times.';
+  error.hidden = true;
+  error.textContent = '';
+  document.getElementById('ownerRescheduleCurrent').textContent =
+    `Current appointment: ${formatDate(appointment.preferred_date)} at ${formatTimeSlot(appointment.time_slot)}. The current booking stays in place until the clinic responds.`;
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  dateInput.focus();
+}
+
+function closeOwnerRescheduleModal() {
+  document.getElementById('ownerRescheduleModal')?.classList.remove('open');
+  document.body.style.overflow = '';
+  activeOwnerRescheduleId = null;
+}
+
+function ownerRescheduleDateError(dateIso) {
+  if (!dateIso) return 'Choose a new date.';
+  if (dateIso < toLocalIsoDate()) return 'Choose today or a future date.';
+  if (dateIso > toLocalIsoDate(bookingHorizonDate())) return `Appointments can only be scheduled up to ${BOOKING_HORIZON_MONTHS} months ahead.`;
+  if (isWeekendIso(dateIso)) return 'The clinic is closed on Saturdays and Sundays.';
+  if (CLOSED_DATES[dateIso]) return `The clinic is closed on this date (${CLOSED_DATES[dateIso]}). Choose another date.`;
+  return '';
+}
+
+async function refreshOwnerRescheduleAvailability() {
+  const dateInput = document.getElementById('ownerRescheduleDate');
+  const timeSelect = document.getElementById('ownerRescheduleTime');
+  const availability = document.getElementById('ownerRescheduleAvailability');
+  const error = document.getElementById('ownerRescheduleError');
+  const appointment = ownerAppointmentHistory.find(item => Number(item.id) === activeOwnerRescheduleId);
+  if (!dateInput || !timeSelect || !availability || !appointment) return;
+
+  error.hidden = true;
+  error.textContent = '';
+
+  const dateIso = dateInput.value;
+  timeSelect.value = '';
+  timeSelect.disabled = true;
+  const dateError = ownerRescheduleDateError(dateIso);
+  if (dateError) {
+    availability.textContent = dateIso ? 'No times available for this date.' : 'Choose a date to check available times.';
+    if (dateIso) {
+      error.textContent = dateError;
+      error.hidden = false;
+    }
+    return;
+  }
+  error.hidden = true;
+  availability.textContent = 'Checking available times…';
+
+  try {
+    const response = await fetch('/api/appointments/appointment.php', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        action: 'booked_slots',
+        veterinarian_id: appointment.veterinarian_id || '',
+        preferred_date: dateIso,
+        exclude_id: appointment.id
+      })
+    });
+    const result = await response.json();
+    if (!result.success) throw new Error(result.message || 'Could not check availability.');
+
+    const booked = new Set((result.booked || []).map(canonicalSlot));
+    let availableCount = 0;
+    [...timeSelect.options].forEach(option => {
+      if (!option.value) return;
+      const slot = canonicalSlot(option.value);
+      const sameCurrentSlot = dateIso === appointment.preferred_date
+        && slot === canonicalSlot(appointment.time_slot);
+      const unavailable = booked.has(slot) || isSlotPast(dateIso, option.value) || sameCurrentSlot;
+      option.disabled = unavailable;
+      option.textContent = unavailable ? `${option.value} — unavailable` : option.value;
+      if (!unavailable) availableCount += 1;
+    });
+    timeSelect.disabled = availableCount === 0;
+    availability.textContent = availableCount
+      ? `${availableCount} time${availableCount === 1 ? '' : 's'} available. Times marked unavailable are already booked or have passed.`
+      : 'No times are available on this date. Choose another date.';
+  } catch (requestError) {
+    availability.textContent = 'Availability could not be checked.';
+    error.textContent = requestError.message || 'Could not check available times.';
+    error.hidden = false;
+  }
+}
+
+async function submitOwnerRescheduleRequest(event) {
+  event.preventDefault();
+  const appointment = ownerAppointmentHistory.find(item => Number(item.id) === activeOwnerRescheduleId);
+  const dateIso = document.getElementById('ownerRescheduleDate')?.value || '';
+  const timeSlot = document.getElementById('ownerRescheduleTime')?.value || '';
+  const reason = (document.getElementById('ownerRescheduleReason')?.value || '').trim();
+  const error = document.getElementById('ownerRescheduleError');
+  const submitButton = document.getElementById('ownerRescheduleSubmit');
+  if (!appointment || !error || !submitButton) return;
+
+  const dateError = ownerRescheduleDateError(dateIso);
+  if (dateError) {
+    error.textContent = dateError;
+    error.hidden = false;
+    return;
+  }
+  if (!timeSlot || document.getElementById('ownerRescheduleTime')?.disabled) {
+    error.textContent = 'Choose an available time.';
+    error.hidden = false;
+    return;
+  }
+  if (dateIso === appointment.preferred_date && canonicalSlot(timeSlot) === canonicalSlot(appointment.time_slot)) {
+    error.textContent = 'Choose a different date or time from your current appointment.';
+    error.hidden = false;
+    return;
+  }
+
+  submitButton.disabled = true;
+  submitButton.textContent = 'Sending…';
+  error.hidden = true;
+  try {
+    const response = await fetch('/api/appointments/appointment.php', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        action: 'request_reschedule',
+        appointment_id: appointment.id,
+        preferred_date: dateIso,
+        time_slot: timeSlot,
+        reason
+      })
+    });
+    const result = await response.json();
+    if (!result.success) {
+      error.textContent = result.message || 'Could not send the reschedule request.';
+      error.hidden = false;
+      return;
+    }
+    closeOwnerRescheduleModal();
+    await vbAlert(result.message || 'Your reschedule request was sent to the clinic.');
+    await loadAppointmentHistory();
+  } catch (requestError) {
+    error.textContent = requestError.message || 'Could not send the reschedule request. Check your connection and try again.';
+    error.hidden = false;
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = 'Send Request';
+  }
+}
+
+document.getElementById('ownerRescheduleForm')?.addEventListener('submit', submitOwnerRescheduleRequest);
+document.getElementById('ownerRescheduleDate')?.addEventListener('change', refreshOwnerRescheduleAvailability);
 
 async function replaceContent(){
    try {
@@ -777,6 +949,7 @@ function submitRatingModal() {
 
 initRatingStars();
 let lastAppointmentHistory = null;
+let ownerAppointmentHistory = [];
 
 async function loadAppointmentHistory(options = {}) {
   const silent = options.silent === true;
@@ -815,6 +988,7 @@ async function loadAppointmentHistory(options = {}) {
       const requestedAtOrder = String(b.requested_at || '').localeCompare(String(a.requested_at || ''));
       return requestedAtOrder || (Number(b.id) || 0) - (Number(a.id) || 0);
     });
+    ownerAppointmentHistory = appointments;
 
     const histList = document.getElementById('histList');
     const histEmpty = document.getElementById('histEmpty');
@@ -834,12 +1008,16 @@ async function loadAppointmentHistory(options = {}) {
 
     appointments.forEach(appt => {
       const awaitingResponse = appt.status === 'reschedule_pending';
+      const awaitingClinic = appt.status === 'owner_reschedule_pending';
+      const canRequestReschedule = appt.status === 'confirmed' || appt.status === 'completed';
 
-      const rowClass = appt.status === 'completed'
-        ? 'appt-row appt-completed'
-        : awaitingResponse
-          ? 'appt-row appt-reschedule'
-          : 'appt-row appt-pending';
+      const rowClass = awaitingResponse || awaitingClinic
+        ? 'appt-row appt-reschedule'
+        : appt.status === 'completed'
+          ? 'appt-row appt-completed'
+          : appt.status === 'cancelled' || appt.status === 'rejected'
+            ? 'appt-row appt-cancelled'
+            : 'appt-row appt-pending';
 
       const statusBadge = `
         <span class="status-badge s-${appt.status}">
@@ -858,6 +1036,7 @@ async function loadAppointmentHistory(options = {}) {
             onclick="openReviewForm(${appt.id})">
             Rate & Review
           </button>
+          <button class="btn-request-reschedule" onclick="openOwnerReschedule(${appt.id})">Request Reschedule</button>
         `;
       }
 
@@ -875,6 +1054,7 @@ async function loadAppointmentHistory(options = {}) {
             <img src="../images/icons/rating.svg" alt="" class="star-xs"/>
             ${appt.owner_rating} Rated
           </span>
+          <button class="btn-request-reschedule" onclick="openOwnerReschedule(${appt.id})">Request Reschedule</button>
         `;
       }
 
@@ -887,6 +1067,22 @@ async function loadAppointmentHistory(options = {}) {
             <button class="btn-reschedule-accept" onclick="respondToReschedule(${appt.id}, 'accept')">Accept</button>
             <button class="btn-reschedule-decline" onclick="respondToReschedule(${appt.id}, 'decline')">Decline</button>
           </div>
+        `;
+      }
+
+      // An owner request does not move the booking until the clinic approves it.
+      else if (awaitingClinic) {
+        reviewSection = `
+          ${statusBadge}
+          <span class="owner-reschedule-pending-note">Waiting for clinic review</span>
+        `;
+      }
+
+      // Confirmed appointments can be moved through a clinic-reviewed request.
+      else if (appt.status === 'confirmed' && canRequestReschedule) {
+        reviewSection = `
+          ${statusBadge}
+          <button class="btn-request-reschedule" onclick="openOwnerReschedule(${appt.id})">Request Reschedule</button>
         `;
       }
 
@@ -915,13 +1111,13 @@ async function loadAppointmentHistory(options = {}) {
 
           <div class="appt-col">
             <div class="appt-col-label">DATE</div>
-            <div class="appt-date-val${awaitingResponse ? ' appt-date-superseded' : ''}">
+            <div class="appt-date-val${awaitingResponse || awaitingClinic ? ' appt-date-superseded' : ''}">
               ${formatDate(appt.preferred_date)}
             </div>
-            <div class="appt-time-val${awaitingResponse ? ' appt-date-superseded' : ''}">${formatTimeSlot(appt.time_slot)}</div>
-            ${awaitingResponse ? `
+            <div class="appt-time-val${awaitingResponse || awaitingClinic ? ' appt-date-superseded' : ''}">${formatTimeSlot(appt.time_slot)}</div>
+            ${awaitingResponse || awaitingClinic ? `
               <div class="appt-proposed">
-                <div class="appt-col-label">PROPOSED</div>
+                <div class="appt-col-label">${awaitingClinic ? 'REQUESTED' : 'PROPOSED'}</div>
                 <div class="appt-date-val">${formatDate(appt.proposed_date)}</div>
                 <div class="appt-time-val">${formatTimeSlot(appt.proposed_time_slot)}</div>
                 ${appt.reschedule_reason ? `<div class="appt-proposed-reason">${escapeHtml(appt.reschedule_reason)}</div>` : ''}
@@ -2192,6 +2388,7 @@ function formatTimeSlot(slot) {
 function statusText(status) {
   const value = String(status ?? '').trim();
   if (value === 'reschedule_pending') return 'New time proposed';
+  if (value === 'owner_reschedule_pending') return 'Awaiting clinic';
   return capitalize(value.replace(/_/g, ' '));
 }
 

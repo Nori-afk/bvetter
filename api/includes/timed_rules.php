@@ -55,11 +55,15 @@ function ensureTimedRulesSchema(PDO $pdo): bool
             $pdo->exec('ALTER TABLE appointments ADD COLUMN expires_at DATETIME NULL');
         }
         $status = $pdo->query("SHOW COLUMNS FROM appointments LIKE 'status'")->fetch();
-        if ($status && strpos($status['Type'], "'expired'") === false) {
+        $appointmentStatusType = strtolower((string) ($status['Type'] ?? ''));
+        if ($status && (
+            strpos($appointmentStatusType, "'expired'") === false
+            || strpos($appointmentStatusType, "'owner_reschedule_pending'") === false
+        )) {
             $pdo->exec("
                 ALTER TABLE appointments
                 MODIFY COLUMN status
-                ENUM('pending','confirmed','completed','cancelled','rejected','reschedule_pending','expired')
+                ENUM('pending','confirmed','completed','cancelled','rejected','reschedule_pending','owner_reschedule_pending','expired')
                 DEFAULT 'pending'
             ");
         }

@@ -39,7 +39,7 @@ function activityCardMeta(item) {
   const type  = String(item.type || '');
   const idStr = String(item.id || '');
   const title = String(item.title || '');
-  const isAppointment = type === 'appointment_status'       || idStr.startsWith('appt-');
+  const isAppointment = type.startsWith('appointment_') || idStr.startsWith('appt-');
   const isClaim       = type === 'lost_found_claim_status'  || idStr.startsWith('claim-');
   const isReport      = type === 'lost_found_report_status' || idStr.startsWith('report-');
 
