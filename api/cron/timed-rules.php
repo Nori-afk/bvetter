@@ -8,9 +8,9 @@
  *
  *   0-59/5 * * * * php /var/www/bvetter/api/cron/timed-rules.php >/dev/null 2>&1
  *
- * Lost & Found auto-publishing needs the report-matching code, which lives
- * in the Lost & Found endpoint, so that part is triggered by one request to
- * it (its "schema" action does nothing else).
+ * Lost & Found auto-publishing and report expiry need the report-matching
+ * code, which lives in the Lost & Found endpoint, so those rules are
+ * triggered by one request to it (its "schema" action does nothing else).
  */
 
 if (PHP_SAPI !== 'cli') {

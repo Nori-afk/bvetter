@@ -901,6 +901,19 @@ body {
   border-radius: 20px;
 }
 
+.final-status.expired {
+  background: #eceff1;
+  color: #546e7a;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.report-expiry-note {
+  margin: 8px 0 0;
+  color: #5c6b73;
+  font-size: 12px;
+}
+
 .btn-view-case {
   padding: 6px 16px;
   background: none;

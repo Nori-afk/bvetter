@@ -361,9 +361,9 @@ function renderMyReports() {
     return;
   }
 
-  // Only ongoing (pending/active) reports belong in the working grid — resolved/rejected
+  // Only ongoing (pending/active) reports belong in the working grid — resolved/rejected/expired
   // cases live in the History table below instead.
-  const ongoingReports = myReports.filter((report) => report.status !== 'resolved' && report.status !== 'rejected');
+  const ongoingReports = myReports.filter((report) => !['resolved', 'rejected', 'expired'].includes(report.status));
 
   if (!ongoingReports.length) {
     grid.innerHTML = `<div class="empty-state">No ongoing reports right now. Check your history below.</div>${createCard}`;
@@ -396,6 +396,7 @@ function renderMyReports() {
               <img src="../images/icons/${pending ? 'admin-review.svg' : 'matching-progress.svg'}" alt="" class="status-icon"/> ${escapeHtml(statusLabel)}
             </span>
           </div>
+          ${report.expiresAt ? `<p class="report-expiry-note">Three-month report lifespan ends ${escapeHtml(formatDate(report.expiresAt))}. An open claim or handoff may keep the case active.</p>` : ''}
           <div class="active-report-actions">
             <button type="button" class="btn-active-details ${pending ? 'outline' : ''}" onclick="openMyReportMatches('${report.id}')">
               ${pending ? 'View Details' : report.status === 'resolved' ? 'View Case' : 'View Potential Matches'}
@@ -426,14 +427,19 @@ function renderHistory(reports) {
     ${reports.map((report) => {
       const type = normalizeType(report.type);
       const claimant = myReportClaimants[report.id]?.name;
+      const finalStatusClass = report.status === 'resolved' ? 'reunited' : report.status === 'expired' ? 'expired' : 'pending';
+      const action = `<button type="button" class="btn-view-case" onclick="openMyReportMatches('${report.id}')">View Case</button>`
+        + (report.status === 'expired'
+          ? ` <button type="button" class="btn-view-case" onclick="handleResolveOwnReport('${report.id}')">Mark Resolved</button>`
+          : '');
       return `
         <div class="history-row">
           <span class="history-date">${escapeHtml(formatDate(report.date || report.created_at))}</span>
           <span class="history-pet"><img src="${escapeHtml(reportImage(report))}" alt="" class="history-pet-img" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}';"/> ${escapeHtml(report.petName || report.title || 'Unknown')}</span>
           <span><span class="type-tag ${type}-tag">${escapeHtml(report.type)}</span></span>
-          <span><span class="final-status ${report.status === 'resolved' ? 'reunited' : 'pending'}">${escapeHtml(report.status)}</span></span>
+          <span><span class="final-status ${finalStatusClass}">${escapeHtml(report.status)}</span></span>
           <span class="history-claimant">${escapeHtml(claimant || '—')}</span>
-          <span><button type="button" class="btn-view-case" onclick="openMyReportMatches('${report.id}')">View Case</button></span>
+          <span>${action}</span>
         </div>
       `;
     }).join('')}

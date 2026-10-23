@@ -23,7 +23,7 @@ ALTER TABLE user_verification_documents
     ADD COLUMN review_overdue_at DATETIME NULL,
     ADD COLUMN review_reminded_at DATETIME NULL;
 
--- Lost & Found owner reports go live on their own 2 hours after submission.
+-- Lost & Found owner reports go live on their own 3 hours after submission.
 ALTER TABLE lost_found_reports
     ADD COLUMN auto_publish_at DATETIME NULL,
     ADD COLUMN auto_published_at DATETIME NULL;

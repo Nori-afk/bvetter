@@ -402,7 +402,7 @@ CREATE TABLE `lost_found_reports` (
   `id` int NOT NULL,
   `case_number` varchar(40) NOT NULL,
   `report_type` enum('lost','found') NOT NULL,
-  `status` enum('pending','active','resolved','rejected') NOT NULL DEFAULT 'pending',
+  `status` enum('pending','active','resolved','rejected','expired') NOT NULL DEFAULT 'pending',
   `source` enum('owner','vet','admin','public') NOT NULL DEFAULT 'owner',
   `owner_id` int DEFAULT NULL,
   `pet_name` varchar(120) DEFAULT NULL,
@@ -428,6 +428,7 @@ CREATE TABLE `lost_found_reports` (
   `review_notes` text,
   `reviewed_at` datetime DEFAULT NULL,
   `resolved_at` datetime DEFAULT NULL,
+  `expires_at` datetime DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

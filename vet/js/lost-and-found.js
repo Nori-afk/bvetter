@@ -15,18 +15,20 @@ const lfData = {
 		{ id: 'active', label: 'Active Reports' },
 		{ id: 'potential', label: 'Potential Matches', badge: 'NEW' },
 		{ id: 'resolved', label: 'Resolved Cases' },
+		{ id: 'expired', label: 'Expired Reports' },
 		{ id: 'claims', label: 'Pending Claims' },
 		{ id: 'handoff', label: 'Awaiting Handoff' },
 		{ id: 'sighting', label: 'Sighting' }
 	],
 	pendingReports: [],
 	activeReports: [],
+	expiredReports: [],
 	potentialMatches: [],
 	resolvedCases: [],
 	claims: [],
 	handoffClaims: [],
 	sightings: [],
-	// Every report regardless of status (pending/active/resolved/rejected) — separate
+	// Every report regardless of status (pending/active/resolved/rejected/expired) — separate
 	// from the status-scoped lists above, used only to look up the specific lost report
 	// a sighting was filed against (sighting.reportId), which can be in any status.
 	allReports: []
@@ -299,10 +301,11 @@ async function loadAllData() {
 	if (content) content.innerHTML = '<div class="list-note">Loading lost and found records...</div>';
 
 	try {
-		const [pending, active, resolved, all, matches, claims, handoffClaims, sightings, barangays] = await Promise.all([
+		const [pending, active, resolved, expired, all, matches, claims, handoffClaims, sightings, barangays] = await Promise.all([
 			lfRequest('management_list', { status: 'pending' }),
 			lfRequest('management_list', { status: 'active' }),
 			lfRequest('management_list', { status: 'resolved' }),
+			lfRequest('management_list', { status: 'expired' }),
 			lfRequest('management_list', { status: 'all' }),
 			lfRequest('matches'),
 			lfRequest('management_claims', { status: 'pending' }),
@@ -314,6 +317,7 @@ async function loadAllData() {
 		lfData.pendingReports = (pending.data || []).map(normalizeReport);
 		lfData.activeReports = (active.data || []).map(normalizeReport);
 		lfData.resolvedCases = (resolved.data || []).map(normalizeReport);
+		lfData.expiredReports = (expired.data || []).map(normalizeReport);
 		lfData.allReports = (all.data || []).map(normalizeReport);
 		lfData.potentialMatches = matches.data || [];
 		lfData.claims = (claims.data || []).map(normalizeClaim);
@@ -378,7 +382,8 @@ function renderStats() {
 		{ label: 'Active Reports', value: lfData.activeReports.length, foot: 'Publicly visible' },
 		{ label: 'Clinic Uploaded', value: lfData.activeReports.filter((item) => item.source !== 'Owner').length, foot: 'From clinic staff' },
 		{ label: 'Suggested Matches', value: lfData.potentialMatches.length, foot: 'Candidates' },
-		{ label: 'Resolved', value: lfData.resolvedCases.length, foot: 'Closed reports' }
+		{ label: 'Resolved', value: lfData.resolvedCases.length, foot: 'Closed reports' },
+		{ label: 'Expired', value: lfData.expiredReports.length, foot: 'Three-month lifespan' }
 	];
 	document.getElementById('statsRow').innerHTML = stats.map((stat) => `
 		<article class="stat-card ${stat.featured ? 'featured' : ''}">
@@ -422,6 +427,7 @@ function renderContent() {
 	const root = document.getElementById('lfContent');
 	if (lfState.activeTab === 'pending') return renderReportList(root, lfData.pendingReports, 'pending');
 	if (lfState.activeTab === 'active') return renderActive(root);
+	if (lfState.activeTab === 'expired') return renderReportList(root, lfData.expiredReports, 'expired');
 	if (lfState.activeTab === 'potential') return renderPotential(root);
 	if (lfState.activeTab === 'resolved') return renderResolved(root);
 	if (lfState.activeTab === 'claims' || lfState.activeTab === 'handoff') return renderClaims(root);
@@ -432,7 +438,7 @@ function empty(message) {
 	return `<div class="list-note">${escapeHtml(message)}</div>`;
 }
 
-// When an unreviewed owner report goes live on its own (2 hours after it
+// When an unreviewed owner report goes live on its own (3 hours after it
 // was submitted -- api/includes/timed_rules.php).
 function autoPublishNote(report) {
 	if (!report.autoPublishAt) return '';
@@ -451,6 +457,7 @@ function reportCard(report, mode) {
 			<div class="report-body">
 				<h3>${escapeHtml(report.title)}</h3>
 				<p class="meta-line">Submitted by ${escapeHtml(report.uploader)} - ${escapeHtml(report.date || 'No date')}</p>
+				${mode === 'expired' && report.expiresAt ? `<p class="meta-line">Expired ${escapeHtml(report.expiresAt)}</p>` : ''}
 				<p class="desc-line">${escapeHtml(report.notes || 'No notes')}</p>
 				${mode === 'pending' ? autoPublishNote(report) : ''}
 				<div class="card-actions">
@@ -477,7 +484,12 @@ function renderReportList(root, reports, mode) {
 		source: item.source,
 		type: item.type
 	}));
-	root.innerHTML = `${mode === 'pending' ? '<div class="list-note">Owner reports wait here until vet approval. Approved reports become public and active. Unreviewed reports auto-publish after 2 hours.</div>' : ''}${list.length ? list.map((item) => reportCard(item, mode)).join('') : empty('No records found.')}`;
+	const note = mode === 'pending'
+		? '<div class="list-note">Owner reports wait here until vet approval. Approved reports become public and active. Unreviewed reports auto-publish after 3 hours.</div>'
+		: mode === 'expired'
+			? '<div class="list-note">Unresolved reports expire after three months and are hidden from the public board. Reports with a claim or handoff in progress stay open until that workflow closes. History is retained.</div>'
+			: '';
+	root.innerHTML = `${note}${list.length ? list.map((item) => reportCard(item, mode)).join('') : empty('No records found.')}`;
 	bindRootActions(root);
 }
 
@@ -817,6 +829,7 @@ function bindRootActions(root) {
 function findRecord(action, id) {
 	if (action.includes('pending')) return lfData.pendingReports.find((item) => item.id === id);
 	if (action.includes('active')) return lfData.activeReports.find((item) => item.id === id);
+	if (action.includes('expired')) return lfData.expiredReports.find((item) => item.id === id);
 	if (action.includes('claim')) return lfData.claims.find((item) => item.id === id);
 	if (action.includes('sighting')) return lfData.sightings.find((item) => item.id === id);
 	if (action.includes('resolved')) return lfData.resolvedCases.find((item) => item.id === id);
@@ -1292,6 +1305,7 @@ const REPORT_STATUS_PILLS = {
 	pending: ['Pending Review', 'lf-pill-pending'],
 	active: ['Active', 'lf-pill-active'],
 	resolved: ['Resolved', 'lf-pill-resolved'],
+	expired: ['Expired', 'lf-pill-expired'],
 	rejected: ['Rejected', 'lf-pill-rejected']
 };
 

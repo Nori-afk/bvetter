@@ -17,9 +17,10 @@
  *     the one step that needs a person. Admins are reminded after 1 working
  *     day, and the application shows as Overdue after 2.
  *
- *   Lost & Found reports -- auto-publish 2 hours after submission, around
- *     the clock, tagged for the vets to review later. Every poster is an
- *     ID-verified resident and a lost pet can't wait for a field day to end.
+ *   Lost & Found reports -- auto-publish 3 hours after submission, around
+ *     the clock, tagged for the vets to review later. Unresolved reports
+ *     expire after 3 months and remain in owner/staff history. A report with
+ *     a claim or handoff in progress stays open until that workflow closes.
  *     That rule lives in api/lost-found/lost_and_found.php, next to the
  *     matching it has to trigger.
  *
@@ -38,7 +39,8 @@ require_once __DIR__ . '/../config/mailer.php';
 require_once __DIR__ . '/working_hours.php';
 require_once __DIR__ . '/booking_slots.php';
 
-const BV_LF_AUTO_PUBLISH_MINUTES = 120;
+const BV_LF_AUTO_PUBLISH_MINUTES = 180;
+const BV_LF_REPORT_LIFESPAN_MONTHS = 3;
 
 function ensureTimedRulesSchema(PDO $pdo): bool
 {
@@ -162,6 +164,13 @@ function runTimedRules(PDO $pdo, bool $force = false): void
         // A failed sweep must never break the request that triggered it.
         error_log('[BVetter] timed rules: ' . $e->getMessage());
     }
+}
+
+function setReportExpiry(PDO $pdo, int $reportId): void
+{
+    if (!ensureReportLifespanSchema($pdo)) return;
+    $pdo->prepare('UPDATE lost_found_reports SET expires_at = DATE_ADD(COALESCE(created_at, NOW()), INTERVAL ' . BV_LF_REPORT_LIFESPAN_MONTHS . ' MONTH) WHERE id = :id')
+        ->execute([':id' => $reportId]);
 }
 
 function expireUnconfirmedAppointments(PDO $pdo): void

@@ -58,7 +58,7 @@ function normalizeRole($role)
 function normalizeStatus($status, $fallback = 'pending')
 {
     $status = strtolower(clean($status));
-    $allowed = ['pending', 'active', 'resolved', 'rejected', 'dismissed', 'approved', 'awaiting_handoff'];
+    $allowed = ['pending', 'active', 'resolved', 'rejected', 'expired', 'dismissed', 'approved', 'awaiting_handoff'];
     return in_array($status, $allowed, true) ? $status : $fallback;
 }
 
@@ -88,7 +88,7 @@ function ensureLostFoundSchema($pdo)
             id INT AUTO_INCREMENT PRIMARY KEY,
             case_number VARCHAR(40) NOT NULL UNIQUE,
             report_type ENUM('lost','found') NOT NULL,
-            status ENUM('pending','active','resolved','rejected') NOT NULL DEFAULT 'pending',
+            status ENUM('pending','active','resolved','rejected','expired') NOT NULL DEFAULT 'pending',
             source ENUM('owner','vet','admin','public') NOT NULL DEFAULT 'owner',
             owner_id INT NULL,
             pet_name VARCHAR(120) NULL,
@@ -114,6 +114,7 @@ function ensureLostFoundSchema($pdo)
             review_notes TEXT NULL,
             reviewed_at DATETIME NULL,
             resolved_at DATETIME NULL,
+            expires_at DATETIME NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             INDEX idx_lfr_type_status (report_type, status),
@@ -222,6 +223,39 @@ function ensureClaimWorkflowSchema($pdo)
     if (!$matchIndex) {
         $pdo->exec('ALTER TABLE lost_found_claims ADD INDEX idx_lfc_match (match_id)');
     }
+}
+
+/** Ensure existing installations can retain reports after their public lifespan. */
+function ensureReportLifespanSchema(PDO $pdo): bool
+{
+    static $ready = null;
+    if ($ready !== null) return $ready;
+
+    try {
+        $status = $pdo->query("SHOW COLUMNS FROM lost_found_reports LIKE 'status'")->fetch();
+        if ($status && strpos((string) ($status['Type'] ?? ''), "'expired'") === false) {
+            $pdo->exec("ALTER TABLE lost_found_reports MODIFY status ENUM('pending','active','resolved','rejected','expired') NOT NULL DEFAULT 'pending'");
+        }
+
+        if (!$pdo->query("SHOW COLUMNS FROM lost_found_reports LIKE 'expires_at'")->fetch()) {
+            $pdo->exec('ALTER TABLE lost_found_reports ADD COLUMN expires_at DATETIME NULL AFTER resolved_at');
+        }
+
+        if (!$pdo->query("SHOW INDEX FROM lost_found_reports WHERE Key_name = 'idx_lfr_status_expiry'")->fetch()) {
+            $pdo->exec('ALTER TABLE lost_found_reports ADD INDEX idx_lfr_status_expiry (status, expires_at)');
+        }
+
+        // Existing reports receive the same three-month lifespan, measured from
+        // their original submission time. The expiry sweep below archives
+        // overdue open reports without deleting their history.
+        $pdo->exec('UPDATE lost_found_reports SET expires_at = DATE_ADD(COALESCE(created_at, NOW()), INTERVAL ' . BV_LF_REPORT_LIFESPAN_MONTHS . ' MONTH) WHERE expires_at IS NULL');
+        $ready = true;
+    } catch (Throwable $e) {
+        error_log('[BVetter] lost & found lifespan schema: ' . $e->getMessage());
+        $ready = false;
+    }
+
+    return $ready;
 }
 
 function generateCaseNumber($prefix)
@@ -488,6 +522,7 @@ function reportRowToArray($row)
         'created_at' => $row['created_at'],
         'updated_at' => $row['updated_at'] ?? $row['created_at'],
         'resolved_at' => $row['resolved_at'] ?? null,
+        'expiresAt' => $row['expires_at'] ?? null,
         // Time limits (api/includes/timed_rules.php): when a pending owner
         // report goes live on its own, and whether a live one got there that
         // way without a vet having looked at it yet.
@@ -533,13 +568,45 @@ function autoPublishDueReports($pdo)
                 'lost_found_new',
                 'Report Auto-Published',
                 'A ' . $row['report_type'] . ' pet report' . ($row['pet_name'] ? ' (' . $row['pet_name'] . ')' : '')
-                    . ' went live after 2 hours without review. Please check it and mark it reviewed.',
+                    . ' went live after 3 hours without review. Please check it and mark it reviewed.',
                 $id,
                 false
             );
         }
     } catch (Throwable $e) {
         error_log('[BVetter] lost & found auto-publish: ' . $e->getMessage());
+    }
+}
+
+/** Hide overdue reports unless a claim/handoff is open; keep the history. */
+function expireOldReports(PDO $pdo): void
+{
+    if (!ensureReportLifespanSchema($pdo)) return;
+
+    try {
+        $stmt = $pdo->query("
+            SELECT id, owner_id
+            FROM lost_found_reports
+            WHERE status IN ('pending','active')
+              AND expires_at IS NOT NULL
+              AND expires_at <= NOW()
+              AND NOT EXISTS (
+                  SELECT 1 FROM lost_found_claims open_claim
+                  WHERE open_claim.report_id = lost_found_reports.id
+                    AND open_claim.status IN ('pending','approved','awaiting_handoff')
+              )
+        ");
+
+        foreach ($stmt->fetchAll() as $row) {
+            $id = (int) $row['id'];
+            $expire = $pdo->prepare("UPDATE lost_found_reports SET status = 'expired' WHERE id = :id AND status IN ('pending','active')");
+            $expire->execute([':id' => $id]);
+            if ($expire->rowCount() === 1) {
+                notifyReportOwnerStatus($pdo, (int) $row['owner_id'], $id, 'expired');
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('[BVetter] lost & found report expiry: ' . $e->getMessage());
     }
 }
 
@@ -859,6 +926,7 @@ function createReport($pdo, $data)
 
     $reportId = (int) $pdo->lastInsertId();
     rebuildMatchesForReport($pdo, $reportId);
+    setReportExpiry($pdo, $reportId);
 
     if ($status === 'pending') {
         setReportAutoPublish($pdo, $reportId);
@@ -954,10 +1022,14 @@ function notifyReportOwnerStatus($pdo, $ownerId, $reportId, $status)
         $pdo,
         $ownerId,
         'lost_found_report_status',
-        $status === 'active' ? 'Report Published' : 'Report Rejected',
+        $status === 'active' ? 'Report Published' : ($status === 'expired' ? 'Report Expired' : 'Report Rejected'),
         "Your {$label} report" . ($report['pet_name'] ? " for {$report['pet_name']}" : '')
             . " (case #{$report['case_number']}) was "
-            . ($status === 'active' ? 'published and is now live.' : 'rejected.'),
+            . ($status === 'active'
+                ? 'published and is now live.'
+                : ($status === 'expired'
+                    ? 'closed after its three-month lifespan. It remains in your report history. If the pet is still missing, submit an updated report.'
+                    : 'rejected.')),
         (int) $reportId
     );
 
@@ -977,6 +1049,14 @@ function notifyReportOwnerStatus($pdo, $ownerId, $reportId, $status)
             'Report Published',
             "<p>Your {$label} report{$petLabel} (case #{$report['case_number']}) is now live and visible to the community.</p>",
             $photoUrl,
+            ['label' => 'View', 'url' => APP_URL . '/public/pages/lost-found.html?tab=myreports']
+        );
+    } elseif ($status === 'expired') {
+        $subject = 'BVetter – Your ' . $label . ' report has expired';
+        $body = notificationEmailWrapper(
+            'Report Expired',
+            "<p>Your {$label} report{$petLabel} (case #{$report['case_number']}) has reached its three-month lifespan and is no longer visible on the public board. It remains in your report history. If the pet is still missing, submit an updated report.</p>",
+            null,
             ['label' => 'View', 'url' => APP_URL . '/public/pages/lost-found.html?tab=myreports']
         );
     } else {
@@ -1743,8 +1823,8 @@ function resolveOwnReport($pdo, $data)
         if ((int) $report['owner_id'] !== $ownerId) {
             respond(403, ['success' => false, 'message' => 'You can only resolve your own reports.']);
         }
-        if ($report['status'] !== 'active') {
-            respond(422, ['success' => false, 'message' => 'Only an active report can be marked resolved.']);
+        if (!in_array($report['status'], ['active', 'expired'], true)) {
+            respond(422, ['success' => false, 'message' => 'Only an active or expired report can be marked resolved.']);
         }
 
         if ($report['report_type'] === 'found') {
@@ -2108,7 +2188,7 @@ function updateClaimStatus($pdo, $data, $status)
         if ($claimInfo['status'] !== 'pending') {
             respond(409, ['success' => false, 'message' => 'This claim has already been reviewed.']);
         }
-        if ($status === 'approved' && $report['status'] !== 'active') {
+        if ($status === 'approved' && !in_array($report['status'], ['active', 'expired'], true)) {
             respond(409, ['success' => false, 'message' => 'This found report is no longer open for approval.']);
         }
         if ($status === 'approved') {
@@ -2227,14 +2307,14 @@ function confirmClaimHandoff($pdo, $data)
         if (!in_array($claim['status'], ['awaiting_handoff', 'approved'], true)) {
             respond(409, ['success' => false, 'message' => 'This claim is not awaiting a handoff confirmation.']);
         }
-        if (!in_array($report['status'], ['active', 'resolved'], true)) {
+        if (!in_array($report['status'], ['active', 'expired', 'resolved'], true)) {
             respond(409, ['success' => false, 'message' => 'This found report can no longer be resolved by this claim.']);
         }
 
         $pdo->prepare("UPDATE lost_found_claims SET status = 'resolved' WHERE id = :id AND status IN ('awaiting_handoff', 'approved')")
             ->execute([':id' => $claimId]);
-        if ($report['status'] === 'active') {
-            $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id AND status = 'active'")
+        if (in_array($report['status'], ['active', 'expired'], true)) {
+            $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id AND status IN ('active','expired')")
                 ->execute([':id' => $reportId]);
         }
 
@@ -2251,7 +2331,7 @@ function confirmClaimHandoff($pdo, $data)
             $matchStmt = $pdo->prepare("\n                SELECT m.id, m.lost_report_id
                 FROM lost_found_matches m
                 INNER JOIN lost_found_reports lr ON lr.id = m.lost_report_id
-                WHERE m.found_report_id = :found_id AND lr.owner_id = :claimant_id AND lr.status = 'active'
+                WHERE m.found_report_id = :found_id AND lr.owner_id = :claimant_id AND lr.status IN ('active','expired')
                   AND m.status = 'suggested'
                 ORDER BY m.confidence DESC, m.created_at DESC
                 LIMIT 1
@@ -2260,7 +2340,7 @@ function confirmClaimHandoff($pdo, $data)
         }
         $match = $matchStmt->fetch();
         if ($match) {
-            $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id AND status = 'active'")
+            $pdo->prepare("UPDATE lost_found_reports SET status = 'resolved', resolved_at = NOW() WHERE id = :id AND status IN ('active','expired')")
                 ->execute([':id' => (int) $match['lost_report_id']]);
             $pdo->prepare("UPDATE lost_found_matches SET status = 'approved', reviewed_at = NOW() WHERE id = :id AND status IN ('suggested', 'approved')")
                 ->execute([':id' => (int) $match['id']]);
@@ -2442,6 +2522,8 @@ try {
     ensureLostFoundSchema($pdo);
     ensureClaimWorkflowSchema($pdo);
     ensureMatchReviewNotes($pdo);
+    ensureReportLifespanSchema($pdo);
+    expireOldReports($pdo);
     autoPublishDueReports($pdo);
     runTimedRules($pdo);
 
