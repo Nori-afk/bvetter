@@ -554,6 +554,7 @@ body {
     display:       flex;
     flex-direction: column;
     min-width:     0;
+    min-height:    0;
 }
 
 .table-header { margin-bottom: 16px; }
@@ -610,6 +611,7 @@ body {
 .appointment-table-wrap {
     overflow-x: auto;
     flex:       1;
+    min-height: 0;
 }
 
 .appointment-table {
@@ -617,6 +619,10 @@ body {
     border-collapse: collapse;
     min-width:       680px;
     font-size:       0.84rem;
+}
+
+.appointment-table.fills-panel {
+    height: 100%;
 }
 
 .appointment-table thead {

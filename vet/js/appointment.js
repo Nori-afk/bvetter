@@ -441,6 +441,7 @@ function renderTable() {
 
 	const start = (state.page - 1) * pageSize;
 	const pageRows = filtered.slice(start, start + pageSize);
+	ui.tbody.closest('.appointment-table')?.classList.toggle('fills-panel', pageRows.length >= 8);
 
 	if (!pageRows.length) {
 		ui.tbody.innerHTML = '<tr><td colspan="6">No appointments found for your filters.</td></tr>';
