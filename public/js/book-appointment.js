@@ -807,13 +807,22 @@ async function loadAppointmentHistory(options = {}) {
     if (silent && snapshot === lastAppointmentHistory) return;
     lastAppointmentHistory = snapshot;
 
+    // The API keeps staff queues in appointment-date order. Owner history is
+    // a record of requests, so show the most recently submitted appointment
+    // first even when it is scheduled after an older request.
+    const appointments = Array.isArray(json.data) ? [...json.data] : [];
+    appointments.sort((a, b) => {
+      const requestedAtOrder = String(b.requested_at || '').localeCompare(String(a.requested_at || ''));
+      return requestedAtOrder || (Number(b.id) || 0) - (Number(a.id) || 0);
+    });
+
     const histList = document.getElementById('histList');
     const histEmpty = document.getElementById('histEmpty');
     const completedCountEl = document.getElementById('complted-visit');
 
-    completedCountEl.textContent = json.data ? json.data.filter(appt => appt.status === 'completed').length : '0';
+    completedCountEl.textContent = appointments.filter(appt => appt.status === 'completed').length;
 
-    if (!json.success || !json.data || json.data.length === 0) {
+    if (!json.success || appointments.length === 0) {
       histList.style.display = 'none';
       histEmpty.style.display = 'block';
       return;
@@ -823,7 +832,7 @@ async function loadAppointmentHistory(options = {}) {
     histList.style.display = 'flex';
     histList.innerHTML = '';
 
-    json.data.forEach(appt => {
+    appointments.forEach(appt => {
       const awaitingResponse = appt.status === 'reschedule_pending';
 
       const rowClass = appt.status === 'completed'
