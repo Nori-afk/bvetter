@@ -45,6 +45,12 @@ ServerSignature Off
     Header always set X-XSS-Protection "1; mode=block"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
 
+    # Keep HTML and frontend code revalidating so an automatic app reload
+    # receives newly deployed markup and assets instead of a stale copy.
+    <FilesMatch "\.(html|js|css)$">
+        Header set Cache-Control "no-cache, must-revalidate"
+    </FilesMatch>
+
     # Content Security Policy — the blanket backstop for anything that gets
     # past input validation and output escaping.
     #
