@@ -42,7 +42,6 @@ function setupChatbotTables($pdo)
             INDEX idx_chatbot_inquiry_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
-
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS chatbot_consultation_rules (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -56,6 +55,7 @@ function setupChatbotTables($pdo)
             recommendation TEXT NOT NULL,
             action_type ENUM('home_care','monitor_24hrs','book_appointment','emergency_visit') NOT NULL DEFAULT 'monitor_24hrs',
             status ENUM('active','inactive') NOT NULL DEFAULT 'active',
+            clinic_approved TINYINT(1) NOT NULL DEFAULT 0,
             usage_count INT NOT NULL DEFAULT 0,
             created_by_user_id INT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -66,6 +66,9 @@ function setupChatbotTables($pdo)
             INDEX idx_chatbot_consult_severity (severity)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+    if (!$pdo->query("SHOW COLUMNS FROM chatbot_consultation_rules LIKE 'clinic_approved'")->fetch()) {
+        $pdo->exec('ALTER TABLE chatbot_consultation_rules ADD COLUMN clinic_approved TINYINT(1) NOT NULL DEFAULT 0');
+    }
 
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS chatbot_consultation_logs (
@@ -79,11 +82,15 @@ function setupChatbotTables($pdo)
             matched_rule_id INT NULL,
             recommended_action VARCHAR(40) NOT NULL,
             recommendation TEXT NOT NULL,
+            booking_context TINYINT(1) NOT NULL DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_chatbot_logs_created (created_at),
             INDEX idx_chatbot_logs_barangay (barangay_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+    if (!$pdo->query("SHOW COLUMNS FROM chatbot_consultation_logs LIKE 'booking_context'")->fetch()) {
+        $pdo->exec('ALTER TABLE chatbot_consultation_logs ADD COLUMN booking_context TINYINT(1) NOT NULL DEFAULT 0');
+    }
 
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS chatbot_inquiry_logs (
@@ -258,6 +265,7 @@ function mapConsultation($row)
         'actionType' => $row['action_type'],
         'action_type' => $row['action_type'],
         'status' => $row['status'],
+        'clinicApproved' => (bool) ($row['clinic_approved'] ?? false),
         'count' => (int) $row['usage_count'],
         'lastUpdate' => date('Y-m-d', strtotime($row['updated_at'])),
         'updated_at' => $row['updated_at'],
@@ -464,16 +472,16 @@ function saveConsultationRule($pdo, $data)
             SET pet_type = :pet_type, age_group = :age_group, symptoms_json = :symptoms_json,
                 duration = :duration, severity = :severity, barangay_id = :barangay_id,
                 condition_title = :condition_title, recommendation = :recommendation,
-                action_type = :action_type, status = :status
+                action_type = :action_type, status = :status, clinic_approved = 1
             WHERE id = :id
         ");
         $stmt->execute($payload);
     } else {
         $stmt = $pdo->prepare("
             INSERT INTO chatbot_consultation_rules
-                (pet_type, age_group, symptoms_json, duration, severity, barangay_id, condition_title, recommendation, action_type, status, created_by_user_id)
+                (pet_type, age_group, symptoms_json, duration, severity, barangay_id, condition_title, recommendation, action_type, status, clinic_approved, created_by_user_id)
             VALUES
-                (:pet_type, :age_group, :symptoms_json, :duration, :severity, :barangay_id, :condition_title, :recommendation, :action_type, :status, :created_by_user_id)
+                (:pet_type, :age_group, :symptoms_json, :duration, :severity, :barangay_id, :condition_title, :recommendation, :action_type, :status, 1, :created_by_user_id)
         ");
         $stmt->execute($payload);
         $id = (int) $pdo->lastInsertId();
@@ -541,7 +549,8 @@ function assessConsultation($pdo, $data)
         respond(422, ['success' => false, 'message' => 'Pet type, symptoms, duration, and severity are required.']);
     }
 
-    $rows = $pdo->query("SELECT * FROM chatbot_consultation_rules WHERE status = 'active'")->fetchAll();
+    $approvedClause = !empty($data['clinic_approved_only']) ? ' AND clinic_approved = 1' : '';
+    $rows = $pdo->query("SELECT * FROM chatbot_consultation_rules WHERE status = 'active'{$approvedClause}")->fetchAll();
     $best = null;
     $bestScore = 0;
     foreach ($rows as $row) {
@@ -552,7 +561,8 @@ function assessConsultation($pdo, $data)
         }
     }
 
-    if ($best && $bestScore >= 4) {
+    $urgent = $severity === 'Critical' || count(array_intersect(urgentSymptomNames($pdo), $symptoms)) > 0;
+    if ($best && $bestScore >= 4 && (!$urgent || $best['action_type'] === 'emergency_visit')) {
         $result = [
             'condition' => $best['condition_title'],
             'action_type' => $best['action_type'],
@@ -564,16 +574,25 @@ function assessConsultation($pdo, $data)
         $stmt = $pdo->prepare('UPDATE chatbot_consultation_rules SET usage_count = usage_count + 1 WHERE id = :id');
         $stmt->execute([':id' => $best['id']]);
     } else {
-        $result = fallbackAssessment($pdo, $symptoms, $duration, $severity);
+        $result = !empty($data['clinic_approved_only'])
+            ? [
+                'condition' => $urgent ? 'Urgent warning signs' : 'No matching clinic guidance',
+                'action_type' => $urgent ? 'emergency_visit' : 'book_appointment',
+                'level' => $urgent ? 'high' : 'moderate',
+                'recommendation' => $urgent
+                    ? 'Contact the clinic immediately. Keep the animal calm and safe while arranging veterinary care; do not give human medicine.'
+                    : 'The clinic has no approved home-care rule for these symptoms. Contact the clinic for advice or continue booking a consultation.',
+            ]
+            : fallbackAssessment($pdo, $symptoms, $duration, $severity);
         $result['matched_rule_id'] = null;
         $result['score'] = $bestScore;
     }
 
     $stmt = $pdo->prepare("
         INSERT INTO chatbot_consultation_logs
-            (pet_type, age_group, symptoms_json, duration, severity, barangay_id, matched_rule_id, recommended_action, recommendation)
+            (pet_type, age_group, symptoms_json, duration, severity, barangay_id, matched_rule_id, recommended_action, recommendation, booking_context)
         VALUES
-            (:pet_type, :age_group, :symptoms_json, :duration, :severity, :barangay_id, :matched_rule_id, :recommended_action, :recommendation)
+            (:pet_type, :age_group, :symptoms_json, :duration, :severity, :barangay_id, :matched_rule_id, :recommended_action, :recommendation, :booking_context)
     ");
     $stmt->execute([
         ':pet_type' => $petType,
@@ -585,7 +604,9 @@ function assessConsultation($pdo, $data)
         ':matched_rule_id' => $result['matched_rule_id'],
         ':recommended_action' => $result['action_type'],
         ':recommendation' => $result['recommendation'],
+        ':booking_context' => !empty($data['clinic_approved_only']) ? 1 : 0,
     ]);
+    $consultationLogId = (int) $pdo->lastInsertId();
 
     respond(200, [
         'success' => true,
@@ -601,6 +622,7 @@ function assessConsultation($pdo, $data)
             'actionType' => $result['action_type'],
             'recommendation' => $result['recommendation'],
             'matchedRuleId' => $result['matched_rule_id'],
+            'logId' => $consultationLogId,
         ],
     ]);
 }

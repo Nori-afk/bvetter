@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../includes/booking_pets.php';
+
 /**
  * Notification emails for a newly-booked appointment — extracted out of
  * appointment.php only so the logic has one clear home; called
@@ -12,9 +14,8 @@ function notifyNewAppointmentRequest($pdo, $appointmentId, $ownerId, $petId, $ap
     $ownerStmt->execute([':id' => $ownerId]);
     $ownerName = $ownerStmt->fetchColumn() ?: 'A pet owner';
 
-    $petStmt = $pdo->prepare('SELECT pet_name FROM pets WHERE id = :id LIMIT 1');
-    $petStmt->execute([':id' => $petId]);
-    $petName = $petStmt->fetchColumn() ?: 'a pet';
+    $pets = appointmentPetsById($pdo, [$appointmentId]);
+    $petName = implode(', ', array_column($pets[$appointmentId] ?? [], 'name')) ?: 'a pet';
 
     notifyStaff(
         $pdo,

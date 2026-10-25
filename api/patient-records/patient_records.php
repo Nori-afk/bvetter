@@ -33,7 +33,8 @@ function clean($value)
 
 function normalizeSex($value)
 {
-    return strtolower(clean($value)) === 'male' ? 'male' : 'female';
+    $sex = strtolower(clean($value));
+    return in_array($sex, ['male','female','mixed','unknown'], true) ? $sex : 'unknown';
 }
 
 function statusType($status)
@@ -45,7 +46,7 @@ function statusType($status)
 
 function displaySex($sex)
 {
-    return strtolower($sex) === 'male' ? 'Male' : 'Female';
+    return ucfirst((string) $sex);
 }
 
 function displayDate($value)
@@ -312,6 +313,8 @@ function mapVisit($row)
         // and no typed symptoms showed none.
         'symptomCluster' => $row['symptom_cluster'] ?? null,
         'diagnosis' => apiSafeText($row['diagnosis']),
+        'affectedCount' => (int) ($row['affected_count'] ?? 1),
+        'caseCountBasis' => $row['case_count_basis'] ?? 'individual',
         'treatment' => $row['treatment'],
         'medications' => json_decode($row['medications_json'] ?: '[]', true) ?: [],
         'vaccinationStatus' => $row['vaccination_status'],
@@ -370,6 +373,9 @@ function mapRecord($pdo, $row)
         'ownerId' => (int) $row['owner_id'],
         'petName' => $row['pet_name'],
         'species' => $row['species'],
+        'animalCategory' => $row['animal_category'] ?: animalCategory($row['species'], ''),
+        'recordKind' => $row['record_kind'] ?: 'individual',
+        'estimatedCount' => (int) ($row['estimated_count'] ?? 1),
         'breed' => $row['breed'],
         'age' => $row['age'],
         'sex' => displaySex($row['sex']),
@@ -399,6 +405,8 @@ function mapRecord($pdo, $row)
         'medications' => $latest['medications'] ?? [],
         'category' => $latest['category'] ?? 'Routine Checkup',
         'diseaseCategory' => $latest['diseaseCategory'] ?? 'General/Other',
+        'affectedCount' => $latest['affectedCount'] ?? 1,
+        'caseCountBasis' => $latest['caseCountBasis'] ?? 'individual',
         'attendingVet' => $latest['attendingVet'] ?? '',
         'vaccinationStatus' => $latest['vaccinationStatus'] ?? '',
         'vaccineBrand' => $vaccinations[0]['name'] ?? '',
@@ -417,6 +425,9 @@ function listRecords($pdo)
             pets.id AS pet_id,
             pets.pet_name,
             pets.species,
+            pets.animal_category,
+            pets.record_kind,
+            pets.estimated_count,
             pets.breed,
             pets.sex,
             pets.age,
@@ -735,11 +746,20 @@ function visitSnapshot($pdo, $petId, $ownerId)
 
 function insertVisit($pdo, $petId, $ownerId, $data)
 {
+    $kindStmt = $pdo->prepare('SELECT record_kind FROM pets WHERE id = :id AND owner_id = :owner');
+    $kindStmt->execute([':id' => $petId, ':owner' => $ownerId]);
+    $recordKind = (string) $kindStmt->fetchColumn();
+    $basis = $recordKind === 'group' ? clean($data['caseCountBasis'] ?? '') : 'individual';
+    $affectedCount = $recordKind === 'group' ? filter_var($data['affectedCount'] ?? null, FILTER_VALIDATE_INT) : 1;
+    if ($recordKind === 'group' && (!in_array($basis, ['group', 'excluded'], true) || ($basis === 'group' && ($affectedCount === false || $affectedCount < 1 || $affectedCount > 100000)))) {
+        respond(422, ['success' => false, 'message' => 'Confirm the affected count, or mark the group as already counted in individual records.']);
+    }
+    if ($basis === 'excluded') $affectedCount = 0;
     $stmt = $pdo->prepare("
         INSERT INTO patient_visit_records
-            (pet_id, owner_id, visit_title, visit_date, follow_up_date, symptoms, symptom_cluster, diagnosis, treatment, medications_json, category, disease_category, patient_status_at_visit, barangay_at_visit, species_at_visit, attending_vet, vaccination_status, vaccine_brand)
+            (pet_id, owner_id, visit_title, visit_date, follow_up_date, symptoms, symptom_cluster, diagnosis, treatment, medications_json, category, disease_category, patient_status_at_visit, barangay_at_visit, species_at_visit, attending_vet, vaccination_status, vaccine_brand, affected_count, case_count_basis)
         VALUES
-            (:pet_id, :owner_id, :visit_title, :visit_date, :follow_up_date, :symptoms, :symptom_cluster, :diagnosis, :treatment, :medications_json, :category, :disease_category, :patient_status_at_visit, :barangay_at_visit, :species_at_visit, :attending_vet, :vaccination_status, :vaccine_brand)
+            (:pet_id, :owner_id, :visit_title, :visit_date, :follow_up_date, :symptoms, :symptom_cluster, :diagnosis, :treatment, :medications_json, :category, :disease_category, :patient_status_at_visit, :barangay_at_visit, :species_at_visit, :attending_vet, :vaccination_status, :vaccine_brand, :affected_count, :case_count_basis)
     ");
     $visitDate = clean($data['visitDate'] ?? '');
     $followUpDate = clean($data['followUpDate'] ?? '');
@@ -767,6 +787,8 @@ function insertVisit($pdo, $petId, $ownerId, $data)
         ':attending_vet' => clean($data['attendingVet'] ?? ''),
         ':vaccination_status' => clean($data['vaccinationStatus'] ?? ''),
         ':vaccine_brand' => clean($data['vaccineBrand'] ?? ''),
+        ':affected_count' => $affectedCount,
+        ':case_count_basis' => $basis,
     ]);
     $visitId = (int) $pdo->lastInsertId();
 
@@ -794,9 +816,16 @@ function insertVisit($pdo, $petId, $ownerId, $data)
 
 function insertPetRow($pdo, $ownerId, $data)
 {
+    $animalCategory = animalCategory(clean($data['species'] ?? ''), clean($data['animalCategory'] ?? ''));
+    $recordKind = clean($data['recordKind'] ?? 'individual');
+    $estimatedCount = filter_var($data['estimatedCount'] ?? 1, FILTER_VALIDATE_INT);
+    if (clean($data['species'] ?? '') === 'Rabbit' && $animalCategory === '') respond(422, ['success' => false, 'message' => 'Choose whether the rabbit is a companion animal or livestock.']);
+    if (!in_array($recordKind, ['individual','group'], true)) respond(422, ['success' => false, 'message' => 'Invalid animal record type.']);
+    if ($recordKind === 'group' && $animalCategory !== 'livestock') respond(422, ['success' => false, 'message' => 'A herd or flock must be livestock.']);
+    if ($estimatedCount === false || $estimatedCount < 1 || $estimatedCount > 100000) respond(422, ['success' => false, 'message' => 'Enter a valid owner estimate.']);
     $stmt = $pdo->prepare("
-        INSERT INTO pets (owner_id, pet_name, species, breed, sex, age, weight, color_markings, health_status, last_vaccination_date)
-        VALUES (:owner_id, :pet_name, :species, :breed, :sex, :age, :weight, :color_markings, :health_status, :last_vaccination_date)
+        INSERT INTO pets (owner_id, pet_name, species, breed, sex, age, weight, color_markings, health_status, last_vaccination_date, animal_category, record_kind, estimated_count)
+        VALUES (:owner_id, :pet_name, :species, :breed, :sex, :age, :weight, :color_markings, :health_status, :last_vaccination_date, :animal_category, :record_kind, :estimated_count)
     ");
     $stmt->execute([
         ':owner_id' => $ownerId,
@@ -809,6 +838,9 @@ function insertPetRow($pdo, $ownerId, $data)
         ':color_markings' => clean($data['colorMarkings'] ?? ''),
         ':health_status' => clean($data['healthStatus'] ?? 'Good Standing'),
         ':last_vaccination_date' => clean($data['visitDate'] ?? '') ?: null,
+        ':animal_category' => $animalCategory ?: null,
+        ':record_kind' => $recordKind,
+        ':estimated_count' => $recordKind === 'group' ? $estimatedCount : 1,
     ]);
     return (int) $pdo->lastInsertId();
 }
@@ -1059,6 +1091,13 @@ function saveBatch($pdo, $data)
 
 function updateRecord($pdo, $data)
 {
+    $newCategory = animalCategory(clean($data['species'] ?? ''), clean($data['animalCategory'] ?? ''));
+    $newKind = clean($data['recordKind'] ?? 'individual');
+    $newEstimate = filter_var($data['estimatedCount'] ?? 1, FILTER_VALIDATE_INT);
+    if (clean($data['species'] ?? '') === 'Rabbit' && $newCategory === '') respond(422, ['success' => false, 'message' => 'Choose whether the rabbit is a companion animal or livestock.']);
+    if (!in_array($newKind, ['individual','group'], true) || ($newKind === 'group' && $newCategory !== 'livestock') || $newEstimate === false || $newEstimate < 1 || $newEstimate > 100000) {
+        respond(422, ['success' => false, 'message' => 'Select a valid animal category, record type, and estimate.']);
+    }
     $petId = (int) ($data['id'] ?? $data['pet_id'] ?? 0);
     if ($petId <= 0) respond(422, ['success' => false, 'message' => 'Invalid patient id.']);
 
@@ -1072,6 +1111,9 @@ function updateRecord($pdo, $data)
         UPDATE pets
         SET pet_name = :pet_name,
             species = :species,
+            animal_category = :animal_category,
+            record_kind = :record_kind,
+            estimated_count = :estimated_count,
             breed = :breed,
             sex = :sex,
             age = :age,
@@ -1083,6 +1125,9 @@ function updateRecord($pdo, $data)
     $stmt->execute([
         ':pet_name' => clean($data['petName'] ?? ''),
         ':species' => clean($data['species'] ?? ''),
+        ':animal_category' => $newCategory ?: null,
+        ':record_kind' => $newKind,
+        ':estimated_count' => $newKind === 'group' ? $newEstimate : 1,
         ':breed' => clean($data['breed'] ?? ''),
         ':sex' => normalizeSex($data['sex'] ?? ''),
         ':age' => clean($data['age'] ?? ''),

@@ -946,6 +946,68 @@ body {
   gap: 16px;
 }
 
+.booking-pets-hint {
+  margin: -8px 0 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.booking-pet-card {
+  padding: 18px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  min-width: 0;
+}
+
+.booking-pet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.booking-pet-title {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.btn-add-pet, .btn-remove-pet {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 8px;
+  min-height: 44px;
+}
+
+.btn-add-pet {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  color: var(--color-navy);
+  background: #f4f8fd;
+  border: 1.5px dashed #8ba4c2;
+}
+
+.btn-add-pet:hover { background: #e8f0fa; }
+.btn-add-pet span { font-size: 20px; }
+.btn-remove-pet { padding: 6px 12px; color: #b42318; background: #fff; border: 1px solid #f0c5c1; }
+.btn-remove-pet:hover { background: #fff1f0; }
+.btn-remove-pet[hidden] { display: none; }
+.btn-add-pet:focus-visible, .btn-remove-pet:focus-visible { outline: 3px solid #8ba4c2; outline-offset: 3px; }
+.review-pet-title { margin: 0 0 10px; font-size: 14px; color: var(--text-primary); }
+
+@media (max-width: 480px) {
+  .booking-pet-card { padding: 14px 12px; }
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
@@ -1013,9 +1075,15 @@ body {
 
 .form-group.is-hidden,
 .form-row-2.is-hidden,
+.is-hidden#fieldVisitFields,
 .success-card.is-hidden {
   display: none;
 }
+
+#fieldVisitFields .form-group { margin: 14px 0; }
+#bookingConsultation > .form-label { display: block; margin-top: 14px; }
+#consultSymptoms { min-height: 125px; }
+#consultResult { margin-top: 14px; white-space: pre-line; }
 
 .csp-success-block {
   text-align: left;

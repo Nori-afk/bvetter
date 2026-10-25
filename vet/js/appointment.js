@@ -109,9 +109,11 @@ function extractDatePart(value) {
 
 function normalizeAppointment(item, index) {
 	const fallbackDate = '2026-04-21T09:00:00';
-	const datetime = typeof item.datetime === 'string' && isValidDateString(item.datetime)
-		? item.datetime
-		: fallbackDate;
+	const datePart = extractDatePart(item.preferred_date || item.datetime);
+	const timePart = canonicalSlot(item.time_slot || '');
+	const combined = /^\d{2}:\d{2}$/.test(timePart) && datePart ? `${datePart}T${timePart}:00` : '';
+	const datetime = combined && isValidDateString(combined) ? combined
+		: (typeof item.datetime === 'string' && isValidDateString(item.datetime) ? item.datetime : fallbackDate);
 	const status = VALID_STATUSES.has(item.status) ? item.status : 'pending';
 
 	// preferred_date is a clean 'YYYY-MM-DD' column straight from the DB — use it for
@@ -124,8 +126,15 @@ function normalizeAppointment(item, index) {
 		datetime,
 		preferredDate,
 		patient: String(item.patient || 'Unknown Patient'),
+		pets: Array.isArray(item.pets) ? item.pets : (item.pet ? [item.pet] : []),
 		owner: String(item.owner || 'Unknown Owner'),
 		service: String(item.service || 'General Service'),
+		visitMode: item.visit_mode === 'field' ? 'field' : 'clinic',
+		fieldAddress: String(item.field_address || ''),
+		fieldConcern: String(item.field_concern || ''),
+		fieldScheduleScope: String(item.field_schedule_scope || 'slot'),
+		ownerAssessment: item.owner_assessment && typeof item.owner_assessment === 'object' ? item.owner_assessment : null,
+		notes: String(item.notes || ''),
 		status,
 		type: String(item.type || 'General'),
 		veterinarianId: item.veterinarian_id ? Number(item.veterinarian_id) : null,
@@ -204,7 +213,12 @@ function getAppointmentById(id) {
 }
 
 function formatDateTime(value) {
-	const date = new Date(value);
+	let date = new Date(value);
+	if (Number.isNaN(date.getTime())) {
+		const match = String(value || '').match(/^(\d{4}-\d{2}-\d{2})[ T](\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+		if (match) date = new Date(`${match[1]}T${canonicalSlot(`${match[2]}:${match[3]} ${match[4]}`)}:00`);
+	}
+	if (Number.isNaN(date.getTime())) return { date: 'Date unavailable', time: 'Time unavailable', isoDate: '' };
 	return {
 		date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
 		time: date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
@@ -365,7 +379,7 @@ function updateCounters() {
 	const confirmedCount = state.appointments.filter((item) => item.status === 'confirmed' || item.status === 'owner_reschedule_pending').length;
 	ui.pendingCount.textContent = String(pendingCount).padStart(2, '0');
 	ui.confirmedCount.textContent = String(confirmedCount).padStart(2, '0');
-	ui.acceptAllButton.disabled = pendingCount === 0;
+	ui.acceptAllButton.disabled = !state.appointments.some((item) => item.status === 'pending' && item.visitMode !== 'field');
 }
 
 function renderPendingList() {
@@ -393,6 +407,11 @@ function renderPendingList() {
 				${expiryLabel(item) ? `<p>${expiryLabel(item)}</p>` : ''}
 				<h4>${item.patient}</h4>
 				<p>${item.service}</p>
+				${item.visitMode === 'field' ? `<p>Field visit · ${escapeAttr(item.fieldAddress)}</p>
+					<label>Clinic schedule <select class="field-scope-select" data-field-scope="${item.id}">
+						<option value="slot">Reserve requested time and vet</option>
+						<option value="day">Close clinic for the whole day</option>
+					</select></label>` : ''}
 				<div class="pending-actions">
 					<button class="accept" data-action="accept" data-id="${item.id}" type="button">Accept</button>
 					<button class="decline" data-action="decline" data-id="${item.id}" type="button">Decline</button>
@@ -544,13 +563,13 @@ function startAppointmentPolling() {
 	});
 }
 
-async function updateStatus(id, nextStatus, { skipReload } = {}) {
+async function updateStatus(id, nextStatus, { skipReload, fieldScheduleScope = '' } = {}) {
 	const selected = getAppointmentById(id);
 	if (!selected) return [];
 	// Ids of other requests for the same time the server declined.
 	let declined = [];
 	if (window.VetAPI?.updateAppointmentStatus) {
-		const result = await window.VetAPI.updateAppointmentStatus(id, nextStatus);
+		const result = await window.VetAPI.updateAppointmentStatus(id, nextStatus, fieldScheduleScope);
 		if (!result.ok) {
 			await vbAlert(result.error || 'Failed to update appointment.');
 			return [];
@@ -587,7 +606,14 @@ async function acceptRequest(id) {
 		const ok = await vbConfirm(`${earlierName} requested this time first. Confirm ${thisName} instead?`);
 		if (!ok) return;
 	}
-	await updateStatus(id, 'confirmed');
+	const fieldScheduleScope = item.visitMode === 'field'
+		? (ui.pendingHolder.querySelector(`[data-field-scope="${id}"]`)?.value || 'slot') : '';
+	if (fieldScheduleScope === 'day') {
+		const affected = state.appointments.filter(other => other.id !== id && other.status === 'pending' && other.preferredDate === item.preferredDate).length;
+		const ok = await vbConfirm(`Close the clinic for ${item.preferredDate} for this field visit? ${affected} other pending request${affected === 1 ? '' : 's'} for that day will be declined.`);
+		if (!ok) return;
+	}
+	await updateStatus(id, 'confirmed', { fieldScheduleScope });
 }
 
 function removeAppointment(id) {
@@ -637,7 +663,9 @@ function detailsModalTemplate(appointment) {
 				<button class="appt-action-btn appt-action-cancel" type="button" data-modal-action="open-cancel"><i data-lucide="x-circle"></i>Cancel</button>
 			</div>`;
 	const requestedCurrent = formatDateTime(`${appointment.preferredDate}T${appointment.timeSlot || '00:00'}`);
-	const requestedNew = formatDateTime(`${appointment.proposedDate}T${appointment.proposedTimeSlot || '00:00'}`);
+	const requestedNew = ownerReschedulePending
+		? formatDateTime(`${appointment.proposedDate}T${appointment.proposedTimeSlot || '00:00'}`)
+		: null;
 	const ownerRescheduleSummary = ownerReschedulePending
 		? `<div class="appt-notes-card owner-reschedule-summary">
 				<div class="appt-info-label"><i data-lucide="calendar-clock"></i>Owner's Requested Time</div>
@@ -651,8 +679,8 @@ function detailsModalTemplate(appointment) {
 		<div class="appt-modal-header appt-accent-${statusSlug}">
 			<div class="appt-header-avatar appt-avatar-${statusSlug}">${initial}</div>
 			<div class="appt-modal-identity">
-				<div class="appt-header-name">${appointment.patient}</div>
-				<div class="appt-header-meta">${appointment.service} &middot; ${dt.date} at ${dt.time}</div>
+				<div class="appt-header-name">${escapeAttr(appointment.patient)}</div>
+				<div class="appt-header-meta">${escapeAttr(appointment.service)} &middot; ${dt.date} at ${dt.time}</div>
 			</div>
 			<span class="appt-header-badge appt-badge-${statusSlug}">${statusLabel(appointment.status)}</span>
 		</div>
@@ -670,8 +698,10 @@ function detailsModalTemplate(appointment) {
 					<div class="appt-info-rows">
 						<div class="appt-info-row"><span>Date</span><strong>${dt.date}</strong></div>
 						<div class="appt-info-row"><span>Time</span><strong>${dt.time}</strong></div>
-						<div class="appt-info-row"><span>Service</span><strong>${appointment.service}</strong></div>
-						<div class="appt-info-row"><span>Veterinarian</span><strong>${appointment.veterinarian || 'Not yet assigned'}</strong></div>
+						<div class="appt-info-row"><span>Service</span><strong>${escapeAttr(appointment.service)}</strong></div>
+						<div class="appt-info-row"><span>Visit</span><strong>${appointment.visitMode === 'field' ? 'Field visit' : 'Clinic visit'}</strong></div>
+						${appointment.visitMode === 'field' ? `<div class="appt-info-row"><span>Clinic schedule</span><strong>${appointment.fieldScheduleScope === 'day' ? 'Whole day closed' : 'Requested time and vet'}</strong></div>` : ''}
+						<div class="appt-info-row"><span>Veterinarian</span><strong>${escapeAttr(appointment.veterinarian || 'Not yet assigned')}</strong></div>
 					</div>
 				</div>
 				<div class="appt-info-card">
@@ -680,22 +710,30 @@ function detailsModalTemplate(appointment) {
 						Owner Information
 					</div>
 					<div class="appt-info-rows">
-						<div class="appt-info-row"><span>Owner</span><strong>${appointment.owner}</strong></div>
+						<div class="appt-info-row"><span>Owner</span><strong>${escapeAttr(appointment.owner)}</strong></div>
 						${appointment.ownerPhone ? `<div class="appt-info-row"><span>Owner Phone</span><strong>${escapeAttr(appointment.ownerPhone)}</strong></div>` : ''}
 						${appointment.contact ? `<div class="appt-info-row"><span>Bringing the Pet</span><strong>${escapeAttr(appointment.contact.name)}${appointment.contact.phone ? ' &middot; ' + escapeAttr(appointment.contact.phone) : ''}</strong></div>` : ''}
-						<div class="appt-info-row"><span>Patient</span><strong>${appointment.patient}</strong></div>
-						<div class="appt-info-row"><span>Type</span><strong>${appointment.type}</strong></div>
+						<div class="appt-info-row"><span>Patient</span><strong>${escapeAttr(appointment.patient)}</strong></div>
+						<div class="appt-info-row"><span>Type</span><strong>${escapeAttr(appointment.type)}</strong></div>
 					</div>
 				</div>
 			</div>
 			${ownerRescheduleSummary}
+			<div class="appt-notes-card">
+				<div class="appt-info-label"><i data-lucide="paw-print"></i>Pets in this Appointment</div>
+				<div class="appt-info-rows">
+					${appointment.pets.map(pet => `<div class="appt-info-row"><span>${escapeAttr(pet.name || '')}</span><strong>${[pet.species, pet.animal_category, pet.record_kind === 'group' ? `Group · owner estimates ${pet.estimated_count || 1}` : 'Individual', pet.breed, pet.age, pet.sex].filter(Boolean).map(escapeAttr).join(' &middot; ')}</strong></div>`).join('')}
+				</div>
+			</div>
+			${appointment.visitMode === 'field' ? `<div class="appt-notes-card"><div class="appt-info-label">Field visit request</div><p><strong>Location:</strong> ${escapeAttr(appointment.fieldAddress)}</p><p><strong>Concern:</strong> ${escapeAttr(appointment.fieldConcern)}</p></div>` : ''}
+			${appointment.ownerAssessment ? `<div class="appt-notes-card"><div class="appt-info-label">Owner's preliminary symptom check · not a diagnosis</div><p><strong>Reported symptoms:</strong> ${escapeAttr((appointment.ownerAssessment.symptoms || []).join(', '))}</p><p><strong>Clinic guidance shown:</strong> ${escapeAttr(appointment.ownerAssessment.recommendation || '')}</p></div>` : ''}
 
 			<div class="appt-notes-card">
 				<div class="appt-info-label">
 					<i data-lucide="clipboard-list"></i>
 					Additional Notes
 				</div>
-				<p>${appointment.notes || 'No additional notes recorded for this appointment.'}</p>
+				<p>${escapeAttr(appointment.notes || 'No additional notes recorded for this appointment.')}</p>
 			</div>
 
 			<div class="modal-footer">
@@ -1204,6 +1242,7 @@ function setupEvents() {
 			.sort(compareRequested);
 		const declined = new Set();
 		for (const item of pending) {
+			if (item.visitMode === 'field') continue;
 			if (declined.has(item.id)) continue;
 			const ids = await updateStatus(item.id, 'confirmed', { skipReload: true });
 			ids.forEach((declinedId) => declined.add(Number(declinedId)));

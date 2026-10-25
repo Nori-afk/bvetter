@@ -20,6 +20,8 @@ require_once __DIR__ . '/../includes/patient_tables.php';
 require_once __DIR__ . '/appointment_notifications.php';
 require_once __DIR__ . '/../includes/timed_rules.php';
 require_once __DIR__ . '/../includes/booking_slots.php';
+require_once __DIR__ . '/../includes/booking_pets.php';
+require_once __DIR__ . '/../includes/animal_visit_schema.php';
 
 // How far ahead an appointment may be scheduled. Mirrors
 // BOOKING_HORIZON_MONTHS in public/js/book-appointment.js — the date input's
@@ -29,6 +31,8 @@ const BOOKING_HORIZON_MONTHS = 3;
 #for reusuedability para di na mag type ng type ng response jusko
 function respond($statusCode, $payload)
 {
+    global $pdo;
+    if ($statusCode >= 400 && $pdo instanceof PDO && $pdo->inTransaction()) $pdo->rollBack();
     http_response_code($statusCode);
     echo json_encode($payload);
     exit;
@@ -145,7 +149,7 @@ function canonicalTimeSlot($value)
 function normalizeSex($value)
 {
     $value = strtolower(clean($value));
-    return $value === 'female' ? 'female' : 'male';
+    return in_array($value, ['female','mixed','unknown'], true) ? $value : 'male';
     #if ung value ba is female ang value nia ay female howehver magiging male.
 }
 
@@ -393,7 +397,7 @@ function findOrCreatePet($pdo, $ownerId, $data)
     $missing = [];
     if ($petName === '') $missing[] = 'name';
     if ($species === '') $missing[] = 'type';
-    if ($breed === '')   $missing[] = 'breed';
+    if ($breed === '' && ($data['record_kind'] ?? 'individual') !== 'group') $missing[] = 'breed';
     if ($sex === '')     $missing[] = 'sex';
 
     if ($missing) {
@@ -404,7 +408,7 @@ function findOrCreatePet($pdo, $ownerId, $data)
     }
 
     $stmt = $pdo->prepare('
-        SELECT id
+        SELECT id, species, record_kind, animal_category
         FROM pets
         WHERE owner_id = :owner_id AND pet_name = :pet_name
         LIMIT 1
@@ -414,7 +418,15 @@ function findOrCreatePet($pdo, $ownerId, $data)
         ':pet_name' => $petName,
     ]);
     $existing = $stmt->fetch();
-    if ($existing) return (int) $existing['id'];
+    if ($existing) {
+        if (strcasecmp((string) $existing['species'], $species) !== 0 && animalGroupFromSpecies((string) $existing['species']) !== animalGroupFromSpecies($species)) {
+            respond(422, ['success' => false, 'message' => 'An animal with this name already exists under a different species. Use its existing record or a distinct name.']);
+        }
+        if (($existing['record_kind'] ?? 'individual') !== clean($data['record_kind'] ?? 'individual')) {
+            respond(422, ['success' => false, 'message' => 'This name is already used by a different animal record type. Use a distinct group name.']);
+        }
+        return (int) $existing['id'];
+    }
 
     $insertPet = $pdo->prepare('
         INSERT INTO pets
@@ -443,6 +455,7 @@ function findOrCreatePet($pdo, $ownerId, $data)
 
 function listAppointments($pdo, $data)
 {
+    ensureAnimalVisitSchema($pdo);
     $where = [];
     $params = [];
 
@@ -481,6 +494,11 @@ function listAppointments($pdo, $data)
         appointments.appointment_type,
         appointments.preferred_date,
         appointments.time_slot,
+        appointments.visit_mode,
+        appointments.field_address,
+        appointments.field_concern,
+        appointments.field_schedule_scope,
+        appointments.owner_assessment_json,
         appointments.status,
         ' . (ensureRescheduleSchema($pdo)
                 ? 'appointments.proposed_date,
@@ -524,14 +542,22 @@ function listAppointments($pdo, $data)
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
+    $petsByAppointment = appointmentPetsById($pdo, array_column($rows, 'id'));
 
-    $data = array_map(function ($row) {
+    $data = array_map(function ($row) use ($petsByAppointment) {
+        $pets = $petsByAppointment[(int) $row['id']] ?? [];
         return [
             'id' => (int) $row['id'],
             'datetime' => $row['preferred_date'] . ' ' . $row['time_slot'],
-            'patient' => $row['pet_name'],
+            'patient' => $pets ? implode(', ', array_column($pets, 'name')) : $row['pet_name'],
+            'pets' => $pets,
             'owner' => $row['owner_name'],
             'service' => $row['appointment_type'],
+            'visit_mode' => $row['visit_mode'],
+            'field_address' => $row['field_address'],
+            'field_concern' => $row['field_concern'],
+            'field_schedule_scope' => $row['field_schedule_scope'],
+            'owner_assessment' => $row['owner_assessment_json'] ? json_decode($row['owner_assessment_json'], true) : null,
             'status' => $row['status'],
             'type' => $row['appointment_type'],
             'owner_id' => (int) $row['owner_id'],
@@ -649,6 +675,71 @@ function removeVisitType($pdo, $data)
 
 function createAppointment($pdo, $data)
 {
+    $petEntries = bookingPetEntries($data);
+    ensureAppointmentPetsSchema($pdo);
+    ensureAnimalVisitSchema($pdo);
+    $visitMode = clean($data['visit_mode'] ?? 'clinic');
+    if (!in_array($visitMode, ['clinic', 'field'], true)) {
+        respond(422, ['success' => false, 'message' => 'Choose clinic or field visit.']);
+    }
+    $storedPet = $pdo->prepare('SELECT species, animal_category FROM pets WHERE id = :id LIMIT 1');
+    foreach ($petEntries as $index => $entry) {
+        $species = clean($entry['species'] ?? $entry['pet_type'] ?? '');
+        $requestedCategory = clean($entry['animal_category'] ?? '');
+        if ($species === '' && !empty($entry['pet_id'])) {
+            $storedPet->execute([':id' => (int) $entry['pet_id']]);
+            $stored = $storedPet->fetch(PDO::FETCH_ASSOC) ?: [];
+            $species = clean($stored['species'] ?? '');
+            $requestedCategory = $requestedCategory ?: clean($stored['animal_category'] ?? '');
+        }
+        $category = animalCategory($species, $requestedCategory);
+        if (!$category) respond(422, ['success' => false, 'message' => 'Animal ' . ($index + 1) . ': Please select a supported animal and category.']);
+        if ($visitMode === 'clinic' && $category === 'livestock') {
+            respond(422, ['success' => false, 'message' => 'Livestock requests need a field visit. Book companion animals separately for a clinic visit.']);
+        }
+        if ($visitMode === 'field' && $category !== 'livestock') {
+            respond(422, ['success' => false, 'message' => 'Field visits are for livestock. Book companion animals separately for a clinic visit.']);
+        }
+    }
+    $fieldAddress = clean($data['field_address'] ?? '');
+    $fieldConcern = clean($data['field_concern'] ?? '');
+    if ($visitMode === 'field' && ($fieldAddress === '' || $fieldConcern === '' || mb_strlen($fieldAddress) > 255 || mb_strlen($fieldConcern) > 2000)) {
+        respond(422, ['success' => false, 'message' => 'Field visit location and concern are required.']);
+    }
+    $ownerAssessment = null;
+    $assessmentId = (int) ($data['owner_assessment_log_id'] ?? 0);
+    if ($assessmentId > 0) {
+        if (clean($data['appointment_type'] ?? $data['visit_type'] ?? '') !== 'Consultation') {
+            respond(422, ['success' => false, 'message' => 'The optional symptom check belongs to Consultation bookings.']);
+        }
+        $animalName = clean($data['owner_assessment_animal'] ?? '');
+        $assessmentEntry = null;
+        foreach ($petEntries as $entry) {
+            if (clean($entry['pet_name'] ?? '') === $animalName) $assessmentEntry = $entry;
+        }
+        if ($assessmentEntry === null) {
+            respond(422, ['success' => false, 'message' => 'The symptom check animal is not in this booking.']);
+        }
+        $assessmentStmt = $pdo->prepare('SELECT pet_type, symptoms_json, duration, severity, recommended_action, recommendation FROM chatbot_consultation_logs WHERE id = :id AND booking_context = 1');
+        $assessmentStmt->execute([':id' => $assessmentId]);
+        $assessmentRow = $assessmentStmt->fetch(PDO::FETCH_ASSOC);
+        if (!$assessmentRow) respond(422, ['success' => false, 'message' => 'Please run the symptom check again.']);
+        $assessmentSpecies = clean($assessmentEntry['species'] ?? $assessmentEntry['pet_type'] ?? '');
+        $expectedType = in_array($assessmentSpecies, ['Dog','Canine'], true) ? 'Dog'
+            : (in_array($assessmentSpecies, ['Cat','Feline'], true) ? 'Cat' : 'Other');
+        if ($assessmentRow['pet_type'] !== $expectedType) {
+            respond(422, ['success' => false, 'message' => 'The symptom check was for a different animal type.']);
+        }
+        $ownerAssessment = [
+            'animal' => $animalName,
+            'pet_type' => $assessmentRow['pet_type'],
+            'symptoms' => json_decode($assessmentRow['symptoms_json'], true) ?: [],
+            'duration' => $assessmentRow['duration'],
+            'severity' => $assessmentRow['severity'],
+            'action' => $assessmentRow['recommended_action'],
+            'recommendation' => $assessmentRow['recommendation'],
+        ];
+    }
     $appointmentType = clean($data['appointment_type'] ?? $data['visit_type'] ?? '');
     $preferredDate = clean($data['preferred_date'] ?? $data['date'] ?? '');
     $timeSlot = canonicalTimeSlot($data['time_slot'] ?? $data['time'] ?? '');
@@ -683,11 +774,9 @@ function createAppointment($pdo, $data)
         }
     }
 
-    // Two owners pressing Book for the same slot at the same moment would both
-    // pass the check below before either row exists. The named lock makes the
-    // check-then-insert one step per date/slot; it is released on commit or
-    // when the connection closes, whichever comes first.
-    $slotLock = lockSlot($pdo, $preferredDate, $timeSlot);
+    // Serialize every schedule change on this date, including whole-day field
+    // visits, before checking availability and creating the request.
+    $slotLock = lockSlot($pdo, $preferredDate, 'day');
 
     $pdo->beginTransaction();
 
@@ -710,7 +799,8 @@ function createAppointment($pdo, $data)
     [$contactName, $contactPhone] = appointmentContactPerson($data);
 
     $ownerId = findOrCreateOwner($pdo, $data);
-    $petId = findOrCreatePet($pdo, $ownerId, $data);
+    $petIds = resolveBookingPetIds($pdo, $ownerId, $petEntries);
+    $petId = $petIds[0];
 
     // Stored on the appointment (not just used in-memory) so that later
     // status-change emails (confirmed/rejected) also reach the address typed
@@ -722,9 +812,9 @@ function createAppointment($pdo, $data)
 
     $insert = $pdo->prepare('
         INSERT INTO appointments
-            (owner_id, pet_id, veterinarian_id, appointment_type, preferred_date, time_slot, contact_email, status, description, notes)
+            (owner_id, pet_id, veterinarian_id, appointment_type, preferred_date, time_slot, contact_email, status, description, notes, visit_mode, field_address, field_concern, owner_assessment_json)
         VALUES
-            (:owner_id, :pet_id, :veterinarian_id, :appointment_type, :preferred_date, :time_slot, :contact_email, :status, :description, :notes)
+            (:owner_id, :pet_id, :veterinarian_id, :appointment_type, :preferred_date, :time_slot, :contact_email, :status, :description, :notes, :visit_mode, :field_address, :field_concern, :owner_assessment)
     ');
 
     $insert->execute([
@@ -738,9 +828,17 @@ function createAppointment($pdo, $data)
         ':status' => 'pending',
         ':description' => $description,
         ':notes' => $notes,
+        ':visit_mode' => $visitMode,
+        ':field_address' => $visitMode === 'field' ? $fieldAddress : null,
+        ':field_concern' => $visitMode === 'field' ? $fieldConcern : null,
+        ':owner_assessment' => $ownerAssessment ? json_encode($ownerAssessment, JSON_UNESCAPED_UNICODE) : null,
     ]);
 
     $appointmentId = (int) $pdo->lastInsertId();
+    $linkPet = $pdo->prepare('INSERT INTO appointment_pets (appointment_id, pet_id, position) VALUES (?, ?, ?)');
+    foreach ($petIds as $position => $id) {
+        $linkPet->execute([$appointmentId, $id, $position]);
+    }
     if ($contactName !== null && ensureAppointmentContactSchema($pdo)) {
         $pdo->prepare('UPDATE appointments SET contact_name = :name, contact_phone = :phone WHERE id = :id')
             ->execute([':name' => $contactName, ':phone' => $contactPhone, ':id' => $appointmentId]);
@@ -761,12 +859,14 @@ function createAppointment($pdo, $data)
     respond(201, [
         'success' => true,
         'message' => 'Appointment request submitted. The clinic confirms requests within 1 working day; if it isn\'t confirmed by then, it expires and you can book again.',
-        'appointment_id' => $appointmentId
+        'appointment_id' => $appointmentId,
+        'pet_ids' => $petIds
     ]);
 }
 
 function updateAppointmentStatus($pdo, $data)
 {
+    ensureAnimalVisitSchema($pdo);
     $appointmentId = (int) ($data['appointment_id'] ?? $data['id'] ?? 0);
     $status = normalizeStatus($data['status'] ?? '');
     $reviewedBy = (int) ($data['reviewed_by_user_id'] ?? 0);
@@ -785,7 +885,7 @@ function updateAppointmentStatus($pdo, $data)
     // confirm for that time is refused.
     $slotLock = null;
     if ($status === 'confirmed') {
-        $slotRow = $pdo->prepare('SELECT veterinarian_id, preferred_date, time_slot, status FROM appointments WHERE id = :id LIMIT 1');
+        $slotRow = $pdo->prepare('SELECT veterinarian_id, preferred_date, time_slot, status, visit_mode FROM appointments WHERE id = :id LIMIT 1');
         $slotRow->execute([':id' => $appointmentId]);
         $slot = $slotRow->fetch();
         // Its owner has already been told it expired and to book again.
@@ -796,12 +896,17 @@ function updateAppointmentStatus($pdo, $data)
             ]);
         }
         if ($slot) {
-            $slotLock = lockSlot($pdo, $slot['preferred_date'], $slot['time_slot']);
-            if (slotConflictExists($pdo, (int) $slot['veterinarian_id'], $slot['preferred_date'], $slot['time_slot'], $appointmentId)) {
+            $fieldScope = $slot['visit_mode'] === 'field' ? clean($data['field_schedule_scope'] ?? '') : 'slot';
+            if (!in_array($fieldScope, ['slot', 'day'], true)) {
+                respond(422, ['success' => false, 'message' => 'Choose whether the field visit reserves a time slot or the whole clinic day.']);
+            }
+            $slotLock = lockSlot($pdo, $slot['preferred_date'], 'day');
+            if (($fieldScope === 'day' && appointmentDayConflictExists($pdo, $slot['preferred_date'], $appointmentId)) ||
+                slotConflictExists($pdo, (int) $slot['veterinarian_id'], $slot['preferred_date'], $slot['time_slot'], $appointmentId)) {
                 unlockSlot($pdo, $slotLock);
                 respond(409, [
                     'success' => false,
-                    'message' => 'Another appointment is already confirmed for this date and time. Reschedule this request or decline it.'
+                    'message' => 'Another appointment already occupies that time or day. Choose a different schedule.'
                 ]);
             }
         }
@@ -809,29 +914,35 @@ function updateAppointmentStatus($pdo, $data)
 
     $confirmedAtSql = $status === 'confirmed' ? 'NOW()' : 'confirmed_at';
     $cancelledAtSql = in_array($status, ['cancelled', 'rejected'], true) ? 'NOW()' : 'cancelled_at';
+    $fieldScopeSql = $status === 'confirmed' ? ':field_schedule_scope' : 'field_schedule_scope';
 
     $stmt = $pdo->prepare("
         UPDATE appointments
         SET status = :status,
             reviewed_by_user_id = :reviewed_by_user_id,
             review_notes = :review_notes,
+            field_schedule_scope = $fieldScopeSql,
             confirmed_at = $confirmedAtSql,
             cancelled_at = $cancelledAtSql
         WHERE id = :id
     ");
 
-    $stmt->execute([
+    $statusParams = [
         ':status' => $status,
         ':reviewed_by_user_id' => $reviewedBy > 0 ? $reviewedBy : null,
         ':review_notes' => $reviewNotes,
         ':id' => $appointmentId,
-    ]);
+    ];
+    if ($status === 'confirmed') $statusParams[':field_schedule_scope'] = $fieldScope ?? 'slot';
+    $stmt->execute($statusParams);
 
     // The time now belongs to this booking; everyone else who asked for it
     // is told straight away rather than waiting for their request to expire.
     $declined = [];
     if ($status === 'confirmed' && !empty($slot)) {
-        $declined = declineOtherRequestsForSlot($pdo, $appointmentId, (int) $slot['veterinarian_id'], $slot['preferred_date'], $slot['time_slot']);
+        $declined = $fieldScope === 'day'
+            ? declineOtherRequestsForDay($pdo, $appointmentId, $slot['preferred_date'])
+            : declineOtherRequestsForSlot($pdo, $appointmentId, (int) $slot['veterinarian_id'], $slot['preferred_date'], $slot['time_slot']);
     }
     unlockSlot($pdo, $slotLock);
     foreach ($declined as $declinedId) {
@@ -943,6 +1054,7 @@ function notifyOwnerAppointmentConfirmed($pdo, $appointmentId)
 {
     $stmt = $pdo->prepare('
         SELECT appointments.preferred_date, appointments.time_slot, appointments.contact_email,
+               appointments.visit_mode, appointments.field_address, appointments.field_schedule_scope,
                owners.id AS owner_id, owners.full_name AS owner_name, owners.email AS owner_email
         FROM appointments
         INNER JOIN users owners ON owners.id = appointments.owner_id
@@ -954,6 +1066,11 @@ function notifyOwnerAppointmentConfirmed($pdo, $appointmentId)
     if (!$row) return;
 
     $ownerId = (int) $row['owner_id'];
+    $scheduleText = $row['visit_mode'] === 'field'
+        ? ($row['field_schedule_scope'] === 'day'
+            ? "Your field visit on {$row['preferred_date']} has been confirmed. The clinic will coordinate the arrival time."
+            : "Your field visit on {$row['preferred_date']} at {$row['time_slot']} has been confirmed.")
+        : "Your appointment on {$row['preferred_date']} at {$row['time_slot']} has been confirmed.";
 
     // In-app row first, and unconditionally. The checks below gate the
     // *email* — the settings page presents those toggles as email channels
@@ -964,7 +1081,7 @@ function notifyOwnerAppointmentConfirmed($pdo, $appointmentId)
         $ownerId,
         'appointment_status',
         'Appointment Confirmed',
-        "Your appointment on {$row['preferred_date']} at {$row['time_slot']} has been confirmed.",
+        $scheduleText,
         (int) $appointmentId
     );
 
@@ -976,8 +1093,8 @@ function notifyOwnerAppointmentConfirmed($pdo, $appointmentId)
     $subject = 'BVetter – Your appointment is confirmed';
     $body = notificationEmailWrapper(
         'Appointment Confirmed',
-        "<p>Your appointment on <strong>{$row['preferred_date']}</strong> at
-           <strong>{$row['time_slot']}</strong> has been confirmed.</p>",
+        '<p>' . htmlspecialchars($scheduleText, ENT_QUOTES, 'UTF-8') . '</p>'
+            . ($row['visit_mode'] === 'field' ? '<p>Location: ' . htmlspecialchars((string) $row['field_address'], ENT_QUOTES, 'UTF-8') . '</p>' : ''),
         null,
         ['label' => 'View', 'url' => APP_URL . '/public/pages/book-appointment.html']
     );
@@ -1123,16 +1240,18 @@ function notifyStaffRescheduleAnswer($pdo, $appointmentId, $verb, $date, $timeSl
 }
 
 /**
- * Serialises booking decisions for one date/slot across requests. Returns
- * the lock name to pass to unlockSlot(), or null if the lock couldn't be
- * had in time -- the conflict check still runs, it just isn't serialised.
+ * Serialises booking decisions for a date across requests. A failed lock must
+ * stop the request: checking availability without it could double-book a day.
  */
 function lockSlot($pdo, $date, $timeSlot)
 {
     $name = 'bv_slot_' . $date . '_' . $timeSlot;
     $stmt = $pdo->prepare('SELECT GET_LOCK(:name, 5)');
     $stmt->execute([':name' => $name]);
-    return (int) $stmt->fetchColumn() === 1 ? $name : null;
+    if ((int) $stmt->fetchColumn() !== 1) {
+        respond(503, ['success' => false, 'message' => 'The schedule is busy. Please try again.']);
+    }
+    return $name;
 }
 
 function unlockSlot($pdo, $name)
@@ -1150,6 +1269,11 @@ function unlockSlot($pdo, $name)
  */
 function slotConflictExists($pdo, $vetId, $date, $timeSlot, $excludeId)
 {
+    ensureAnimalVisitSchema($pdo);
+    ensureRescheduleSchema($pdo);
+    $dayBlock = $pdo->prepare("SELECT id FROM appointments WHERE id <> :id AND visit_mode = 'field' AND field_schedule_scope = 'day' AND ((preferred_date = :date AND status IN ('confirmed','completed','reschedule_pending','owner_reschedule_pending')) OR (proposed_date = :proposed_date AND status IN ('reschedule_pending','owner_reschedule_pending'))) LIMIT 1");
+    $dayBlock->execute([':id' => $excludeId, ':date' => $date, ':proposed_date' => $date]);
+    if ($dayBlock->fetchColumn()) return true;
     $heldStatuses = "'confirmed', 'completed', 'reschedule_pending', 'owner_reschedule_pending'";
 
     $vetClause = $vetId > 0 ? 'AND (veterinarian_id = :vet_id OR veterinarian_id IS NULL)' : '';
@@ -1190,8 +1314,30 @@ function slotConflictExists($pdo, $vetId, $date, $timeSlot, $excludeId)
     return (bool) $stmt->fetchColumn();
 }
 
+function appointmentDayConflictExists(PDO $pdo, string $date, int $excludeId): bool
+{
+    $stmt = $pdo->prepare("SELECT id FROM appointments WHERE id <> :id AND preferred_date = :date AND status IN ('confirmed','completed','reschedule_pending','owner_reschedule_pending') LIMIT 1");
+    $stmt->execute([':id' => $excludeId, ':date' => $date]);
+    if ($stmt->fetchColumn()) return true;
+    if (!ensureRescheduleSchema($pdo)) return false;
+    $stmt = $pdo->prepare("SELECT id FROM appointments WHERE id <> :id AND proposed_date = :date AND status IN ('reschedule_pending','owner_reschedule_pending') LIMIT 1");
+    $stmt->execute([':id' => $excludeId, ':date' => $date]);
+    return (bool) $stmt->fetchColumn();
+}
+
+function declineOtherRequestsForDay(PDO $pdo, int $confirmedId, string $date): array
+{
+    $stmt = $pdo->prepare("SELECT id FROM appointments WHERE id <> :id AND preferred_date = :date AND status = 'pending'");
+    $stmt->execute([':id' => $confirmedId, ':date' => $date]);
+    $ids = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    $update = $pdo->prepare("UPDATE appointments SET status = 'rejected', cancelled_at = NOW(), review_notes = 'Clinic closed for a field visit.' WHERE id = :id AND status = 'pending'");
+    foreach ($ids as $id) $update->execute([':id' => $id]);
+    return $ids;
+}
+
 function rescheduleAppointment($pdo, $data, $session = null)
 {
+    ensureAnimalVisitSchema($pdo);
     $appointmentId = (int) ($data['appointment_id'] ?? $data['id'] ?? 0);
     $date = clean($data['preferred_date'] ?? $data['date'] ?? '');
     $timeSlot = canonicalTimeSlot($data['time_slot'] ?? '');
@@ -1208,7 +1354,7 @@ function rescheduleAppointment($pdo, $data, $session = null)
     }
 
     $stmt = $pdo->prepare('
-        SELECT id, veterinarian_id, status, preferred_date, time_slot
+        SELECT id, veterinarian_id, status, preferred_date, time_slot, field_schedule_scope
         FROM appointments WHERE id = :id LIMIT 1
     ');
     $stmt->execute([':id' => $appointmentId]);
@@ -1229,10 +1375,6 @@ function rescheduleAppointment($pdo, $data, $session = null)
                 'message' => 'You can only reschedule appointments assigned to you.'
             ]);
         }
-    }
-
-    if (slotConflictExists($pdo, $vetId, $date, $timeSlot, $appointmentId)) {
-        respond(409, ['success' => false, 'message' => 'That time slot is already booked.']);
     }
 
     $currentStatus = (string) ($appointment['status'] ?? 'pending');
@@ -1261,6 +1403,12 @@ function rescheduleAppointment($pdo, $data, $session = null)
         ]);
     }
 
+    $slotLock = lockSlot($pdo, $date, 'day');
+    if (($appointment['field_schedule_scope'] === 'day' && appointmentDayConflictExists($pdo, $date, $appointmentId)) || slotConflictExists($pdo, $vetId, $date, $timeSlot, $appointmentId)) {
+        unlockSlot($pdo, $slotLock);
+        respond(409, ['success' => false, 'message' => 'That time slot is already booked.']);
+    }
+
     // Hold the proposal rather than applying it. preferred_date/time_slot stay
     // put so a decline falls straight back to the booking the owner agreed to,
     // and reschedule_prev_status remembers what to fall back to.
@@ -1283,6 +1431,7 @@ function rescheduleAppointment($pdo, $data, $session = null)
         ':prev_status' => $currentStatus,
         ':id' => $appointmentId,
     ]);
+    unlockSlot($pdo, $slotLock);
 
     notifyOwnerRescheduleProposed($pdo, $appointmentId);
 
@@ -1298,6 +1447,7 @@ function rescheduleAppointment($pdo, $data, $session = null)
  */
 function requestOwnerReschedule($pdo, $data, $session)
 {
+    ensureAnimalVisitSchema($pdo);
     $appointmentId = (int) ($data['appointment_id'] ?? $data['id'] ?? 0);
     $date = clean($data['preferred_date'] ?? $data['date'] ?? '');
     $timeSlot = canonicalTimeSlot($data['time_slot'] ?? '');
@@ -1319,7 +1469,7 @@ function requestOwnerReschedule($pdo, $data, $session)
 
     $stmt = $pdo->prepare('
         SELECT appointments.id, appointments.owner_id, appointments.veterinarian_id,
-               appointments.status, appointments.preferred_date, appointments.time_slot,
+               appointments.status, appointments.preferred_date, appointments.time_slot, appointments.field_schedule_scope,
                owners.full_name AS owner_name, pets.pet_name
         FROM appointments
         INNER JOIN users owners ON owners.id = appointments.owner_id
@@ -1345,8 +1495,8 @@ function requestOwnerReschedule($pdo, $data, $session)
     }
 
     $vetId = (int) ($appointment['veterinarian_id'] ?? 0);
-    $slotLock = lockSlot($pdo, $date, $timeSlot);
-    if (slotConflictExists($pdo, $vetId, $date, $timeSlot, $appointmentId)) {
+    $slotLock = lockSlot($pdo, $date, 'day');
+    if (($appointment['field_schedule_scope'] === 'day' && appointmentDayConflictExists($pdo, $date, $appointmentId)) || slotConflictExists($pdo, $vetId, $date, $timeSlot, $appointmentId)) {
         unlockSlot($pdo, $slotLock);
         respond(409, ['success' => false, 'message' => 'That time slot is already booked. Please choose another slot.']);
     }
@@ -1524,6 +1674,7 @@ function respondToReschedule($pdo, $data, $session)
 /** Clinic's approval or decline of a pet owner's proposed appointment time. */
 function respondToOwnerReschedule($pdo, $data, $session)
 {
+    ensureAnimalVisitSchema($pdo);
     $appointmentId = (int) ($data['appointment_id'] ?? $data['id'] ?? 0);
     $decision = clean($data['decision'] ?? '');
     if ($appointmentId <= 0) {
@@ -1537,7 +1688,7 @@ function respondToOwnerReschedule($pdo, $data, $session)
         SELECT appointments.id, appointments.owner_id, appointments.veterinarian_id,
                appointments.status, appointments.preferred_date, appointments.time_slot,
                appointments.proposed_date, appointments.proposed_time_slot,
-               appointments.reschedule_prev_status
+               appointments.reschedule_prev_status, appointments.field_schedule_scope
         FROM appointments
         WHERE appointments.id = :id
         LIMIT 1
@@ -1569,8 +1720,8 @@ function respondToOwnerReschedule($pdo, $data, $session)
         if ($date === date('Y-m-d') && strtotime("{$date} {$timeSlot}") <= time()) {
             respond(409, ['success' => false, 'message' => 'The requested time has passed today. Decline the request and ask the owner to choose another time.']);
         }
-        $slotLock = lockSlot($pdo, $date, $timeSlot);
-        if (slotConflictExists($pdo, (int) ($appointment['veterinarian_id'] ?? 0), $date, $timeSlot, $appointmentId)) {
+        $slotLock = lockSlot($pdo, $date, 'day');
+        if (($appointment['field_schedule_scope'] === 'day' && appointmentDayConflictExists($pdo, $date, $appointmentId)) || slotConflictExists($pdo, (int) ($appointment['veterinarian_id'] ?? 0), $date, $timeSlot, $appointmentId)) {
             unlockSlot($pdo, $slotLock);
             respond(409, ['success' => false, 'message' => 'That requested time is no longer available. Decline the request so the owner can choose another slot.']);
         }
@@ -1683,6 +1834,7 @@ function listClosedDates()
 
 function getBookedSlots($pdo, $data)
 {
+    ensureAnimalVisitSchema($pdo);
     $date  = clean($data['preferred_date'] ?? $data['date'] ?? '');
     $vetId = (int)($data['veterinarian_id'] ?? 0);
     // Rescheduling an appointment queries this same date/vet — exclude the
@@ -1741,6 +1893,13 @@ function getBookedSlots($pdo, $data)
     ");
     $stmt->execute($params);
     $booked = array_column($stmt->fetchAll(), 'time_slot');
+    $wholeDay = $pdo->prepare("SELECT id FROM appointments WHERE visit_mode = 'field' AND field_schedule_scope = 'day' AND ((preferred_date = :date AND status IN ('confirmed','completed','reschedule_pending','owner_reschedule_pending')) OR (proposed_date = :proposed_date AND status IN ('reschedule_pending','owner_reschedule_pending')))" . ($excludeId > 0 ? ' AND id <> :exclude_id' : '') . ' LIMIT 1');
+    $dayParams = [':date' => $date, ':proposed_date' => $date];
+    if ($excludeId > 0) $dayParams[':exclude_id'] = $excludeId;
+    $wholeDay->execute($dayParams);
+    if ($wholeDay->fetchColumn()) {
+        $booked = array_values(array_unique(array_merge($booked, ['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00'])));
+    }
 
     // Times someone has requested but the vet hasn't confirmed yet. Still
     // bookable -- the booking page shows them as "Requested" so an owner
@@ -1905,6 +2064,8 @@ try {
         'success' => false,
         'message' => 'Unknown appointment action.'
     ]);
+} catch (InvalidArgumentException $e) {
+    respond(422, ['success' => false, 'message' => $e->getMessage()]);
 } catch (PDOException $e) {
     error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     if ($pdo->inTransaction()) {
@@ -1971,6 +2132,7 @@ function getTotalAppointment($pdo, $data)
 
 function getCommonCases($pdo, $data)
 {
+    ensureAnimalVisitSchema($pdo);
     $vetId = (int)($data['veterinarian_id'] ?? 0);
 
     $vetStmt = $pdo->prepare("SELECT full_name FROM users WHERE id = :vetId");
@@ -1986,7 +2148,7 @@ function getCommonCases($pdo, $data)
         // option means the column can hold anything a vet typed -- a bare
         // non-empty test would publish that text verbatim to the public.
         $stmt = $pdo->prepare("
-            SELECT diagnosis, COUNT(*) AS total
+            SELECT diagnosis, SUM(COALESCE(affected_count, 1)) AS total
             FROM patient_visit_records
             WHERE attending_vet = :vetName
               AND diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)

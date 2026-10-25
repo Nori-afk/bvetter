@@ -17,11 +17,13 @@ require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../includes/dataset.php';
 require_once __DIR__ . '/../includes/dataset_versions.php';
 require_once __DIR__ . '/../includes/case_timeline.php';
+require_once __DIR__ . '/../includes/animal_visit_schema.php';
 require_once __DIR__ . '/../config/auth_guard.php';
 
 // Captured, not discarded: the ROUTER at the bottom needs the authenticated
 // role to keep the admin-only scope away from veterinarians.
 $dashboardSession = requireRole($pdo, ['veterinarian', 'admin']);
+ensureAnimalVisitSchema($pdo);
 
 function dashboard_input()
 {
@@ -372,7 +374,7 @@ function db_disease_barangay_counts($pdo, string $selected, string $dateType = '
 
     try {
         $stmt = $pdo->prepare("
-            SELECT {$barangayExpr} AS barangay, COUNT(*) AS cases
+            SELECT {$barangayExpr} AS barangay, SUM(COALESCE(patient_visit_records.affected_count, 1)) AS cases
             FROM patient_visit_records
             LEFT JOIN pets ON pets.id = patient_visit_records.pet_id
             {$barangayJoin}
@@ -429,7 +431,7 @@ function db_live_coverage_stats($pdo, string $exactMonth): array
     try {
         $stmt = $pdo->prepare("
             SELECT COUNT(*) AS total,
-                   SUM(CASE WHEN {$catalogOnly} THEN 1 ELSE 0 END) AS with_diagnosis
+                   SUM(CASE WHEN {$catalogOnly} THEN COALESCE(affected_count, 1) ELSE 0 END) AS with_diagnosis
             FROM patient_visit_records
             WHERE DATE_FORMAT(COALESCE(visit_date, created_at), '%Y-%m') = :ym
         ");
@@ -480,7 +482,7 @@ function db_live_record_months($pdo): array
             $stmt = $pdo->prepare("
                 SELECT DATE_FORMAT(COALESCE(visit_date, created_at), '%Y-%m') AS ym,
                        COUNT(*) AS visits,
-                       SUM(CASE WHEN {$catalogOnly} THEN 1 ELSE 0 END) AS cases
+                       SUM(CASE WHEN {$catalogOnly} THEN COALESCE(affected_count, 1) ELSE 0 END) AS cases
                 FROM patient_visit_records
                 WHERE COALESCE(visit_date, created_at) IS NOT NULL
                 " . ($liveOnly !== '' ? "AND {$liveOnly}" : '') . "
@@ -538,7 +540,7 @@ function db_top_diagnosis($pdo, string $exactMonth, string $selected): string
 
         try {
             $stmt = $pdo->prepare("
-                SELECT diagnosis, COUNT(*) AS n
+                SELECT diagnosis, SUM(COALESCE(affected_count, 1)) AS n
                 FROM patient_visit_records
                 WHERE " . implode(' AND ', $where) . "
                 GROUP BY diagnosis
@@ -582,6 +584,7 @@ function db_latest_case_date($pdo): string
             SELECT MAX(COALESCE(visit_date, created_at))
             FROM patient_visit_records
             WHERE 1 = 1 {$window}
+            AND COALESCE(affected_count, 1) > 0
             {$catalogOnly}
         ");
         $stmt->execute($params);

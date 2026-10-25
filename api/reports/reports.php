@@ -4,8 +4,11 @@ require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../includes/dataset.php';
 require_once __DIR__ . '/../includes/case_timeline.php';
 require_once __DIR__ . '/../config/auth_guard.php';
+require_once __DIR__ . '/../includes/booking_pets.php';
 
 requireRole($pdo, ['veterinarian', 'admin']);
+ensureAppointmentPetsSchema($pdo);
+ensureAnimalVisitSchema($pdo);
 
 function report_input()
 {
@@ -210,7 +213,9 @@ function db_patient_rows($pdo){
             pvr.pet_id IS NOT NULL
             OR EXISTS (
                 SELECT 1 FROM appointments a
-                WHERE a.pet_id = pets.id AND a.status IN ('confirmed', 'completed')
+                WHERE (a.pet_id = pets.id OR EXISTS (
+                    SELECT 1 FROM appointment_pets ap WHERE ap.appointment_id = a.id AND ap.pet_id = pets.id
+                )) AND a.status IN ('confirmed', 'completed')
             )
         )
         GROUP BY pets.id, pets.pet_name, pets.species, pets.breed, pets.sex, pets.created_at, owners.full_name, owners.phone_number, barangay
@@ -308,6 +313,7 @@ function db_consultation_rows($pdo)
                 pvr.diagnosis,
                 pvr.disease_category,
                 pvr.patient_status_at_visit,
+                COALESCE(pvr.affected_count, 1) AS affected_count,
                 " . ($diseaseJoin ? 'd.display_category' : "NULL") . " AS display_category,
                 COALESCE(NULLIF(pvr.species_at_visit, ''), pets.species) AS species,
                 {$barangayExpr} AS barangay,
@@ -318,6 +324,7 @@ function db_consultation_rows($pdo)
             {$profileJoin}
             {$diseaseJoin}
             WHERE pvr.diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)
+              AND COALESCE(pvr.affected_count, 1) > 0
             {$archiveFilter}
             " . ($liveOnly !== '' ? "AND {$liveOnly}" : '') . "
             ORDER BY pvr.visit_date DESC, pvr.id DESC
@@ -338,7 +345,7 @@ function db_consultation_rows($pdo)
             'diagnosis' => $row['diagnosis'] ?: '',
             'diseaseCategory' => $row['display_category'] ?: ($row['disease_category'] ?: 'General/Other'),
             'riskLevel' => risk_level_from_status($row['patient_status_at_visit']),
-            'cases' => 1,
+            'cases' => (int) $row['affected_count'],
             'source' => $row['source'] ?: '',
         ];
     }, $rows);
@@ -485,13 +492,14 @@ function db_disease_rows($pdo)
                 MONTH(pvr.visit_date) AS mo,
                 {$barangayExpr} AS barangay,
                 pvr.disease_category,
-                COUNT(*) AS cases
+                SUM(COALESCE(pvr.affected_count, 1)) AS cases
             FROM patient_visit_records pvr
             LEFT JOIN pets ON pets.id = pvr.pet_id
             {$barangayJoin}
             {$archiveJoin}
             WHERE pvr.visit_date IS NOT NULL
               AND pvr.diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)
+              AND COALESCE(pvr.affected_count, 1) > 0
               {$archiveFilter}
               " . ($liveOnly !== '' ? "AND {$liveOnly}" : '') . "
             GROUP BY yr, mo, barangay, pvr.disease_category

@@ -104,15 +104,14 @@ function buildCalendar(year, month) {
   // petVaccDate still spans past and future — owners log a vaccination already
   // given or one already scheduled — but not by decades. The floor matches the
   // oldest plausible pet, the ceiling a year out.
-  const vaccDate = document.getElementById("petVaccDate");
-  if (vaccDate) {
+  document.querySelectorAll('#petVaccDate, [data-pet-field="petVaccDate"]').forEach(vaccDate => {
     const floor = new Date();
     floor.setFullYear(floor.getFullYear() - MAX_PET_AGE_YEARS);
     const ceiling = new Date();
     ceiling.setFullYear(ceiling.getFullYear() + 1);
     vaccDate.min = toLocalIsoDate(floor);
     vaccDate.max = toLocalIsoDate(ceiling);
-  }
+  });
 
   calYear = year;
   calMonth = month;
@@ -1095,9 +1094,11 @@ async function loadAppointmentHistory(options = {}) {
         <div class="${rowClass}">
           <div class="appt-col">
             <div class="appt-col-label">PET NAME</div>
-            <div class="appt-pet-name">${appt.patient}</div>
+            <div class="appt-pet-name">${escapeHtml(appt.patient)}</div>
             <div class="appt-pet-meta">
-              ${appt.pet.species} &bull; ${appt.pet.age}
+              ${appt.pets?.length > 1
+                ? appt.pets.map(pet => `${escapeHtml(pet.name)}: ${escapeHtml(pet.species)}${pet.age ? ' • ' + escapeHtml(pet.age) : ''}`).join('<br>')
+                : `${escapeHtml(appt.pet.species)}${appt.pet.age ? ' &bull; ' + escapeHtml(appt.pet.age) : ''}`}
             </div>
           </div>
 
@@ -1373,11 +1374,141 @@ function getAverageRate(average) {
   const BOOKING_DRAFT_KEY = 'bvetter_booking_draft';
   const BOOKING_FIELD_IDS = [
     'ownerName', 'ownerContact', 'ownerEmail', 'ownerBarangay', 'ownerAddress',
-    'petName', 'petType', 'petBreed', 'petAgeValue', 'petAgeUnit', 'petSex', 'petVaccDate',
-    'visitType', 'apptDate', 'apptNotes'
+    'petName', 'petType', 'petCategory', 'petRecordKind', 'petEstimatedCount', 'petBreed', 'petAgeValue', 'petAgeUnit', 'petSex', 'petVaccDate',
+    'visitType', 'visitMode', 'fieldAddress', 'fieldConcern', 'apptDate', 'apptNotes'
   ];
   let currentStep = 1;
   let pendingRestoreVetId = null;
+
+  const PET_FIELD_IDS = ['petName', 'petType', 'petCategory', 'petRecordKind', 'petEstimatedCount', 'petBreed', 'petAgeValue', 'petAgeUnit', 'petSex', 'petVaccDate'];
+  const petsContainer = document.getElementById('bookingPets');
+  const firstPetCard = petsContainer.querySelector('.booking-pet-card');
+  PET_FIELD_IDS.forEach(id => {
+    const field = document.getElementById(id);
+    field.dataset.petField = id;
+    if (id !== 'petAgeUnit') field.closest('.form-group')?.querySelector('label')?.setAttribute('for', id);
+  });
+  document.getElementById('petAgeUnit').setAttribute('aria-label', 'Age unit');
+  const petCardTemplate = firstPetCard.cloneNode(true);
+  let assessmentLogId = 0;
+  let assessmentAnimal = '';
+  let nextPetCardId = 2;
+
+  const petCards = () => [...petsContainer.querySelectorAll('.booking-pet-card')];
+  const petField = (card, field) => card.querySelector(`[data-pet-field="${field}"]`);
+  const petValue = (card, field) => petField(card, field)?.value.trim() || '';
+
+  function petDraftValues(card) {
+    return Object.fromEntries(PET_FIELD_IDS.map(id => [id, petValue(card, id)]));
+  }
+
+  function fillPetCard(card, values = {}) {
+    PET_FIELD_IDS.forEach(id => {
+      petField(card, id).value = values[id] ?? (id === 'petAgeUnit' ? 'Years' : '');
+    });
+    card.querySelectorAll('.form-group').forEach(group => VBForm.clearGroupError(group));
+    syncAnimalCard(card);
+  }
+
+  function syncAnimalCard(card) {
+    const species = petValue(card, 'petType');
+    const category = petField(card, 'petCategory');
+    if (species && species !== 'Rabbit') category.value = ['Dog', 'Cat'].includes(species) ? 'companion' : 'livestock';
+    category.disabled = Boolean(species && species !== 'Rabbit');
+    const kind = petField(card, 'petRecordKind');
+    if (category.value === 'companion') kind.value = 'individual';
+    kind.querySelector('option[value="group"]').disabled = category.value !== 'livestock';
+    const group = kind.value === 'group';
+    card.querySelector('[data-group-count]').classList.toggle('is-hidden', !group);
+    petField(card, 'petBreed').required = !group;
+    card.querySelector('[data-breed-required]').hidden = group;
+    [...petField(card, 'petSex').options].forEach(option => {
+      if (['Mixed', 'Unknown'].includes(option.value)) option.disabled = !group;
+    });
+    if (!group && ['Mixed', 'Unknown'].includes(petValue(card, 'petSex'))) petField(card, 'petSex').value = '';
+  }
+  syncAnimalCard(firstPetCard);
+
+  function renumberPetCards() {
+    petCards().forEach((card, index) => {
+      card.querySelector('.booking-pet-title').textContent = `Pet ${index + 1}`;
+      const remove = card.querySelector('.btn-remove-pet');
+      remove.hidden = petCards().length === 1;
+      remove.setAttribute('aria-label', `Remove pet ${index + 1}`);
+    });
+  }
+
+  function addPetCard(values = {}) {
+    const card = petCardTemplate.cloneNode(true);
+    const suffix = nextPetCardId++;
+    card.querySelectorAll('[id]').forEach(el => { el.id += `-${suffix}`; });
+    card.querySelectorAll('label[for]').forEach(el => { el.htmlFor += `-${suffix}`; });
+    card.setAttribute('aria-labelledby', card.querySelector('.booking-pet-title').id);
+    petsContainer.appendChild(card);
+    fillPetCard(card, values);
+    const vaccinationDate = petField(card, 'petVaccDate');
+    vaccinationDate.min = petField(firstPetCard, 'petVaccDate').min;
+    vaccinationDate.max = petField(firstPetCard, 'petVaccDate').max;
+    renumberPetCards();
+    return card;
+  }
+
+  function restorePetCards(values) {
+    petCards().slice(1).forEach(card => card.remove());
+    fillPetCard(firstPetCard, values[0]);
+    values.slice(1).forEach(value => addPetCard(value));
+    renumberPetCards();
+  }
+
+  function bookingPetsPayload() {
+    return petCards().map(card => ({
+      pet_name: petValue(card, 'petName'),
+      pet_type: petValue(card, 'petType'),
+      animal_category: petValue(card, 'petCategory'),
+      record_kind: petValue(card, 'petRecordKind'),
+      estimated_count: petValue(card, 'petRecordKind') === 'group' ? Number(petValue(card, 'petEstimatedCount')) : 1,
+      pet_breed: petValue(card, 'petBreed'),
+      pet_age: formatPetAge(card),
+      pet_sex: petValue(card, 'petSex'),
+      pet_vaccination_date: petValue(card, 'petVaccDate')
+    }));
+  }
+
+  document.getElementById('btnAddPet').addEventListener('click', () => {
+    const card = addPetCard();
+    saveBookingDraft();
+    petField(card, 'petName').focus();
+  });
+  petsContainer.addEventListener('click', event => {
+    const remove = event.target.closest('.btn-remove-pet');
+    if (!remove || petCards().length === 1) return;
+    assessmentLogId = 0;
+    assessmentAnimal = '';
+    const card = remove.closest('.booking-pet-card');
+    // Keep the original field IDs for older drafts and single-pet callers.
+    if (card === firstPetCard) {
+      const next = petCards()[1];
+      fillPetCard(firstPetCard, petDraftValues(next));
+      next.remove();
+    } else card.remove();
+    renumberPetCards();
+    saveBookingDraft();
+    document.getElementById('btnAddPet').focus();
+  });
+  ['input', 'change'].forEach(type => petsContainer.addEventListener(type, event => {
+    if (!event.target.matches('[data-pet-field]')) return;
+    const card = event.target.closest('.booking-pet-card');
+    if (['petName', 'petType'].includes(event.target.dataset.petField)) { assessmentLogId = 0; assessmentAnimal = ''; }
+    if (['petType', 'petCategory', 'petRecordKind'].includes(event.target.dataset.petField)) {
+      syncAnimalCard(card);
+      const categories = new Set(petCards().map(item => petValue(item, 'petCategory')));
+      if (categories.size === 1 && categories.has('livestock')) document.getElementById('visitMode').value = 'field';
+      if (categories.size === 1 && categories.has('companion')) document.getElementById('visitMode').value = 'clinic';
+      toggleVisitMode();
+    }
+    VBForm.clearGroupError(event.target.closest('.form-group'));
+    saveBookingDraft();
+  }));
 
   function saveBookingDraft() {
     const fields = {};
@@ -1392,6 +1523,7 @@ function getAverageRate(average) {
         step: Math.min(currentStep, 4),
         slot: slotBtn ? slotBtn.dataset.slot : '',
         useAccount: usingAccountDetails(),
+        pets: petCards().map(petDraftValues),
         fields
       }));
     } catch {
@@ -1411,6 +1543,14 @@ function getAverageRate(average) {
     BOOKING_FIELD_IDS.forEach((id) => {
       const el = document.getElementById(id);
       if (el && draft.fields[id] != null) el.value = draft.fields[id];
+    });
+    if (Array.isArray(draft.pets) && draft.pets.length) restorePetCards(draft.pets);
+    // A saved visit type may not exist in the static options until the API loads.
+    visitTypesReady.then(() => {
+      if (!document.getElementById('visitType').value) setRebookField('visitType', draft.fields.visitType);
+      toggleDewormingNotice();
+      toggleCspMode();
+      if (currentStep === 4) populateReview();
     });
     // Put the account switch back where it was: with it on, the account's
     // details win over whatever the draft held; with it off, the contact
@@ -1572,8 +1712,8 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     return true;
   }
 
-  function validatePetAge(required = false) {
-    const el = document.getElementById('petAgeValue');
+  function validatePetAge(required = false, card = firstPetCard) {
+    const el = petField(card, 'petAgeValue');
     if (!el) return true;
     const raw = (el.value || '').trim();
     if (!raw) {
@@ -1581,7 +1721,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
         setGroupError(el.closest('.form-group'), 'Age must be a whole number that is zero or greater.');
         return false;
       }
-      if (required) return validateRequiredField('petAgeValue', "Please enter your pet's age for Castration & Spay.");
+      if (required) return validateRequiredField(el.id, "Please enter your pet's age for Castration & Spay.");
       clearGroupError(el.closest('.form-group'));
       return true;
     }
@@ -1595,8 +1735,8 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     return true;
   }
 
-  function validateVaccinationDate() {
-    const el = document.getElementById('petVaccDate');
+  function validateVaccinationDate(card = firstPetCard) {
+    const el = petField(card, 'petVaccDate');
     if (!el) return true;
     if (el.validity.badInput) {
       setGroupError(el.closest('.form-group'), 'Please enter a valid vaccination date.');
@@ -1721,19 +1861,41 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       if (!validateRequiredField('ownerBarangay', 'Please select your barangay.'))         valid = false;
       if (!validateIdentityField('ownerAddress', { label: 'Address', requiredMessage: 'Please enter your complete address.', maxLength: 255 })) valid = false;
     } else if (n === 2) {
-      if (!validateIdentityField('petName', { label: "Pet's name", requiredMessage: "Please enter your pet's name.", maxLength: 120 })) valid = false;
-      if (!validateRequiredField('petType',  'Please select a pet type.'))        valid = false;
-      if (!validateIdentityField('petBreed', { label: 'Breed', requiredMessage: "Please enter your pet's breed.", maxLength: 80 })) valid = false;
-      // Age is optional for an appointment; Castration & Spay checks it in
-      // step 3, where that visit type is chosen.
-      if (!validateRequiredField('petSex',   "Please select your pet's sex."))    valid = false;
-      if (!validatePetAge()) valid = false;
-      if (!validateVaccinationDate()) valid = false;
+      const names = new Set();
+      petCards().forEach(card => {
+        const id = field => petField(card, field).id;
+        if (!validateIdentityField(id('petName'), { label: "Pet's name", requiredMessage: "Please enter your pet's name.", maxLength: 120 })) valid = false;
+        if (!validateRequiredField(id('petType'), 'Please select a pet type.')) valid = false;
+        if (!petValue(card, 'petCategory')) { setGroupError(petField(card, 'petCategory').closest('.form-group'), 'Select an animal category.'); valid = false; }
+        if (petValue(card, 'petRecordKind') !== 'group' && !validateIdentityField(id('petBreed'), { label: 'Breed', requiredMessage: "Please enter your pet's breed.", maxLength: 80 })) valid = false;
+        if (!validateRequiredField(id('petSex'), "Please select your pet's sex.")) valid = false;
+        if (petValue(card, 'petRecordKind') === 'group' && !(Number.isInteger(Number(petValue(card, 'petEstimatedCount'))) && Number(petValue(card, 'petEstimatedCount')) >= 1 && Number(petValue(card, 'petEstimatedCount')) <= 100000)) {
+          setGroupError(petField(card, 'petEstimatedCount').closest('.form-group'), 'Enter a valid owner estimate.'); valid = false;
+        }
+        if (!validatePetAge(isCspMode(), card)) valid = false;
+        if (!validateVaccinationDate(card)) valid = false;
+        const name = petValue(card, 'petName').toLocaleLowerCase();
+        if (name && names.has(name)) {
+          setGroupError(petField(card, 'petName').closest('.form-group'), 'This pet is already included. Add each pet only once.');
+          valid = false;
+        }
+        names.add(name);
+      });
     } else if (n === 3) {
       if (!validateRequiredField('visitType', 'Please select the type of visit.')) valid = false;
+      if (isCspMode() && petCards().some(card => !['Dog', 'Cat'].includes(petValue(card, 'petType')) || petValue(card, 'petRecordKind') !== 'individual')) {
+        setGroupError(document.getElementById('visitType').closest('.form-group'), 'Castration & Spay registration is for individual dogs and cats.'); valid = false;
+      }
+      if (petCards().some(card => petValue(card, 'petCategory') !== (document.getElementById('visitMode').value === 'field' ? 'livestock' : 'companion'))) {
+        setGroupError(document.getElementById('visitMode').closest('.form-group'), 'Book companion animals at the clinic and livestock as a separate field visit.'); valid = false;
+      }
+      if (document.getElementById('visitMode').value === 'field') {
+        if (!validateRequiredField('fieldAddress', 'Enter the field location.')) valid = false;
+        if (!validateRequiredField('fieldConcern', 'Describe the concern.')) valid = false;
+      }
       // The program screens pets by age, so it is required here -- but the
       // field lives on step 2, so send the owner back to it.
-      if (isCspMode() && !validatePetAge(true)) {
+      if (isCspMode() && !petCards().map(card => validatePetAge(true, card)).every(Boolean)) {
         valid = false;
         goStep(2);
         VBForm.focusFirstError('#step2');
@@ -1773,6 +1935,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     }
     updateStepper(n);
     if (n === 3) { toggleCspMode(); if (!isCspMode()) refreshStep3Slots(); }
+    if (n === 3) populateConsultAnimals();
     if (n === 4) populateReview();
     // Booking done → the draft has served its purpose; otherwise remember
     // where the owner is so a reload/back returns them to this step.
@@ -1921,6 +2084,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     const address = document.getElementById('ownerAddress');
     if (address) address.readOnly = true;
     document.getElementById('step1')?.classList.toggle('uses-account', on);
+    if (currentStep === 4) populateReview();
   }
 
   async function loadAccountDetails() {
@@ -1953,19 +2117,84 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
 
   function toggleCspMode() {
     const cspMode = isCspMode();
+    if (document.getElementById('visitType').value !== 'Consultation') { assessmentLogId = 0; assessmentAnimal = ''; }
     document.getElementById('apptDateGroup')?.classList.toggle('is-hidden', cspMode);
     document.getElementById('apptTimeGroup')?.classList.toggle('is-hidden', cspMode);
     document.getElementById('cspProgramNotice')?.classList.toggle('is-hidden', !cspMode);
+    toggleVisitMode();
   }
+  function toggleVisitMode() {
+    const field = document.getElementById('visitMode').value === 'field';
+    document.getElementById('fieldVisitFields').classList.toggle('is-hidden', !field || isCspMode());
+    document.getElementById('bookingConsultation').classList.toggle('is-hidden', isCspMode() || document.getElementById('visitType').value !== 'Consultation');
+  }
+  document.getElementById('visitMode').addEventListener('change', toggleVisitMode);
   document.getElementById('visitType')?.addEventListener('change', toggleCspMode);
   toggleCspMode();
+
+  function populateConsultAnimals() {
+    const select = document.getElementById('consultAnimal');
+    const previous = select.value;
+    select.replaceChildren();
+    petCards().forEach((card, index) => {
+      const option = document.createElement('option');
+      option.value = petValue(card, 'petName');
+      option.textContent = `${petValue(card, 'petName') || `Animal ${index + 1}`} (${petValue(card, 'petType') || 'species pending'})`;
+      select.appendChild(option);
+    });
+    if ([...select.options].some(option => option.value === previous)) select.value = previous;
+  }
+  async function loadConsultSymptoms() {
+    try {
+      const response = await fetch('/api/chatbot/chatbot.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'public_symptoms' }) });
+      const result = await response.json();
+      if (!result.success) return;
+      const select = document.getElementById('consultSymptoms');
+      select.replaceChildren();
+      (result.data || []).forEach(symptom => {
+        const option = document.createElement('option');
+        option.value = symptom.name;
+        option.textContent = symptom.name;
+        select.appendChild(option);
+      });
+    } catch { /* booking remains available */ }
+  }
+  loadConsultSymptoms();
+  document.getElementById('btnAssessSymptoms').addEventListener('click', async () => {
+    const selected = document.getElementById('consultAnimal');
+    const card = petCards().find(item => petValue(item, 'petName') === selected.value);
+    const symptoms = [...document.getElementById('consultSymptoms').selectedOptions].map(option => option.value);
+    const resultBox = document.getElementById('consultResult');
+    resultBox.classList.remove('is-hidden');
+    assessmentLogId = 0;
+    assessmentAnimal = '';
+    if (!card || !symptoms.length) { resultBox.textContent = 'Select an animal and at least one symptom.'; return; }
+    resultBox.textContent = 'Checking clinic guidance…';
+    try {
+      const response = await fetch('/api/chatbot/chatbot.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'assess_consultation', clinic_approved_only: true,
+          petType: petValue(card, 'petType'), symptoms,
+          duration: document.getElementById('consultDuration').value,
+          severity: document.getElementById('consultSeverity').value })
+      });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.message || 'Guidance unavailable.');
+      assessmentLogId = Number(result.data.logId) || 0;
+      assessmentAnimal = selected.value;
+      resultBox.textContent = `${result.data.condition}: ${result.data.recommendation} This is preliminary guidance, not a diagnosis. Booking remains available.`;
+    } catch (error) { resultBox.textContent = `${error.message} You may continue booking or contact the clinic.`; }
+  });
+  ['consultAnimal', 'consultSymptoms', 'consultDuration', 'consultSeverity'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => { assessmentLogId = 0; assessmentAnimal = ''; });
+  });
 
   /* ── Combine the Age value + unit fields into one string
      (e.g. "2 Years") the same way patient records stores it,
      so history/detail views don't need their own unit suffix. ── */
-  function formatPetAge() {
-    const value = document.getElementById('petAgeValue')?.value.trim() || '';
-    const unit  = document.getElementById('petAgeUnit')?.value          || 'Years';
+  function formatPetAge(card = firstPetCard) {
+    const value = petValue(card, 'petAgeValue');
+    const unit = petValue(card, 'petAgeUnit') || 'Years';
     return value ? `${value} ${unit}` : '';
   }
 
@@ -2077,6 +2306,12 @@ const selectedSlot = document.querySelector('.slot-btn.selected');
       pet_age:              formatPetAge(),
       pet_sex:              document.getElementById('petSex')?.value              || '',
       pet_vaccination_date: document.getElementById('petVaccDate')?.value         || '',
+      pets:                 bookingPetsPayload(),
+      visit_mode:           document.getElementById('visitMode').value,
+      field_address:        document.getElementById('fieldAddress').value.trim(),
+      field_concern:        document.getElementById('fieldConcern').value.trim(),
+      owner_assessment_log_id: assessmentLogId,
+      owner_assessment_animal: assessmentAnimal,
       appointment_type:     document.getElementById('visitType')?.value           || '',
       preferred_date:       document.getElementById('apptDate')?.value            || '',
 time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
@@ -2140,7 +2375,7 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
       showBookingSuccess('Request sent! We’ve sent a confirmation to your email.');
       await new Promise((resolve) => setTimeout(resolve, 400));
       hideBookingOverlay();
-      showDefaultSuccess();
+      showDefaultSuccess(result.appointment_id, payload.pets.length);
       goStep(5);
     } catch (error) {
       hideBookingOverlay();
@@ -2150,9 +2385,12 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
 
   /* ── Toggle step-5 success card between the normal appointment
      confirmation and the Castration & Spay waiting-list confirmation ── */
-  function showDefaultSuccess() {
+  function showDefaultSuccess(appointmentId, petCount) {
     document.getElementById('step5Default')?.classList.remove('is-hidden');
     document.getElementById('step5Csp')?.classList.add('is-hidden');
+    document.getElementById('rv-refNo').textContent = `#BB-${appointmentId}`;
+    document.querySelector('#step5Default .success-desc').textContent =
+      `Your appointment request for ${petCount} ${petCount === 1 ? 'pet' : 'pets'} has been submitted and is pending clinic approval. You'll be notified once confirmed. Unconfirmed requests expire after 1 working day.`;
   }
 
   function showCspSuccess(waitingCount) {
@@ -2160,6 +2398,9 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     document.getElementById('step5Csp')?.classList.remove('is-hidden');
     const countEl = document.getElementById('csp-waiting-count');
     if (countEl) countEl.textContent = `${waitingCount ?? '—'} Pets Registered`;
+    document.getElementById('cspSuccessDescription').textContent = petCards().length === 1
+      ? 'Your pet has been added to the waiting list for the Municipal Castration & Spay Program.'
+      : `Your ${petCards().length} pets have been added to the waiting list for the Municipal Castration & Spay Program.`;
   }
 
   /* ── Header stepper update ───────────────── */
@@ -2217,10 +2458,22 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     document.getElementById('rv-name')     .textContent = val('ownerName');
     document.getElementById('rv-contact')  .textContent = val('ownerContact');
     document.getElementById('rv-barangay') .textContent = selText('ownerBarangay');
-    document.getElementById('rv-petname')  .textContent = val('petName');
-    document.getElementById('rv-pettype')  .textContent = selText('petType');
-    document.getElementById('rv-ageSex')   .textContent = (formatPetAge() || '—') + ' / ' + selText('petSex');
+    document.getElementById('reviewPets').innerHTML = bookingPetsPayload().map((pet, index) => `
+      <div class="review-block">
+        <h3 class="review-pet-title">Pet ${index + 1}</h3>
+        <div class="review-row"><span class="review-key">Pet Name:</span><span class="review-val"${index === 0 ? ' id="rv-petname"' : ''}>${escapeHtml(pet.pet_name)}</span></div>
+        <div class="review-row"><span class="review-key">Pet Type:</span><span class="review-val"${index === 0 ? ' id="rv-pettype"' : ''}>${escapeHtml(pet.pet_type)}</span></div>
+        <div class="review-row"><span class="review-key">Animal Category:</span><span class="review-val">${escapeHtml(pet.animal_category)}</span></div>
+        <div class="review-row"><span class="review-key">Record Type:</span><span class="review-val">${pet.record_kind === 'group' ? `Herd / flock · owner estimates ${pet.estimated_count}` : 'Individual'}</span></div>
+        <div class="review-row"><span class="review-key">Breed:</span><span class="review-val">${escapeHtml(pet.pet_breed)}</span></div>
+        <div class="review-row"><span class="review-key">Age / Sex:</span><span class="review-val"${index === 0 ? ' id="rv-ageSex"' : ''}>${escapeHtml(pet.pet_age || '—')} / ${escapeHtml(pet.pet_sex)}</span></div>
+        <div class="review-row"><span class="review-key">Vaccination Date:</span><span class="review-val">${escapeHtml(pet.pet_vaccination_date || '—')}</span></div>
+      </div>`).join('');
     document.getElementById('rv-visitType').textContent = selText('visitType');
+    document.getElementById('rv-visitMode').textContent = selText('visitMode');
+    document.getElementById('rv-fieldAddress').textContent = document.getElementById('visitMode').value === 'field' ? val('fieldAddress') : '—';
+    document.getElementById('rv-assessment').textContent = assessmentLogId
+      ? `Preliminary clinic guidance saved for ${assessmentAnimal}; not a diagnosis.` : 'Not used (optional)';
 
     if (isCspMode()) {
       document.getElementById('rv-date').textContent = 'To Be Announced';
@@ -2289,19 +2542,27 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     }
 
     clearBookingDraft();
-    const pet = request.pet || {};
-    setRebookField('petName', pet.name);
-    setRebookField('petType', pet.species);
-    setRebookField('petBreed', pet.breed);
-    setRebookField('petSex', pet.sex);
-    // Stored as "2 Years" / "5 Months".
-    const age = String(pet.age || '').match(/^(\d+)\s*([a-z]*)/i);
-    if (age) {
-      setRebookField('petAgeValue', age[1]);
-      setRebookField('petAgeUnit', /^m/i.test(age[2]) ? 'Months' : 'Years');
-    }
+    const pets = request.pets?.length ? request.pets : [request.pet || {}];
+    restorePetCards(pets.map(pet => {
+      const age = String(pet.age || '').match(/^(\d+)\s*([a-z]*)/i);
+      return {
+        petName: pet.name || '',
+        petType: { Canine: 'Dog', Feline: 'Cat', Avian: 'Chicken' }[pet.species] || pet.species || '',
+        petCategory: pet.animal_category || '',
+        petRecordKind: pet.record_kind || 'individual',
+        petEstimatedCount: pet.estimated_count || 1,
+        petBreed: pet.breed || '',
+        petSex: ['male', 'female', 'mixed', 'unknown'].includes(String(pet.sex || '').toLowerCase())
+          ? String(pet.sex).charAt(0).toUpperCase() + String(pet.sex).slice(1).toLowerCase() : '',
+        petAgeValue: age?.[1] || '', petAgeUnit: /^m/i.test(age?.[2] || '') ? 'Months' : 'Years',
+        petVaccDate: pet.last_vaccination_date || ''
+      };
+    }));
     await visitTypesReady;
     setRebookField('visitType', request.type);
+    setRebookField('visitMode', request.visit_mode || 'clinic');
+    setRebookField('fieldAddress', request.field_address || '');
+    setRebookField('fieldConcern', request.field_concern || '');
     setRebookField('apptDate', bookableDate(date) || bookableDate(request.preferred_date));
     toggleDewormingNotice();
     toggleCspMode();

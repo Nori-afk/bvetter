@@ -146,11 +146,12 @@ async function lostFoundFetch(action, data = {}) {
 }
 
 /** PATCH /api/vet/appointments/:id/status */
-async function updateAppointmentStatus(id, status) {
+async function updateAppointmentStatus(id, status, fieldScheduleScope = '') {
     const formData = new FormData();
     formData.append('action', 'update_status');
     formData.append('appointment_id', id);
     formData.append('status', status);
+    if (fieldScheduleScope) formData.append('field_schedule_scope', fieldScheduleScope);
 
     try {
         const response = await fetch(`${BACKEND_URL}/appointments/appointment.php`, {

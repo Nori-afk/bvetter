@@ -605,7 +605,7 @@
 					</td>
 					<td>${escapeHtml(row.symptoms.join('\n')).replace(/\n/g, '<br>')}</td>
 					<td><span class="duration-pill ${row.duration === '<24h' ? 'short' : row.duration === '1-3 Days' ? 'typical' : 'persistent'}">${escapeHtml(row.duration)}</span></td>
-					<td>${escapeHtml(row.condition)}</td>
+					<td>${escapeHtml(row.condition)}<br><small>${row.clinicApproved ? 'Approved for booking guidance' : 'Review and save to approve for booking'}</small></td>
 					<td><span class="severity-pill ${severityClass(row.severity)}"><span class="severity-dot">${severityDot(row.severity)}</span> ${escapeHtml(row.severity)}</span></td>
 					<td class="consultation-recommendation">${escapeHtml(row.recommendation)}</td>
 					<td>${escapeHtml(formatConsultationDate(row.lastUpdate))}</td>
@@ -790,7 +790,7 @@
 		if (mode === 'edit-rule') {
 			return `
 				<h2 class="modal-title" id="modal-title">Edit Consultation Rule</h2>
-				<p class="modal-subtitle">Update the rule details and keep the triage behavior consistent.</p>
+				<p class="modal-subtitle">Reviewing and saving this active rule approves its guidance for the booking symptom check.</p>
 				<form id="consultation-edit-form">
 					<div class="form-grid consultation-modal-grid">
 						<label class="field span-2"><span>Symptoms*</span><input id="consultation-edit-symptoms" type="text" value="${escapeHtml(row.symptoms.join(', '))}" placeholder="Vomiting, Lethargy"></label>

@@ -67,10 +67,15 @@ async function loadDiagnosisModel() {
 	}
 }
 
-/* The pet form offers 4 species; the model knows 6 animal groups. Only three
-   map without inventing something — "Exotic" covers rabbits, goats and more,
-   so it prefills nothing and the vet chooses. */
-const SPECIES_TO_ANIMAL_GROUP = { Canine: 'Dogs', Feline: 'Cats', Avian: 'Chickens' };
+const SPECIES_OPTIONS = ['Canine', 'Feline', 'Chicken', 'Carabao / Water Buffalo', 'Goat / Sheep', 'Rabbit', 'Avian', 'Exotic'];
+function speciesOptions(selected) {
+	return SPECIES_OPTIONS.map(item => `<option ${item === selected ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('');
+}
+const SPECIES_TO_ANIMAL_GROUP = {
+	Canine: 'Dogs', Feline: 'Cats', Avian: 'Chickens', Chicken: 'Chickens',
+	Dog: 'Dogs', Cat: 'Cats', 'Carabao / Water Buffalo': 'Carabaos / Water Buffalo',
+	'Goat / Sheep': 'Goats / Sheep', Rabbit: 'Rabbits'
+};
 
 /* Renders nothing at all when the model is unavailable, rather than an empty
    control the vet would wonder about. */
@@ -800,6 +805,7 @@ function renderPatientInfoTab(record) {
 						<h4>Physical Characteristics</h4>
 					</div>
 					<div class="pi-fields">
+						<div class="pi-row"><div class="pi-field"><span class="pi-label">ANIMAL CATEGORY</span><span class="pi-value">${escapeHtml(record.animalCategory || 'Unspecified')}</span></div><div class="pi-field"><span class="pi-label">RECORD TYPE</span><span class="pi-value">${record.recordKind === 'group' ? `Herd / flock (owner estimates ${record.estimatedCount || 1})` : 'Individual'}</span></div></div>
 						<div class="pi-row">
 							<div class="pi-field">
 								<span class="pi-label">AGE</span>
@@ -919,6 +925,7 @@ function renderPatientInfoTab(record) {
 								<span class="lv-data-key">Diagnosis</span>
 								<span class="lv-data-val">${escapeHtml(record.diagnosis) || '—'}</span>
 							</div>
+							<div class="lv-data-row"><span class="lv-data-key">Counted cases</span><span class="lv-data-val">${record.caseCountBasis === 'excluded' ? '0 · counted in individual records' : (record.affectedCount ?? 1)}</span></div>
 						</div>
 					</div>
 
@@ -1274,6 +1281,11 @@ function buildBlankRecord(prefill = {}) {
 		id: Date.now(),
 		petName: prefill.petName || '',
 		species: prefill.species || 'Canine',
+		animalCategory: prefill.animalCategory || '',
+		recordKind: prefill.recordKind || 'individual',
+		estimatedCount: prefill.estimatedCount || 1,
+		affectedCount: prefill.affectedCount ?? prefill.estimatedCount ?? 1,
+		caseCountBasis: prefill.caseCountBasis || (prefill.recordKind === 'group' ? 'group' : 'individual'),
 		breed: prefill.breed || '',
 		age: prefill.age || '',
 		sex: prefill.sex || 'Female',
@@ -1312,6 +1324,8 @@ function buildNewVisitRecord(record) {
 	return {
 		...record,
 		visitTitle: '',
+		affectedCount: record.recordKind === 'group' ? '' : 1,
+		caseCountBasis: record.recordKind === 'group' ? 'group' : 'individual',
 		visitDate: new Date().toISOString().slice(0, 10),
 		followUpDate: '',
 		symptoms: '',
@@ -1343,12 +1357,14 @@ function renderPetEntryFields(index, data = {}, removable = false) {
 				<div class="field">
 					<label class="field-label">SPECIES</label>
 					<select class="form-input" data-field="species">
-						<option ${(data.species || 'Canine') === 'Canine' ? 'selected' : ''}>Canine</option>
-						<option ${data.species === 'Feline' ? 'selected' : ''}>Feline</option>
-						<option ${data.species === 'Avian' ? 'selected' : ''}>Avian</option>
-						<option ${data.species === 'Exotic' ? 'selected' : ''}>Exotic</option>
+						${speciesOptions(data.species || 'Canine')}
 					</select>
 				</div>
+				<div class="field"><label class="field-label">ANIMAL CATEGORY</label><select class="form-input" data-field="animalCategory"><option value="">Select category</option><option value="companion" ${data.animalCategory === 'companion' ? 'selected' : ''}>Companion</option><option value="livestock" ${data.animalCategory === 'livestock' ? 'selected' : ''}>Livestock</option></select></div>
+				<div class="field"><label class="field-label">RECORD TYPE</label><select class="form-input" data-field="recordKind"><option value="individual">Individual</option><option value="group" ${data.recordKind === 'group' ? 'selected' : ''}>Herd / flock</option></select></div>
+				<div class="field"><label class="field-label">OWNER ESTIMATE</label><input class="form-input" data-field="estimatedCount" type="number" min="1" max="100000" value="${escapeHtml(data.estimatedCount || 1)}"></div>
+				<div class="field"><label class="field-label">VET-CONFIRMED AFFECTED</label><input class="form-input" data-field="affectedCount" type="number" min="1" max="100000" value="${escapeHtml(data.affectedCount ?? '')}"></div>
+				<div class="field"><label class="field-label">CASE COUNT BASIS</label><select class="form-input" data-field="caseCountBasis"><option value="individual">Individual</option><option value="group" ${data.caseCountBasis === 'group' ? 'selected' : ''}>Count group total</option><option value="excluded" ${data.caseCountBasis === 'excluded' ? 'selected' : ''}>Individuals already counted</option></select></div>
 				<div class="field">
 					<label class="field-label">BREED</label>
 					<input class="form-input" data-field="breed" placeholder="e.g. Golden Retriever" value="${escapeHtml(data.breed || '')}">
@@ -1428,12 +1444,12 @@ function renderAdd(record) {
 						<div class="field">
 							<label class="field-label" for="species">SPECIES</label>
 							<select class="form-input" id="species" name="species">
-								<option ${data.species === 'Canine' ? 'selected' : ''}>Canine</option>
-								<option ${data.species === 'Feline' ? 'selected' : ''}>Feline</option>
-								<option ${data.species === 'Avian' ? 'selected' : ''}>Avian</option>
-								<option ${data.species === 'Exotic' ? 'selected' : ''}>Exotic</option>
+								${speciesOptions(data.species)}
 							</select>
 						</div>
+						<div class="field"><label class="field-label">ANIMAL CATEGORY</label><select class="form-input" name="animalCategory"><option value="">Select category</option><option value="companion" ${data.animalCategory === 'companion' ? 'selected' : ''}>Companion</option><option value="livestock" ${data.animalCategory === 'livestock' ? 'selected' : ''}>Livestock</option></select></div>
+						<div class="field"><label class="field-label">RECORD TYPE</label><select class="form-input" name="recordKind"><option value="individual">Individual</option><option value="group" ${data.recordKind === 'group' ? 'selected' : ''}>Herd / flock</option></select></div>
+						<div class="field"><label class="field-label">OWNER ESTIMATE</label><input class="form-input" name="estimatedCount" type="number" min="1" max="100000" value="${escapeHtml(data.estimatedCount || 1)}"></div>
 						<div class="field">
 							<label class="field-label" for="breed">BREED</label>
 							<input class="form-input" id="breed" name="breed" placeholder="e.g. Golden Retriever" value="${escapeHtml(data.breed)}">
@@ -1545,6 +1561,8 @@ function renderAdd(record) {
 							<label class="field-label" for="symptoms">SYMPTOMS / CHIEF COMPLAINT</label>
 							<textarea class="form-textarea" id="symptoms" name="symptoms" placeholder="Describe observed clinical signs and symptoms...">${escapeHtml(data.symptoms)}</textarea>
 						</div>
+						<div class="field"><label class="field-label" for="affected-count">VET-CONFIRMED AFFECTED ANIMALS</label><input class="form-input" id="affected-count" name="affectedCount" type="number" min="1" max="100000" value="${escapeHtml(data.affectedCount ?? 1)}"><small>For herd/flock records, enter the actual case count.</small></div>
+						<div class="field span-2"><label class="field-label" for="case-count-basis">SURVEILLANCE COUNTING</label><select class="form-input" id="case-count-basis" name="caseCountBasis"><option value="individual" ${data.caseCountBasis === 'individual' ? 'selected' : ''}>Individual case</option><option value="group" ${data.caseCountBasis === 'group' ? 'selected' : ''}>Count this herd/flock total</option><option value="excluded" ${data.caseCountBasis === 'excluded' ? 'selected' : ''}>Individual records already counted; exclude group total</option></select><small>Use one counting method per outbreak to avoid duplicate cases.</small></div>
 						${diagnosisSuggestBlock(data)}
 						<div class="field span-3">
 							<label class="field-label" for="diagnosis">DIAGNOSIS</label>
@@ -1707,9 +1725,12 @@ function renderEditModal(record) {
 						<div class="em-field">
 							<label class="em-label" for="edit-species">SPECIES</label>
 							<select class="em-input" id="edit-species" name="species">
-								${['Canine', 'Feline', 'Avian', 'Exotic'].map((item) => `<option ${record.species === item ? 'selected' : ''}>${item}</option>`).join('')}
+								${speciesOptions(record.species)}
 							</select>
 						</div>
+						<div class="em-field"><label class="em-label">ANIMAL CATEGORY</label><select class="em-input" name="animalCategory"><option value="companion" ${record.animalCategory === 'companion' ? 'selected' : ''}>Companion</option><option value="livestock" ${record.animalCategory === 'livestock' ? 'selected' : ''}>Livestock</option></select></div>
+						<div class="em-field"><label class="em-label">RECORD TYPE</label><select class="em-input" name="recordKind"><option value="individual">Individual</option><option value="group" ${record.recordKind === 'group' ? 'selected' : ''}>Herd / flock</option></select></div>
+						<div class="em-field"><label class="em-label">OWNER ESTIMATE</label><input class="em-input" name="estimatedCount" type="number" min="1" max="100000" value="${record.estimatedCount || 1}"></div>
 						<div class="em-field">
 							<label class="em-label" for="edit-breed">BREED</label>
 							<input class="em-input" id="edit-breed" name="breed" placeholder="e.g. Golden Retriever" value="${escapeHtml(record.breed)}">
@@ -1924,6 +1945,11 @@ function getFormData(form) {
 	return {
 		petName: String(formData.get('petName') || '').trim(),
 		species: String(formData.get('species') || '').trim(),
+		animalCategory: String(formData.get('animalCategory') || '').trim(),
+		recordKind: String(formData.get('recordKind') || 'individual').trim(),
+		estimatedCount: Number(formData.get('estimatedCount') || 1),
+		affectedCount: String(formData.get('affectedCount') ?? '').trim(),
+		caseCountBasis: String(formData.get('caseCountBasis') || 'individual').trim(),
 		breed: String(formData.get('breed') || '').trim(),
 		dateOfBirth: String(formData.get('dateOfBirth') || '').trim(),
 		age: formatAge(formData.get('ageValue'), String(formData.get('ageUnit') || '').trim()),
@@ -1963,6 +1989,11 @@ function getPetEntriesData(form) {
 		return {
 			petName: fieldValue('petName').trim(),
 			species: fieldValue('species').trim(),
+			animalCategory: fieldValue('animalCategory').trim(),
+			recordKind: fieldValue('recordKind').trim(),
+			estimatedCount: Number(fieldValue('estimatedCount') || 1),
+			affectedCount: fieldValue('affectedCount').trim(),
+			caseCountBasis: fieldValue('caseCountBasis').trim(),
 			breed: fieldValue('breed').trim(),
 			sex: fieldValue('sex').trim(),
 			weight: fieldValue('weight').trim(),
@@ -2247,10 +2278,7 @@ function renderAddPetModal(record) {
 						<div class="em-field">
 							<label class="em-label" for="add-pet-species">SPECIES</label>
 							<select class="em-input" id="add-pet-species" name="species">
-								<option>Canine</option>
-								<option>Feline</option>
-								<option>Avian</option>
-								<option>Exotic</option>
+				${speciesOptions('Canine')}
 							</select>
 						</div>
 						<div class="em-field">
@@ -2520,6 +2548,16 @@ function handleModalAction(action, target) {
 }
 
 function bindGlobalEvents() {
+	app.addEventListener('change', (event) => {
+		if (!event.target.matches('[name="species"], [data-field="species"]')) return;
+		const scope = event.target.closest('[data-pet-entry]') || event.target.closest('form');
+		const category = scope?.querySelector('[name="animalCategory"], [data-field="animalCategory"]');
+		if (!category) return;
+		const species = event.target.value;
+		if (['Dog', 'Cat', 'Canine', 'Feline'].includes(species)) category.value = 'companion';
+		else if (['Chicken', 'Avian', 'Carabao / Water Buffalo', 'Goat / Sheep'].includes(species)) category.value = 'livestock';
+		else if (species !== 'Rabbit') category.value = '';
+	});
 	app.addEventListener('click', async (event) => {
 		const resyncButton = event.target.closest('[data-resync-visit]');
 		if (resyncButton) {

@@ -213,6 +213,7 @@ def _vaccination_workbook_revision():
 # per use buys immunity from that entire failure mode.
 
 _active_dataset_version = None   # version id the current caches were built from
+_active_live_visit_revision = None
 
 
 _db_connect_warned = False   # so a broken DB config is reported once, not per request
@@ -255,6 +256,23 @@ def load_active_dataset_version() -> int:
         return None
     finally:
         conn.close()
+
+
+def load_live_visit_revision():
+    """Changes when a veterinarian inserts, edits, or deletes a live visit."""
+    conn = None
+    try:
+        conn = db_connect()
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) AS visits, MAX(updated_at) AS latest_edit, MAX(id) AS latest_id, SUM(affected_count) AS cases FROM patient_visit_records")
+            row = cur.fetchone() or {}
+        return (int(row.get('visits') or 0), str(row.get('latest_edit') or ''),
+                int(row.get('latest_id') or 0), int(row.get('cases') or 0))
+    except Exception:
+        return None
+    finally:
+        if conn is not None:
+            conn.close()
 
 
 # The consultation columns, as historical_consultations stores them and the
@@ -336,14 +354,17 @@ def ensure_dataset_version_fresh():
     active version id has moved since the caches were built, they are dropped so
     the next read repopulates them from the new version.
     """
-    global _active_dataset_version
+    global _active_dataset_version, _active_live_visit_revision
     current = load_active_dataset_version()
-    if current != _active_dataset_version:
-        if _active_dataset_version is not None or current is not None:
+    live_revision = load_live_visit_revision()
+    if current != _active_dataset_version or live_revision != _active_live_visit_revision:
+        if _active_dataset_version is not None or current is not None or _active_live_visit_revision is not None:
             result = invalidate_disease_caches()
             print(f"[dataset] active version {_active_dataset_version} -> {current}; "
+                  f"live visits {_active_live_visit_revision} -> {live_revision}; "
                   f"cleared {result['forecast_keys_cleared']} cached forecast(s)")
         _active_dataset_version = current
+        _active_live_visit_revision = live_revision
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -2112,13 +2133,14 @@ def load_db_disease_monthly(after_year: int, after_month: int) -> pd.DataFrame:
                     COALESCE(NULLIF(pvr.barangay_at_visit, ''), NULLIF(b.name, ''),
                              'Unspecified') AS barangay,
                     pvr.disease_category  AS disease_category,
-                    COUNT(*) AS cases
+                    SUM(COALESCE(pvr.affected_count, 1)) AS cases
                 FROM patient_visit_records pvr
                 LEFT JOIN pets ON pets.id = pvr.pet_id
                 LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id
                 LEFT JOIN barangays b ON b.id = op.barangay_id
                 WHERE pvr.visit_date IS NOT NULL
                   AND pvr.diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)
+                  AND COALESCE(pvr.affected_count, 1) > 0
                 GROUP BY year, month_no, barangay, disease_category
             """)
             rows = cur.fetchall()
@@ -3449,6 +3471,7 @@ def load_db_consult_rows(after_year: int, after_month: int) -> pd.DataFrame:
                     -- groupby drops those rows, which is the correct outcome —
                     -- better absent than guessed from free text.
                     NULLIF(pvr.symptom_cluster, '') AS symptom_cluster,
+                    COALESCE(pvr.affected_count, 1) AS cases_reported,
                     -- The classifier's animal_group vocabulary, mapped from the
                     -- species recorded at the visit. Anything unmapped stays NULL
                     -- rather than defaulting to Dogs, which would silently file
@@ -3457,6 +3480,12 @@ def load_db_consult_rows(after_year: int, after_month: int) -> pd.DataFrame:
                         WHEN 'Canine' THEN 'Dogs'
                         WHEN 'Feline' THEN 'Cats'
                         WHEN 'Avian'  THEN 'Chickens'
+                        WHEN 'Dog' THEN 'Dogs'
+                        WHEN 'Cat' THEN 'Cats'
+                        WHEN 'Chicken' THEN 'Chickens'
+                        WHEN 'Carabao / Water Buffalo' THEN 'Carabaos / Water Buffalo'
+                        WHEN 'Goat / Sheep' THEN 'Goats / Sheep'
+                        WHEN 'Rabbit' THEN 'Rabbits'
                         ELSE NULL
                     END AS animal_group
                 FROM patient_visit_records pvr
@@ -3466,6 +3495,7 @@ def load_db_consult_rows(after_year: int, after_month: int) -> pd.DataFrame:
                 LEFT JOIN diseases d ON d.name = pvr.diagnosis AND d.is_active = 1
                 WHERE pvr.visit_date IS NOT NULL
                   AND pvr.diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)
+                  AND COALESCE(pvr.affected_count, 1) > 0
             """)
             rows = cur.fetchall()
     except Exception as e:
@@ -3482,7 +3512,7 @@ def load_db_consult_rows(after_year: int, after_month: int) -> pd.DataFrame:
     if raw.empty:
         return empty
 
-    raw["cases_reported"] = 1
+    raw["cases_reported"] = pd.to_numeric(raw["cases_reported"], errors="coerce").fillna(1)
     raw["is_db_sourced"] = True
     return raw[cols]
 

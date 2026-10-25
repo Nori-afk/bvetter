@@ -12,9 +12,12 @@ require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/input_validation.php';
 require_once __DIR__ . '/../config/mailer.php';
 require_once __DIR__ . '/../config/notifications.php';
+require_once __DIR__ . '/../includes/booking_pets.php';
 
 function respond($statusCode, $payload)
 {
+    global $pdo;
+    if ($statusCode >= 400 && $pdo instanceof PDO && $pdo->inTransaction()) $pdo->rollBack();
     http_response_code($statusCode);
     echo json_encode($payload);
     exit;
@@ -286,40 +289,66 @@ const REGISTRATION_SELECT = "
 
 function registerInterest($pdo, $data)
 {
+    $petEntries = bookingPetEntries($data, true);
+    ensureAnimalVisitSchema($pdo);
+    $storedPet = $pdo->prepare('SELECT species, record_kind FROM pets WHERE id = :id');
+    foreach ($petEntries as $entry) {
+        $species = clean($entry['species'] ?? $entry['pet_type'] ?? '');
+        $kind = $entry['record_kind'] ?? 'individual';
+        if ($species === '' && !empty($entry['pet_id'])) {
+            $storedPet->execute([':id' => (int) $entry['pet_id']]);
+            $stored = $storedPet->fetch(PDO::FETCH_ASSOC) ?: [];
+            $species = clean($stored['species'] ?? '');
+            $kind = $stored['record_kind'] ?? $kind;
+        }
+        if (!in_array($species, ['Dog', 'Cat', 'Canine', 'Feline'], true) || $kind !== 'individual') {
+            respond(422, ['success' => false, 'message' => 'Castration & Spay registration is for individual dogs and cats.']);
+        }
+    }
     $notes = clean($data['notes'] ?? '');
-
+    $pdo->beginTransaction();
     $ownerId = findOrCreateOwner($pdo, $data);
-    $petId = findOrCreatePet($pdo, $ownerId, $data);
+    // Serialize registrations for this owner so retries cannot add the same pet twice.
+    $ownerLock = $pdo->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE');
+    $ownerLock->execute([$ownerId]);
+    $petIds = resolveBookingPetIds($pdo, $ownerId, $petEntries);
 
     $dupe = $pdo->prepare("
         SELECT id FROM csp_registrations
         WHERE owner_id = :owner_id AND pet_id = :pet_id AND status IN ('pending_schedule', 'scheduled')
         LIMIT 1
     ");
-    $dupe->execute([':owner_id' => $ownerId, ':pet_id' => $petId]);
-    if ($dupe->fetch()) {
-        respond(409, ['success' => false, 'message' => 'This pet is already registered for the Castration & Spay Program.']);
+    foreach ($petIds as $petId) {
+        $dupe->execute([':owner_id' => $ownerId, ':pet_id' => $petId]);
+        if ($dupe->fetch()) {
+            respond(409, ['success' => false, 'message' => 'One of these pets is already registered for the Castration & Spay Program. No new registrations were added.']);
+        }
     }
 
     $insert = $pdo->prepare('
         INSERT INTO csp_registrations (owner_id, pet_id, status, notes)
         VALUES (:owner_id, :pet_id, :status, :notes)
     ');
-    $insert->execute([
-        ':owner_id' => $ownerId,
-        ':pet_id' => $petId,
-        ':status' => 'pending_schedule',
-        ':notes' => $notes,
-    ]);
-
-    $registrationId = (int) $pdo->lastInsertId();
+    $registrationIds = [];
+    foreach ($petIds as $petId) {
+        $insert->execute([
+            ':owner_id' => $ownerId,
+            ':pet_id' => $petId,
+            ':status' => 'pending_schedule',
+            ':notes' => $notes,
+        ]);
+        $registrationIds[] = (int) $pdo->lastInsertId();
+    }
+    $pdo->commit();
+    $registrationId = $registrationIds[0];
 
     $ownerStmt = $pdo->prepare('SELECT full_name FROM users WHERE id = :id LIMIT 1');
     $ownerStmt->execute([':id' => $ownerId]);
     $ownerName = $ownerStmt->fetchColumn() ?: 'A pet owner';
-    $petStmt = $pdo->prepare('SELECT pet_name FROM pets WHERE id = :id LIMIT 1');
-    $petStmt->execute([':id' => $petId]);
-    $petName = $petStmt->fetchColumn() ?: 'a pet';
+    $placeholders = implode(',', array_fill(0, count($petIds), '?'));
+    $petStmt = $pdo->prepare("SELECT pet_name FROM pets WHERE id IN ({$placeholders})");
+    $petStmt->execute($petIds);
+    $petName = implode(', ', $petStmt->fetchAll(PDO::FETCH_COLUMN));
 
     notifyStaff(
         $pdo,
@@ -335,6 +364,7 @@ function registerInterest($pdo, $data)
         'success' => true,
         'message' => 'Registration submitted.',
         'registration_id' => $registrationId,
+        'registration_ids' => $registrationIds,
         'owner_id' => $ownerId,
         'waiting_count' => getWaitingCount($pdo),
     ]);
@@ -869,6 +899,8 @@ try {
     if ($action === 'dashboard_stats') dashboardStats($pdo);
 
     respond(400, ['success' => false, 'message' => 'Unknown castration & spay program action.']);
+} catch (InvalidArgumentException $e) {
+    respond(422, ['success' => false, 'message' => $e->getMessage()]);
 } catch (PDOException $e) {
     error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
     if ($pdo->inTransaction()) $pdo->rollBack();

@@ -1,5 +1,8 @@
 <?php
 
+require_once __DIR__ . '/booking_pets.php';
+require_once __DIR__ . '/animal_visit_schema.php';
+
 function setupPatientTables($pdo)
 {
     $pdo->exec("
@@ -174,6 +177,7 @@ function setupPatientTables($pdo)
 
     setupDiseaseCatalog($pdo);
     setupDiseaseDataCoverage($pdo);
+    ensureAnimalVisitSchema($pdo);
 }
 
 /**
@@ -335,10 +339,7 @@ function ensurePatientRecordFromAppointment($pdo, $appointmentId)
 {
     setupPatientTables($pdo);
 
-    $stmt = $pdo->prepare('SELECT pet_id FROM appointments WHERE id = :id');
-    $stmt->execute([':id' => $appointmentId]);
-    $petId = (int) $stmt->fetchColumn();
-    if ($petId <= 0) return;
+    $pets = appointmentPetsById($pdo, [(int) $appointmentId]);
 
     // A booking only makes sure the pet has a record. It says nothing about
     // the pet's health, so it must not set one: this used to write "Good
@@ -350,5 +351,7 @@ function ensurePatientRecordFromAppointment($pdo, $appointmentId)
         ON DUPLICATE KEY UPDATE
             is_archived = 0
     ");
-    $profile->execute([':pet_id' => $petId]);
+    foreach ($pets[(int) $appointmentId] ?? [] as $pet) {
+        $profile->execute([':pet_id' => $pet['id']]);
+    }
 }
