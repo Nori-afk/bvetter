@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260928-mobile">
-    <link rel="stylesheet" href="../../vet/css/disease-analytics.css?v=20261026-rankings-layout">
+    <link rel="stylesheet" href="../../vet/css/disease-analytics.css?v=20261026-insight-spacing">
     <link rel="stylesheet" href="../../vet/css/dataset-upload.css?v=20260922-timeline">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
@@ -119,6 +119,19 @@
                     </aside>
                 </section>
 
+                <section class="rankings-grid" aria-label="Case rankings">
+                    <div class="card ranking-card" aria-labelledby="topDiseasesTitle">
+                        <div class="ranking-card-heading"><div><h3 id="topDiseasesTitle">Top 10 Diseases</h3>
+                        <p>Diagnosed cases in the selected period and data view</p></div><span class="ranking-unit">Cases</span></div>
+                        <div id="topDiseasesChart" class="ranking-chart" role="list"></div>
+                    </div>
+                    <div class="card ranking-card" aria-labelledby="animalGroupsTitle">
+                        <div class="ranking-card-heading"><div><h3 id="animalGroupsTitle">Animal Groups With Most Cases</h3>
+                        <p>Same diagnosed cases and filters as the disease ranking</p></div><span class="ranking-unit">Cases</span></div>
+                        <div id="animalGroupsChart" class="ranking-chart animal-groups-chart" role="list"></div>
+                    </div>
+                </section>
+
                 <div class="chart-sort-bar">
                     <label class="chart-sort-label" for="chartSortFilter">Both charts sorted by</label>
                     <select id="chartSortFilter">
@@ -137,18 +150,6 @@
                     <div class="card chart-card">
                         <h3>Predicted Disease Cases per Barangay</h3>
                         <div id="predictedChart" class="bar-chart"></div>
-                    </div>
-                </section>
-                <section class="rankings-grid" aria-label="Case rankings">
-                    <div class="card ranking-card" aria-labelledby="topDiseasesTitle">
-                        <div class="ranking-card-heading"><div><h3 id="topDiseasesTitle">Top 10 Diseases</h3>
-                        <p>Diagnosed cases in the selected period and data view</p></div><span class="ranking-unit">Cases</span></div>
-                        <div id="topDiseasesChart" class="ranking-chart" role="list"></div>
-                    </div>
-                    <div class="card ranking-card" aria-labelledby="animalGroupsTitle">
-                        <div class="ranking-card-heading"><div><h3 id="animalGroupsTitle">Animal Groups With Most Cases</h3>
-                        <p>Same diagnosed cases and filters as the disease ranking</p></div><span class="ranking-unit">Cases</span></div>
-                        <div id="animalGroupsChart" class="ranking-chart animal-groups-chart" role="list"></div>
                     </div>
                 </section>
                 <p id="partialPaceNote" class="pace-note" hidden></p>

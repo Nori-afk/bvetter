@@ -1090,6 +1090,7 @@ body {
 }
 
 #fieldVisitFields .form-group { margin: 8px 0; }
+#step3 #fieldVisitFields + .form-row-2 { margin-top: 14px; }
 .visit-location-summary {
   display: flex;
   align-items: flex-start;

@@ -789,21 +789,20 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 .source-badge.wma      { background: #F1F5F9; color: #475569; }
 
 /* ── Insights section ────────────────────────────────────────── */
-.insight-section { padding: 20px 22px; }
+.insight-section { padding: 24px 26px 26px; }
 
 .insight-section > h3 {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--muted);
-    margin-bottom: 14px;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+    color: var(--ink);
+    margin-bottom: 18px;
 }
 
 .insight-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
 }
 
 /* ── Create Event modal ──────────────────────────────────────── */
@@ -892,11 +891,15 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 .btn-soft:hover { background: #E2E8F0; }
 
 .insight-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 190px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--r);
-    padding: 15px 16px;
-    border-left: 3px solid #94A3B8;
+    padding: 20px 22px;
+    border-left: 4px solid #94A3B8;
     transition: box-shadow 0.2s, transform 0.2s;
     animation: cardIn 0.4s ease both;
 }
@@ -909,17 +912,18 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 
 .insight-card-top {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 9px;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    margin-bottom: 12px;
 }
 
 .insight-card .chip {
     display: inline-block;
-    padding: 4px 10px;
+    padding: 6px 12px;
     border-radius: 99px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     color: #fff;
     background: var(--brand);
@@ -927,33 +931,36 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 }
 
 .insight-card .risk-indicator {
-    font-size: 10px;
+    padding: 6px 9px;
+    border-radius: 6px;
+    background: var(--surface-2);
+    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
 
-.insight-card.risk-high   .risk-indicator { color: var(--red); }
-.insight-card.risk-medium .risk-indicator { color: var(--amber); }
-.insight-card.risk-low    .risk-indicator { color: var(--green); }
+.insight-card.risk-high   .risk-indicator { color: var(--red); background: var(--red-bg); }
+.insight-card.risk-medium .risk-indicator { color: var(--amber); background: var(--amber-bg); }
+.insight-card.risk-low    .risk-indicator { color: var(--green); background: var(--green-bg); }
 
 .insight-card-meta {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin: -2px 0 9px;
+    gap: 8px;
+    margin: 0 0 12px;
 }
 
 .volume-indicator,
 .rule-indicator {
     display: inline-flex;
     align-items: center;
-    min-height: 20px;
-    padding: 3px 8px;
+    min-height: 24px;
+    padding: 5px 10px;
     border-radius: 999px;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
-    line-height: 1;
+    line-height: 1.2;
 }
 
 .volume-indicator.volume-high {
@@ -981,19 +988,21 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 }
 
 .insight-card p {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--ink-2);
-    line-height: 1.55;
-    margin-bottom: 13px;
+    line-height: 1.65;
+    margin-bottom: 18px;
 }
 
 .insight-card .action-link {
+    align-self: flex-start;
+    margin-top: auto;
     background: transparent;
     border: 0;
     color: var(--teal);
     cursor: pointer;
     font-weight: 600;
-    font-size: 12.5px;
+    font-size: 13.5px;
     font-family: inherit;
     padding: 0;
     display: inline-flex;
@@ -2121,6 +2130,9 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     .rankings-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
+    .insight-section { padding: 18px; }
+    .insight-section > h3 { font-size: 17px; margin-bottom: 14px; }
+    .insight-card { min-height: 0; padding: 18px; }
     .ranking-card { padding: 16px; }
     .ranking-row { grid-template-columns: 20px minmax(0, 1fr) auto; gap: 5px 8px; }
     .ranking-track { grid-column: 2 / 4; grid-row: 2; }
