@@ -44,6 +44,7 @@ let diseaseAnalyticsData = {
     predictionSummary: { total: 0, label: 'Barangays monitored' },
     sources: [],
     topDiseases: [],
+    animalGroups: [],
     actualCases: [],
     predictedCases: [],
     insights: [],
@@ -990,19 +991,24 @@ function renderOverview() {
         `).join('');
     document.querySelectorAll('#kpiCards .kpi-card strong').forEach(el => countUp(el));
 
-    const topDiseases = diseaseAnalyticsData.topDiseases || [];
-    const topHost = document.getElementById('topDiseasesChart');
-    if (topHost) {
-        const maximum = Math.max(1, ...topDiseases.map(row => Number(row.value) || 0));
-        topHost.innerHTML = topDiseases.length
-            ? topDiseases.map((row, index) => `<div class="top-disease-row">
-                <span class="top-disease-rank">${index + 1}</span>
-                <span class="top-disease-name">${esc(row.name)}</span>
-                <span class="top-disease-track"><span style="width:${Math.max(2, (Number(row.value) || 0) / maximum * 100)}%"></span></span>
-                <strong>${Number(row.value) || 0}</strong>
-              </div>`).join('')
-            : '<p>No diagnosed cases recorded for this period.</p>';
-    }
+    const renderRanking = (id, rows) => {
+        const host = document.getElementById(id);
+        if (!host) return;
+        const maximum = Math.max(1, ...rows.map(row => Number(row.value) || 0));
+        host.innerHTML = rows.length
+            ? rows.map((row, index) => {
+                const count = Math.max(0, Number(row.value) || 0);
+                return `<div class="ranking-row" role="listitem">
+                    <span class="ranking-rank" aria-hidden="true">${index + 1}</span>
+                    <span class="ranking-name">${esc(row.name)}</span>
+                    <span class="ranking-track" aria-hidden="true"><span style="width:${Math.max(2, count / maximum * 100)}%"></span></span>
+                    <strong>${count.toLocaleString()}</strong>
+                  </div>`;
+            }).join('')
+            : '<p class="ranking-empty">No diagnosed cases recorded for this period.</p>';
+    };
+    renderRanking('topDiseasesChart', diseaseAnalyticsData.topDiseases || []);
+    renderRanking('animalGroupsChart', diseaseAnalyticsData.animalGroups || []);
 
     // Per-disease forecast sits directly under the KPI row: it is the same
     // scope those cards describe (this disease, municipality-wide), just

@@ -1393,6 +1393,8 @@ function getAverageRate(average) {
   let assessmentLogId = 0;
   let assessmentAnimal = '';
   let consultSymptomCatalog = [];
+  let consultSymptomsLoaded = false;
+  let consultSymptomsUnavailable = false;
   let nextPetCardId = 2;
   let activePetIndex = 0;
   let existingPets = [];
@@ -2226,6 +2228,11 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     if (categories.size === 1 && categories.has('livestock')) document.getElementById('visitMode').value = 'field';
     else if (categories.size === 1 && categories.has('companion')) document.getElementById('visitMode').value = 'clinic';
     const field = document.getElementById('visitMode').value === 'field';
+    document.getElementById('visitModeSummary').classList.toggle('is-field', field);
+    document.getElementById('visitModeTitle').textContent = field ? 'Field visit for livestock' : 'At the clinic';
+    document.getElementById('visitModeDescription').textContent = field
+      ? 'A veterinarian visits your location after approval. The clinic may reserve the time or the whole day.'
+      : 'Bring your companion animal to the clinic at the approved time.';
     document.getElementById('fieldVisitFields').classList.toggle('is-hidden', !field || isCspMode());
     document.getElementById('bookingConsultation').classList.toggle('is-hidden', isCspMode() || document.getElementById('visitType').value !== 'Consultation');
     updateConsultSuggestions();
@@ -2245,12 +2252,18 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       select.appendChild(option);
     });
     if ([...select.options].some(option => option.value === previous)) select.value = previous;
+    const single = select.options.length === 1;
+    document.getElementById('consultAnimalPicker').hidden = single;
+    const singleAnimal = document.getElementById('consultAnimalSingle');
+    singleAnimal.hidden = !single;
+    singleAnimal.textContent = single ? `Checking ${select.selectedOptions[0].textContent}` : '';
   }
   async function loadConsultSymptoms() {
     try {
       const response = await fetch('/api/chatbot/chatbot.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'public_symptoms' }) });
       const result = await response.json();
-      if (!result.success) return;
+      if (!result.success) throw new Error('Symptom list unavailable.');
+      consultSymptomsLoaded = true;
       consultSymptomCatalog = result.data || [];
       const select = document.getElementById('consultSymptoms');
       select.replaceChildren();
@@ -2261,7 +2274,40 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
         select.appendChild(option);
       });
       updateConsultSuggestions();
-    } catch { /* booking remains available */ }
+    } catch {
+      consultSymptomsUnavailable = true;
+      document.getElementById('consultSymptomChoices').textContent = 'Symptom check is unavailable right now. You can still book your appointment.';
+    }
+  }
+
+  function renderConsultSymptomChoices(suggested = new Set()) {
+    const host = document.getElementById('consultSymptomChoices');
+    const options = [...document.getElementById('consultSymptoms').options];
+    host.replaceChildren();
+    if (!options.length) {
+      host.textContent = consultSymptomsUnavailable
+        ? 'Symptom check is unavailable right now. You can still book your appointment.'
+        : consultSymptomsLoaded ? 'No symptoms are available for this check.' : 'Loading symptoms…';
+      return;
+    }
+    options.sort((a, b) => Number(suggested.has(b.value)) - Number(suggested.has(a.value)));
+    options.forEach(option => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'consult-symptom-choice';
+      button.dataset.symptom = option.value;
+      button.setAttribute('aria-pressed', String(option.selected));
+      const name = document.createElement('span');
+      name.textContent = option.textContent;
+      button.appendChild(name);
+      if (suggested.has(option.value)) {
+        button.classList.add('is-suggested');
+        const badge = document.createElement('small');
+        badge.textContent = 'Suggested';
+        button.appendChild(badge);
+      }
+      host.appendChild(button);
+    });
   }
 
   function updateConsultSuggestions() {
@@ -2277,27 +2323,17 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
           .some(phrase => phrase && text.includes(` ${normalize(phrase)} `)))
       : [];
     host.hidden = !matches.length;
-    host.replaceChildren();
-    if (!matches.length) return;
-    const label = document.createElement('p');
-    label.textContent = 'Possible symptoms from what you noticed. Select only those that fit:';
-    host.appendChild(label);
-    matches.forEach(symptom => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'consult-suggestion-chip';
-      button.dataset.symptom = symptom.name;
-      button.textContent = symptom.name;
-      button.setAttribute('aria-pressed', String([...document.getElementById('consultSymptoms').selectedOptions].some(option => option.value === symptom.name)));
-      host.appendChild(button);
-    });
+    host.textContent = matches.length
+      ? 'Based on what you noticed, the highlighted symptoms may apply. Tap only the ones you have observed.'
+      : '';
+    renderConsultSymptomChoices(new Set(matches.map(symptom => symptom.name)));
   }
   document.getElementById('fieldConcern').addEventListener('input', () => {
     assessmentLogId = 0;
     assessmentAnimal = '';
     updateConsultSuggestions();
   });
-  document.getElementById('consultSymptomSuggestions').addEventListener('click', event => {
+  document.getElementById('consultSymptomChoices').addEventListener('click', event => {
     const button = event.target.closest('[data-symptom]');
     if (!button) return;
     const option = [...document.getElementById('consultSymptoms').options].find(item => item.value === button.dataset.symptom);
@@ -2316,7 +2352,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     resultBox.classList.remove('is-hidden');
     assessmentLogId = 0;
     assessmentAnimal = '';
-    if (!card || !symptoms.length) { resultBox.textContent = 'Select an animal and at least one symptom.'; return; }
+    if (!card || !symptoms.length) { resultBox.textContent = 'Choose at least one symptom to see clinic guidance.'; return; }
     resultBox.textContent = 'Checking clinic guidance…';
     try {
       const response = await fetch('/api/chatbot/chatbot.php', {

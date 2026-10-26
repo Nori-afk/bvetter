@@ -559,6 +559,57 @@ function db_diagnosis_counts($pdo, string $exactMonth, string $selected): array
     return $counts;
 }
 
+/** Animal groups for the same diagnosed cases and month as db_diagnosis_counts(). */
+function db_animal_group_counts($pdo, string $exactMonth, string $selected): array
+{
+    if (!preg_match('/^\d{4}-\d{2}$/', $exactMonth)) return [];
+
+    $counts = [];
+    foreach (bv_upload_rows_between($exactMonth, $exactMonth) as $row) {
+        $diagnosis = bv_clean($row['diagnosis'] ?? '');
+        if ($diagnosis === '' || ($selected !== '' && strtolower($diagnosis) !== $selected)) continue;
+        $group = bv_clean($row['animal_group'] ?? '') ?: 'Unspecified';
+        $counts[$group] = ($counts[$group] ?? 0) + (int) ($row['cases_reported'] ?? 1);
+    }
+
+    if (bv_table_exists($pdo, 'patient_visit_records') && bv_live_counts_in_month($exactMonth, $pdo)) {
+        $hasPets = bv_table_exists($pdo, 'pets');
+        $hasSnapshot = bv_column_exists($pdo, 'patient_visit_records', 'species_at_visit');
+        $speciesExpr = $hasSnapshot ? "NULLIF(pvr.species_at_visit, '')" : 'NULL';
+        if ($hasPets) $speciesExpr = "COALESCE({$speciesExpr}, NULLIF(pets.species, ''))";
+        $where = bv_table_exists($pdo, 'diseases')
+            ? ['pvr.diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)']
+            : ['COALESCE(pvr.diagnosis, "") <> ""'];
+        $where[] = "DATE_FORMAT(COALESCE(pvr.visit_date, pvr.created_at), '%Y-%m') = :ym";
+        $params = [':ym' => $exactMonth];
+        if ($selected !== '') {
+            $where[] = 'LOWER(COALESCE(pvr.diagnosis, "")) = :disease';
+            $params[':disease'] = $selected;
+        }
+
+        try {
+            $stmt = $pdo->prepare("
+                SELECT {$speciesExpr} AS species, SUM(COALESCE(pvr.affected_count, 1)) AS n
+                FROM patient_visit_records pvr
+                " . ($hasPets ? 'LEFT JOIN pets ON pets.id = pvr.pet_id' : '') . "
+                WHERE " . implode(' AND ', $where) . "
+                GROUP BY {$speciesExpr}
+            ");
+            $stmt->execute($params);
+            foreach ($stmt->fetchAll() as $row) {
+                $species = bv_clean($row['species'] ?? '');
+                $group = animalGroupFromSpecies($species) ?? ($species ?: 'Unspecified');
+                $counts[$group] = ($counts[$group] ?? 0) + (int) $row['n'];
+            }
+        } catch (Throwable $e) {
+            error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
+        }
+    }
+
+    arsort($counts);
+    return $counts;
+}
+
 function db_top_diagnosis($pdo, string $exactMonth, string $selected): string
 {
     return (string) (array_key_first(db_diagnosis_counts($pdo, $exactMonth, $selected)) ?? '');
@@ -706,6 +757,7 @@ function disease_analytics_data($pdo)
     /* ── Top disease label ───────────────────────────────────────────── */
     if ($isCurrent) {
         $diseaseCounts = db_diagnosis_counts($pdo, $currentMonth, $selected);
+        $animalGroupCounts = db_animal_group_counts($pdo, $currentMonth, $selected);
         $topDisease = array_key_first($diseaseCounts)
             ?: ($selected !== '' ? ucwords($selected) : 'N/A');
         if ($topDisease !== 'N/A') $topDisease = ucwords(strtolower($topDisease));
@@ -726,6 +778,13 @@ function disease_analytics_data($pdo)
         }
 
         $diseaseCounts = bv_sum_by($latestConsult, 'diagnosis', 'cases_reported');
+        $animalGroupCounts = [];
+        foreach ($latestConsult as $row) {
+            if (bv_clean($row['diagnosis'] ?? '') === '') continue;
+            $group = bv_clean($row['animal_group'] ?? '') ?: 'Unspecified';
+            $animalGroupCounts[$group] = ($animalGroupCounts[$group] ?? 0) + (int) ($row['cases_reported'] ?? 1);
+        }
+        arsort($animalGroupCounts);
         $topDisease    = array_key_first($diseaseCounts)
             ?: ($selected !== '' ? ucwords($selected) : 'N/A');
     }
@@ -929,6 +988,10 @@ function disease_analytics_data($pdo)
     foreach (array_slice($diseaseCounts, 0, 10, true) as $name => $count) {
         $topDiseases[] = ['name' => $name, 'value' => (int) round($count)];
     }
+    $animalGroups = [];
+    foreach (array_slice($animalGroupCounts, 0, 8, true) as $name => $count) {
+        $animalGroups[] = ['name' => $name, 'value' => (int) round($count)];
+    }
 
     return [
         'filters'         => $filters,
@@ -1007,6 +1070,7 @@ function disease_analytics_data($pdo)
         ],
         'sources'      => $sources,
         'topDiseases'  => $topDiseases,
+        'animalGroups' => $animalGroups,
         'actualCases'  => $actualCases,
         'predictedCases' => $predictedCases,
         'insights'     => $insights,

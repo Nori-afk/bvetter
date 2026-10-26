@@ -966,10 +966,8 @@ body {
 .booking-pet-tab { border: 1px solid var(--border-default); background: #fff; color: var(--text-primary); border-radius: 20px; padding: 8px 14px; font: inherit; font-size: 13px; cursor: pointer; }
 .booking-pet-tab.active { background: #e7f4ed; border-color: #23875b; color: #176747; font-weight: 700; }
 .booking-pet-source { margin-bottom: 16px; }
-.consult-suggestions { margin: 12px 0; padding: 12px; border-radius: 10px; background: #f0f8f3; }
-.consult-suggestions p { margin: 0 0 8px; font-size: 13px; }
-.consult-suggestion-chip { margin: 3px 6px 3px 0; border: 1px solid #23875b; border-radius: 18px; background: #fff; color: #176747; padding: 6px 11px; cursor: pointer; }
-.consult-suggestion-chip[aria-pressed="true"] { background: #23875b; color: #fff; }
+.consult-suggestions { padding: 10px 12px; border-radius: 8px; background: #eef8f1; color: #176747; font-size: 12px; line-height: 1.5; }
+.consult-suggestions[hidden], #consultAnimalPicker[hidden], .consult-animal-single[hidden] { display: none; }
 .booking-pet-card input[readonly], .booking-pet-card select:disabled { background: #f5f7f9; color: #344054; opacity: 1; }
 
 .booking-pet-header {
@@ -1091,10 +1089,46 @@ body {
   display: none;
 }
 
-#fieldVisitFields .form-group { margin: 14px 0; }
-#bookingConsultation > .form-label { display: block; margin-top: 14px; }
-#consultSymptoms { min-height: 125px; }
+#fieldVisitFields .form-group { margin: 8px 0; }
+.visit-location-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 13px 15px;
+  border: 1px solid #d9e4f2;
+  border-radius: 10px;
+  background: #f5f9fe;
+}
+.visit-location-mark { color: #2563a6; font-size: 15px; line-height: 1.4; }
+.visit-location-summary strong { display: block; font-size: 13px; color: var(--text-primary); }
+.visit-location-summary p { margin: 3px 0 0; font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+.visit-location-summary.is-field { border-color: #cce8d8; background: #f1faf5; }
+.visit-location-summary.is-field .visit-location-mark { color: #23875b; }
+
+#bookingConsultation { margin: 5px 0 19px; padding: 19px 20px; border: 1px solid var(--border-default); border-radius: 12px; background: #fbfcfd; }
+.consult-intro .form-card-title { margin: 0 0 4px; font-size: 17px; }
+.consult-intro p { margin: 0 0 14px; color: var(--text-muted); font-size: 12px; line-height: 1.55; }
+#consultAnimalPicker { display: flex; flex-direction: column; gap: 6px; max-width: 360px; margin-bottom: 13px; }
+.consult-animal-single { margin: 0 0 12px; font-size: 12px; font-weight: 700; color: var(--text-primary); }
+.consult-symptom-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; margin-bottom: 8px; }
+.consult-symptom-heading > span:last-child { color: var(--text-muted); font-size: 11px; }
+.consult-symptom-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 8px; margin: 10px 0 16px; color: var(--text-muted); font-size: 12px; }
+.consult-symptom-choice { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 6px; min-height: 44px; padding: 9px 11px; border: 1px solid #d6dee8; border-radius: 9px; background: #fff; color: var(--text-primary); font: inherit; font-size: 12px; line-height: 1.35; text-align: left; cursor: pointer; }
+.consult-symptom-choice:hover, .consult-symptom-choice:focus-visible { border-color: #23875b; outline: 2px solid transparent; box-shadow: 0 0 0 2px #d2eadc; }
+.consult-symptom-choice.is-suggested { border-color: #9bccae; background: #f1faf4; }
+.consult-symptom-choice[aria-pressed="true"] { border-color: #23875b; background: #e4f5eb; color: #11613e; font-weight: 800; }
+.consult-symptom-choice small { font-size: 10px; font-weight: 700; color: #176747; }
+#bookingConsultation .form-row-2 { margin: 0 0 10px; }
+#bookingConsultation .form-row-2 .form-label { display: block; margin-bottom: 6px; }
+.consult-safety-note { margin: 0 0 12px; color: var(--text-muted); font-size: 11px; line-height: 1.5; }
+#btnAssessSymptoms { width: auto; min-width: 210px; }
 #consultResult { margin-top: 14px; white-space: pre-line; }
+
+@media (max-width: 480px) {
+  #bookingConsultation { padding: 16px 14px; }
+  .consult-symptom-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #btnAssessSymptoms { width: 100%; }
+}
 
 .csp-success-block {
   text-align: left;

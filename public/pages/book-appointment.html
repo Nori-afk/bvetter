@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
   <link rel="stylesheet" href="../../shared/css/form-validation.css"/>
-  <link rel="stylesheet" href="../css/book-appointment.css?v=20261026-booking-layout"/>
+  <link rel="stylesheet" href="../css/book-appointment.css?v=20261026-symptom-choices"/>
 </head>
 <body>
 
@@ -422,9 +422,12 @@
       <div class="form-card">
         <div class="form-card-title">Appointment Info</div>
         <div class="form-group full">
-          <label class="form-label" for="visitMode">Visit location (based on animal category)</label>
-          <select class="form-select" id="visitMode" disabled><option value="clinic">At the clinic</option><option value="field">Field visit for livestock</option></select>
-          <span class="field-hint">A field request is subject to clinic approval. The clinic may reserve the requested time or close for the whole day.</span>
+          <span class="form-label">Visit location</span>
+          <div class="visit-location-summary" id="visitModeSummary">
+            <span class="visit-location-mark" aria-hidden="true">&#9679;</span>
+            <div><strong id="visitModeTitle">At the clinic</strong><p id="visitModeDescription">Bring your companion animal to the clinic at the approved time.</p></div>
+          </div>
+          <select id="visitMode" hidden><option value="clinic">At the clinic</option><option value="field">Field visit for livestock</option></select>
         </div>
         <div id="fieldVisitFields" class="is-hidden">
           <div class="form-group full"><label class="form-label" for="fieldAddress">Field location *</label><input class="form-input" id="fieldAddress" maxlength="255" placeholder="Complete address / farm location"></div>
@@ -451,15 +454,20 @@
           </div>
         </div>
         <div class="form-group full is-hidden" id="bookingConsultation">
-          <div class="form-card-title">Optional symptom check</div>
-          <p class="field-hint">Clinic guidance is preliminary. You can book without using this check. For severe symptoms, contact the clinic immediately.</p>
-          <label class="form-label" for="consultAnimal">Animal to check</label><select class="form-select" id="consultAnimal"></select>
-          <label class="form-label" for="consultSymptoms">Reported symptoms</label><select class="form-select" id="consultSymptoms" multiple size="5"></select>
+          <div class="consult-intro"><div class="form-card-title">Optional symptom check</div>
+            <p>Choose the symptoms you have noticed to see preliminary clinic guidance. You can also continue booking without this check.</p>
+          </div>
+          <div id="consultAnimalPicker"><label class="form-label" for="consultAnimal">Animal to check</label><select class="form-select" id="consultAnimal"></select></div>
+          <p id="consultAnimalSingle" class="consult-animal-single" hidden></p>
+          <div class="consult-symptom-heading"><span class="form-label" id="consultSymptomsLabel">Symptoms noticed</span><span>Choose all that apply</span></div>
           <div id="consultSymptomSuggestions" class="consult-suggestions" hidden></div>
+          <div id="consultSymptomChoices" class="consult-symptom-grid" role="group" aria-labelledby="consultSymptomsLabel"></div>
+          <select id="consultSymptoms" multiple hidden aria-hidden="true" tabindex="-1"></select>
           <div class="form-row-2">
             <div><label class="form-label" for="consultDuration">Duration</label><select class="form-select" id="consultDuration"><option value="Less Than 24 Hours">Less than 24 hours</option><option value="1-3 Days">1–3 days</option><option value="More than 3 days">More than 3 days</option></select></div>
             <div><label class="form-label" for="consultSeverity">How is the animal?</label><select class="form-select" id="consultSeverity"><option value="Mild">Active but sick</option><option value="Moderate">Weak</option><option value="Critical">Not moving / severe</option></select></div>
           </div>
+          <p class="consult-safety-note">For severe symptoms, contact the clinic immediately. This guidance is preliminary.</p>
           <button type="button" class="btn-add-pet" id="btnAssessSymptoms">Show clinic guidance</button>
           <div id="consultResult" class="field-warning is-hidden" role="status"></div>
         </div>
@@ -840,7 +848,7 @@
   <script src="../js/api.js?v=20261026-token-fallback"></script>
   <!-- Must load before book-appointment.js, which calls VBForm at validate time. -->
   <script src="../../shared/js/form-validation.js"></script>
-  <script src="../js/book-appointment.js?v=20261026-existing-pets"></script>
+  <script src="../js/book-appointment.js?v=20261026-symptom-choices"></script>
   <script src="../js/site-settings.js?v=20260829-preview"></script>
 </body>
 </html>
