@@ -791,12 +791,52 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 /* ── Insights section ────────────────────────────────────────── */
 .insight-section { padding: 24px 26px 26px; }
 
-.insight-section > h3 {
+.insight-section-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px 20px;
+    margin-bottom: 18px;
+}
+
+.insight-section-header h3 {
     font-size: 18px;
     font-weight: 800;
     letter-spacing: -0.2px;
     color: var(--ink);
-    margin-bottom: 18px;
+}
+
+.insight-section-header p {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.insight-filter-field { display: grid; gap: 5px; min-width: min(230px, 100%); }
+.insight-filter-field label { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
+.insight-filter-field select {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-mid);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    font-size: 12.5px;
+    appearance: auto;
+}
+.insight-filter-field select:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.insight-filter-field select:disabled { color: var(--muted); background: var(--surface-2); }
+.insight-empty {
+    grid-column: 1 / -1;
+    padding: 26px 20px;
+    border: 1px dashed var(--border-mid);
+    border-radius: var(--r);
+    color: var(--muted);
+    font-size: 13px;
 }
 
 .insight-grid {
@@ -804,6 +844,8 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
 }
+.insight-grid.is-filtered { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+.insight-grid.is-filtered .insight-card { width: 100%; max-width: 900px; }
 
 /* ── Create Event modal ──────────────────────────────────────── */
 .modal {
@@ -2110,6 +2152,8 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 }
 .pace-note strong { color: #0f172a; }
 .rankings-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.95fr); align-items: start; gap: 16px; margin: 16px 0; }
+.rankings-grid.is-disease-specific { display: block; }
+.rankings-grid.is-disease-specific #animalGroupsCard { width: 100%; max-width: 960px; margin-inline: auto; }
 .ranking-card { min-width: 0; padding: 20px 22px 22px; }
 .ranking-card-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
 .ranking-card-heading h3 { margin: 0; color: var(--ink); font-size: 16px; font-weight: 800; letter-spacing: -0.2px; }
@@ -2131,7 +2175,8 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 }
 @media (max-width: 600px) {
     .insight-section { padding: 18px; }
-    .insight-section > h3 { font-size: 17px; margin-bottom: 14px; }
+    .insight-section-header h3 { font-size: 17px; }
+    .insight-filter-field { width: 100%; }
     .insight-card { min-height: 0; padding: 18px; }
     .ranking-card { padding: 16px; }
     .ranking-row { grid-template-columns: 20px minmax(0, 1fr) auto; gap: 5px 8px; }
