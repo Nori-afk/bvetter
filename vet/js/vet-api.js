@@ -31,9 +31,10 @@ function formAuthHeaders() {
 
 function getAuthHeaders() {
     const session = JSON.parse(localStorage.getItem('vbetter_session') || 'null');
+    const token = session?.token || localStorage.getItem('bvetter_token');
     return {
         'Content-Type': 'application/json',
-        ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {})
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
     };
 }
 
@@ -68,7 +69,7 @@ async function apiFetch(endpoint, options = {}) {
 async function getDashboardSummary(filters = {}) {
     try {
         const params = new URLSearchParams({ scope: 'vet', ...filters }).toString();
-        const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?${params}`);
+        const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?${params}`, { headers: getAuthHeaders() });
         const result = await response.json();
         return { ok: result.success, data: result.data || {}, error: result.success ? null : result.message };
     } catch (error) {
@@ -440,7 +441,7 @@ function getReportExportUrl(filters = {}, format = 'pdf') {
 async function getDiseaseAnalytics(disease = 'all', period = 'year', dataView = 'historical', currentMonth = '') {
     const params = new URLSearchParams({ scope: 'disease_analytics', disease, period, data_view: dataView, current_month: currentMonth }).toString();
     try {
-        const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?${params}`, { cache: 'no-store' });
+        const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?${params}`, { headers: getAuthHeaders(), cache: 'no-store' });
         const result = await response.json();
         return { ok: result.success, data: result.data || {}, error: result.success ? null : result.message };
     } catch (error) {
@@ -656,7 +657,7 @@ async function getDiseaseRiskPrediction(barangays, currentCasesByBarangay = {}, 
     try {
         const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?scope=disease_risk_prediction`, {
             method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             cache: 'no-store',
             body:    JSON.stringify({
                 barangays:                 barangays || [],
@@ -675,7 +676,8 @@ async function getDiseaseRiskPrediction(barangays, currentCasesByBarangay = {}, 
 async function getMassVaccinationDataset(dataView = 'historical') {
     try {
         const response = await fetch(
-            `${BACKEND_URL}/dashboard/dashboard.php?scope=mass_vaccination_dataset&data_view=${encodeURIComponent(dataView)}`
+            `${BACKEND_URL}/dashboard/dashboard.php?scope=mass_vaccination_dataset&data_view=${encodeURIComponent(dataView)}`,
+            { headers: getAuthHeaders() }
         );
         const result = await response.json();
         return {
@@ -696,7 +698,7 @@ async function getVaccinationForecast(steps) {
     try {
         const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?scope=vaccination_forecast`, {
             method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body:    JSON.stringify({ steps: steps })
         });
         const result = await response.json();
@@ -711,7 +713,7 @@ async function getVaccinationBarangayForecast(steps, barangays = []) {
     try {
         const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?scope=vaccination_forecast_barangay`, {
             method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body:    JSON.stringify({
                 steps,
                 metric: 'total_vaccinated',
@@ -786,7 +788,7 @@ async function dismissNotification(id) {
 
 async function getRFModelInfo() {
     try {
-        const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?scope=rf_model_info`);
+        const response = await fetch(`${BACKEND_URL}/dashboard/dashboard.php?scope=rf_model_info`, { headers: getAuthHeaders() });
         const result   = await response.json();
         return { ok: result.success, data: result.data || {}, error: result.success ? null : result.error };
     } catch (error) {

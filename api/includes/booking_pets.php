@@ -37,7 +37,7 @@ function bookingPetEntries(array $data, bool $ageRequired = false): array
                 $fields[$field] = trim((string) $value);
             }
             $group = ($entry['record_kind'] ?? 'individual') === 'group';
-            foreach ($group ? ['name', 'type', 'sex'] : ['name', 'type', 'breed', 'sex'] as $field) {
+            foreach ($group ? ['name', 'type'] : ['name', 'type', 'breed'] as $field) {
                 if ($fields[$field] === '') throw new InvalidArgumentException("{$label}: Please provide the pet's {$field}.");
             }
             $error = firstIdentityFieldError([
@@ -46,7 +46,7 @@ function bookingPetEntries(array $data, bool $ageRequired = false): array
                 [$fields['breed'], 'Breed', 80, 0],
             ]);
             if ($error !== null) throw new InvalidArgumentException("{$label}: {$error}");
-            if (!in_array(strtolower($fields['sex']), $group ? ['male', 'female', 'mixed', 'unknown'] : ['male', 'female'], true)) {
+            if ($fields['sex'] !== '' && !in_array(strtolower($fields['sex']), $group ? ['male', 'female', 'mixed', 'unknown'] : ['male', 'female', 'unknown'], true)) {
                 throw new InvalidArgumentException("{$label}: Please select a valid sex.");
             }
             if ($ageRequired && $fields['age'] === '') {

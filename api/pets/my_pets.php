@@ -5,6 +5,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../config/connection.php';
 require_once __DIR__ . '/../config/auth_guard.php';
 require_once __DIR__ . '/../includes/pet_standing.php';
+require_once __DIR__ . '/../includes/animal_visit_schema.php';
 
 function respond($statusCode, $payload)
 {
@@ -26,7 +27,9 @@ function clean($value)
 
 function displaySex($sex)
 {
-    return strtolower((string) $sex) === 'male' ? 'Male' : 'Female';
+    return match (strtolower((string) $sex)) {
+        'male' => 'Male', 'female' => 'Female', 'mixed' => 'Mixed', default => 'Unknown',
+    };
 }
 
 function displayDate($value)
@@ -162,6 +165,9 @@ function mapPet($pdo, $row, $withHistory)
         'id' => (int) $row['id'],
         'petName' => $row['pet_name'],
         'species' => $row['species'],
+        'animalCategory' => $row['animal_category'] ?? '',
+        'recordKind' => $row['record_kind'] ?? 'individual',
+        'estimatedCount' => (int) ($row['estimated_count'] ?? 1),
         'breed' => $row['breed'],
         'sex' => displaySex($row['sex']),
         'age' => $row['age'],
@@ -174,6 +180,7 @@ function mapPet($pdo, $row, $withHistory)
         'consulted' => $standing['consulted'],
         'alert' => $row['alert_text'] ?: '',
         'lastVaccinationDate' => $row['last_vaccination_date'] ? displayDate($row['last_vaccination_date']) : '',
+        'lastVaccinationDateRaw' => $row['last_vaccination_date'] ?: '',
         'lastVisit' => $lastVisit,
         'recordCount' => count($visits),
         'vaccinationCount' => count($vaccinations),
@@ -261,6 +268,7 @@ $input['userId']   = $authUserId;
 
 try {
     setupPetHistoryTables($pdo);
+    ensureAnimalVisitSchema($pdo);
 
     if ($action === 'list') listMyPets($pdo, $input);
     if ($action === 'detail') getMyPetDetail($pdo, $input);

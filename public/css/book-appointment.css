@@ -960,6 +960,17 @@ body {
   border-radius: 12px;
   min-width: 0;
 }
+.booking-pet-card[hidden] { display: none; }
+.booking-pet-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.booking-pet-tabs[hidden] { display: none; }
+.booking-pet-tab { border: 1px solid var(--border-default); background: #fff; color: var(--text-primary); border-radius: 20px; padding: 8px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+.booking-pet-tab.active { background: #e7f4ed; border-color: #23875b; color: #176747; font-weight: 700; }
+.booking-pet-source { margin-bottom: 16px; }
+.consult-suggestions { margin: 12px 0; padding: 12px; border-radius: 10px; background: #f0f8f3; }
+.consult-suggestions p { margin: 0 0 8px; font-size: 13px; }
+.consult-suggestion-chip { margin: 3px 6px 3px 0; border: 1px solid #23875b; border-radius: 18px; background: #fff; color: #176747; padding: 6px 11px; cursor: pointer; }
+.consult-suggestion-chip[aria-pressed="true"] { background: #23875b; color: #fff; }
+.booking-pet-card input[readonly], .booking-pet-card select:disabled { background: #f5f7f9; color: #344054; opacity: 1; }
 
 .booking-pet-header {
   display: flex;
@@ -1984,7 +1995,7 @@ body {
 /* ── BOOKING HEADER WIDTH FIX ── */
 .booking-top {
   margin: 24px auto 28px;
-  max-width: 860px;
+  max-width: 1120px;
   border-radius: 16px;
 }
 
@@ -2053,9 +2064,17 @@ body {
 /* ── FORM CARD WIDTH MATCHES HEADER ── */
 .booking-form-wrap {
   padding: 0;
-  max-width: 860px;
+  max-width: 1120px;
   margin: 0 auto;
   padding-bottom: 60px;
+}
+
+@media (min-width: 900px) {
+  #step2 .form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #step2 .booking-pet-card { padding: 18px 22px; }
+  #step3 #fieldVisitFields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  #step3 #fieldVisitFields > .form-group.full { grid-column: auto; }
+  #step3 #fieldVisitFields.is-hidden { display: none; }
 }
 
 .form-card,

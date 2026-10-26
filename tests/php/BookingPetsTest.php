@@ -59,11 +59,18 @@ final class BookingPetsTest extends TestCase
         bookingPetEntries(['pets' => [$this->pet(), $unknownAge]], true);
     }
 
+    public function testUnknownSexAndAnExistingPetCanBeBooked(): void
+    {
+        $newPet = array_replace($this->pet(), ['pet_sex' => '']);
+        $this->assertCount(1, bookingPetEntries(['pets' => [$newPet]]));
+        $this->assertCount(1, bookingPetEntries(['pets' => [['pet_id' => 12]]]));
+    }
+
     public function testInvalidDetailsOnAdditionalPetsAreRejected(): void
     {
         foreach ([
             ['pet_name' => '<script>'], ['pet_breed' => str_repeat('x', 81)],
-            ['pet_sex' => 'unknown'], ['pet_age' => '-1 Years'], ['pet_age' => '1.5 Years'],
+            ['pet_sex' => 'invalid'], ['pet_age' => '-1 Years'], ['pet_age' => '1.5 Years'],
             ['pet_vaccination_date' => '2026-02-30'], ['pet_type' => []], ['pet_id' => '7other'],
         ] as $change) {
             try {

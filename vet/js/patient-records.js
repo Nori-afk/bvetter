@@ -1288,7 +1288,7 @@ function buildBlankRecord(prefill = {}) {
 		caseCountBasis: prefill.caseCountBasis || (prefill.recordKind === 'group' ? 'group' : 'individual'),
 		breed: prefill.breed || '',
 		age: prefill.age || '',
-		sex: prefill.sex || 'Female',
+		sex: prefill.sex || 'Unknown',
 		weight: prefill.weight || '',
 		colorMarkings: prefill.colorMarkings || '',
 		ownerName: prefill.ownerName || '',
@@ -1381,8 +1381,10 @@ function renderPetEntryFields(index, data = {}, removable = false) {
 				<div class="field">
 					<label class="field-label">SEX</label>
 					<select class="form-input" data-field="sex">
+						<option ${!data.sex || data.sex === 'Unknown' ? 'selected' : ''}>Unknown</option>
 						<option ${data.sex === 'Male' ? 'selected' : ''}>Male</option>
-						<option ${(data.sex || 'Female') === 'Female' ? 'selected' : ''}>Female</option>
+						<option ${data.sex === 'Female' ? 'selected' : ''}>Female</option>
+						<option ${data.sex === 'Mixed' ? 'selected' : ''}>Mixed</option>
 					</select>
 				</div>
 				<div class="field">
@@ -1466,8 +1468,10 @@ function renderAdd(record) {
 						<div class="field">
 							<label class="field-label" for="sex">SEX</label>
 							<select class="form-input" id="sex" name="sex">
+								<option ${!data.sex || data.sex === 'Unknown' ? 'selected' : ''}>Unknown</option>
 								<option ${data.sex === 'Male' ? 'selected' : ''}>Male</option>
 								<option ${data.sex === 'Female' ? 'selected' : ''}>Female</option>
+								<option ${data.sex === 'Mixed' ? 'selected' : ''}>Mixed</option>
 							</select>
 						</div>
 						<div class="field">
@@ -1751,8 +1755,10 @@ function renderEditModal(record) {
 						<div class="em-field">
 							<label class="em-label" for="edit-sex">SEX</label>
 							<select class="em-input" id="edit-sex" name="sex">
+								<option ${!record.sex || record.sex === 'Unknown' ? 'selected' : ''}>Unknown</option>
 								<option ${record.sex === 'Male' ? 'selected' : ''}>Male</option>
 								<option ${record.sex === 'Female' ? 'selected' : ''}>Female</option>
+								<option ${record.sex === 'Mixed' ? 'selected' : ''}>Mixed</option>
 							</select>
 						</div>
 						<div class="em-field">
@@ -2298,8 +2304,10 @@ function renderAddPetModal(record) {
 						<div class="em-field">
 							<label class="em-label" for="add-pet-sex">SEX</label>
 							<select class="em-input" id="add-pet-sex" name="sex">
+								<option>Unknown</option>
 								<option>Male</option>
 								<option>Female</option>
+								<option>Mixed</option>
 							</select>
 						</div>
 						<div class="em-field">

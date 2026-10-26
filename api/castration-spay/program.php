@@ -37,7 +37,7 @@ function clean($value)
 function normalizeSex($value)
 {
     $value = strtolower(clean($value));
-    return $value === 'female' ? 'female' : 'male';
+    return in_array($value, ['male', 'female'], true) ? $value : 'unknown';
 }
 
 /* ── Idempotent schema setup (mirrors mass-vaccination/events.php) ── */
@@ -203,7 +203,6 @@ function findOrCreatePet($pdo, $ownerId, $data)
     if ($species === '') $missing[] = 'type';
     if ($breed === '')   $missing[] = 'breed';
     if ($age === '')     $missing[] = 'age';
-    if ($sex === '')     $missing[] = 'sex';
 
     if ($missing) {
         respond(422, [

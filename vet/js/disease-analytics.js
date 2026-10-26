@@ -18,6 +18,13 @@
 // other user-sourced value before reaching innerHTML.
 const esc = (v) => window.vbEscapeHtml(v);
 
+function analyticsAuthHeaders() {
+    let session = null;
+    try { session = JSON.parse(localStorage.getItem('vbetter_session') || 'null'); } catch { /* use token fallback */ }
+    const token = session?.token || localStorage.getItem('bvetter_token');
+    return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
 let diseaseAnalyticsData = {
     filters: ['All Diseases'],
     selectedDisease: 'All Diseases',
@@ -36,6 +43,7 @@ let diseaseAnalyticsData = {
     liveLayer: null,
     predictionSummary: { total: 0, label: 'Barangays monitored' },
     sources: [],
+    topDiseases: [],
     actualCases: [],
     predictedCases: [],
     insights: [],
@@ -48,6 +56,7 @@ const state = {
     chartSort: 'actual',
     mapActionMode: false,
     loadRequestId: 0,
+    loadError: '',
     map: null,
     heatLayer: null,
     hotspotMarkers: [],
@@ -174,7 +183,7 @@ async function diseaseAnalyticsRequest(disease, period, dataView, currentMonth) 
         current_month: currentMonth || '',
     });
     try {
-        const res    = await fetch(`/api/dashboard/dashboard.php?${params}`, { cache: 'no-store' });
+        const res    = await fetch(`/api/dashboard/dashboard.php?${params}`, { headers: analyticsAuthHeaders(), cache: 'no-store' });
         const result = await res.json();
         return { ok: result.success, data: result.data || {}, error: result.success ? null : result.message };
     } catch (e) {
@@ -298,7 +307,11 @@ async function loadDiseaseAnalytics(disease, period, dataView, currentMonth) {
         : await diseaseAnalyticsRequest(disease, period, dataView, currentMonth);
 
     if (requestId !== state.loadRequestId) return false;
-    if (!analyticsRes.ok || !analyticsRes.data || !Object.keys(analyticsRes.data).length) return false;
+    if (!analyticsRes.ok || !analyticsRes.data || !Object.keys(analyticsRes.data).length) {
+        state.loadError = analyticsRes.error || 'Disease Analytics could not load. Please sign in again or contact the clinic administrator.';
+        return false;
+    }
+    state.loadError = '';
 
     diseaseAnalyticsData                 = analyticsRes.data;
     diseaseAnalyticsData.selectedDisease = disease;
@@ -444,7 +457,7 @@ async function diseaseForecastRequest(disease) {
     try {
         const res = await fetch('/api/dashboard/dashboard.php?scope=disease_forecast', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: analyticsAuthHeaders(),
             cache: 'no-store',
             body: JSON.stringify({ diagnosis: disease, steps: 3 })
         });
@@ -957,6 +970,11 @@ function renderLiveLayer() {
 
 /* ── Overview render ────────────────────────────────────────── */
 function renderOverview() {
+    const loadError = document.getElementById('analyticsLoadError');
+    if (loadError) {
+        loadError.hidden = !state.loadError;
+        loadError.textContent = state.loadError;
+    }
     const baselineLabel = document.getElementById('baselineLabel');
     if (baselineLabel) baselineLabel.textContent = diseaseAnalyticsData.baselineLabel || '';
 
@@ -971,6 +989,20 @@ function renderOverview() {
             </article>
         `).join('');
     document.querySelectorAll('#kpiCards .kpi-card strong').forEach(el => countUp(el));
+
+    const topDiseases = diseaseAnalyticsData.topDiseases || [];
+    const topHost = document.getElementById('topDiseasesChart');
+    if (topHost) {
+        const maximum = Math.max(1, ...topDiseases.map(row => Number(row.value) || 0));
+        topHost.innerHTML = topDiseases.length
+            ? topDiseases.map((row, index) => `<div class="top-disease-row">
+                <span class="top-disease-rank">${index + 1}</span>
+                <span class="top-disease-name">${esc(row.name)}</span>
+                <span class="top-disease-track"><span style="width:${Math.max(2, (Number(row.value) || 0) / maximum * 100)}%"></span></span>
+                <strong>${Number(row.value) || 0}</strong>
+              </div>`).join('')
+            : '<p>No diagnosed cases recorded for this period.</p>';
+    }
 
     // Per-disease forecast sits directly under the KPI row: it is the same
     // scope those cards describe (this disease, municipality-wide), just
@@ -1415,7 +1447,7 @@ async function loadBarangayDifferential(barangay, symptomCluster, animalGroup) {
     try {
         const response = await fetch('/api/dashboard/dashboard.php?scope=barangay_differential', {
             method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: analyticsAuthHeaders(),
             body:    JSON.stringify({
                 barangay,
                 symptom_cluster: symptomCluster || '',

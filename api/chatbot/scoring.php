@@ -13,13 +13,14 @@
  * in the symptom count. assessConsultation() compares it against a flat
  * >= 4 cutoff before falling back to fallbackAssessment().
  *
- * Symptom-overlap guard: pet type (+2), duration (+2), and severity (+2)
+ * Species and symptom-overlap guards: pet type (+2), duration (+2), and severity (+2)
  * alone reach that >= 4 cutoff with zero symptoms in common, so a rule
  * used to be selectable on facets it happens to share by chance, with no
  * evidence for the condition it names (verification report, 2026-08-24:
  * 23/27 swept combinations blind-matched this way). A rule with at least
- * one symptom in the request is presumed selectable; anything else is
- * rejected before the facet weights are ever added, regardless of how
+ * one symptom in the request is presumed selectable only when the species
+ * matches or the rule is generic Other; anything else is rejected before
+ * the facet weights are ever added, regardless of how
  * high they'd otherwise push the score.
  */
 
@@ -27,6 +28,7 @@ require_once __DIR__ . '/normalize.php';
 
 function scoreRule($rule, $petType, $symptoms, $duration, $severity)
 {
+    if ($rule['pet_type'] !== $petType && $rule['pet_type'] !== 'Other') return 0;
     $ruleSymptoms = decodeSymptoms($rule['symptoms_json']);
     $overlap = array_intersect($symptoms, $ruleSymptoms);
     if (!$overlap) return 0;

@@ -844,6 +844,7 @@
 				<form id="symptom-create-form" data-symptom-id="${symptom.id}">
 					<div class="form-grid">
 						<label class="field span-2"><span>Symptoms Name*</span><input id="new-symptom-name" type="text" value="${escapeHtml(symptom.name)}" placeholder="e.g. Excessive Drooling"></label>
+						<label class="field span-2"><span>Words owners may use (comma separated)</span><input id="new-symptom-aliases" type="text" value="${escapeHtml((symptom.aliases || []).join(', '))}" placeholder="e.g. ayaw kumain, walang gana kumain"></label>
 						<label class="field"><span>Urgent Symptom</span><select id="new-symptom-urgent"><option value="no" ${!symptom.isUrgent ? 'selected' : ''}>No</option><option value="yes" ${symptom.isUrgent ? 'selected' : ''}>Yes</option></select></label>
 					</div>
 					<div class="modal-footer">
@@ -860,6 +861,7 @@
 			<form id="symptom-create-form">
 				<div class="form-grid">
 					<label class="field span-2"><span>Symptoms Name*</span><input id="new-symptom-name" type="text" placeholder="e.g. Excessive Drooling"></label>
+					<label class="field span-2"><span>Words owners may use (comma separated)</span><input id="new-symptom-aliases" type="text" placeholder="e.g. ayaw kumain, walang gana kumain"></label>
 					<label class="field"><span>Urgent Symptom</span><select id="new-symptom-urgent"><option value="no">No</option><option value="yes">Yes</option></select></label>
 				</div>
 				<div class="modal-footer">
@@ -929,19 +931,19 @@
 		return consultationSymptoms.find((item) => item.id === id);
 	}
 
-	async function createSymptom(name, isUrgent) {
+	async function createSymptom(name, isUrgent, aliases) {
 		const existing = consultationSymptoms.find((item) => item.name.toLowerCase() === name.toLowerCase());
 		if (existing) return existing;
 
-		const saved = await chatbotRequest('save_symptom', { name, isUrgent: isUrgent ? 'yes' : 'no' });
+		const saved = await chatbotRequest('save_symptom', { name, isUrgent: isUrgent ? 'yes' : 'no', aliases });
 		consultationSymptoms = [...consultationSymptoms, saved];
 		renderSymptomGrid();
 		return saved;
 	}
 
-	async function updateSymptomEntry(id, name, isUrgent) {
+	async function updateSymptomEntry(id, name, isUrgent, aliases) {
 		const previous = symptomById(id);
-		const saved = await chatbotRequest('update_symptom', { id, name, isUrgent: isUrgent ? 'yes' : 'no' });
+		const saved = await chatbotRequest('update_symptom', { id, name, isUrgent: isUrgent ? 'yes' : 'no', aliases });
 		consultationSymptoms = consultationSymptoms.map((item) => (item.id === id ? saved : item));
 		if (previous && previous.name !== saved.name) {
 			state.selectedSymptoms = state.selectedSymptoms.map((item) => (item === previous.name ? saved.name : item));
@@ -1736,14 +1738,15 @@
 				const name = String(document.getElementById('new-symptom-name')?.value || '').trim();
 				if (!name) return;
 				const isUrgent = document.getElementById('new-symptom-urgent')?.value === 'yes';
+				const aliases = String(document.getElementById('new-symptom-aliases')?.value || '').trim();
 				const editingId = Number(symptomForm.dataset.symptomId || 0);
 
 				const submitButton = symptomForm.querySelector('button[type="submit"]');
 				if (submitButton) submitButton.disabled = true;
 				try {
 					const saved = editingId
-						? await updateSymptomEntry(editingId, name, isUrgent)
-						: await createSymptom(name, isUrgent);
+						? await updateSymptomEntry(editingId, name, isUrgent, aliases)
+						: await createSymptom(name, isUrgent, aliases);
 					if (!state.selectedSymptoms.includes(saved.name)) {
 						state.selectedSymptoms = [...state.selectedSymptoms, saved.name];
 					}

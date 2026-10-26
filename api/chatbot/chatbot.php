@@ -107,6 +107,7 @@ function setupChatbotTables($pdo)
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(100) NOT NULL,
             is_urgent TINYINT(1) NOT NULL DEFAULT 0,
+            aliases_json JSON NULL,
             status ENUM('active','inactive') NOT NULL DEFAULT 'active',
             created_by_user_id INT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -115,6 +116,32 @@ function setupChatbotTables($pdo)
             INDEX idx_chatbot_symptom_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+    if (!$pdo->query("SHOW COLUMNS FROM chatbot_symptoms LIKE 'aliases_json'")->fetch()) {
+        $pdo->exec('ALTER TABLE chatbot_symptoms ADD COLUMN aliases_json JSON NULL');
+    }
+}
+
+function seedDefaultSymptomAliases($pdo)
+{
+    $defaultAliases = [
+        'Fever' => ['lagnat', 'mainit ang katawan', 'fever'],
+        'Vomiting' => ['suka', 'sumusuka', 'nagsusuka', 'vomit'],
+        'Diarrhea' => ['pagtatae', 'nagtatae', 'malabnaw ang dumi', 'diarrhea'],
+        'Coughing' => ['ubo', 'umuubo', 'cough'],
+        'Limping' => ['pilay', 'umiika', 'limping'],
+        'Loss of Appetite' => ['ayaw kumain', 'hindi kumakain', 'walang gana kumain', 'appetite loss'],
+        'Itching' => ['nangangati', 'kamot', 'itching'],
+        'Seizures' => ['pangingisay', 'nangingisay', 'seizure'],
+        'Wounds' => ['sugat', 'may sugat', 'wound'],
+    ];
+    $seedAliases = $pdo->prepare('UPDATE chatbot_symptoms SET aliases_json = :aliases WHERE name = :name AND aliases_json IS NULL');
+    foreach ($defaultAliases as $name => $aliases) {
+        $seedAliases->execute([':name' => $name, ':aliases' => json_encode($aliases)]);
+    }
+}
+
+function maintainChatbotRules($pdo)
+{
 
     $pdo->exec("
         DELETE duplicate_rules
@@ -278,6 +305,7 @@ function mapSymptom($row)
         'id' => (int) $row['id'],
         'name' => $row['name'],
         'isUrgent' => (bool) $row['is_urgent'],
+        'aliases' => decodeSymptoms($row['aliases_json'] ?? []),
         'is_urgent' => (bool) $row['is_urgent'],
         'status' => $row['status'],
     ];
@@ -304,6 +332,8 @@ function saveSymptom($pdo, $data)
         respond(422, ['success' => false, 'message' => 'Symptom name is required.']);
     }
     $isUrgent = parseBool($data['isUrgent'] ?? $data['is_urgent'] ?? 'no');
+    $aliases = array_values(array_unique(array_filter(array_map('trim', explode(',', clean($data['aliases'] ?? ''))))));
+    if (count($aliases) > 20 || mb_strlen(implode(',', $aliases)) > 1000) respond(422, ['success' => false, 'message' => 'Too many symptom phrases.']);
 
     $stmt = $pdo->prepare('SELECT * FROM chatbot_symptoms WHERE name = :name');
     $stmt->execute([':name' => $name]);
@@ -313,12 +343,13 @@ function saveSymptom($pdo, $data)
     }
 
     $stmt = $pdo->prepare("
-        INSERT INTO chatbot_symptoms (name, is_urgent, created_by_user_id)
-        VALUES (:name, :is_urgent, :created_by_user_id)
+        INSERT INTO chatbot_symptoms (name, is_urgent, aliases_json, created_by_user_id)
+        VALUES (:name, :is_urgent, :aliases, :created_by_user_id)
     ");
     $stmt->execute([
         ':name' => $name,
         ':is_urgent' => $isUrgent,
+        ':aliases' => json_encode($aliases),
         ':created_by_user_id' => (int) ($data['created_by_user_id'] ?? $data['user_id'] ?? 0) ?: null,
     ]);
     $id = (int) $pdo->lastInsertId();
@@ -336,9 +367,11 @@ function updateSymptom($pdo, $data)
         respond(422, ['success' => false, 'message' => 'Symptom id and name are required.']);
     }
     $isUrgent = parseBool($data['isUrgent'] ?? $data['is_urgent'] ?? 'no');
+    $aliases = array_values(array_unique(array_filter(array_map('trim', explode(',', clean($data['aliases'] ?? ''))))));
+    if (count($aliases) > 20 || mb_strlen(implode(',', $aliases)) > 1000) respond(422, ['success' => false, 'message' => 'Too many symptom phrases.']);
 
-    $stmt = $pdo->prepare('UPDATE chatbot_symptoms SET name = :name, is_urgent = :is_urgent WHERE id = :id');
-    $stmt->execute([':name' => $name, ':is_urgent' => $isUrgent, ':id' => $id]);
+    $stmt = $pdo->prepare('UPDATE chatbot_symptoms SET name = :name, is_urgent = :is_urgent, aliases_json = :aliases WHERE id = :id');
+    $stmt->execute([':name' => $name, ':is_urgent' => $isUrgent, ':aliases' => json_encode($aliases), ':id' => $id]);
 
     $stmt = $pdo->prepare('SELECT * FROM chatbot_symptoms WHERE id = :id');
     $stmt->execute([':id' => $id]);
@@ -787,6 +820,8 @@ if (in_array($action, $staffActions, true)) {
 try {
     setupChatbotTables($pdo);
     seedDefaults($pdo);
+    seedDefaultSymptomAliases($pdo);
+    maintainChatbotRules($pdo);
 
     if ($action === 'list_inquiries') listInquiryRules($pdo, false);
     if ($action === 'public_inquiries') listInquiryRules($pdo, true);

@@ -515,16 +515,16 @@ function db_live_record_months($pdo): array
  * as Historical counts them (one per row), typed visits by the same catalog rule
  * as db_disease_barangay_counts, and only in months where they count.
  */
-function db_top_diagnosis($pdo, string $exactMonth, string $selected): string
+function db_diagnosis_counts($pdo, string $exactMonth, string $selected): array
 {
-    if (!preg_match('/^\d{4}-\d{2}$/', $exactMonth)) return '';
+    if (!preg_match('/^\d{4}-\d{2}$/', $exactMonth)) return [];
 
     $counts = [];
     foreach (bv_upload_rows_between($exactMonth, $exactMonth) as $row) {
         $diagnosis = bv_clean($row['diagnosis'] ?? '');
         if ($diagnosis === '') continue;
         if ($selected !== '' && strtolower($diagnosis) !== $selected) continue;
-        $counts[$diagnosis] = ($counts[$diagnosis] ?? 0) + 1;
+        $counts[$diagnosis] = ($counts[$diagnosis] ?? 0) + (int) ($row['cases_reported'] ?? 1);
     }
 
     if (bv_table_exists($pdo, 'patient_visit_records') && bv_live_counts_in_month($exactMonth, $pdo)) {
@@ -556,7 +556,12 @@ function db_top_diagnosis($pdo, string $exactMonth, string $selected): string
     }
 
     arsort($counts);
-    return (string) (array_key_first($counts) ?? '');
+    return $counts;
+}
+
+function db_top_diagnosis($pdo, string $exactMonth, string $selected): string
+{
+    return (string) (array_key_first(db_diagnosis_counts($pdo, $exactMonth, $selected)) ?? '');
 }
 
 /**
@@ -700,7 +705,8 @@ function disease_analytics_data($pdo)
 
     /* ── Top disease label ───────────────────────────────────────────── */
     if ($isCurrent) {
-        $topDisease = db_top_diagnosis($pdo, $currentMonth, $selected)
+        $diseaseCounts = db_diagnosis_counts($pdo, $currentMonth, $selected);
+        $topDisease = array_key_first($diseaseCounts)
             ?: ($selected !== '' ? ucwords($selected) : 'N/A');
         if ($topDisease !== 'N/A') $topDisease = ucwords(strtolower($topDisease));
     } else {
@@ -719,7 +725,7 @@ function disease_analytics_data($pdo)
             $latestConsult[] = $r;
         }
 
-        $diseaseCounts = bv_count_by($latestConsult, 'diagnosis');
+        $diseaseCounts = bv_sum_by($latestConsult, 'diagnosis', 'cases_reported');
         $topDisease    = array_key_first($diseaseCounts)
             ?: ($selected !== '' ? ucwords($selected) : 'N/A');
     }
@@ -919,6 +925,11 @@ function disease_analytics_data($pdo)
     $liveCoverage = $isCurrent ? db_live_coverage_stats($pdo, $currentMonth) : null;
     $liveMonths   = $isCurrent ? db_live_record_months($pdo) : null;
 
+    $topDiseases = [];
+    foreach (array_slice($diseaseCounts, 0, 10, true) as $name => $count) {
+        $topDiseases[] = ['name' => $name, 'value' => (int) round($count)];
+    }
+
     return [
         'filters'         => $filters,
         'selectedDisease' => $selected !== '' ? ucwords($selected) : 'All Diseases',
@@ -995,6 +1006,7 @@ function disease_analytics_data($pdo)
             'label' => 'Barangays monitored',
         ],
         'sources'      => $sources,
+        'topDiseases'  => $topDiseases,
         'actualCases'  => $actualCases,
         'predictedCases' => $predictedCases,
         'insights'     => $insights,

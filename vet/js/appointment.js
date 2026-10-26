@@ -36,13 +36,10 @@ const ICON_EYE = `
 		<circle cx="12" cy="12" r="3"></circle>
 	</svg>
 `;
-const ICON_TRASH = `
+const ICON_CANCEL = `
 	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-		<path d="M3 6h18"></path>
-		<path d="M8 6V4h8v2"></path>
-		<path d="M19 6l-1 14H6L5 6"></path>
-		<path d="M10 11v6"></path>
-		<path d="M14 11v6"></path>
+		<rect x="3" y="4" width="18" height="17" rx="2"></rect>
+		<path d="M8 2v4M16 2v4M3 10h18M9 14l6 5M15 14l-6 5"></path>
 	</svg>
 `;
 const ICON_RESCHEDULE = `
@@ -485,7 +482,7 @@ function renderTable() {
 						<div class="action-buttons">
 							<button type="button" title="View" data-action="view" data-id="${item.id}" aria-label="View">${ICON_EYE}</button>
 							${canReschedule ? `<button type="button" title="Reschedule" data-action="reschedule" data-id="${item.id}" aria-label="Reschedule appointment">${ICON_RESCHEDULE}</button>` : ''}
-							<button type="button" title="Delete" data-action="delete" data-id="${item.id}" aria-label="Delete">${ICON_TRASH}</button>
+							${['pending', 'confirmed', 'reschedule_pending', 'owner_reschedule_pending'].includes(item.status) ? `<button type="button" title="Cancel Appointment" data-action="cancel" data-id="${item.id}" aria-label="Cancel appointment">${ICON_CANCEL}</button>` : ''}
 						</div>
 					</td>
 				</tr>
@@ -650,17 +647,18 @@ function detailsModalTemplate(appointment) {
 	const ownerReschedulePending = appointment.status === 'owner_reschedule_pending';
 	const clinicReschedulePending = appointment.status === 'reschedule_pending';
 	const canReschedule = ['pending', 'confirmed', 'completed'].includes(appointment.status);
+	const canCancel = ['pending', 'confirmed', 'reschedule_pending', 'owner_reschedule_pending'].includes(appointment.status);
 	const actionRow = ownerReschedulePending
 		? `<div class="appt-action-row">
 			<button class="appt-action-btn appt-action-complete" type="button" data-modal-action="approve-owner-reschedule"><i data-lucide="check-circle-2"></i>Approve Requested Time</button>
 			<button class="appt-action-btn appt-action-cancel" type="button" data-modal-action="decline-owner-reschedule"><i data-lucide="x-circle"></i>Decline Request</button>
 		</div>`
 		: clinicReschedulePending
-			? ''
+			? `<div class="appt-action-row"><button class="appt-action-btn appt-action-cancel" type="button" data-modal-action="open-cancel"><i data-lucide="calendar-x"></i>Cancel Appointment</button></div>`
 			: `<div class="appt-action-row">
-				<button class="appt-action-btn appt-action-complete" type="button" data-modal-action="open-complete"><i data-lucide="check-circle-2"></i>Mark as Completed</button>
+				${appointment.status === 'confirmed' ? '<button class="appt-action-btn appt-action-complete" type="button" data-modal-action="open-complete"><i data-lucide="check-circle-2"></i>Mark as Completed</button>' : ''}
 				${canReschedule ? '<button class="appt-action-btn appt-action-reschedule" type="button" data-modal-action="open-reschedule"><i data-lucide="calendar-clock"></i>Reschedule</button>' : ''}
-				<button class="appt-action-btn appt-action-cancel" type="button" data-modal-action="open-cancel"><i data-lucide="x-circle"></i>Cancel</button>
+				${canCancel ? '<button class="appt-action-btn appt-action-cancel" type="button" data-modal-action="open-cancel"><i data-lucide="calendar-x"></i>Cancel Appointment</button>' : ''}
 			</div>`;
 	const requestedCurrent = formatDateTime(`${appointment.preferredDate}T${appointment.timeSlot || '00:00'}`);
 	const requestedNew = ownerReschedulePending
@@ -738,10 +736,7 @@ function detailsModalTemplate(appointment) {
 
 			<div class="modal-footer">
 				<button class="btn btn-outline" type="button" data-modal-action="close">Close</button>
-				<button class="btn btn-danger" type="button" data-modal-action="open-delete">
-					<i data-lucide="trash-2"></i>
-					Delete Record
-				</button>
+				${['pending', 'confirmed', 'reschedule_pending', 'owner_reschedule_pending'].includes(appointment.status) ? `<button class="btn btn-danger" type="button" data-modal-action="open-cancel"><i data-lucide="calendar-x"></i>Cancel Appointment</button>` : ''}
 			</div>
 		</div>
 	`;
@@ -882,45 +877,6 @@ function cancelModalTemplate(appointment) {
 				<button class="btn btn-danger" type="button" data-modal-action="confirm-cancel">
 					<i data-lucide="x-circle"></i>
 					Yes, cancel
-				</button>
-			</div>
-		</div>
-	`;
-}
-
-function deleteModalTemplate(appointment) {
-	const dt = formatDateTime(appointment.datetime);
-	const initial = (appointment.patient || '?').charAt(0).toUpperCase();
-	return `
-		<div class="appt-modal-header appt-accent-danger">
-			<div class="appt-header-avatar appt-avatar-danger">${initial}</div>
-			<div class="appt-modal-identity">
-				<div class="appt-header-name">Delete Record?</div>
-				<div class="appt-header-meta">${appointment.patient} &middot; ${appointment.service} &middot; ${dt.date}</div>
-			</div>
-		</div>
-		<div class="appt-modal-body">
-			<p class="appt-modal-eyebrow">This action is permanent and cannot be undone. All data for this appointment will be lost.</p>
-			<div class="appt-confirm-card appt-confirm-danger">
-				<div class="appt-info-rows">
-					<div class="appt-info-row"><span>Owner</span><strong>${appointment.owner}</strong></div>
-					<div class="appt-info-row"><span>Pet</span><strong>${appointment.patient}</strong></div>
-					<div class="appt-info-row"><span>Date &amp; Time</span><strong>${dt.date} &middot; ${dt.time}</strong></div>
-					<div class="appt-info-row"><span>Type</span><strong>${appointment.type}</strong></div>
-				</div>
-			</div>
-			<div class="delete-confirm-field">
-				<label class="delete-confirm-label" for="delete-confirm">
-					<i data-lucide="triangle-alert"></i>
-					Type <strong>DELETE</strong> to confirm
-				</label>
-				<input id="delete-confirm" class="delete-confirm-input" type="text" placeholder="DELETE" autocomplete="off">
-			</div>
-			<div class="modal-footer">
-				<button class="btn btn-outline" type="button" data-modal-action="open-details">Keep Record</button>
-				<button class="btn btn-danger" type="button" data-modal-action="confirm-delete">
-					<i data-lucide="trash-2"></i>
-					Confirm Delete
 				</button>
 			</div>
 		</div>
@@ -1097,12 +1053,6 @@ function openCancelModal() {
 	openModal(cancelModalTemplate(selected), 'modal-sm');
 }
 
-function openDeleteModal() {
-	const selected = getAppointmentById(state.selectedAppointmentId);
-	if (!selected) return;
-	openModal(deleteModalTemplate(selected), 'modal-sm');
-}
-
 async function applyReschedule() {
 	const selected = getAppointmentById(state.selectedAppointmentId);
 	if (!selected) return;
@@ -1163,23 +1113,6 @@ function applyComplete() {
 
 function applyCancel() {
 	updateStatus(state.selectedAppointmentId, 'cancelled');
-	closeModal();
-}
-
-async function applyDelete() {
-	const input = document.getElementById('delete-confirm');
-	if (!input || input.value.trim() !== 'DELETE') {
-		await vbAlert('Please type DELETE exactly to confirm this permanent action.');
-		return;
-	}
-	if (window.VetAPI?.deleteAppointment) {
-		const result = await window.VetAPI.deleteAppointment(state.selectedAppointmentId);
-		if (!result.ok) {
-			await vbAlert(result.error || 'Failed to delete appointment.');
-			return;
-		}
-	}
-	removeAppointment(state.selectedAppointmentId);
 	closeModal();
 }
 
@@ -1279,9 +1212,9 @@ function setupEvents() {
 
 		if (button.dataset.action === 'view') openDetailsModal(id);
 		if (button.dataset.action === 'reschedule') openRescheduleModal();
-		if (button.dataset.action === 'delete') {
+		if (button.dataset.action === 'cancel') {
 			state.selectedAppointmentId = id;
-			openDeleteModal();
+			openCancelModal();
 		}
 	});
 
@@ -1304,13 +1237,11 @@ function setupEvents() {
 			if (action === 'open-reschedule') openRescheduleModal();
 			if (action === 'open-complete') openCompleteModal();
 			if (action === 'open-cancel') openCancelModal();
-			if (action === 'open-delete') openDeleteModal();
 			if (action === 'confirm-reschedule') applyReschedule();
 			if (action === 'approve-owner-reschedule') respondToOwnerReschedule(state.selectedAppointmentId, 'accept');
 			if (action === 'decline-owner-reschedule') respondToOwnerReschedule(state.selectedAppointmentId, 'decline');
 			if (action === 'confirm-complete') applyComplete();
 			if (action === 'confirm-cancel') applyCancel();
-			if (action === 'confirm-delete') applyDelete();
 			if (action === 'confirm-add-visit-type') confirmAddVisitType();
 			if (action === 'remove-visit-type') removeVisitType(Number(actionEl.dataset.id));
 			return;

@@ -211,9 +211,9 @@ function renderVisitItem(visit) {
           <span class="mp-timeline-date">${escapeHtmlPets(visit.date)}</span>
         </div>
         ${visit.attendingVet ? `<p class="mp-timeline-vet">Attending: ${escapeHtmlPets(visit.attendingVet)}</p>` : ''}
-        ${visit.diagnosis ? `<p class="mp-timeline-diag"><strong>Diagnosis:</strong> ${escapeHtmlPets(visit.diagnosis)}</p>` : ''}
-        ${visit.treatment ? `<p class="mp-timeline-diag"><strong>Treatment:</strong> ${escapeHtmlPets(visit.treatment)}</p>` : ''}
-        ${visitSymptoms(visit) ? `<p class="mp-timeline-diag"><strong>Symptoms:</strong> ${escapeHtmlPets(visitSymptoms(visit))}</p>` : ''}
+        ${visitSymptoms(visit) ? `<p class="mp-timeline-diag"><strong>Symptoms</strong><span>${escapeHtmlPets(visitSymptoms(visit))}</span></p>` : ''}
+        ${visit.diagnosis ? `<p class="mp-timeline-diag"><strong>Diagnosis</strong><span>${escapeHtmlPets(visit.diagnosis)}</span></p>` : ''}
+        ${visit.treatment ? `<p class="mp-timeline-diag"><strong>Treatment</strong><span>${escapeHtmlPets(visit.treatment)}</span></p>` : ''}
       </div>
     </div>
   `;

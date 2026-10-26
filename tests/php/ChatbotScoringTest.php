@@ -46,13 +46,13 @@ final class ChatbotScoringTest extends TestCase
         $rule = $this->rule('Dog', ['Vomiting', 'Diarrhea', 'Wounds'], 'Less Than 24 Hours', 'Active');
 
         // Same rule, same facets, differing only in how many symptoms overlap.
-        $one = scoreRule($rule, 'Cat', ['Vomiting'], 'More than 3 days', 'Critical');
-        $two = scoreRule($rule, 'Cat', ['Vomiting', 'Diarrhea'], 'More than 3 days', 'Critical');
-        $three = scoreRule($rule, 'Cat', ['Vomiting', 'Diarrhea', 'Wounds'], 'More than 3 days', 'Critical');
+        $one = scoreRule($rule, 'Dog', ['Vomiting'], 'More than 3 days', 'Critical');
+        $two = scoreRule($rule, 'Dog', ['Vomiting', 'Diarrhea'], 'More than 3 days', 'Critical');
+        $three = scoreRule($rule, 'Dog', ['Vomiting', 'Diarrhea', 'Wounds'], 'More than 3 days', 'Critical');
 
-        $this->assertSame(3, $one);
-        $this->assertSame(6, $two);
-        $this->assertSame(9, $three);
+        $this->assertSame(5, $one);
+        $this->assertSame(8, $two);
+        $this->assertSame(11, $three);
     }
 
     public function testScoreIsNotNormalizedBySymptomCount(): void
@@ -65,8 +65,8 @@ final class ChatbotScoringTest extends TestCase
         $rule = $this->rule('Dog', ['Vomiting'], 'Less Than 24 Hours', 'Active');
         $noise = ['Vomiting', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'];
 
-        $this->assertSame(3, scoreRule($rule, 'Cat', ['Vomiting'], 'More than 3 days', 'Critical'));
-        $this->assertSame(3, scoreRule($rule, 'Cat', $noise, 'More than 3 days', 'Critical'));
+        $this->assertSame(5, scoreRule($rule, 'Dog', ['Vomiting'], 'More than 3 days', 'Critical'));
+        $this->assertSame(5, scoreRule($rule, 'Dog', $noise, 'More than 3 days', 'Critical'));
     }
 
     public function testOtherPetTypeActsAsWildcardWhenSymptomsOverlap(): void
@@ -110,8 +110,8 @@ final class ChatbotScoringTest extends TestCase
         // scores zero for that symptom rather than matching.
         $rule = $this->rule('Dog', ['Vomiting'], 'Less Than 24 Hours', 'Active');
 
-        $this->assertSame(3, scoreRule($rule, 'Cat', ['Vomiting'], 'More than 3 days', 'Critical'));
-        $this->assertSame(0, scoreRule($rule, 'Cat', ['vomiting'], 'More than 3 days', 'Critical'));
+        $this->assertSame(5, scoreRule($rule, 'Dog', ['Vomiting'], 'More than 3 days', 'Critical'));
+        $this->assertSame(0, scoreRule($rule, 'Dog', ['vomiting'], 'More than 3 days', 'Critical'));
     }
 
     public function testFacetOnlyMatchNoLongerReachesTheCutoff(): void
@@ -195,15 +195,9 @@ final class ChatbotScoringTest extends TestCase
         $this->assertSame(9, $score); // 2 + 2 + 2 + 3*1 -- Fever adds nothing, doesn't block
     }
 
-    public function testDistinctRulesCanTieOnScore(): void
+    public function testRuleForAnotherSpeciesCannotBeShown(): void
     {
-        // assessConsultation() picks with `$score > $bestScore`, so on a tie
-        // the rule fetched first wins and the other is never considered.
-        // Exact ties between genuinely different rules are reachable, which
-        // means SELECT order alone can decide the recommendation shown to the
-        // owner. Note the second rule here is for a *Cat* and still ties on a
-        // Dog consultation, because matching the two facets is worth as much
-        // as matching the species plus the duration.
+        // Even strong overlap must not show cat-specific guidance to a dog.
         $dogRule = $this->rule('Dog', ['Vomiting'], 'Less Than 24 Hours', 'Critical');
         $catRule = $this->rule('Cat', ['Diarrhea'], 'Less Than 24 Hours', 'Active');
 
@@ -211,8 +205,7 @@ final class ChatbotScoringTest extends TestCase
         $catScore = scoreRule($catRule, 'Dog', ['Vomiting', 'Diarrhea'], 'Less Than 24 Hours', 'Active');
 
         $this->assertSame(7, $dogScore);
-        $this->assertSame(7, $catScore);
-        $this->assertSame($dogScore, $catScore);
+        $this->assertSame(0, $catScore);
     }
 
     public function testSymptomsJsonAcceptsNonJsonStorageFormats(): void
@@ -226,7 +219,7 @@ final class ChatbotScoringTest extends TestCase
             'severity' => 'Active',
         ];
 
-        $this->assertSame(6, scoreRule($rule, 'Cat', ['Vomiting', 'Diarrhea'], 'More than 3 days', 'Critical'));
+        $this->assertSame(8, scoreRule($rule, 'Dog', ['Vomiting', 'Diarrhea'], 'More than 3 days', 'Critical'));
     }
 
     public function testActionLevelMapsEachActionType(): void

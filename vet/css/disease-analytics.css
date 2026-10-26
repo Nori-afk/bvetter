@@ -2100,3 +2100,15 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     color: #475569;
 }
 .pace-note strong { color: #0f172a; }
+.top-diseases-card { margin-top: 20px; }
+.top-diseases-card > p { color: #667085; margin: 6px 0 18px; }
+.top-diseases-chart { display: grid; gap: 10px; }
+.top-disease-row { display: grid; grid-template-columns: 24px minmax(130px, 240px) minmax(80px, 1fr) 48px; gap: 12px; align-items: center; }
+.top-disease-rank { color: #667085; font-weight: 700; }
+.top-disease-name { overflow-wrap: anywhere; }
+.top-disease-track { height: 12px; background: #e9f1ec; border-radius: 99px; overflow: hidden; }
+.top-disease-track > span { display: block; height: 100%; background: #23875b; border-radius: inherit; }
+.top-disease-row strong { text-align: right; }
+@media (max-width: 600px) {
+    .top-disease-row { grid-template-columns: 20px minmax(90px, 1fr) minmax(65px, 1fr) 32px; gap: 7px; font-size: 12px; }
+}

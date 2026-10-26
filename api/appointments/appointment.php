@@ -149,8 +149,7 @@ function canonicalTimeSlot($value)
 function normalizeSex($value)
 {
     $value = strtolower(clean($value));
-    return in_array($value, ['female','mixed','unknown'], true) ? $value : 'male';
-    #if ung value ba is female ang value nia ay female howehver magiging male.
+    return in_array($value, ['male', 'female', 'mixed'], true) ? $value : 'unknown';
 }
 
 function normalizeStatus($status)
@@ -386,9 +385,7 @@ function findOrCreatePet($pdo, $ownerId, $data)
     $age     = clean($data['age'] ?? $data['pet_age'] ?? '');
     $sex     = clean($data['sex'] ?? $data['pet_sex'] ?? '');
 
-    // Breed and sex are asterisked on the booking form but used to fall
-    // through to '' and a 'male' default -- so a pet could be recorded as
-    // male without anyone having said so.
+    // A missing sex is recorded as unknown, never inferred from an empty field.
     //
     // Age is optional for an appointment: many owners don't know it exactly,
     // and the vet records it at the visit. Castration & Spay registration
@@ -398,7 +395,6 @@ function findOrCreatePet($pdo, $ownerId, $data)
     if ($petName === '') $missing[] = 'name';
     if ($species === '') $missing[] = 'type';
     if ($breed === '' && ($data['record_kind'] ?? 'individual') !== 'group') $missing[] = 'breed';
-    if ($sex === '')     $missing[] = 'sex';
 
     if ($missing) {
         respond(422, [
