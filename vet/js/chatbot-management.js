@@ -196,17 +196,20 @@
 		}
 	};
 
-	// Font Awesome glyphs (loaded via CDN <link> in chatbot-management.html).
-	// White icon on a solid species-colored tile -- see .consultation-icon
-	// in chatbot-management.css for the background colors.
-	const PET_TYPE_SVG = {
-		dog: '<i class="fa-solid fa-dog"></i>',
-		cat: '<i class="fa-solid fa-cat"></i>',
-		other: '<i class="fa-solid fa-paw"></i>'
+	const PET_TYPE_ICONS = {
+		Dog: 'chatbot-dogs.png',
+		Cat: 'chatbot-cats.png',
+		Chicken: 'chatbot-chicken.svg',
+		'Carabao / Water Buffalo': 'chatbot-buffalo.svg',
+		'Goat / Sheep': 'chatbot-sheep.svg',
+		Pig: 'chatbot-pig.svg',
+		Rabbit: 'chatbot-rabbit.svg',
+		Other: 'chatbot-livestock.svg'
 	};
 
 	function petTypeIconSvg(petType) {
-		return PET_TYPE_SVG[String(petType || '').toLowerCase()] || PET_TYPE_SVG.other;
+		const filename = PET_TYPE_ICONS[petType] || PET_TYPE_ICONS.Other;
+		return `<img src="../../public/images/icons/${filename}" alt="">`;
 	}
 	const displaySpecies = (petType) => petType === 'Other' ? 'Other livestock' : petType;
 

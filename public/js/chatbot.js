@@ -65,7 +65,7 @@
 
   var cssLink = document.createElement('link');
   cssLink.rel  = 'stylesheet';
-  cssLink.href = '../css/chatbot.css?v=20261027-livestock';
+  cssLink.href = '../css/chatbot.css?v=20261027-species-icons';
   document.head.appendChild(cssLink);
 
   /* ─────────────────────────────────────────
@@ -1032,12 +1032,12 @@ function closeChat() {
         [
           { label: 'Dog', icon: 'chatbot-dogs.png' },
           { label: 'Cat', icon: 'chatbot-cats.png' },
-          { label: 'Chicken', icon: 'chatbot-others.png' },
-          { label: 'Carabao / Water Buffalo', icon: 'chatbot-others.png' },
-          { label: 'Goat / Sheep', icon: 'chatbot-others.png' },
-          { label: 'Pig', icon: 'chatbot-others.png' },
-          { label: 'Rabbit', icon: 'chatbot-others.png' },
-          { label: 'Other', icon: 'chatbot-others.png', sublabel: 'Another farm animal' }
+          { label: 'Chicken', icon: 'chatbot-chicken.svg' },
+          { label: 'Carabao / Water Buffalo', icon: 'chatbot-buffalo.svg' },
+          { label: 'Goat / Sheep', icon: 'chatbot-sheep.svg' },
+          { label: 'Pig', icon: 'chatbot-pig.svg' },
+          { label: 'Rabbit', icon: 'chatbot-rabbit.svg' },
+          { label: 'Other', icon: 'chatbot-livestock.svg', sublabel: 'Another farm animal' }
         ].forEach(function (p) {
           addOptionBtn(cOpts, p.icon, p.label, p.sublabel || '', function () {
             cState.petType = p.label;

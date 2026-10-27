@@ -892,6 +892,7 @@ body {
 }
 
 .consultation-icon i { font-size: 13px; line-height: 1; }
+.consultation-icon img { width: 23px; height: 23px; object-fit: contain; display: block; }
 
 .consultation-icon.dog {
     background: #0d7a3d;
@@ -905,7 +906,8 @@ body {
     background: #44506b;
 }
 .consultation-icon.livestock {
-    background: #875d27;
+    background: #f6eadb;
+    border: 1px solid #dfc6a8;
 }
 
 .duration-pill,
@@ -1707,38 +1709,57 @@ body {
                 box-shadow 0.22s, transform 0.22s;
 }
 
-/* Icon square via pseudo-element — Font Awesome glyph rendered directly
-   in CSS content (codepoints verified against the loaded FA stylesheet),
-   white on a solid species-colored tile so it reads the same whether
-   the card is active or not. */
+/* Local species artwork stays visible even when the icon font is unavailable. */
 .choice-card[data-animal]::before {
     content: '';
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: block;
     width: 44px;
     height: 44px;
     border-radius: 12px;
     flex-shrink: 0;
-    font-family: "Font Awesome 6 Free";
-    font-weight: 900;
-    font-size: 20px;
-    color: #ffffff;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 34px 34px;
 }
 
 .choice-card[data-animal="Dog"]::before {
-    content: "\f6d3";
-    background-color: #0d7a3d;
+    background-image: url("../../public/images/icons/chatbot-dogs.png");
+    background-color: #e7f7ed;
 }
 
 .choice-card[data-animal="Cat"]::before {
-    content: "\f6be";
-    background-color: #0d3f7a;
+    background-image: url("../../public/images/icons/chatbot-cats.png");
+    background-color: #e8f1fc;
+}
+
+.choice-card[data-animal="Chicken"]::before {
+    background-image: url("../../public/images/icons/chatbot-chicken.svg");
+    background-color: #fff3dc;
+}
+
+.choice-card[data-animal="Carabao / Water Buffalo"]::before {
+    background-image: url("../../public/images/icons/chatbot-buffalo.svg");
+    background-color: #f5eade;
+}
+
+.choice-card[data-animal="Goat / Sheep"]::before {
+    background-image: url("../../public/images/icons/chatbot-sheep.svg");
+    background-color: #f5efe4;
+}
+
+.choice-card[data-animal="Pig"]::before {
+    background-image: url("../../public/images/icons/chatbot-pig.svg");
+    background-color: #fff0f3;
+}
+
+.choice-card[data-animal="Rabbit"]::before {
+    background-image: url("../../public/images/icons/chatbot-rabbit.svg");
+    background-color: #f4eff8;
 }
 
 .choice-card[data-animal="Other"]::before {
-    content: "\f1b0";
-    background-color: #44506b;
+    background-image: url("../../public/images/icons/chatbot-livestock.svg");
+    background-color: #eef0f5;
 }
 
 .choice-card:hover {
@@ -1763,6 +1784,15 @@ body {
 .choice-card[data-animal="Cat"].active {
     background: #0d3f7a;
     box-shadow: 0 4px 14px rgba(13, 63, 122, 0.25);
+}
+
+.choice-card[data-animal="Chicken"].active,
+.choice-card[data-animal="Carabao / Water Buffalo"].active,
+.choice-card[data-animal="Goat / Sheep"].active,
+.choice-card[data-animal="Pig"].active,
+.choice-card[data-animal="Rabbit"].active {
+    background: #875d27;
+    box-shadow: 0 4px 14px rgba(135, 93, 39, 0.25);
 }
 
 .choice-card[data-animal="Other"].active {
