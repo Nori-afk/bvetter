@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260928-mobile">
-    <link rel="stylesheet" href="../../vet/css/disease-analytics.css?v=20261027-distribution-ties">
+    <link rel="stylesheet" href="../../vet/css/disease-analytics.css?v=20261027-ranking-layout">
     <link rel="stylesheet" href="../../vet/css/dataset-upload.css?v=20260922-timeline">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
@@ -122,13 +122,12 @@
                 <section class="rankings-grid" aria-label="Case rankings">
                     <div class="card ranking-card" id="topDiseasesCard" aria-labelledby="topDiseasesTitle">
                         <div class="ranking-card-heading"><div><h3 id="topDiseasesTitle">Top 10 Diseases</h3>
-                        <p>Total diagnosed cases for the selected period; tied barangays are shown together</p></div><span class="ranking-unit">Cases</span></div>
-                        <div class="ranking-columns ranking-columns-disease" aria-hidden="true"><span></span><span>Disease</span><span>Most cases in</span><span></span><span>Total</span></div>
-                        <div id="topDiseasesChart" class="ranking-chart" role="list"></div>
+                        <p>Reported cases count affected animals; tied barangays appear together</p></div><span class="ranking-unit">Cases</span></div>
+                        <div id="topDiseasesChart" class="ranking-chart disease-ranking-chart" role="list"></div>
                     </div>
                     <div class="card ranking-card" id="animalGroupsCard" aria-labelledby="animalGroupsTitle">
                         <div class="ranking-card-heading"><div><h3 id="animalGroupsTitle">Animal Groups With Most Cases</h3>
-                        <p id="animalGroupsSubtitle">Diagnosed cases in the selected period and data view</p></div><span class="ranking-unit">Cases</span></div>
+                        <p id="animalGroupsSubtitle">Reported cases by animal group in the selected period</p></div><span class="ranking-unit">Cases</span></div>
                         <div id="animalGroupsChart" class="ranking-chart animal-groups-chart" role="list"></div>
                     </div>
                 </section>
@@ -374,7 +373,7 @@
     <script src="../../shared/js/sidebar.js?v=20260824-tz"></script>
     <script src="../../vet/js/vet-api.js?v=20261026-analytics-auth"></script>
     <script src="../../vet/js/dataset-upload.js?v=20260926-merged"></script>
-    <script src="../../vet/js/disease-analytics.js?v=20261027-distribution-ties"></script>
+    <script src="../../vet/js/disease-analytics.js?v=20261027-ranking-layout"></script>
 
 </body>
 

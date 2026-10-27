@@ -986,8 +986,8 @@ function syncRankingScope() {
     document.getElementById('topDiseasesCard').hidden = !allDiseases;
     document.querySelector('.rankings-grid')?.classList.toggle('is-disease-specific', !allDiseases);
     document.getElementById('animalGroupsSubtitle').textContent = allDiseases
-        ? 'Diagnosed cases in the selected period and data view'
-        : `${diseaseAnalyticsData.selectedDisease} cases by animal group in the selected period and data view`;
+        ? 'Reported cases by animal group in the selected period'
+        : `${diseaseAnalyticsData.selectedDisease} cases by animal group in the selected period`;
     return allDiseases;
 }
 
@@ -1018,6 +1018,11 @@ function renderOverview() {
         const host = document.getElementById(id);
         if (!host) return;
         const isDiseaseRanking = id === 'topDiseasesChart';
+        if (isDiseaseRanking) {
+            const singleColumn = rows.length < 4;
+            host.style.setProperty('--ranking-rows', Math.max(1, singleColumn ? rows.length : Math.ceil(rows.length / 2)));
+            host.classList.toggle('is-single-column', singleColumn);
+        }
         const maximum = Math.max(1, ...rows.map(row => Number(row.value) || 0));
         host.innerHTML = rows.length
             ? rows.map((row, index) => {

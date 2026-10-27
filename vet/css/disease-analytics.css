@@ -439,9 +439,16 @@ select option { background: #0D2040; color: #fff; }
 .rf-controls select,
 .chart-sort-bar select {
     background-color: var(--surface);
+    background-image: url('../../public/images/icons/icon-dropwdown.svg');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 18px 18px;
     color: var(--ink);
     border-color: var(--border-mid);
+    padding-right: 36px;
 }
+.rf-controls select option,
+.chart-sort-bar select option { background: var(--surface); color: var(--ink); }
 
 .rf-cols {
     display: grid;
@@ -2160,11 +2167,17 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 .ranking-card-heading p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .ranking-unit { flex: 0 0 auto; padding: 5px 8px; border-radius: 99px; background: var(--green-bg); color: var(--green); font-size: 10px; font-weight: 800; }
 .ranking-chart { display: grid; }
-.ranking-columns { display: grid; align-items: center; gap: 10px; padding: 11px 0 5px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.ranking-columns-disease, .ranking-row-disease { grid-template-columns: 20px minmax(0, 1.2fr) minmax(100px, .75fr) minmax(52px, .7fr) 42px; }
-.ranking-columns-disease span:last-child { text-align: right; }
+.disease-ranking-chart { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--ranking-rows, 5), auto); grid-auto-flow: column; column-gap: 22px; }
+.disease-ranking-chart.is-single-column { grid-template-columns: minmax(0, 1fr); }
 .ranking-row { display: grid; grid-template-columns: 20px minmax(0, 1.3fr) minmax(55px, 1fr) 42px; gap: 10px; align-items: center; min-width: 0; min-height: 52px; padding: 9px 0; border-bottom: 1px solid #f0f3f6; color: var(--ink-2); font-size: 12px; line-height: 1.4; }
-.ranking-row-disease { grid-template-columns: 20px minmax(0, 1.2fr) minmax(100px, .75fr) minmax(52px, .7fr) 42px; }
+.ranking-row-disease { grid-template-columns: 20px minmax(0, 1fr) auto; grid-template-rows: auto auto auto; align-content: center; align-items: start; gap: 4px 8px; min-height: 82px; padding: 10px 0; }
+.ranking-row-disease .ranking-rank { grid-column: 1; grid-row: 1; }
+.ranking-row-disease .ranking-name { grid-column: 2; grid-row: 1; font-weight: 700; }
+.ranking-row-disease strong { grid-column: 3; grid-row: 1; }
+.ranking-row-disease .ranking-barangay { grid-column: 2 / 4; grid-row: 2; display: block; font-size: 11px; }
+.ranking-row-disease .ranking-barangay::before { content: 'Most cases in: '; color: var(--muted); }
+.ranking-row-disease .ranking-barangay small { display: block; margin-top: 2px; }
+.ranking-row-disease .ranking-track { grid-column: 2 / 4; grid-row: 3; height: 6px; }
 .ranking-row:last-child { border-bottom: 0; }
 .ranking-rank { color: var(--muted); font-weight: 800; font-variant-numeric: tabular-nums; }
 .ranking-name { min-width: 0; overflow-wrap: anywhere; }
@@ -2176,9 +2189,13 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 .ranking-row strong { text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
 .animal-groups-chart .ranking-track > span { background: #2874a6; }
 .animal-groups-chart .ranking-track { background: #e8f1f8; }
+.animal-groups-chart .ranking-row { min-height: 68px; }
 .ranking-empty { padding: 24px 0 8px; color: var(--muted); font-size: 12px; }
-@media (max-width: 1100px) {
+@media (max-width: 1200px) {
     .rankings-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+    .disease-ranking-chart { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-flow: row; }
 }
 @media (max-width: 600px) {
     .insight-section { padding: 18px; }
@@ -2186,11 +2203,10 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     .insight-filter-field { width: 100%; }
     .insight-card { min-height: 0; padding: 18px; }
     .ranking-card { padding: 16px; }
-    .ranking-columns { display: none; }
     .ranking-row { grid-template-columns: 20px minmax(0, 1fr) auto; gap: 5px 8px; }
     .ranking-track { grid-column: 2 / 4; grid-row: 2; }
     .ranking-row strong { grid-column: 3; grid-row: 1; }
-    .ranking-row-disease .ranking-barangay { grid-column: 2 / 4; grid-row: 2; display: flex; flex-wrap: wrap; gap: 0 5px; }
-    .ranking-row-disease .ranking-barangay::before { content: 'Most cases in:'; color: var(--muted); }
-    .ranking-row-disease .ranking-track { grid-row: 3; }
+    .ranking-row-disease { grid-template-columns: 20px minmax(0, 1fr) auto; }
+    .ranking-row-disease .ranking-barangay { grid-column: 2 / 4; grid-row: 2; }
+    .ranking-row-disease .ranking-track { grid-column: 2 / 4; grid-row: 3; }
 }
