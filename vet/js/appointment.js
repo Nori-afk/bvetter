@@ -408,7 +408,7 @@ function renderPendingList() {
 					<label>Clinic schedule <select class="field-scope-select" data-field-scope="${item.id}">
 						<option value="slot">Reserve requested time and vet</option>
 						<option value="day">Close clinic for the whole day</option>
-					</select></label>` : ''}
+					</select></label>` : '<p>At the clinic</p>'}
 				<div class="pending-actions">
 					<button class="accept" data-action="accept" data-id="${item.id}" type="button">Accept</button>
 					<button class="decline" data-action="decline" data-id="${item.id}" type="button">Decline</button>
@@ -710,7 +710,7 @@ function detailsModalTemplate(appointment) {
 					<div class="appt-info-rows">
 						<div class="appt-info-row"><span>Owner</span><strong>${escapeAttr(appointment.owner)}</strong></div>
 						${appointment.ownerPhone ? `<div class="appt-info-row"><span>Owner Phone</span><strong>${escapeAttr(appointment.ownerPhone)}</strong></div>` : ''}
-						${appointment.contact ? `<div class="appt-info-row"><span>Bringing the Pet</span><strong>${escapeAttr(appointment.contact.name)}${appointment.contact.phone ? ' &middot; ' + escapeAttr(appointment.contact.phone) : ''}</strong></div>` : ''}
+						${appointment.contact ? `<div class="appt-info-row"><span>Bringing the Animal</span><strong>${escapeAttr(appointment.contact.name)}${appointment.contact.phone ? ' &middot; ' + escapeAttr(appointment.contact.phone) : ''}</strong></div>` : ''}
 						<div class="appt-info-row"><span>Patient</span><strong>${escapeAttr(appointment.patient)}</strong></div>
 						<div class="appt-info-row"><span>Type</span><strong>${escapeAttr(appointment.type)}</strong></div>
 					</div>
@@ -718,12 +718,12 @@ function detailsModalTemplate(appointment) {
 			</div>
 			${ownerRescheduleSummary}
 			<div class="appt-notes-card">
-				<div class="appt-info-label"><i data-lucide="paw-print"></i>Pets in this Appointment</div>
+				<div class="appt-info-label"><i data-lucide="paw-print"></i>Animals in this Appointment</div>
 				<div class="appt-info-rows">
 					${appointment.pets.map(pet => `<div class="appt-info-row"><span>${escapeAttr(pet.name || '')}</span><strong>${[pet.species, pet.animal_category, pet.record_kind === 'group' ? `Group · owner estimates ${pet.estimated_count || 1}` : 'Individual', pet.breed, pet.age, pet.sex].filter(Boolean).map(escapeAttr).join(' &middot; ')}</strong></div>`).join('')}
 				</div>
 			</div>
-			${appointment.visitMode === 'field' ? `<div class="appt-notes-card"><div class="appt-info-label">Field visit request</div><p><strong>Location:</strong> ${escapeAttr(appointment.fieldAddress)}</p><p><strong>Concern:</strong> ${escapeAttr(appointment.fieldConcern)}</p></div>` : ''}
+			${appointment.visitMode === 'field' || appointment.fieldConcern ? `<div class="appt-notes-card"><div class="appt-info-label">${appointment.visitMode === 'field' ? 'Field visit request' : 'Owner observation'}</div>${appointment.visitMode === 'field' ? `<p><strong>Location:</strong> ${escapeAttr(appointment.fieldAddress)}</p>` : ''}${appointment.fieldConcern ? `<p><strong>What the owner noticed:</strong> ${escapeAttr(appointment.fieldConcern)}</p>` : ''}</div>` : ''}
 			${appointment.ownerAssessment ? `<div class="appt-notes-card"><div class="appt-info-label">Owner's preliminary symptom check · not a diagnosis</div><p><strong>Reported symptoms:</strong> ${escapeAttr((appointment.ownerAssessment.symptoms || []).join(', '))}</p><p><strong>Clinic guidance shown:</strong> ${escapeAttr(appointment.ownerAssessment.recommendation || '')}</p></div>` : ''}
 
 			<div class="appt-notes-card">

@@ -1108,6 +1108,8 @@ body {
 
 #fieldVisitFields .form-group { margin: 8px 0; }
 #step3 #fieldVisitFields + .form-row-2 { margin-top: 14px; }
+#visitModeChoice { margin-bottom: 8px; }
+#visitModeChoice.is-hidden { display: none; }
 .visit-location-summary {
   display: flex;
   align-items: flex-start;
@@ -1325,6 +1327,7 @@ body {
   justify-content: space-between;
   padding: 4px 0;
 }
+.review-row[hidden] { display: none; }
 
 .review-key {
   font-size: 12px;
@@ -2136,6 +2139,7 @@ body {
   #step2 .form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   #step2 .booking-pet-card { padding: 18px 22px; }
   #step3 #fieldVisitFields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  #step3 #fieldVisitFields:not(.has-field-address) { grid-template-columns: 1fr; }
   #step3 #fieldVisitFields > .form-group.full { grid-column: auto; }
   #step3 #fieldVisitFields.is-hidden { display: none; }
 }

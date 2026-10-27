@@ -678,6 +678,7 @@ function createAppointment($pdo, $data)
         respond(422, ['success' => false, 'message' => 'Choose clinic or field visit.']);
     }
     $storedPet = $pdo->prepare('SELECT species, animal_category FROM pets WHERE id = :id LIMIT 1');
+    $hasLivestock = false;
     foreach ($petEntries as $index => $entry) {
         $species = clean($entry['species'] ?? $entry['pet_type'] ?? '');
         $requestedCategory = clean($entry['animal_category'] ?? '');
@@ -689,17 +690,18 @@ function createAppointment($pdo, $data)
         }
         $category = animalCategory($species, $requestedCategory);
         if (!$category) respond(422, ['success' => false, 'message' => 'Animal ' . ($index + 1) . ': Please select a supported animal and category.']);
-        if ($visitMode === 'clinic' && $category === 'livestock') {
-            respond(422, ['success' => false, 'message' => 'Livestock requests need a field visit. Book companion animals separately for a clinic visit.']);
-        }
+        if ($category === 'livestock') $hasLivestock = true;
         if ($visitMode === 'field' && $category !== 'livestock') {
-            respond(422, ['success' => false, 'message' => 'Field visits are for livestock. Book companion animals separately for a clinic visit.']);
+            respond(422, ['success' => false, 'message' => 'Field visits are for livestock only. Choose a clinic visit or book separately.']);
         }
     }
     $fieldAddress = clean($data['field_address'] ?? '');
     $fieldConcern = clean($data['field_concern'] ?? '');
     if ($visitMode === 'field' && ($fieldAddress === '' || $fieldConcern === '' || mb_strlen($fieldAddress) > 255 || mb_strlen($fieldConcern) > 2000)) {
         respond(422, ['success' => false, 'message' => 'Field visit location and concern are required.']);
+    }
+    if ($hasLivestock && mb_strlen($fieldConcern) > 2000) {
+        respond(422, ['success' => false, 'message' => 'What you noticed must be 2,000 characters or fewer.']);
     }
     $ownerAssessment = null;
     $assessmentId = (int) ($data['owner_assessment_log_id'] ?? 0);
@@ -825,7 +827,7 @@ function createAppointment($pdo, $data)
         ':notes' => $notes,
         ':visit_mode' => $visitMode,
         ':field_address' => $visitMode === 'field' ? $fieldAddress : null,
-        ':field_concern' => $visitMode === 'field' ? $fieldConcern : null,
+        ':field_concern' => $hasLivestock && $fieldConcern !== '' ? $fieldConcern : null,
         ':owner_assessment' => $ownerAssessment ? json_encode($ownerAssessment, JSON_UNESCAPED_UNICODE) : null,
     ]);
 

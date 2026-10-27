@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
   <link rel="stylesheet" href="../../shared/css/form-validation.css"/>
-  <link rel="stylesheet" href="../css/book-appointment.css?v=20261027-consultation-ui"/>
+  <link rel="stylesheet" href="../css/book-appointment.css?v=20261027-livestock-clinic"/>
 </head>
 <body>
 
@@ -423,16 +423,22 @@
       <div class="form-card">
         <div class="form-card-title">Appointment Info</div>
         <div class="form-group full">
-          <span class="form-label">Visit location</span>
+          <label class="form-label" for="visitMode" id="visitModeLabel">Visit location</label>
+          <div class="select-wrap is-hidden" id="visitModeChoice">
+            <select class="form-select" id="visitMode">
+              <option value="field">Field visit</option>
+              <option value="clinic">At the clinic</option>
+            </select>
+            <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
+          </div>
           <div class="visit-location-summary" id="visitModeSummary">
             <span class="visit-location-mark" aria-hidden="true">&#9679;</span>
             <div><strong id="visitModeTitle">At the clinic</strong><p id="visitModeDescription">Bring your companion animal to the clinic at the approved time.</p></div>
           </div>
-          <select id="visitMode" hidden><option value="clinic">At the clinic</option><option value="field">Field visit for livestock</option></select>
         </div>
         <div id="fieldVisitFields" class="is-hidden">
-          <div class="form-group full"><label class="form-label" for="fieldAddress">Field location *</label><input class="form-input" id="fieldAddress" maxlength="255" placeholder="Complete address / farm location"></div>
-          <div class="form-group full"><label class="form-label" for="fieldConcern">What have you noticed about the animal(s)? *</label><textarea class="form-textarea" id="fieldConcern" maxlength="2000" placeholder="Describe what you have noticed in this animal or group"></textarea></div>
+          <div class="form-group full" id="fieldAddressGroup"><label class="form-label" for="fieldAddress">Field location *</label><input class="form-input" id="fieldAddress" maxlength="255" placeholder="Complete address / farm location"></div>
+          <div class="form-group full"><label class="form-label" for="fieldConcern" id="fieldConcernLabel">What have you noticed about the animal(s)? *</label><textarea class="form-textarea" id="fieldConcern" maxlength="2000" placeholder="Describe what you have noticed in this animal or group"></textarea></div>
         </div>
         <div class="form-row-2">
           <div class="form-group">
@@ -496,7 +502,7 @@
           </div>
           <div class="form-group">
             <label class="form-label" id="apptNotesLabel">Additional Details (optional)</label>
-            <textarea class="form-textarea" placeholder="Describe your pet’s condition or reason for visit" id="apptNotes"></textarea>
+            <textarea class="form-textarea" placeholder="Share any other details for the clinic" id="apptNotes"></textarea>
           </div>
         </div>
         <div class="step-nav">
@@ -531,7 +537,8 @@
         <div class="review-block">
           <div class="review-row"><span class="review-key">Visit Type:</span><span class="review-val" id="rv-visitType"></span></div>
           <div class="review-row"><span class="review-key">Visit Mode:</span><span class="review-val" id="rv-visitMode"></span></div>
-          <div class="review-row"><span class="review-key">Field Location:</span><span class="review-val" id="rv-fieldAddress"></span></div>
+          <div class="review-row" id="reviewFieldLocation"><span class="review-key">Field Location:</span><span class="review-val" id="rv-fieldAddress"></span></div>
+          <div class="review-row" id="reviewConcern"><span class="review-key">What You Noticed:</span><span class="review-val" id="rv-fieldConcern"></span></div>
           <div class="review-row"><span class="review-key">Symptom Check:</span><span class="review-val" id="rv-assessment"></span></div>
           <div class="review-row"><span class="review-key">Date:</span><span class="review-val" id="rv-date"></span></div>
           <div class="review-row"><span class="review-key">Time:</span><span class="review-val" id="rv-time"></span></div>
@@ -849,7 +856,7 @@
   <script src="../js/api.js?v=20261026-token-fallback"></script>
   <!-- Must load before book-appointment.js, which calls VBForm at validate time. -->
   <script src="../../shared/js/form-validation.js"></script>
-  <script src="../js/book-appointment.js?v=20261027-consultation-ui"></script>
+  <script src="../js/book-appointment.js?v=20261027-livestock-clinic"></script>
   <script src="../js/site-settings.js?v=20260829-preview"></script>
 </body>
 </html>

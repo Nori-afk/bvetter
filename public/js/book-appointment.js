@@ -1402,6 +1402,7 @@ function getAverageRate(average) {
   let nextPetCardId = 2;
   let activePetIndex = 0;
   let existingPets = [];
+  let visitModePinned = false;
 
   const petCards = () => [...petsContainer.querySelectorAll('.booking-pet-card')];
   const petField = (card, field) => card.querySelector(`[data-pet-field="${field}"]`);
@@ -1701,9 +1702,6 @@ function getAverageRate(average) {
     if (event.target.dataset.petField === 'petName' && card === firstPetCard && assessmentLogId) assessmentAnimal = petValue(card, 'petName');
     if (['petType', 'petCategory', 'petRecordKind'].includes(event.target.dataset.petField)) {
       syncAnimalCard(card);
-      const categories = new Set(petCards().map(item => petValue(item, 'petCategory')));
-      if (categories.size === 1 && categories.has('livestock')) document.getElementById('visitMode').value = 'field';
-      if (categories.size === 1 && categories.has('companion')) document.getElementById('visitMode').value = 'clinic';
       toggleVisitMode();
     }
     VBForm.clearGroupError(event.target.closest('.form-group'));
@@ -1765,6 +1763,7 @@ function getAverageRate(average) {
       if (el && draft.fields[id] != null) el.value = draft.fields[id];
     });
     if (Array.isArray(draft.pets) && draft.pets.length) restorePetCards(draft.pets);
+    visitModePinned = ['clinic', 'field'].includes(draft.fields.visitMode);
     if (draft.consultation) {
       const prior = draft.consultation;
       const duration = document.getElementById('consultDuration');
@@ -2121,8 +2120,8 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       if (isCspMode() && petCards().some(card => !['Dog', 'Cat'].includes(petValue(card, 'petType')) || petValue(card, 'petRecordKind') !== 'individual')) {
         setGroupError(document.getElementById('visitType').closest('.form-group'), 'Castration & Spay registration is for individual dogs and cats.'); valid = false;
       }
-      if (petCards().some(card => petValue(card, 'petCategory') !== (document.getElementById('visitMode').value === 'field' ? 'livestock' : 'companion'))) {
-        setGroupError(document.getElementById('visitMode').closest('.form-group'), 'Book companion animals at the clinic and livestock as a separate field visit.'); valid = false;
+      if (document.getElementById('visitMode').value === 'field' && petCards().some(card => petValue(card, 'petCategory') !== 'livestock')) {
+        setGroupError(document.getElementById('visitMode').closest('.form-group'), 'Field visits are for livestock only. Choose a clinic visit or book separately.'); valid = false;
       }
       if (document.getElementById('visitMode').value === 'field') {
         if (!validateRequiredField('fieldAddress', 'Enter the field location.')) valid = false;
@@ -2376,19 +2375,37 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
   }
   function toggleVisitMode() {
     const categories = new Set(petCards().map(card => petValue(card, 'petCategory')));
-    if (categories.size === 1 && categories.has('livestock')) document.getElementById('visitMode').value = 'field';
-    else if (categories.size === 1 && categories.has('companion')) document.getElementById('visitMode').value = 'clinic';
-    const field = document.getElementById('visitMode').value === 'field';
+    const livestockChoice = categories.has('livestock') && !categories.has('companion');
+    const mode = document.getElementById('visitMode');
+    if (livestockChoice && !visitModePinned) mode.value = 'field';
+    if (!livestockChoice) {
+      mode.value = 'clinic';
+      visitModePinned = false;
+    }
+    document.getElementById('visitModeChoice').classList.toggle('is-hidden', !livestockChoice);
+    document.getElementById('visitModeLabel').textContent = livestockChoice ? 'Visit location *' : 'Visit location';
+    const field = mode.value === 'field';
     document.getElementById('visitModeSummary').classList.toggle('is-field', field);
     document.getElementById('visitModeTitle').textContent = field ? 'Field visit for livestock' : 'At the clinic';
     document.getElementById('visitModeDescription').textContent = field
       ? 'A veterinarian visits your location after approval. The clinic may reserve the time or the whole day.'
-      : 'Bring your companion animal to the clinic at the approved time.';
-    document.getElementById('fieldVisitFields').classList.toggle('is-hidden', !field || isCspMode());
+      : categories.has('livestock')
+        ? 'Bring the booked livestock to the clinic at the approved time. The clinic will confirm your request.'
+        : 'Bring your companion animal to the clinic at the approved time.';
+    const livestockFields = document.getElementById('fieldVisitFields');
+    livestockFields.classList.toggle('is-hidden', !categories.has('livestock') || isCspMode());
+    livestockFields.classList.toggle('has-field-address', field);
+    document.getElementById('fieldAddressGroup').classList.toggle('is-hidden', !field);
+    document.getElementById('fieldConcernLabel').textContent = field
+      ? 'What have you noticed about the animal(s)? *'
+      : 'What have you noticed about the animal(s)? (optional)';
     document.getElementById('bookingConsultation').classList.toggle('is-hidden', isCspMode() || document.getElementById('visitType').value !== 'Consultation');
     updateConsultSuggestions();
   }
-  document.getElementById('visitMode').addEventListener('change', toggleVisitMode);
+  document.getElementById('visitMode').addEventListener('change', () => {
+    visitModePinned = true;
+    toggleVisitMode();
+  });
   document.getElementById('visitType')?.addEventListener('change', toggleCspMode);
   toggleCspMode();
 
@@ -2464,7 +2481,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
   function updateConsultSuggestions() {
     const host = document.getElementById('consultSymptomSuggestions');
     if (!host) return;
-    const livestockConsultation = document.getElementById('visitMode').value === 'field'
+    const livestockConsultation = petCards().some(card => petValue(card, 'petCategory') === 'livestock')
       && document.getElementById('visitType').value === 'Consultation';
     const observation = document.getElementById('fieldConcern').value;
     const normalize = value => String(value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
@@ -2827,7 +2844,12 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
       </div>`).join('');
     document.getElementById('rv-visitType').textContent = selText('visitType');
     document.getElementById('rv-visitMode').textContent = selText('visitMode');
-    document.getElementById('rv-fieldAddress').textContent = document.getElementById('visitMode').value === 'field' ? val('fieldAddress') : '—';
+    const fieldVisit = document.getElementById('visitMode').value === 'field';
+    const concern = document.getElementById('fieldConcern').value.trim();
+    document.getElementById('reviewFieldLocation').hidden = !fieldVisit;
+    document.getElementById('rv-fieldAddress').textContent = fieldVisit ? val('fieldAddress') : '—';
+    document.getElementById('reviewConcern').hidden = !concern;
+    document.getElementById('rv-fieldConcern').textContent = concern;
     document.getElementById('rv-assessment').textContent = assessmentLogId
       ? `Preliminary clinic guidance saved for ${assessmentAnimal}; not a diagnosis.` : 'Not used (optional)';
 
@@ -2918,6 +2940,7 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     await visitTypesReady;
     setRebookField('visitType', request.type);
     setRebookField('visitMode', request.visit_mode || 'clinic');
+    visitModePinned = true;
     setRebookField('fieldAddress', request.field_address || '');
     setRebookField('fieldConcern', request.field_concern || '');
     setRebookField('apptDate', bookableDate(date) || bookableDate(request.preferred_date));
