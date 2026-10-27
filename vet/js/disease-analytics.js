@@ -1017,17 +1017,20 @@ function renderOverview() {
     const renderRanking = (id, rows) => {
         const host = document.getElementById(id);
         if (!host) return;
+        const isDiseaseRanking = id === 'topDiseasesChart';
         const maximum = Math.max(1, ...rows.map(row => Number(row.value) || 0));
         host.innerHTML = rows.length
             ? rows.map((row, index) => {
                 const count = Math.max(0, Number(row.value) || 0);
-                return `<div class="ranking-row" role="listitem">
+                const barangayCount = Math.max(0, Number(row.topBarangayCases) || 0);
+                return `<div class="ranking-row${isDiseaseRanking ? ' ranking-row-disease' : ''}" role="listitem">
                     <span class="ranking-rank" aria-hidden="true">${index + 1}</span>
-                    <span class="ranking-name">${esc(row.name)}${row.topBarangay
-                        ? `<small class="ranking-context">Most cases: ${esc(row.topBarangay)} (${Number(row.topBarangayCases || 0).toLocaleString()})</small>`
-                        : ''}</span>
+                    <span class="ranking-name">${esc(row.name)}</span>
+                    ${isDiseaseRanking ? `<span class="ranking-barangay">${row.topBarangay
+                        ? `<span>${esc(row.topBarangay)}</span><small>${barangayCount.toLocaleString()} ${barangayCount === 1 ? 'case' : 'cases'} here</small>`
+                        : '<span class="ranking-no-barangay">No barangay recorded</span>'}</span>` : ''}
                     <span class="ranking-track" aria-hidden="true"><span style="width:${Math.max(2, count / maximum * 100)}%"></span></span>
-                    <strong>${count.toLocaleString()}</strong>
+                    <strong aria-label="${count.toLocaleString()} total cases">${count.toLocaleString()}</strong>
                   </div>`;
             }).join('')
             : '<p class="ranking-empty">No diagnosed cases recorded for this period.</p>';

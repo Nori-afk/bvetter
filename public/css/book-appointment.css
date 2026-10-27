@@ -954,15 +954,21 @@ body {
 }
 .chatbot-booking-summary {
   margin: -8px 0 18px;
-  padding: 12px 14px;
-  border: 1px solid #b7dcc6;
-  border-radius: 10px;
-  background: #f0f9f3;
-  color: #175e3e;
+  padding: 16px 18px;
+  border: 1px solid #d8e7de;
+  border-radius: 12px;
+  background: #f7fbf8;
+  color: var(--text-primary);
   font-size: 13px;
-  line-height: 1.6;
 }
 .chatbot-booking-summary[hidden] { display: none; }
+.chatbot-booking-summary-header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; margin-bottom: 12px; }
+.chatbot-booking-summary-header strong { font-size: 14px; }
+.chatbot-booking-summary-header span { color: var(--text-muted); font-size: 12px; }
+.chatbot-booking-details { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 16px; margin: 0; }
+.chatbot-booking-details div { min-width: 0; }
+.chatbot-booking-details dt { color: var(--text-muted); font-size: 11px; font-weight: 700; }
+.chatbot-booking-details dd { margin: 2px 0 0; color: var(--text-primary); font-size: 13px; font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
 
 .booking-pet-card {
   padding: 18px;
@@ -1133,13 +1139,24 @@ body {
 #bookingConsultation .form-row-2 { margin: 0 0 10px; }
 #bookingConsultation .form-row-2 .form-label { display: block; margin-bottom: 6px; }
 .consult-safety-note { margin: 0 0 12px; color: var(--text-muted); font-size: 11px; line-height: 1.5; }
-#btnAssessSymptoms { width: auto; min-width: 210px; }
-#consultResult { margin-top: 14px; white-space: pre-line; }
+#btnAssessSymptoms { display: inline-flex; width: fit-content; min-width: 0; min-height: 40px; padding: 9px 16px; border: 1px solid var(--color-navy); background: var(--color-navy); color: #fff; }
+#btnAssessSymptoms:hover { background: #114675; border-color: #114675; }
+#btnAssessSymptoms:focus-visible { outline: 3px solid #8ba4c2; outline-offset: 3px; }
+.consult-result { margin-top: 14px; padding: 16px 18px; border: 1px solid #cfe3d7; border-left: 4px solid #23875b; border-radius: 10px; background: #f7fbf8; color: var(--text-primary); }
+.consult-result.is-hidden { display: none; }
+.consult-result--notice { border-color: #f0dca8; border-left-color: #b7791f; background: #fffaf0; }
+.consult-result--loading { border-color: #d6e0ec; border-left-color: #386a9c; background: #f8fbff; }
+.consult-result-eyebrow { display: block; margin-bottom: 5px; color: #176747; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.consult-result--notice .consult-result-eyebrow { color: #8c5b13; }
+.consult-result--loading .consult-result-eyebrow { color: #285b8e; }
+.consult-result h4 { margin: 0 0 8px; color: var(--text-primary); font-size: 16px; line-height: 1.4; }
+.consult-result-body { margin: 0; font-size: 13px; line-height: 1.65; white-space: pre-line; overflow-wrap: anywhere; }
+.consult-result-note { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid #dce9e0; color: var(--text-muted); font-size: 11px; line-height: 1.5; }
 
 @media (max-width: 480px) {
   #bookingConsultation { padding: 16px 14px; }
   .consult-symptom-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  #btnAssessSymptoms { width: 100%; }
+  .chatbot-booking-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .csp-success-block {

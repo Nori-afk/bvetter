@@ -1393,6 +1393,9 @@ function getAverageRate(average) {
   const petCardTemplate = firstPetCard.cloneNode(true);
   let assessmentLogId = 0;
   let assessmentAnimal = '';
+  let consultResultData = null;
+  let chatbotSummaryData = null;
+  let consultRequestId = 0;
   let consultSymptomCatalog = [];
   let consultSymptomsLoaded = false;
   let consultSymptomsUnavailable = false;
@@ -1403,6 +1406,74 @@ function getAverageRate(average) {
   const petCards = () => [...petsContainer.querySelectorAll('.booking-pet-card')];
   const petField = (card, field) => card.querySelector(`[data-pet-field="${field}"]`);
   const petValue = (card, field) => petField(card, field)?.value.trim() || '';
+
+  function renderConsultResult(data) {
+    const box = document.getElementById('consultResult');
+    consultResultData = data || null;
+    box.replaceChildren();
+    box.className = 'consult-result';
+    if (!data) { box.classList.add('is-hidden'); return; }
+    const state = ['ready', 'notice', 'loading'].includes(data.state) ? data.state : 'ready';
+    box.classList.add(`consult-result--${state}`);
+    const eyebrow = document.createElement('span');
+    eyebrow.className = 'consult-result-eyebrow';
+    eyebrow.textContent = state === 'ready' ? 'Clinic guidance' : 'Symptom check';
+    const title = document.createElement('h4');
+    title.textContent = data.title || 'Clinic guidance';
+    const body = document.createElement('p');
+    body.className = 'consult-result-body';
+    body.textContent = data.body || '';
+    box.append(eyebrow, title, body);
+    if (data.note) {
+      const note = document.createElement('p');
+      note.className = 'consult-result-note';
+      note.textContent = data.note;
+      box.append(note);
+    }
+  }
+
+  function clearConsultResult() {
+    consultRequestId += 1;
+    renderConsultResult(null);
+  }
+
+  function renderChatbotBookingSummary(data) {
+    const summary = document.getElementById('chatbotBookingSummary');
+    chatbotSummaryData = data || null;
+    summary.replaceChildren();
+    summary.hidden = !data;
+    if (!data) return;
+    if (typeof data === 'string') { summary.textContent = data; return; } // Existing saved drafts.
+
+    const header = document.createElement('div');
+    header.className = 'chatbot-booking-summary-header';
+    const heading = document.createElement('strong');
+    heading.textContent = 'From your symptom check';
+    const reminder = document.createElement('span');
+    reminder.textContent = 'Please confirm these details before booking.';
+    header.append(heading, reminder);
+
+    const details = document.createElement('dl');
+    details.className = 'chatbot-booking-details';
+    const items = [
+      ['Animal', data.species || 'Not selected'],
+      ['Age group', data.ageGroup || 'Not sure'],
+      ['Symptoms noticed', data.symptoms?.length ? data.symptoms.join(', ') : 'None selected'],
+      ['Duration', data.duration || 'Not given'],
+      ['Animal condition', data.severity || 'Not given']
+    ];
+    if (data.barangayName) items.push(['Barangay entered', data.barangayName]);
+    items.forEach(([label, value]) => {
+      const item = document.createElement('div');
+      const term = document.createElement('dt');
+      const description = document.createElement('dd');
+      term.textContent = label;
+      description.textContent = value;
+      item.append(term, description);
+      details.append(item);
+    });
+    summary.append(header, details);
+  }
 
   function petDraftValues(card) {
     return { ...Object.fromEntries(PET_FIELD_IDS.map(id => [id, petValue(card, id)])), petId: card.dataset.petId || '' };
@@ -1550,7 +1621,7 @@ function getAverageRate(average) {
     } else {
       assessmentLogId = 0;
       assessmentAnimal = '';
-      document.getElementById('consultResult').classList.add('is-hidden');
+      clearConsultResult();
     }
     renumberPetCards();
     toggleVisitMode();
@@ -1608,6 +1679,7 @@ function getAverageRate(average) {
     assessmentLogId = 0;
     assessmentAnimal = '';
     const card = remove.closest('.booking-pet-card');
+    clearConsultResult();
     // Keep the original field IDs for older drafts and single-pet callers.
     if (card === firstPetCard) {
       const next = petCards()[1];
@@ -1624,7 +1696,7 @@ function getAverageRate(average) {
     if (['petType', 'petCategory'].includes(event.target.dataset.petField)) {
       assessmentLogId = 0;
       assessmentAnimal = '';
-      document.getElementById('consultResult').classList.add('is-hidden');
+      clearConsultResult();
     }
     if (event.target.dataset.petField === 'petName' && card === firstPetCard && assessmentLogId) assessmentAnimal = petValue(card, 'petName');
     if (['petType', 'petCategory', 'petRecordKind'].includes(event.target.dataset.petField)) {
@@ -1659,8 +1731,8 @@ function getAverageRate(average) {
           severity: document.getElementById('consultSeverity').value,
           logId: assessmentLogId,
           animal: assessmentAnimal,
-          result: document.getElementById('consultResult').classList.contains('is-hidden') ? '' : document.getElementById('consultResult').textContent,
-          summary: document.getElementById('chatbotBookingSummary').hidden ? '' : document.getElementById('chatbotBookingSummary').textContent
+          result: consultResultData,
+          summary: chatbotSummaryData
         },
         fields
       }));
@@ -1678,6 +1750,16 @@ function getAverageRate(average) {
     try { draft = JSON.parse(sessionStorage.getItem(BOOKING_DRAFT_KEY) || 'null'); } catch { draft = null; }
     if (!draft || !draft.fields) return;
 
+    const restoreSavedConsultResult = () => {
+      const prior = draft.consultation;
+      if (!prior || draft.fields.visitType !== 'Consultation'
+        || document.getElementById('visitType').value !== 'Consultation') return;
+      assessmentLogId = Number(prior.logId) || 0;
+      assessmentAnimal = String(prior.animal || '');
+      renderConsultResult(typeof prior.result === 'string' && prior.result
+        ? { state: 'ready', title: 'Clinic guidance', body: prior.result } : prior.result);
+    };
+
     BOOKING_FIELD_IDS.forEach((id) => {
       const el = document.getElementById(id);
       if (el && draft.fields[id] != null) el.value = draft.fields[id];
@@ -1689,14 +1771,7 @@ function getAverageRate(average) {
       if ([...duration.options].some(option => option.value === prior.duration)) duration.value = prior.duration;
       const severity = document.getElementById('consultSeverity');
       if ([...severity.options].some(option => option.value === prior.severity)) severity.value = prior.severity;
-      assessmentLogId = Number(prior.logId) || 0;
-      assessmentAnimal = String(prior.animal || '');
-      const result = document.getElementById('consultResult');
-      result.textContent = prior.result || '';
-      result.classList.toggle('is-hidden', !prior.result);
-      const summary = document.getElementById('chatbotBookingSummary');
-      summary.textContent = prior.summary || '';
-      summary.hidden = !prior.summary;
+      renderChatbotBookingSummary(prior.summary);
       consultSymptomsReady.then(() => {
         const selected = new Set(prior.symptoms || []);
         [...document.getElementById('consultSymptoms').options].forEach(option => { option.selected = selected.has(option.value); });
@@ -1708,7 +1783,9 @@ function getAverageRate(average) {
       if (!document.getElementById('visitType').value) setRebookField('visitType', draft.fields.visitType);
       toggleDewormingNotice();
       toggleCspMode();
+      restoreSavedConsultResult();
       if (currentStep === 4) populateReview();
+      saveBookingDraft();
     });
     // Put the account switch back where it was: with it on, the account's
     // details win over whatever the draft held; with it off, the contact
@@ -1727,6 +1804,7 @@ function getAverageRate(average) {
     }
     toggleDewormingNotice();
     toggleCspMode();
+    restoreSavedConsultResult();
 
     // Only jump back into the wizard when the draft actually holds input.
     // Owner fields filled from the account aren't the owner's own input.
@@ -2289,7 +2367,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     if (document.getElementById('visitType').value !== 'Consultation') {
       assessmentLogId = 0;
       assessmentAnimal = '';
-      document.getElementById('consultResult').classList.add('is-hidden');
+      clearConsultResult();
     }
     document.getElementById('apptDateGroup')?.classList.toggle('is-hidden', cspMode);
     document.getElementById('apptTimeGroup')?.classList.toggle('is-hidden', cspMode);
@@ -2404,7 +2482,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
   document.getElementById('fieldConcern').addEventListener('input', () => {
     assessmentLogId = 0;
     assessmentAnimal = '';
-    document.getElementById('consultResult').classList.add('is-hidden');
+    clearConsultResult();
     updateConsultSuggestions();
     saveBookingDraft();
   });
@@ -2416,7 +2494,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     option.selected = !option.selected;
     assessmentLogId = 0;
     assessmentAnimal = '';
-    document.getElementById('consultResult').classList.add('is-hidden');
+    clearConsultResult();
     updateConsultSuggestions();
     saveBookingDraft();
   });
@@ -2425,12 +2503,14 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     const selected = document.getElementById('consultAnimal');
     const card = petCards().find(item => petValue(item, 'petName') === selected.value);
     const symptoms = [...document.getElementById('consultSymptoms').selectedOptions].map(option => option.value);
-    const resultBox = document.getElementById('consultResult');
-    resultBox.classList.remove('is-hidden');
+    const requestId = ++consultRequestId;
     assessmentLogId = 0;
     assessmentAnimal = '';
-    if (!card || !symptoms.length) { resultBox.textContent = 'Choose at least one symptom to see clinic guidance.'; return; }
-    resultBox.textContent = 'Checking clinic guidance…';
+    if (!card || !symptoms.length) {
+      renderConsultResult({ state: 'notice', title: 'Choose a symptom first', body: 'Select at least one symptom to see clinic guidance.' });
+      return;
+    }
+    renderConsultResult({ state: 'loading', title: 'Checking clinic guidance', body: 'Please wait a moment.' });
     try {
       const response = await fetch('/api/chatbot/chatbot.php', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2440,18 +2520,27 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
           severity: document.getElementById('consultSeverity').value })
       });
       const result = await response.json();
+      if (requestId !== consultRequestId) return;
       if (!result.success) throw new Error(result.message || 'Guidance unavailable.');
       assessmentLogId = Number(result.data.logId) || 0;
       assessmentAnimal = selected.value;
-      resultBox.textContent = `${result.data.condition}: ${result.data.recommendation} This is preliminary guidance, not a diagnosis. Booking remains available.`;
+      renderConsultResult({
+        state: 'ready',
+        title: result.data.condition || 'Clinic guidance',
+        body: result.data.recommendation || 'Contact the clinic for advice.',
+        note: 'Preliminary guidance only; this is not a diagnosis. You can still book a consultation.'
+      });
       saveBookingDraft();
-    } catch (error) { resultBox.textContent = `${error.message} You may continue booking or contact the clinic.`; }
+    } catch (error) {
+      if (requestId !== consultRequestId) return;
+      renderConsultResult({ state: 'notice', title: 'Guidance unavailable', body: `${error.message} You can continue booking or contact the clinic.` });
+    }
   });
   ['consultAnimal', 'consultSymptoms', 'consultDuration', 'consultSeverity'].forEach(id => {
     document.getElementById(id).addEventListener('change', () => {
       assessmentLogId = 0;
       assessmentAnimal = '';
-      document.getElementById('consultResult').classList.add('is-hidden');
+      clearConsultResult();
       saveBookingDraft();
     });
   });
@@ -2887,15 +2976,20 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     if (severity) document.getElementById('consultSeverity').value = severity;
     updateConsultSuggestions();
 
-    const summary = document.getElementById('chatbotBookingSummary');
-    summary.hidden = false;
-    summary.textContent = `From your chatbot check: ${species || 'species not selected'} · Age group: ${context.ageGroup || 'Not sure'} · ${symptoms.length ? symptoms.join(', ') : 'No listed symptoms'} · ${context.duration || 'Duration not given'} · ${context.severity || 'Status not given'}${context.barangayName ? ` · Barangay: ${context.barangayName}` : ''}. Confirm the details below and check the field location before submitting.`;
+    renderChatbotBookingSummary({
+      species, ageGroup: context.ageGroup, symptoms,
+      duration: context.duration, severity: context.severity,
+      barangayName: context.barangayName
+    });
     if (context.assessment && typeof context.assessment === 'object') {
       assessmentLogId = Number(context.assessment.logId) || 0;
       assessmentAnimal = petValue(firstPetCard, 'petName');
-      const resultBox = document.getElementById('consultResult');
-      resultBox.classList.remove('is-hidden');
-      resultBox.textContent = `${context.assessment.condition || 'Clinic guidance'}: ${context.assessment.recommendation || ''} This is preliminary guidance, not a diagnosis.`;
+      renderConsultResult({
+        state: 'ready',
+        title: context.assessment.condition || 'Clinic guidance',
+        body: context.assessment.recommendation || 'Contact the clinic for advice.',
+        note: 'Preliminary guidance only; this is not a diagnosis. You can still book a consultation.'
+      });
     }
     showPage(pageBooking);
     goStep(validateStep(1) ? 2 : 1);

@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
   <link rel="stylesheet" href="../../shared/css/form-validation.css"/>
-  <link rel="stylesheet" href="../css/book-appointment.css?v=20261027-livestock-booking"/>
+  <link rel="stylesheet" href="../css/book-appointment.css?v=20261027-consultation-ui"/>
 </head>
 <body>
 
@@ -325,7 +325,7 @@
     <div id="step2" class="step-content" style="display:none;">
       <div class="form-card">
         <div class="form-card-title" id="bookingPatientTitle">Pet Information</div>
-        <p class="chatbot-booking-summary" id="chatbotBookingSummary" hidden></p>
+        <div class="chatbot-booking-summary" id="chatbotBookingSummary" hidden></div>
         <p class="booking-pets-hint">Add each animal or herd/flock. Clinic and field visits need separate bookings.</p>
         <div id="bookingPetTabs" class="booking-pet-tabs" aria-label="Animals in this booking"></div>
         <div id="bookingPets">
@@ -470,7 +470,7 @@
           </div>
           <p class="consult-safety-note">For severe symptoms, contact the clinic immediately. This guidance is preliminary.</p>
           <button type="button" class="btn-add-pet" id="btnAssessSymptoms">Show clinic guidance</button>
-          <div id="consultResult" class="field-warning is-hidden" role="status"></div>
+          <div id="consultResult" class="consult-result is-hidden" role="status" aria-live="polite"></div>
         </div>
         <div class="form-group full is-hidden" id="cspProgramNotice">
           <div class="field-warning">
@@ -849,7 +849,7 @@
   <script src="../js/api.js?v=20261026-token-fallback"></script>
   <!-- Must load before book-appointment.js, which calls VBForm at validate time. -->
   <script src="../../shared/js/form-validation.js"></script>
-  <script src="../js/book-appointment.js?v=20261027-livestock-booking"></script>
+  <script src="../js/book-appointment.js?v=20261027-consultation-ui"></script>
   <script src="../js/site-settings.js?v=20260829-preview"></script>
 </body>
 </html>

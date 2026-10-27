@@ -2151,20 +2151,26 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     color: #475569;
 }
 .pace-note strong { color: #0f172a; }
-.rankings-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.95fr); align-items: start; gap: 16px; margin: 16px 0; }
+.rankings-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr); align-items: start; gap: 16px; margin: 16px 0; }
 .rankings-grid.is-disease-specific { display: block; }
 .rankings-grid.is-disease-specific #animalGroupsCard { width: 100%; max-width: 960px; margin-inline: auto; }
-.ranking-card { min-width: 0; padding: 20px 22px 22px; }
+.ranking-card { min-width: 0; padding: 20px 22px 18px; }
 .ranking-card-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
-.ranking-card-heading h3 { margin: 0; color: var(--ink); font-size: 16px; font-weight: 800; letter-spacing: -0.2px; }
-.ranking-card-heading p { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.ranking-card-heading h3 { margin: 0; color: var(--ink); font-size: 17px; font-weight: 800; letter-spacing: -0.2px; }
+.ranking-card-heading p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .ranking-unit { flex: 0 0 auto; padding: 5px 8px; border-radius: 99px; background: var(--green-bg); color: var(--green); font-size: 10px; font-weight: 800; }
 .ranking-chart { display: grid; }
-.ranking-row { display: grid; grid-template-columns: 20px minmax(160px, 1.3fr) minmax(55px, 1fr) 42px; gap: 10px; align-items: center; min-width: 0; min-height: 54px; padding: 9px 0; border-bottom: 1px solid #f0f3f6; color: var(--ink-2); font-size: 12px; line-height: 1.4; }
+.ranking-columns { display: grid; align-items: center; gap: 10px; padding: 11px 0 5px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.ranking-columns-disease, .ranking-row-disease { grid-template-columns: 20px minmax(0, 1.2fr) minmax(100px, .75fr) minmax(52px, .7fr) 42px; }
+.ranking-columns-disease span:last-child { text-align: right; }
+.ranking-row { display: grid; grid-template-columns: 20px minmax(0, 1.3fr) minmax(55px, 1fr) 42px; gap: 10px; align-items: center; min-width: 0; min-height: 52px; padding: 9px 0; border-bottom: 1px solid #f0f3f6; color: var(--ink-2); font-size: 12px; line-height: 1.4; }
+.ranking-row-disease { grid-template-columns: 20px minmax(0, 1.2fr) minmax(100px, .75fr) minmax(52px, .7fr) 42px; }
 .ranking-row:last-child { border-bottom: 0; }
 .ranking-rank { color: var(--muted); font-weight: 800; font-variant-numeric: tabular-nums; }
 .ranking-name { min-width: 0; overflow-wrap: anywhere; }
-.ranking-context { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; font-weight: 600; }
+.ranking-barangay { display: grid; min-width: 0; color: var(--ink-2); line-height: 1.3; overflow-wrap: anywhere; }
+.ranking-barangay small { color: var(--muted); font-size: 10px; }
+.ranking-no-barangay { color: var(--muted); font-size: 11px; }
 .ranking-track { display: block; height: 8px; overflow: hidden; border-radius: 99px; background: #e8f0eb; }
 .ranking-track > span { display: block; height: 100%; border-radius: inherit; background: #23875b; }
 .ranking-row strong { text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -2180,7 +2186,11 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     .insight-filter-field { width: 100%; }
     .insight-card { min-height: 0; padding: 18px; }
     .ranking-card { padding: 16px; }
+    .ranking-columns { display: none; }
     .ranking-row { grid-template-columns: 20px minmax(0, 1fr) auto; gap: 5px 8px; }
     .ranking-track { grid-column: 2 / 4; grid-row: 2; }
     .ranking-row strong { grid-column: 3; grid-row: 1; }
+    .ranking-row-disease .ranking-barangay { grid-column: 2 / 4; grid-row: 2; display: flex; flex-wrap: wrap; gap: 0 5px; }
+    .ranking-row-disease .ranking-barangay::before { content: 'Leading barangay:'; color: var(--muted); }
+    .ranking-row-disease .ranking-track { grid-row: 3; }
 }
