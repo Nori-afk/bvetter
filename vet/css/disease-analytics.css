@@ -2191,6 +2191,6 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     .ranking-track { grid-column: 2 / 4; grid-row: 2; }
     .ranking-row strong { grid-column: 3; grid-row: 1; }
     .ranking-row-disease .ranking-barangay { grid-column: 2 / 4; grid-row: 2; display: flex; flex-wrap: wrap; gap: 0 5px; }
-    .ranking-row-disease .ranking-barangay::before { content: 'Leading barangay:'; color: var(--muted); }
+    .ranking-row-disease .ranking-barangay::before { content: 'Most cases in:'; color: var(--muted); }
     .ranking-row-disease .ranking-track { grid-row: 3; }
 }

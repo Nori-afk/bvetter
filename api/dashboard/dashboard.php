@@ -742,7 +742,14 @@ function top_disease_barangay_leaders($pdo, array $diseaseNames, string $dataVie
     foreach ($counts as $disease => $barangays) {
         uksort($barangays, static fn($a, $b) => ($barangays[$b] <=> $barangays[$a]) ?: strcasecmp($a, $b));
         $name = array_key_first($barangays);
-        if ($name !== null && $barangays[$name] > 0) $leaders[$disease] = ['barangay' => $name, 'value' => $barangays[$name]];
+        if ($name !== null && $barangays[$name] > 0) {
+            $highest = $barangays[$name];
+            $leaders[$disease] = [
+                'barangay' => $name,
+                'barangays' => array_keys(array_filter($barangays, static fn($cases) => $cases === $highest)),
+                'value' => $highest,
+            ];
+        }
     }
     return $leaders;
 }
@@ -1049,6 +1056,7 @@ function disease_analytics_data($pdo)
             'name' => $name,
             'value' => (int) round($count),
             'topBarangay' => $leader['barangay'] ?? null,
+            'topBarangays' => $leader['barangays'] ?? [],
             'topBarangayCases' => (int) ($leader['value'] ?? 0),
         ];
     }

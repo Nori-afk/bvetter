@@ -1023,11 +1023,15 @@ function renderOverview() {
             ? rows.map((row, index) => {
                 const count = Math.max(0, Number(row.value) || 0);
                 const barangayCount = Math.max(0, Number(row.topBarangayCases) || 0);
+                const leadingBarangays = Array.isArray(row.topBarangays) && row.topBarangays.length
+                    ? row.topBarangays : (row.topBarangay ? [row.topBarangay] : []);
                 return `<div class="ranking-row${isDiseaseRanking ? ' ranking-row-disease' : ''}" role="listitem">
                     <span class="ranking-rank" aria-hidden="true">${index + 1}</span>
                     <span class="ranking-name">${esc(row.name)}</span>
-                    ${isDiseaseRanking ? `<span class="ranking-barangay">${row.topBarangay
-                        ? `<span>${esc(row.topBarangay)}</span><small>${barangayCount.toLocaleString()} ${barangayCount === 1 ? 'case' : 'cases'} here</small>`
+                    ${isDiseaseRanking ? `<span class="ranking-barangay">${leadingBarangays.length
+                        ? `<span>${leadingBarangays.map(esc).join(', ')}</span><small>${leadingBarangays.length > 1
+                            ? `${barangayCount.toLocaleString()} cases in each; ${count.toLocaleString()} total`
+                            : `${barangayCount.toLocaleString()} of ${count.toLocaleString()} cases`}</small>`
                         : '<span class="ranking-no-barangay">No barangay recorded</span>'}</span>` : ''}
                     <span class="ranking-track" aria-hidden="true"><span style="width:${Math.max(2, count / maximum * 100)}%"></span></span>
                     <strong aria-label="${count.toLocaleString()} total cases">${count.toLocaleString()}</strong>
