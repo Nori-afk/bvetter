@@ -34,6 +34,17 @@ function normalizeDuration($value)
 function normalizePetType($value)
 {
     $value = strtolower(clean($value));
+    if ($value === '') return '';
+    $types = [
+        'cat' => 'Cat', 'feline' => 'Cat',
+        'dog' => 'Dog', 'canine' => 'Dog',
+        'chicken' => 'Chicken', 'avian' => 'Chicken',
+        'carabao / water buffalo' => 'Carabao / Water Buffalo', 'carabao' => 'Carabao / Water Buffalo', 'water buffalo' => 'Carabao / Water Buffalo',
+        'goat / sheep' => 'Goat / Sheep', 'goat' => 'Goat / Sheep', 'sheep' => 'Goat / Sheep',
+        'pig' => 'Pig', 'swine' => 'Pig', 'hog' => 'Pig',
+        'rabbit' => 'Rabbit',
+    ];
+    if (isset($types[$value])) return $types[$value];
     if (strpos($value, 'cat') === 0) return 'Cat';
     if (strpos($value, 'dog') === 0) return 'Dog';
     return 'Other';

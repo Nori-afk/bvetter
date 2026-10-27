@@ -201,7 +201,6 @@ function findOrCreatePet($pdo, $ownerId, $data)
     $missing = [];
     if ($petName === '') $missing[] = 'name';
     if ($species === '') $missing[] = 'type';
-    if ($breed === '')   $missing[] = 'breed';
     if ($age === '')     $missing[] = 'age';
 
     if ($missing) {

@@ -65,7 +65,7 @@
 
   var cssLink = document.createElement('link');
   cssLink.rel  = 'stylesheet';
-  cssLink.href = '../css/chatbot.css';
+  cssLink.href = '../css/chatbot.css?v=20261027-livestock';
   document.head.appendChild(cssLink);
 
   /* ─────────────────────────────────────────
@@ -643,7 +643,7 @@ function closeChat() {
   /* ─────────────────────────────────────────
      10. OPTION / CHIP BUILDERS
   ───────────────────────────────────────── */
-  function clearOptions(el) { el.innerHTML = ''; }
+  function clearOptions(el) { el.innerHTML = ''; el.classList.remove('species-options'); }
 
   function showOptionLabel(el, text) {
     var lbl = document.createElement('div');
@@ -984,133 +984,30 @@ function closeChat() {
     });
   }
 
-  /* ── Step 1: Pet type ── */
-  function askPetType() {
-    clearOptions(cOpts);
-    addBotBubble(cMsgs, 'What type of pet do you have?', 550)
-      .then(function () {
-        showOptionLabel(cOpts, 'Select pet type');
-
-        var pets = [
-          { label: 'Dog',   icon: 'chatbot-dogs.png' },
-          { label: 'Cat',   icon: 'chatbot-cats.png' },
-          { label: 'Other', icon: 'chatbot-others.png'  },
-        ];
-
-        pets.forEach(function (p) {
-          addOptionBtn(cOpts, p.icon, p.label, '', function () {
-            cState.petType = p.label;
-            addUserBubble(cMsgs, p.label);
-            clearOptions(cOpts);
-            addDivider(cMsgs, 'Step 2 of 3');
-            askProblem();
-          });
-        });
-      });
-  }
-
-  /* ── Step 2: Symptom ── */
-  function askProblem() {
-    addBotBubble(cMsgs, 'What seems to be the problem with your ' + cState.petType + '?', 550)
-      .then(function () {
-        showChips(
-          cOpts,
-          ['Fever', 'Vomiting', 'Diarrhea', 'Weak / Lethargic', 'Not Eating', 'Injury', 'Skin Issues', 'Coughing'],
-          function (symptom) {
-            cState.symptom = symptom;
-            addUserBubble(cMsgs, symptom);
-            clearOptions(cOpts);
-            addDivider(cMsgs, 'Step 3 of 3');
-            askDuration();
-          }
-        );
-      });
-  }
-
-  /* ── Step 3: Duration ── */
-  function askDuration() {
-    addBotBubble(cMsgs, 'How long has this been happening?', 550)
-      .then(function () {
-        showChips(
-          cOpts,
-          ['Just started', 'Less than 24 hours', '1\u20133 days', 'More than 3 days', 'Not sure'],
-          function (duration) {
-            cState.duration = duration;
-            addUserBubble(cMsgs, duration);
-            clearOptions(cOpts);
-            showRiskAssessment();
-          }
-        );
-      });
-  }
-
-  /* ── Risk assessment ── */
-  function showRiskAssessment() {
-    addBotBubble(cMsgs, 'Analyzing your pet\u2019s symptoms\u2026', 500)
-      .then(function () {
-        var s = cState.symptom  || '';
-        var d = cState.duration || '';
-
-        var level, advice;
-
-        if (s === 'Injury' || d === 'More than 3 days') {
-          level  = 'high';
-          advice =
-            'Your pet may need urgent veterinary attention.\n\n' +
-            'Immediate Steps:\n' +
-            '\u2022 Keep your pet calm and still\n' +
-            '\u2022 Do not administer human medications\n' +
-            '\u2022 Call our Emergency Line: (049) 523-4567\n' +
-            '\u2022 Bring your pet to the clinic immediately\n\n' +
-            'Tell the vet:\n' +
-            '\u2022 When symptoms started\n' +
-            '\u2022 Any recent diet or environment changes\n' +
-            '\u2022 Medications already given';
-
-        } else if (
-          (d === 'Less than 24 hours' || d === 'Just started') &&
-          (s === 'Fever' || s === 'Vomiting' || s === 'Diarrhea')
-        ) {
-          level  = 'moderate';
-          advice =
-            'Your pet\u2019s symptoms are notable but may not be immediately critical.\n\n' +
-            'Home Care (next 12\u201324 hours):\n' +
-            '\u2022 Ensure access to clean water at all times\n' +
-            '\u2022 Offer light, bland food in small amounts\n' +
-            '\u2022 Monitor stool and behavior changes\n' +
-            '\u2022 Do not give human anti-fever medication\n\n' +
-            'Visit the Clinic if:\n' +
-            '\u2022 Symptoms worsen or persist beyond 2 days\n' +
-            '\u2022 Your pet stops drinking water\n' +
-            '\u2022 There is blood in vomit or stool\n' +
-            '\u2022 Your pet collapses or becomes unresponsive';
-
-        } else {
-          level  = 'low';
-          advice =
-            'Your pet\u2019s condition appears mild at this time.\n\n' +
-            'Recommended Steps:\n' +
-            '\u2022 Monitor closely over the next 24 hours\n' +
-            '\u2022 Ensure fresh water and regular feeding\n' +
-            '\u2022 Limit strenuous activity\n' +
-            '\u2022 Schedule a routine check-up if needed\n\n' +
-            'Contact us if symptoms change or worsen.';
-        }
-
-        addDivider(cMsgs, 'Assessment Result');
-        addRiskCard(cMsgs, level, advice);
-        showConsultActions();
-      });
-  }
-
   /* ── Post-assessment actions ── */
   function showConsultActions() {
     clearOptions(cOpts);
     showOptionLabel(cOpts, 'What would you like to do next?');
 
-    addOptionBtn(cOpts, 'chatbot-appointment.png', 'Book an Appointment', 'Schedule with a specialist',
+    addOptionBtn(cOpts, 'chatbot-appointment.png', 'Book an Appointment',
+      cState.animalCategory === 'livestock' ? 'Request a livestock field visit' : 'Schedule a clinic visit',
       function () {
-        window.location.href = 'book-appointment.html';
+        try {
+          sessionStorage.setItem('bvetter_chatbot_booking_context', JSON.stringify({
+            version: 1,
+            createdAt: Date.now(),
+            petType: cState.petType || '',
+            animalCategory: cState.animalCategory || 'companion',
+            ageGroup: cState.ageGroup || '',
+            symptoms: cState.symptoms || [],
+            duration: cState.duration || '',
+            severity: cState.severity || '',
+            barangayId: cState.barangayId || null,
+            barangayName: cState.barangayName || '',
+            assessment: cState.assessment || null
+          }));
+        } catch (e) { /* Booking remains available without autofill. */ }
+        window.location.href = 'book-appointment.html?from_chatbot=1';
       }
     );
 
@@ -1128,59 +1025,47 @@ function closeChat() {
 
   function askPetType() {
     clearOptions(cOpts);
-    addBotBubble(cMsgs, 'What type of pet do you have?', 550)
+    cOpts.classList.add('species-options');
+    addBotBubble(cMsgs, 'Which animal needs help?', 550)
       .then(function () {
-        showOptionLabel(cOpts, 'Select pet type');
+        showOptionLabel(cOpts, 'Select species');
         [
           { label: 'Dog', icon: 'chatbot-dogs.png' },
           { label: 'Cat', icon: 'chatbot-cats.png' },
-          { label: 'Other', icon: 'chatbot-others.png', sublabel: 'Livestock (cow, goat, pig, etc.)' }
+          { label: 'Chicken', icon: 'chatbot-others.png' },
+          { label: 'Carabao / Water Buffalo', icon: 'chatbot-others.png' },
+          { label: 'Goat / Sheep', icon: 'chatbot-others.png' },
+          { label: 'Pig', icon: 'chatbot-others.png' },
+          { label: 'Rabbit', icon: 'chatbot-others.png' },
+          { label: 'Other', icon: 'chatbot-others.png', sublabel: 'Another farm animal' }
         ].forEach(function (p) {
           addOptionBtn(cOpts, p.icon, p.label, p.sublabel || '', function () {
             cState.petType = p.label;
             addUserBubble(cMsgs, p.label);
             clearOptions(cOpts);
-            if (p.label === 'Other') {
-              showLivestockAppointmentPrompt();
-            } else {
-              askAgeGroup();
-            }
+            if (p.label === 'Rabbit') return askRabbitCategory();
+            cState.animalCategory = p.label === 'Dog' || p.label === 'Cat' ? 'companion' : 'livestock';
+            askAgeGroup();
           });
         });
       });
   }
 
-  /* ── "Other" (livestock) short-circuit: livestock cases need an in-person
-     clinic visit, not an online symptom check, so skip straight to booking. ── */
-  function showLivestockAppointmentPrompt() {
-    addBotBubble(
-      cMsgs,
-      'For livestock and other farm animals, our vet team needs to examine them in person — ' +
-      'we’re not able to give a reliable assessment through online consultation for these cases.\n\n' +
-      'Please book an appointment so a veterinarian can see your animal directly at the clinic.',
-      600
-    ).then(function () {
-      clearOptions(cOpts);
-      showOptionLabel(cOpts, 'What would you like to do?');
-
-      addOptionBtn(cOpts, 'chatbot-appointment.png', 'Book an Appointment', 'Schedule a clinic visit',
-        function () {
-          window.location.href = 'book-appointment.html';
-        }
-      );
-
-      addOptionBtn(cOpts, 'chatbot-ask-again.png', 'Check Again', 'Restart symptom checker',
-        function () {
-          consultDone = false;
-          startConsultation();
-        }
-      );
-    });
+  function askRabbitCategory() {
+    addBotBubble(cMsgs, 'Is your rabbit kept as a companion animal or livestock?', 450)
+      .then(function () {
+        showChips(cOpts, ['Companion animal', 'Livestock'], function (answer) {
+          cState.animalCategory = answer === 'Livestock' ? 'livestock' : 'companion';
+          addUserBubble(cMsgs, answer);
+          clearOptions(cOpts);
+          askAgeGroup();
+        });
+      });
   }
 
   function askAgeGroup() {
     var babyLabel = cState.petType === 'Dog' ? 'Puppy' : cState.petType === 'Cat' ? 'Kitten' : 'Baby';
-    addBotBubble(cMsgs, 'What age group is your pet?', 500)
+    addBotBubble(cMsgs, 'What age group is the animal?', 500)
       .then(function () {
         showChips(cOpts, [babyLabel, 'Young', 'Adult', 'Senior', 'Not sure'], function (ageGroup) {
           cState.ageGroup = ageGroup === babyLabel ? 'Baby' : ageGroup;
@@ -1195,7 +1080,7 @@ function closeChat() {
   var FALLBACK_SYMPTOMS = ['Fever', 'Vomiting', 'Diarrhea', 'Coughing', 'Limping', 'Loss of Appetite', 'Itching', 'Seizures', 'Wounds'];
 
   function askSymptomsChecklist() {
-    addBotBubble(cMsgs, 'Which symptoms does your pet have? Select all that apply.', 450)
+    addBotBubble(cMsgs, 'Which symptoms have you noticed? Select all that apply.', 450)
       .then(function () {
         return chatbotRequest('public_symptoms')
           .catch(function () { return null; });
@@ -1227,7 +1112,7 @@ function closeChat() {
   }
 
   function askSeverity() {
-    addBotBubble(cMsgs, 'How severe is your pet\'s condition?', 550)
+    addBotBubble(cMsgs, 'How is the animal doing?', 550)
       .then(function () {
         showChips(cOpts, ['Active but sick', 'Weak', 'Not moving'], function (severity) {
           cState.severity = severity;
@@ -1258,6 +1143,7 @@ function closeChat() {
         barangays.forEach(function (barangay) {
           addOptionBtn(cOpts, 'icon-location.svg', barangay.name, '', function () {
             cState.barangayId = barangay.id;
+            cState.barangayName = barangay.name;
             addUserBubble(cMsgs, barangay.name);
             clearOptions(cOpts);
             setTimeout(showRiskAssessment, 0);
@@ -1267,10 +1153,12 @@ function closeChat() {
   }
 
   function showRiskAssessment() {
-    addBotBubble(cMsgs, 'Analyzing your pet\'s symptoms...', 500)
+    addBotBubble(cMsgs, 'Checking the symptoms against clinic-approved guidance...', 500)
       .then(function () {
         return chatbotRequest('assess_consultation', {
+          clinic_approved_only: true,
           petType: cState.petType,
+          animalCategory: cState.animalCategory,
           ageGroup: cState.ageGroup,
           symptoms: cState.symptoms,
           duration: cState.duration,
@@ -1279,6 +1167,7 @@ function closeChat() {
         });
       })
       .then(function (result) {
+        cState.assessment = result;
         addDivider(cMsgs, 'Assessment Result');
         addInfoBox(
           cMsgs,
@@ -1290,7 +1179,9 @@ function closeChat() {
       .catch(function () {
         addDivider(cMsgs, 'Assessment Result');
         addInfoBox(cMsgs, 'Recommended Action',
-          'Recommended action: Book appointment\n\nWe could not complete the automated assessment right now. Please book a clinic visit if symptoms continue or your pet becomes weak.'
+          cState.animalCategory === 'livestock'
+            ? 'We could not complete the symptom check. Contact the clinic for advice or request a livestock field visit.'
+            : 'We could not complete the symptom check. Contact the clinic for advice or book a clinic visit.'
         );
         showConsultActions();
       });

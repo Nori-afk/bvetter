@@ -56,6 +56,7 @@ const state = {
     insightStatus: '',
     // Which column drives the order BOTH bar charts are drawn in.
     chartSort: 'actual',
+    chartLimit: '10',
     mapActionMode: false,
     loadRequestId: 0,
     loadError: '',
@@ -909,6 +910,11 @@ function bindEvents() {
         renderBarChart('actualChart',    diseaseAnalyticsData.actualCases,    'actual');
         renderBarChart('predictedChart', diseaseAnalyticsData.predictedCases, 'predicted');
     });
+    document.getElementById('barangayLimitFilter')?.addEventListener('change', (ev) => {
+        state.chartLimit = ev.target.value === 'all' ? 'all' : '10';
+        renderBarChart('actualChart', diseaseAnalyticsData.actualCases, 'actual');
+        renderBarChart('predictedChart', diseaseAnalyticsData.predictedCases, 'predicted');
+    });
     document.getElementById('insightStatusFilter')?.addEventListener('change', (ev) => {
         state.insightStatus = ev.target.value;
         renderInsightCards();
@@ -1017,7 +1023,9 @@ function renderOverview() {
                 const count = Math.max(0, Number(row.value) || 0);
                 return `<div class="ranking-row" role="listitem">
                     <span class="ranking-rank" aria-hidden="true">${index + 1}</span>
-                    <span class="ranking-name">${esc(row.name)}</span>
+                    <span class="ranking-name">${esc(row.name)}${row.topBarangay
+                        ? `<small class="ranking-context">Most cases: ${esc(row.topBarangay)} (${Number(row.topBarangayCases || 0).toLocaleString()})</small>`
+                        : ''}</span>
                     <span class="ranking-track" aria-hidden="true"><span style="width:${Math.max(2, count / maximum * 100)}%"></span></span>
                     <strong>${count.toLocaleString()}</strong>
                   </div>`;
@@ -1226,23 +1234,35 @@ function renderInsightCards() {
 }
 
 /* ── Bar chart ──────────────────────────────────────────────── */
-/* The one ranking both charts are drawn in. Ranks by whichever column the
-   Sort by control names, so the two charts stay row-aligned and a barangay
-   can be compared across them without hunting for it twice. */
+/* Both charts use one ordered barangay list. A forecast-only barangay gets a
+   visible zero on the Actual side, so Top 10 and All stay row-aligned. */
 function sharedBarangayOrder() {
-    const source = state.chartSort === 'predicted'
-        ? diseaseAnalyticsData.predictedCases
-        : diseaseAnalyticsData.actualCases;
-    const rank = {};
-    [...(source || [])]
-        .sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0))
-        .forEach((row, index) => { rank[normalizeBarangayName(row.barangay)] = index; });
-    return rank;
+    const byBarangay = new Map();
+    for (const [metric, rows] of [
+        ['actual', diseaseAnalyticsData.actualCases],
+        ['predicted', diseaseAnalyticsData.predictedCases],
+    ]) {
+        for (const row of rows || []) {
+            const key = normalizeBarangayName(row.barangay);
+            if (!key) continue;
+            if (!byBarangay.has(key)) byBarangay.set(key, { key, name: row.barangay, actual: 0, predicted: 0 });
+            byBarangay.get(key)[metric] = Number(row.value) || 0;
+        }
+    }
+    const secondary = state.chartSort === 'actual' ? 'predicted' : 'actual';
+    const ordered = [...byBarangay.values()].sort((a, b) =>
+        b[state.chartSort] - a[state.chartSort]
+        || b[secondary] - a[secondary]
+        || a.name.localeCompare(b.name)
+    );
+    return state.chartLimit === 'all' ? ordered : ordered.slice(0, 10);
 }
 
 function renderBarChart(targetId, sourceRows, chartType) {
     const root = document.getElementById(targetId);
-    if (!root || !sourceRows?.length) { if (root) root.innerHTML = '<p class="no-data">No data available.</p>'; return; }
+    if (!root) return;
+    const selectedBarangays = sharedBarangayOrder();
+    if (!selectedBarangays.length) { root.innerHTML = '<p class="no-data">No data available.</p>'; return; }
 
     // HIGHEST FIRST. There was no ordering anywhere before this -- not in
     // dashboard.php, which appends barangays in whatever order the aggregation
@@ -1260,14 +1280,9 @@ function renderBarChart(targetId, sourceRows, chartType) {
     // put a barangay at two different heights, so reading "is San Jose worse
     // than forecast?" meant finding it twice and comparing positions by eye.
     // The Sort by control decides which column drives the shared order.
-    const order = sharedBarangayOrder();
-    const rows  = [...sourceRows].sort((a, b) => {
-        const ra = order[normalizeBarangayName(a.barangay)] ?? Number.MAX_SAFE_INTEGER;
-        const rb = order[normalizeBarangayName(b.barangay)] ?? Number.MAX_SAFE_INTEGER;
-        // Ties and barangays missing from the ordering column fall back to this
-        // chart's own value, so a row never lands in an arbitrary spot.
-        return ra !== rb ? ra - rb : (Number(b.value) || 0) - (Number(a.value) || 0);
-    });
+    const byName = new Map((sourceRows || []).map(row => [normalizeBarangayName(row.barangay), row]));
+    const rows = selectedBarangays.map(({ key, name }) =>
+        byName.get(key) || { barangay: name, value: 0, missing: true });
 
     const allDiseases  = diseaseAnalyticsData.isAllDiseases;
     const maxValue     = Math.max(...rows.map(r => r.value), 1);
@@ -1295,7 +1310,7 @@ function renderBarChart(targetId, sourceRows, chartType) {
        forecast is recognised as a model rather than falling
        through to the generic "Estimate". */
     const sourceOf = (item) => {
-        if (chartType !== 'predicted') return null;
+        if (chartType !== 'predicted' || item.missing) return null;
         const src = (item.source || '').toLowerCase();
         if (src.includes('sarima') || src.includes('arima') || src.includes('rfmonthly')) {
             return src.includes('alldisease')
@@ -1317,7 +1332,7 @@ function renderBarChart(targetId, sourceRows, chartType) {
     const usualSource = Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0] || null;
 
     root.innerHTML = warning + rows.map((item, index) => {
-        const width = Math.max((item.value / maxValue) * 100, 3);
+        const width = Number(item.value) > 0 ? Math.max((item.value / maxValue) * 100, 3) : 0;
         const source = sourceOf(item);
         const badge = (source && source.text !== usualSource)
             ? `<span class="source-badge ${source.kind}">${source.text}</span>`

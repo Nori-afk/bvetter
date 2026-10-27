@@ -394,7 +394,6 @@ function findOrCreatePet($pdo, $ownerId, $data)
     $missing = [];
     if ($petName === '') $missing[] = 'name';
     if ($species === '') $missing[] = 'type';
-    if ($breed === '' && ($data['record_kind'] ?? 'individual') !== 'group') $missing[] = 'breed';
 
     if ($missing) {
         respond(422, [
@@ -716,19 +715,19 @@ function createAppointment($pdo, $data)
         if ($assessmentEntry === null) {
             respond(422, ['success' => false, 'message' => 'The symptom check animal is not in this booking.']);
         }
-        $assessmentStmt = $pdo->prepare('SELECT pet_type, symptoms_json, duration, severity, recommended_action, recommendation FROM chatbot_consultation_logs WHERE id = :id AND booking_context = 1');
+        $assessmentStmt = $pdo->prepare('SELECT pet_type, age_group, symptoms_json, duration, severity, recommended_action, recommendation FROM chatbot_consultation_logs WHERE id = :id AND booking_context = 1');
         $assessmentStmt->execute([':id' => $assessmentId]);
         $assessmentRow = $assessmentStmt->fetch(PDO::FETCH_ASSOC);
         if (!$assessmentRow) respond(422, ['success' => false, 'message' => 'Please run the symptom check again.']);
         $assessmentSpecies = clean($assessmentEntry['species'] ?? $assessmentEntry['pet_type'] ?? '');
-        $expectedType = in_array($assessmentSpecies, ['Dog','Canine'], true) ? 'Dog'
-            : (in_array($assessmentSpecies, ['Cat','Feline'], true) ? 'Cat' : 'Other');
+        $expectedType = chatbotSpeciesForBookedAnimal($assessmentSpecies);
         if ($assessmentRow['pet_type'] !== $expectedType) {
             respond(422, ['success' => false, 'message' => 'The symptom check was for a different animal type.']);
         }
         $ownerAssessment = [
             'animal' => $animalName,
             'pet_type' => $assessmentRow['pet_type'],
+            'age_group' => $assessmentRow['age_group'],
             'symptoms' => json_decode($assessmentRow['symptoms_json'], true) ?: [],
             'duration' => $assessmentRow['duration'],
             'severity' => $assessmentRow['severity'],

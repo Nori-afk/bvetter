@@ -35,7 +35,13 @@ final class ChatbotNormalizeTest extends TestCase
         $this->assertSame('Cat', normalizePetType('cat'));
         $this->assertSame('Cat', normalizePetType('Catherine the cat')); // starts with "cat"
         $this->assertSame('Dog', normalizePetType('dog'));
-        $this->assertSame('Other', normalizePetType('rabbit'));
+        $this->assertSame('Rabbit', normalizePetType('rabbit'));
+        $this->assertSame('Pig', normalizePetType('swine'));
+        $this->assertSame('Carabao / Water Buffalo', normalizePetType('water buffalo'));
+        $this->assertSame('Goat / Sheep', normalizePetType('goat'));
+        $this->assertSame('Chicken', normalizePetType('avian'));
+        $this->assertSame('Other', normalizePetType('other livestock'));
+        $this->assertSame('', normalizePetType(''));
     }
 
     public function testNormalizeSeverityFlagsCriticalKeywords(): void

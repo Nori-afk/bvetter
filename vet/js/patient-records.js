@@ -67,14 +67,14 @@ async function loadDiagnosisModel() {
 	}
 }
 
-const SPECIES_OPTIONS = ['Canine', 'Feline', 'Chicken', 'Carabao / Water Buffalo', 'Goat / Sheep', 'Rabbit', 'Avian', 'Exotic'];
+const SPECIES_OPTIONS = ['Canine', 'Feline', 'Chicken', 'Carabao / Water Buffalo', 'Goat / Sheep', 'Pig', 'Rabbit', 'Other livestock', 'Avian', 'Exotic'];
 function speciesOptions(selected) {
 	return SPECIES_OPTIONS.map(item => `<option ${item === selected ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('');
 }
 const SPECIES_TO_ANIMAL_GROUP = {
 	Canine: 'Dogs', Feline: 'Cats', Avian: 'Chickens', Chicken: 'Chickens',
 	Dog: 'Dogs', Cat: 'Cats', 'Carabao / Water Buffalo': 'Carabaos / Water Buffalo',
-	'Goat / Sheep': 'Goats / Sheep', Rabbit: 'Rabbits'
+	'Goat / Sheep': 'Goats / Sheep', Pig: 'Pigs', Rabbit: 'Rabbits', 'Other livestock': 'Other livestock'
 };
 
 /* Renders nothing at all when the model is unavailable, rather than an empty
@@ -82,6 +82,9 @@ const SPECIES_TO_ANIMAL_GROUP = {
 function diagnosisSuggestBlock(data) {
 	if (!DIAGNOSIS_MODEL.available || !DIAGNOSIS_MODEL.symptomClusters.length) return '';
 	const prefill = SPECIES_TO_ANIMAL_GROUP[data.species] || '';
+	if (prefill && !DIAGNOSIS_MODEL.animalGroups.includes(prefill)) {
+		return `<div class="field span-3 dx-block"><p class="dx-muted">No trained diagnosis suggestion for ${escapeHtml(prefill)} yet. Record the veterinarian's diagnosis directly.</p></div>`;
+	}
 	return `
 		<div class="field span-3 dx-block">
 			<label class="field-label" for="dx-cluster">
@@ -2563,7 +2566,7 @@ function bindGlobalEvents() {
 		if (!category) return;
 		const species = event.target.value;
 		if (['Dog', 'Cat', 'Canine', 'Feline'].includes(species)) category.value = 'companion';
-		else if (['Chicken', 'Avian', 'Carabao / Water Buffalo', 'Goat / Sheep'].includes(species)) category.value = 'livestock';
+		else if (['Chicken', 'Avian', 'Carabao / Water Buffalo', 'Goat / Sheep', 'Pig', 'Other livestock'].includes(species)) category.value = 'livestock';
 		else if (species !== 'Rabbit') category.value = '';
 	});
 	app.addEventListener('click', async (event) => {

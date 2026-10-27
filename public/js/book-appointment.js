@@ -1372,6 +1372,7 @@ function getAverageRate(average) {
      drops the owner exactly where they left off instead of wiping the
      form. Cleared once the booking submits successfully (goStep(5)). ── */
   const BOOKING_DRAFT_KEY = 'bvetter_booking_draft';
+  const CHATBOT_BOOKING_KEY = 'bvetter_chatbot_booking_context';
   const BOOKING_FIELD_IDS = [
     'ownerName', 'ownerContact', 'ownerEmail', 'ownerBarangay', 'ownerAddress',
     'petName', 'petType', 'petCategory', 'petRecordKind', 'petEstimatedCount', 'petBreed', 'petAgeValue', 'petAgeUnit', 'petSex', 'petVaccDate',
@@ -1431,8 +1432,11 @@ function getAverageRate(average) {
     kind.disabled = saved;
     const group = kind.value === 'group';
     card.querySelector('[data-group-count]').classList.toggle('is-hidden', !group);
-    petField(card, 'petBreed').required = !group;
-    card.querySelector('[data-breed-required]').hidden = group;
+    petField(card, 'petBreed').required = false;
+    const livestock = category.value === 'livestock';
+    card.querySelector('[data-name-label]').textContent = livestock
+      ? (group ? 'Herd/Flock Name *' : 'Name or Identifier *') : 'Pet Name *';
+    card.querySelector('[data-species-label]').textContent = livestock ? 'Species *' : 'Pet Type *';
     [...petField(card, 'petSex').options].forEach(option => {
       if (option.value === 'Mixed') option.disabled = !group;
     });
@@ -1446,12 +1450,25 @@ function getAverageRate(average) {
   }
   syncAnimalCard(firstPetCard);
 
+  function updateBookingTerminology() {
+    const livestock = petValue(petCards()[0], 'petCategory') === 'livestock';
+    document.getElementById('sl2').textContent = livestock ? 'Livestock' : 'Pet';
+    document.getElementById('bookingPatientTitle').textContent = livestock ? 'Livestock Details' : 'Pet Information';
+    document.getElementById('s1NextLabel').textContent = livestock ? 'Livestock Details' : 'Pet Information';
+    document.getElementById('s3BackLabel').textContent = livestock ? 'Livestock Details' : 'Pet Info';
+    document.getElementById('reviewPatientTitle').textContent = livestock ? 'LIVESTOCK DETAILS' : 'PET INFO';
+  }
+
   function renumberPetCards() {
     petCards().forEach((card, index) => {
-      card.querySelector('.booking-pet-title').textContent = petValue(card, 'petName') || `Animal ${index + 1}`;
+      const livestock = petValue(card, 'petCategory') === 'livestock';
+      const fallback = livestock
+        ? (petValue(card, 'petRecordKind') === 'group' ? `Herd/Flock ${index + 1}` : `Livestock ${index + 1}`)
+        : `Pet ${index + 1}`;
+      card.querySelector('.booking-pet-title').textContent = petValue(card, 'petName') || fallback;
       const remove = card.querySelector('.btn-remove-pet');
       remove.hidden = petCards().length === 1;
-      remove.setAttribute('aria-label', `Remove pet ${index + 1}`);
+      remove.setAttribute('aria-label', `Remove ${fallback}`);
     });
     const tabs = document.getElementById('bookingPetTabs');
     tabs.replaceChildren();
@@ -1461,10 +1478,11 @@ function getAverageRate(average) {
       button.type = 'button';
       button.className = 'booking-pet-tab';
       button.dataset.index = index;
-      button.textContent = petValue(card, 'petName') || `Animal ${index + 1}`;
+      button.textContent = card.querySelector('.booking-pet-title').textContent;
       tabs.appendChild(button);
     });
     showPetCard(Math.min(activePetIndex, petCards().length - 1));
+    updateBookingTerminology();
   }
 
   function showPetCard(index) {
@@ -1525,9 +1543,15 @@ function getAverageRate(average) {
       void vbAlert('This animal is already included in this booking.');
       return;
     }
+    const priorSpecies = petValue(card, 'petType');
     fillPetCard(card, pet ? savedPetValues(pet) : {});
-    assessmentLogId = 0;
-    assessmentAnimal = '';
+    if (petValue(card, 'petType') === priorSpecies && card === firstPetCard && assessmentLogId) {
+      assessmentAnimal = petValue(card, 'petName');
+    } else {
+      assessmentLogId = 0;
+      assessmentAnimal = '';
+      document.getElementById('consultResult').classList.add('is-hidden');
+    }
     renumberPetCards();
     toggleVisitMode();
     saveBookingDraft();
@@ -1597,7 +1621,12 @@ function getAverageRate(average) {
   ['input', 'change'].forEach(type => petsContainer.addEventListener(type, event => {
     if (!event.target.matches('[data-pet-field]')) return;
     const card = event.target.closest('.booking-pet-card');
-    if (['petName', 'petType'].includes(event.target.dataset.petField)) { assessmentLogId = 0; assessmentAnimal = ''; }
+    if (['petType', 'petCategory'].includes(event.target.dataset.petField)) {
+      assessmentLogId = 0;
+      assessmentAnimal = '';
+      document.getElementById('consultResult').classList.add('is-hidden');
+    }
+    if (event.target.dataset.petField === 'petName' && card === firstPetCard && assessmentLogId) assessmentAnimal = petValue(card, 'petName');
     if (['petType', 'petCategory', 'petRecordKind'].includes(event.target.dataset.petField)) {
       syncAnimalCard(card);
       const categories = new Set(petCards().map(item => petValue(item, 'petCategory')));
@@ -1606,7 +1635,7 @@ function getAverageRate(average) {
       toggleVisitMode();
     }
     VBForm.clearGroupError(event.target.closest('.form-group'));
-    if (event.target.dataset.petField === 'petName') renumberPetCards();
+    if (['petName', 'petType', 'petCategory', 'petRecordKind'].includes(event.target.dataset.petField)) renumberPetCards();
     saveBookingDraft();
   }));
 
@@ -1624,6 +1653,15 @@ function getAverageRate(average) {
         slot: slotBtn ? slotBtn.dataset.slot : '',
         useAccount: usingAccountDetails(),
         pets: petCards().map(petDraftValues),
+        consultation: {
+          symptoms: [...document.getElementById('consultSymptoms').selectedOptions].map(option => option.value),
+          duration: document.getElementById('consultDuration').value,
+          severity: document.getElementById('consultSeverity').value,
+          logId: assessmentLogId,
+          animal: assessmentAnimal,
+          result: document.getElementById('consultResult').classList.contains('is-hidden') ? '' : document.getElementById('consultResult').textContent,
+          summary: document.getElementById('chatbotBookingSummary').hidden ? '' : document.getElementById('chatbotBookingSummary').textContent
+        },
         fields
       }));
     } catch {
@@ -1645,6 +1683,26 @@ function getAverageRate(average) {
       if (el && draft.fields[id] != null) el.value = draft.fields[id];
     });
     if (Array.isArray(draft.pets) && draft.pets.length) restorePetCards(draft.pets);
+    if (draft.consultation) {
+      const prior = draft.consultation;
+      const duration = document.getElementById('consultDuration');
+      if ([...duration.options].some(option => option.value === prior.duration)) duration.value = prior.duration;
+      const severity = document.getElementById('consultSeverity');
+      if ([...severity.options].some(option => option.value === prior.severity)) severity.value = prior.severity;
+      assessmentLogId = Number(prior.logId) || 0;
+      assessmentAnimal = String(prior.animal || '');
+      const result = document.getElementById('consultResult');
+      result.textContent = prior.result || '';
+      result.classList.toggle('is-hidden', !prior.result);
+      const summary = document.getElementById('chatbotBookingSummary');
+      summary.textContent = prior.summary || '';
+      summary.hidden = !prior.summary;
+      consultSymptomsReady.then(() => {
+        const selected = new Set(prior.symptoms || []);
+        [...document.getElementById('consultSymptoms').options].forEach(option => { option.selected = selected.has(option.value); });
+        renderConsultSymptomChoices();
+      });
+    }
     // A saved visit type may not exist in the static options until the API loads.
     visitTypesReady.then(() => {
       if (!document.getElementById('visitType').value) setRebookField('visitType', draft.fields.visitType);
@@ -1964,10 +2022,10 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       const names = new Set();
       petCards().forEach(card => {
         const id = field => petField(card, field).id;
-        if (!validateIdentityField(id('petName'), { label: "Pet's name", requiredMessage: "Please enter your pet's name.", maxLength: 120 })) valid = false;
+        if (!validateIdentityField(id('petName'), { label: 'Name or identifier', requiredMessage: 'Please enter a name or identifier.', maxLength: 120 })) valid = false;
         if (!validateRequiredField(id('petType'), 'Please select a pet type.')) valid = false;
         if (!petValue(card, 'petCategory')) { setGroupError(petField(card, 'petCategory').closest('.form-group'), 'Select an animal category.'); valid = false; }
-        if (petValue(card, 'petRecordKind') !== 'group' && !validateIdentityField(id('petBreed'), { label: 'Breed', requiredMessage: "Please enter your pet's breed.", maxLength: 80 })) valid = false;
+        if (petValue(card, 'petBreed') && !validateIdentityField(id('petBreed'), { label: 'Breed', maxLength: 80 })) valid = false;
         if (petValue(card, 'petRecordKind') === 'group' && !(Number.isInteger(Number(petValue(card, 'petEstimatedCount'))) && Number(petValue(card, 'petEstimatedCount')) >= 1 && Number(petValue(card, 'petEstimatedCount')) <= 100000)) {
           setGroupError(petField(card, 'petEstimatedCount').closest('.form-group'), 'Enter a valid owner estimate.'); valid = false;
         }
@@ -2172,23 +2230,34 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       setOwnerField('ownerEmail', a.email);
     }
     // Always the account's.
-    setOwnerField('ownerBarangay', a.barangay);
-    setOwnerField('ownerAddress', a.address);
+    if (accountDetails) {
+      setOwnerField('ownerBarangay', a.barangay);
+      setOwnerField('ownerAddress', a.address);
+    }
 
     ['ownerName', 'ownerContact', 'ownerEmail'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.readOnly = on;
     });
     const barangay = document.getElementById('ownerBarangay');
-    if (barangay) barangay.disabled = true;
+    if (barangay) barangay.disabled = Boolean(accountDetails);
     const address = document.getElementById('ownerAddress');
-    if (address) address.readOnly = true;
+    if (address) address.readOnly = Boolean(accountDetails);
     document.getElementById('step1')?.classList.toggle('uses-account', on);
     if (currentStep === 4) populateReview();
   }
 
   async function loadAccountDetails() {
     const session = window.VBetterAuth?.getSession?.() || {};
+    const hasAccount = Boolean(session.userId || session.id || localStorage.getItem('bvetter_token'));
+    if (!hasAccount) {
+      const accountSwitch = document.getElementById('useAccountDetails');
+      accountSwitch.checked = false;
+      accountSwitch.closest('.account-switch').hidden = true;
+      accountDetails = null;
+      applyAccountSwitch();
+      return;
+    }
     accountDetails = { name: session.name || '', phone: session.phone || '', email: session.email || '', barangay: '', address: '' };
     applyAccountSwitch();
     try {
@@ -2209,7 +2278,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
   }
 
   document.getElementById('useAccountDetails')?.addEventListener('change', applyAccountSwitch);
-  loadAccountDetails();
+  const accountDetailsReady = loadAccountDetails();
 
   function isCspMode() {
     return (document.getElementById('visitType')?.value || '') === 'Castration & Spay';
@@ -2217,7 +2286,11 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
 
   function toggleCspMode() {
     const cspMode = isCspMode();
-    if (document.getElementById('visitType').value !== 'Consultation') { assessmentLogId = 0; assessmentAnimal = ''; }
+    if (document.getElementById('visitType').value !== 'Consultation') {
+      assessmentLogId = 0;
+      assessmentAnimal = '';
+      document.getElementById('consultResult').classList.add('is-hidden');
+    }
     document.getElementById('apptDateGroup')?.classList.toggle('is-hidden', cspMode);
     document.getElementById('apptTimeGroup')?.classList.toggle('is-hidden', cspMode);
     document.getElementById('cspProgramNotice')?.classList.toggle('is-hidden', !cspMode);
@@ -2331,7 +2404,9 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
   document.getElementById('fieldConcern').addEventListener('input', () => {
     assessmentLogId = 0;
     assessmentAnimal = '';
+    document.getElementById('consultResult').classList.add('is-hidden');
     updateConsultSuggestions();
+    saveBookingDraft();
   });
   document.getElementById('consultSymptomChoices').addEventListener('click', event => {
     const button = event.target.closest('[data-symptom]');
@@ -2341,9 +2416,11 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
     option.selected = !option.selected;
     assessmentLogId = 0;
     assessmentAnimal = '';
+    document.getElementById('consultResult').classList.add('is-hidden');
     updateConsultSuggestions();
+    saveBookingDraft();
   });
-  loadConsultSymptoms();
+  const consultSymptomsReady = loadConsultSymptoms();
   document.getElementById('btnAssessSymptoms').addEventListener('click', async () => {
     const selected = document.getElementById('consultAnimal');
     const card = petCards().find(item => petValue(item, 'petName') === selected.value);
@@ -2358,7 +2435,7 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       const response = await fetch('/api/chatbot/chatbot.php', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'assess_consultation', clinic_approved_only: true,
-          petType: petValue(card, 'petType'), symptoms,
+          petType: petValue(card, 'petType'), animalCategory: petValue(card, 'petCategory'), symptoms,
           duration: document.getElementById('consultDuration').value,
           severity: document.getElementById('consultSeverity').value })
       });
@@ -2367,10 +2444,16 @@ document.getElementById('btnHistBack')       .addEventListener('click', () => sh
       assessmentLogId = Number(result.data.logId) || 0;
       assessmentAnimal = selected.value;
       resultBox.textContent = `${result.data.condition}: ${result.data.recommendation} This is preliminary guidance, not a diagnosis. Booking remains available.`;
+      saveBookingDraft();
     } catch (error) { resultBox.textContent = `${error.message} You may continue booking or contact the clinic.`; }
   });
   ['consultAnimal', 'consultSymptoms', 'consultDuration', 'consultSeverity'].forEach(id => {
-    document.getElementById(id).addEventListener('change', () => { assessmentLogId = 0; assessmentAnimal = ''; });
+    document.getElementById(id).addEventListener('change', () => {
+      assessmentLogId = 0;
+      assessmentAnimal = '';
+      document.getElementById('consultResult').classList.add('is-hidden');
+      saveBookingDraft();
+    });
   });
 
   /* ── Combine the Age value + unit fields into one string
@@ -2505,7 +2588,7 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     if (isCspMode()) {
       const required = [
         'owner_name', 'owner_contact', 'owner_email', 'owner_barangay_id', 'owner_address',
-        'pet_name', 'pet_type', 'pet_breed', 'pet_age'
+        'pet_name', 'pet_type', 'pet_age'
       ];
       if (required.some(k => !payload[k])) {
         hideBookingOverlay();
@@ -2644,12 +2727,12 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     document.getElementById('rv-barangay') .textContent = selText('ownerBarangay');
     document.getElementById('reviewPets').innerHTML = bookingPetsPayload().map((pet, index) => `
       <div class="review-block">
-        <h3 class="review-pet-title">Pet ${index + 1}</h3>
-        <div class="review-row"><span class="review-key">Pet Name:</span><span class="review-val"${index === 0 ? ' id="rv-petname"' : ''}>${escapeHtml(pet.pet_name)}</span></div>
-        <div class="review-row"><span class="review-key">Pet Type:</span><span class="review-val"${index === 0 ? ' id="rv-pettype"' : ''}>${escapeHtml(pet.pet_type)}</span></div>
+        <h3 class="review-pet-title">${pet.animal_category === 'livestock' ? (pet.record_kind === 'group' ? 'Herd/Flock' : 'Livestock') : 'Pet'} ${index + 1}</h3>
+        <div class="review-row"><span class="review-key">${pet.animal_category === 'livestock' ? (pet.record_kind === 'group' ? 'Herd/Flock Name' : 'Name or Identifier') : 'Pet Name'}:</span><span class="review-val"${index === 0 ? ' id="rv-petname"' : ''}>${escapeHtml(pet.pet_name)}</span></div>
+        <div class="review-row"><span class="review-key">${pet.animal_category === 'livestock' ? 'Species' : 'Pet Type'}:</span><span class="review-val"${index === 0 ? ' id="rv-pettype"' : ''}>${escapeHtml(pet.pet_type)}</span></div>
         <div class="review-row"><span class="review-key">Animal Category:</span><span class="review-val">${escapeHtml(pet.animal_category)}</span></div>
         <div class="review-row"><span class="review-key">Record Type:</span><span class="review-val">${pet.record_kind === 'group' ? `Herd / flock · owner estimates ${pet.estimated_count}` : 'Individual'}</span></div>
-        <div class="review-row"><span class="review-key">Breed:</span><span class="review-val">${escapeHtml(pet.pet_breed)}</span></div>
+        <div class="review-row"><span class="review-key">Breed:</span><span class="review-val">${escapeHtml(pet.pet_breed || 'Not provided')}</span></div>
         <div class="review-row"><span class="review-key">Age / Sex:</span><span class="review-val"${index === 0 ? ' id="rv-ageSex"' : ''}>${escapeHtml(pet.pet_age || '—')} / ${escapeHtml(pet.pet_sex)}</span></div>
         <div class="review-row"><span class="review-key">Vaccination Date:</span><span class="review-val">${escapeHtml(pet.pet_vaccination_date || '—')}</span></div>
       </div>`).join('');
@@ -2766,11 +2849,66 @@ time_slot: selectedSlot ? selectedSlot.dataset.slot : '',
     goStep(validateStep(2) ? 3 : 2);
   }
 
+  async function restoreChatbotBooking() {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('from_chatbot') !== '1') return false;
+    url.searchParams.delete('from_chatbot');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    let context = null;
+    try {
+      context = JSON.parse(sessionStorage.getItem(CHATBOT_BOOKING_KEY) || 'null');
+      sessionStorage.removeItem(CHATBOT_BOOKING_KEY);
+    } catch { /* Fall back to the usual booking flow. */ }
+    if (!context || context.version !== 1 || Date.now() - Number(context.createdAt) > 60 * 60 * 1000) return false;
+
+    await Promise.all([accountDetailsReady, visitTypesReady, consultSymptomsReady]);
+    clearBookingDraft();
+    const species = context.petType === 'Other' ? 'Other livestock' : String(context.petType || '');
+    const category = context.animalCategory === 'livestock' ? 'livestock' : 'companion';
+    fillPetCard(firstPetCard, { petType: species, petCategory: category });
+    renumberPetCards();
+    setRebookField('visitType', 'Consultation');
+    toggleCspMode();
+    toggleVisitMode();
+
+    const symptoms = Array.isArray(context.symptoms)
+      ? context.symptoms.filter(item => item && item !== 'No listed symptoms').map(String) : [];
+    const concern = symptoms.length ? `Reported symptoms: ${symptoms.join(', ')}` : 'No listed symptoms; owner requests a veterinary consultation.';
+    if (category === 'livestock') {
+      document.getElementById('fieldAddress').value = accountDetails?.address || '';
+      document.getElementById('fieldConcern').value = concern.slice(0, 2000);
+    }
+    const symptomSelect = document.getElementById('consultSymptoms');
+    const symptomKeys = new Set(symptoms.map(item => item.toLocaleLowerCase()));
+    [...symptomSelect.options].forEach(option => { option.selected = symptomKeys.has(option.value.toLocaleLowerCase()); });
+    const duration = document.getElementById('consultDuration');
+    if ([...duration.options].some(option => option.value === context.duration)) duration.value = context.duration;
+    const severity = { 'Active but sick': 'Mild', Active: 'Mild', Weak: 'Moderate', 'Not moving': 'Critical' }[context.severity];
+    if (severity) document.getElementById('consultSeverity').value = severity;
+    updateConsultSuggestions();
+
+    const summary = document.getElementById('chatbotBookingSummary');
+    summary.hidden = false;
+    summary.textContent = `From your chatbot check: ${species || 'species not selected'} · Age group: ${context.ageGroup || 'Not sure'} · ${symptoms.length ? symptoms.join(', ') : 'No listed symptoms'} · ${context.duration || 'Duration not given'} · ${context.severity || 'Status not given'}${context.barangayName ? ` · Barangay: ${context.barangayName}` : ''}. Confirm the details below and check the field location before submitting.`;
+    if (context.assessment && typeof context.assessment === 'object') {
+      assessmentLogId = Number(context.assessment.logId) || 0;
+      assessmentAnimal = petValue(firstPetCard, 'petName');
+      const resultBox = document.getElementById('consultResult');
+      resultBox.classList.remove('is-hidden');
+      resultBox.textContent = `${context.assessment.condition || 'Clinic guidance'}: ${context.assessment.recommendation || ''} This is preliminary guidance, not a diagnosis.`;
+    }
+    showPage(pageBooking);
+    goStep(validateStep(1) ? 2 : 1);
+    return true;
+  }
+
   // Bring back any in-progress booking (must run after all wiring above),
   // or start from the request a "Book Again" link points to.
   const rebook = rebookParams();
   if (rebook) restoreRebook(rebook);
-  else restoreBookingDraft();
+  else restoreChatbotBooking()
+    .then(restored => { if (!restored) restoreBookingDraft(); })
+    .catch(() => restoreBookingDraft());
 
 })();
 

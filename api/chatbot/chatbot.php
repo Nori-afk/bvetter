@@ -457,8 +457,8 @@ function deleteInquiryRule($pdo, $data)
 
 function listConsultationRules($pdo, $activeOnly = false)
 {
-    $sql = "SELECT * FROM chatbot_consultation_rules WHERE pet_type IN ('Dog', 'Cat', 'Other')";
-    if ($activeOnly) $sql .= " AND status = 'active'";
+    $sql = 'SELECT * FROM chatbot_consultation_rules';
+    if ($activeOnly) $sql .= " WHERE status = 'active'";
     $sql .= ' ORDER BY id DESC';
     $rows = $pdo->query($sql)->fetchAll();
     respond(200, ['success' => true, 'data' => array_map('mapConsultation', $rows)]);
@@ -475,7 +475,7 @@ function saveConsultationRule($pdo, $data)
     $recommendation = clean($data['recommendation'] ?? '');
 
     if ($petType === '' || !$symptoms || $duration === '' || $condition === '' || $recommendation === '') {
-        respond(422, ['success' => false, 'message' => 'Pet type, symptoms, duration, condition, and recommendation are required.']);
+        respond(422, ['success' => false, 'message' => 'Species, symptoms, duration, condition, and recommendation are required.']);
     }
 
     $actionType = clean($data['actionType'] ?? $data['action_type'] ?? '');
@@ -572,6 +572,7 @@ function fallbackAssessment($pdo, $symptoms, $duration, $severity)
 function assessConsultation($pdo, $data)
 {
     $petType = normalizePetType($data['petType'] ?? $data['pet_type'] ?? '');
+    $fieldVisit = clean($data['animalCategory'] ?? $data['animal_category'] ?? '') === 'livestock';
     $ageGroup = clean($data['ageGroup'] ?? $data['age_group'] ?? '');
     $duration = normalizeDuration($data['duration'] ?? '');
     $severity = normalizeSeverity($data['severity'] ?? '');
@@ -579,7 +580,7 @@ function assessConsultation($pdo, $data)
     $symptoms = decodeSymptoms($data['symptoms'] ?? []);
 
     if ($petType === '' || !$symptoms || $duration === '' || $severity === '') {
-        respond(422, ['success' => false, 'message' => 'Pet type, symptoms, duration, and severity are required.']);
+        respond(422, ['success' => false, 'message' => 'Species, symptoms, duration, and severity are required.']);
     }
 
     $approvedClause = !empty($data['clinic_approved_only']) ? ' AND clinic_approved = 1' : '';
@@ -614,7 +615,9 @@ function assessConsultation($pdo, $data)
                 'level' => $urgent ? 'high' : 'moderate',
                 'recommendation' => $urgent
                     ? 'Contact the clinic immediately. Keep the animal calm and safe while arranging veterinary care; do not give human medicine.'
-                    : 'The clinic has no approved home-care rule for these symptoms. Contact the clinic for advice or continue booking a consultation.',
+                    : ($fieldVisit
+                        ? 'The clinic has no approved home-care rule for these symptoms. Contact the clinic for advice or request a livestock field visit.'
+                        : 'The clinic has no approved home-care rule for these symptoms. Contact the clinic for advice or continue booking a consultation.'),
             ]
             : fallbackAssessment($pdo, $symptoms, $duration, $severity);
         $result['matched_rule_id'] = null;

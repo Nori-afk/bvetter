@@ -13,7 +13,7 @@
     <title>BVetter | Chatbot Management</title>
     <link rel="icon" type="image/png" href="../../vet/images/logo.png"/>
     <link rel="stylesheet" href="../../shared/css/sidebar.css?v=20260928-mobile">
-    <link rel="stylesheet" href="../../vet/css/chatbot-management.css?v=20260801-4">
+    <link rel="stylesheet" href="../../vet/css/chatbot-management.css?v=20261027-livestock">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 
@@ -281,7 +281,7 @@
                         <div class="search-shell">
                             <span class="search-icon" aria-hidden="true">⌕</span>
                             <input type="search" id="consultation-search"
-                                placeholder="Search pet type, symptoms, or condition"
+                                placeholder="Search species, symptoms, or condition"
                                 aria-label="Search consultation rules">
                         </div>
                         <div class="toolbar-actions">
@@ -309,7 +309,7 @@
                             <table class="rules-table consultation-rules-table">
                                 <thead>
                                     <tr>
-                                        <th>Pet Type</th>
+                                        <th>Species</th>
                                         <th>Symptoms</th>
                                         <th>Symptoms Duration</th>
                                         <th>Possible Condition</th>
@@ -337,7 +337,7 @@
                             <p class="eyebrow subtle">Chatbot Analytics · Chatbot Consultation Management · Add New rule
                             </p>
                             <h2 id="consultation-builder-title">Add New Consultation Rule</h2>
-                            <p>Define automated diagnostic logic for pet symptoms and triage actions.</p>
+                            <p>Define clinic-approved symptom guidance for each species.</p>
                         </header>
 
                         <form id="consultation-builder-form" class="builder-form">
@@ -351,8 +351,13 @@
                                         aria-pressed="false">Dog</button>
                                     <button type="button" class="choice-card" data-animal="Cat"
                                         aria-pressed="false">Cat</button>
+                                    <button type="button" class="choice-card" data-animal="Chicken" aria-pressed="false">Chicken</button>
+                                    <button type="button" class="choice-card" data-animal="Carabao / Water Buffalo" aria-pressed="false">Carabao / Water Buffalo</button>
+                                    <button type="button" class="choice-card" data-animal="Goat / Sheep" aria-pressed="false">Goat / Sheep</button>
+                                    <button type="button" class="choice-card" data-animal="Pig" aria-pressed="false">Pig</button>
+                                    <button type="button" class="choice-card" data-animal="Rabbit" aria-pressed="false">Rabbit</button>
                                     <button type="button" class="choice-card" data-animal="Other"
-                                        aria-pressed="false">Other</button>
+                                        aria-pressed="false">Other livestock</button>
                                 </div>
                             </section>
 
@@ -477,7 +482,7 @@
     <script src="../../shared/js/auth.js?v=20260925-yesno"></script>
     <script>VBetterAuth.requireAuth(['vet']);</script>
     <script src="../../shared/js/sidebar.js?v=20260824-tz"></script>
-    <script src="../../vet/js/chatbot-management.js?v=20261026-symptom-phrases"></script>
+    <script src="../../vet/js/chatbot-management.js?v=20261027-livestock"></script>
 
 </body>
 

@@ -691,6 +691,62 @@ function live_layer_summary(int $filtered, int $total, bool $isAllDiseases, stri
  * DISEASE ANALYTICS — main handler
  * ─────────────────────────────────────────────────────────────────────────
  */
+/** Find the leading barangay for each displayed disease in one pass per source. */
+function top_disease_barangay_leaders($pdo, array $diseaseNames, string $dataView, string $currentMonth, array $historicalRows = []): array
+{
+    $wanted = array_fill_keys(array_map(static fn($name) => strtolower(trim((string) $name)), $diseaseNames), true);
+    if (!$wanted) return [];
+    $counts = [];
+    $rows = $dataView === 'current'
+        ? bv_upload_rows_between($currentMonth, $currentMonth)
+        : $historicalRows;
+    foreach ($rows as $row) {
+        $disease = strtolower(trim((string) ($row['diagnosis'] ?? '')));
+        $barangay = trim((string) ($row['barangay'] ?? ''));
+        if (!isset($wanted[$disease]) || $barangay === '' || $barangay === 'Unspecified') continue;
+        $counts[$disease][$barangay] = ($counts[$disease][$barangay] ?? 0) + (int) ($row['cases_reported'] ?? 1);
+    }
+
+    if ($dataView === 'current' && bv_live_counts_in_month($currentMonth, $pdo)
+        && bv_table_exists($pdo, 'patient_visit_records') && bv_table_exists($pdo, 'pets')) {
+        $barangayJoin = bv_table_exists($pdo, 'owner_profiles') && bv_table_exists($pdo, 'barangays')
+            ? 'LEFT JOIN owner_profiles op ON op.user_id = pets.owner_id LEFT JOIN barangays b ON b.id = op.barangay_id'
+            : '';
+        $liveBarangay = $barangayJoin ? "NULLIF(b.name, ''), " : '';
+        $barangayExpr = "COALESCE(NULLIF(pvr.barangay_at_visit, ''), {$liveBarangay}'Unspecified')";
+        $catalogOnly = bv_table_exists($pdo, 'diseases')
+            ? 'pvr.diagnosis IN (SELECT name FROM diseases WHERE is_active = 1)'
+            : 'COALESCE(pvr.diagnosis, pvr.category, "") <> ""';
+        try {
+            $stmt = $pdo->prepare("SELECT pvr.diagnosis, {$barangayExpr} AS barangay,
+                    SUM(COALESCE(pvr.affected_count, 1)) AS cases
+                FROM patient_visit_records pvr
+                LEFT JOIN pets ON pets.id = pvr.pet_id
+                {$barangayJoin}
+                WHERE DATE_FORMAT(COALESCE(pvr.visit_date, pvr.created_at), '%Y-%m') = :month
+                  AND {$catalogOnly}
+                GROUP BY pvr.diagnosis, barangay");
+            $stmt->execute([':month' => $currentMonth]);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $disease = strtolower(trim((string) ($row['diagnosis'] ?? '')));
+                $barangay = trim((string) ($row['barangay'] ?? ''));
+                if (!isset($wanted[$disease]) || $barangay === '' || $barangay === 'Unspecified') continue;
+                $counts[$disease][$barangay] = ($counts[$disease][$barangay] ?? 0) + (int) ($row['cases'] ?? 0);
+            }
+        } catch (Throwable $e) {
+            error_log('[BVetter] ' . __FILE__ . ': ' . $e->getMessage());
+        }
+    }
+
+    $leaders = [];
+    foreach ($counts as $disease => $barangays) {
+        uksort($barangays, static fn($a, $b) => ($barangays[$b] <=> $barangays[$a]) ?: strcasecmp($a, $b));
+        $name = array_key_first($barangays);
+        if ($name !== null && $barangays[$name] > 0) $leaders[$disease] = ['barangay' => $name, 'value' => $barangays[$name]];
+    }
+    return $leaders;
+}
+
 function disease_analytics_data($pdo)
 {
     $input    = dashboard_input();
@@ -985,8 +1041,16 @@ function disease_analytics_data($pdo)
     $liveMonths   = $isCurrent ? db_live_record_months($pdo) : null;
 
     $topDiseases = [];
-    foreach (array_slice($diseaseCounts, 0, 10, true) as $name => $count) {
-        $topDiseases[] = ['name' => $name, 'value' => (int) round($count)];
+    $displayedDiseases = array_slice($diseaseCounts, 0, 10, true);
+    $leaders = top_disease_barangay_leaders($pdo, array_keys($displayedDiseases), $dataView, $currentMonth, $latestConsult ?? []);
+    foreach ($displayedDiseases as $name => $count) {
+        $leader = $leaders[strtolower(trim((string) $name))] ?? null;
+        $topDiseases[] = [
+            'name' => $name,
+            'value' => (int) round($count),
+            'topBarangay' => $leader['barangay'] ?? null,
+            'topBarangayCases' => (int) ($leader['value'] ?? 0),
+        ];
     }
     $animalGroups = [];
     foreach (array_slice($animalGroupCounts, 0, 8, true) as $name => $count) {

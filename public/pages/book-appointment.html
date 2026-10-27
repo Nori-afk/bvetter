@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="../css/variables.css"/>
   <link rel="stylesheet" href="../css/components.css"/>
   <link rel="stylesheet" href="../../shared/css/form-validation.css"/>
-  <link rel="stylesheet" href="../css/book-appointment.css?v=20261026-visit-spacing"/>
+  <link rel="stylesheet" href="../css/book-appointment.css?v=20261027-livestock-booking"/>
 </head>
 <body>
 
@@ -315,7 +315,7 @@
         <div class="step-nav">
           <div></div>
           <button class="btn-next-step" id="s1Next">
-            Pet Information
+            <span id="s1NextLabel">Pet Information</span>
             <img src="../images/icons/icon-right-arrow.svg" alt="" class="btn-icon-sm"/>
           </button>
         </div>
@@ -324,7 +324,8 @@
 
     <div id="step2" class="step-content" style="display:none;">
       <div class="form-card">
-        <div class="form-card-title">Pet Information</div>
+        <div class="form-card-title" id="bookingPatientTitle">Pet Information</div>
+        <p class="chatbot-booking-summary" id="chatbotBookingSummary" hidden></p>
         <p class="booking-pets-hint">Add each animal or herd/flock. Clinic and field visits need separate bookings.</p>
         <div id="bookingPetTabs" class="booking-pet-tabs" aria-label="Animals in this booking"></div>
         <div id="bookingPets">
@@ -340,17 +341,17 @@
           </div>
         <div class="form-grid">
           <div class="form-group">
-            <label class="form-label">Animal / group name *</label>
+            <label class="form-label" data-name-label>Pet Name *</label>
             <input type="text" class="form-input" placeholder="e.g. Depa or Backyard flock" id="petName" maxlength="120" required/>
           </div>
           <div class="form-group">
-            <label class="form-label">Animal species *</label>
+            <label class="form-label" data-species-label>Pet Type *</label>
             <div class="select-wrap">
               <select class="form-select" id="petType" required>
-                <option value="">Select pet type</option>
+                <option value="">Select species</option>
                 <option value="Dog">Dog</option><option value="Cat">Cat</option>
                 <option value="Chicken">Chicken</option><option value="Carabao / Water Buffalo">Carabao / Water Buffalo</option>
-                <option value="Goat / Sheep">Goat / Sheep</option><option value="Rabbit">Rabbit</option>
+                <option value="Goat / Sheep">Goat / Sheep</option><option value="Pig">Pig</option><option value="Rabbit">Rabbit</option><option value="Other livestock">Other livestock</option>
               </select>
               <img src="../images/icons/icon-dropwdown.svg" alt="" class="sel-icon"/>
             </div>
@@ -372,8 +373,8 @@
             <span class="field-hint">Owner estimate only. The vet confirms the case count in the medical record.</span>
           </div>
           <div class="form-group">
-            <label class="form-label">Breed <span data-breed-required>*</span></label>
-            <input type="text" class="form-input" placeholder="e.g. Golden Retriever" id="petBreed" maxlength="80" required/>
+            <label class="form-label">Breed (optional)</label>
+            <input type="text" class="form-input" placeholder="If known" id="petBreed" maxlength="80"/>
           </div>
           <div class="form-group">
             <label class="form-label">Age (optional)</label>
@@ -501,7 +502,7 @@
         <div class="step-nav">
           <button class="btn-back-step" id="s3Back">
             <img src="../images/icons/icon-left-arrow.svg" alt="" class="btn-icon-sm"/>
-            Pet Info
+            <span id="s3BackLabel">Pet Info</span>
           </button>
           <button class="btn-next-step" id="s3Next">
             Review Info
@@ -523,7 +524,7 @@
           <div class="review-row"><span class="review-key">Barangay:</span><span class="review-val" id="rv-barangay"></span></div>
         </div>
 
-        <div class="review-section-label">PET INFO</div>
+        <div class="review-section-label" id="reviewPatientTitle">PET INFO</div>
         <div id="reviewPets"></div>
 
         <div class="review-section-label">APPOINTMENT INFO</div>
@@ -848,7 +849,7 @@
   <script src="../js/api.js?v=20261026-token-fallback"></script>
   <!-- Must load before book-appointment.js, which calls VBForm at validate time. -->
   <script src="../../shared/js/form-validation.js"></script>
-  <script src="../js/book-appointment.js?v=20261026-symptom-choices"></script>
+  <script src="../js/book-appointment.js?v=20261027-livestock-booking"></script>
   <script src="../js/site-settings.js?v=20260829-preview"></script>
 </body>
 </html>

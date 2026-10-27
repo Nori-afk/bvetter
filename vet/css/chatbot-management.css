@@ -768,6 +768,8 @@ body {
     place-items: center;
     font-weight: 800;
     font-size: 14px;
+    text-align: center;
+    overflow-wrap: anywhere;
 }
 
 .choice-card.active,
@@ -901,6 +903,9 @@ body {
 
 .consultation-icon.other {
     background: #44506b;
+}
+.consultation-icon.livestock {
+    background: #875d27;
 }
 
 .duration-pill,

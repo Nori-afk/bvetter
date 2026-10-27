@@ -2160,10 +2160,11 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
 .ranking-card-heading p { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .ranking-unit { flex: 0 0 auto; padding: 5px 8px; border-radius: 99px; background: var(--green-bg); color: var(--green); font-size: 10px; font-weight: 800; }
 .ranking-chart { display: grid; }
-.ranking-row { display: grid; grid-template-columns: 20px minmax(115px, 1.2fr) minmax(55px, 1fr) 42px; gap: 10px; align-items: center; min-width: 0; min-height: 42px; padding: 8px 0; border-bottom: 1px solid #f0f3f6; color: var(--ink-2); font-size: 12px; line-height: 1.35; }
+.ranking-row { display: grid; grid-template-columns: 20px minmax(160px, 1.3fr) minmax(55px, 1fr) 42px; gap: 10px; align-items: center; min-width: 0; min-height: 54px; padding: 9px 0; border-bottom: 1px solid #f0f3f6; color: var(--ink-2); font-size: 12px; line-height: 1.4; }
 .ranking-row:last-child { border-bottom: 0; }
 .ranking-rank { color: var(--muted); font-weight: 800; font-variant-numeric: tabular-nums; }
 .ranking-name { min-width: 0; overflow-wrap: anywhere; }
+.ranking-context { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; font-weight: 600; }
 .ranking-track { display: block; height: 8px; overflow: hidden; border-radius: 99px; background: #e8f0eb; }
 .ranking-track > span { display: block; height: 100%; border-radius: inherit; background: #23875b; }
 .ranking-row strong { text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }

@@ -208,6 +208,7 @@
 	function petTypeIconSvg(petType) {
 		return PET_TYPE_SVG[String(petType || '').toLowerCase()] || PET_TYPE_SVG.other;
 	}
+	const displaySpecies = (petType) => petType === 'Other' ? 'Other livestock' : petType;
 
 	const ICON_SVG = {
 		clock: '<i class="fa-solid fa-clock"></i>',
@@ -478,7 +479,7 @@
 		const query = (ui.consultationSearch?.value || '').trim().toLowerCase();
 		let rows = consultationRules.filter((rule) => {
 			if (!query) return true;
-			const searchable = [rule.petType, rule.symptoms.join(' '), rule.condition, rule.severity, rule.recommendation]
+			const searchable = [displaySpecies(rule.petType), rule.symptoms.join(' '), rule.condition, rule.severity, rule.recommendation]
 				.join(' ')
 				.toLowerCase();
 			return searchable.includes(query);
@@ -599,8 +600,8 @@
 				<tr>
 					<td>
 						<div class="consultation-pet-cell">
-							<span class="consultation-icon ${row.petType.toLowerCase()}">${petTypeIconSvg(row.petType)}</span>
-							<span>${escapeHtml(row.petType)}</span>
+							<span class="consultation-icon ${['Dog', 'Cat'].includes(row.petType) ? row.petType.toLowerCase() : 'livestock'}">${petTypeIconSvg(row.petType)}</span>
+							<span>${escapeHtml(displaySpecies(row.petType))}</span>
 						</div>
 					</td>
 					<td>${escapeHtml(row.symptoms.join('\n')).replace(/\n/g, '<br>')}</td>
@@ -758,7 +759,7 @@
 		};
 
 		const rows = [
-			['Pet Type', row.petType],
+			['Species', displaySpecies(row.petType)],
 			['Age Group', row.ageGroup === 'Baby' ? babyLabelForAnimal(row.petType) : (row.ageGroup || 'Any')],
 			['Symptoms', row.symptoms.join(', ')],
 			['Symptoms Duration', row.duration],

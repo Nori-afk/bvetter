@@ -591,6 +591,15 @@
   scrollbar-width: thin;
   scrollbar-color: #D1D5DB transparent;
 }
+.chatbot-options.species-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-height: 330px;
+}
+.chatbot-options.species-options .chatbot-options-label { grid-column: 1 / -1; }
+.chatbot-options.species-options .option-btn { min-width: 0; padding: 9px; }
+.chatbot-options.species-options .option-btn-left { min-width: 0; gap: 7px; }
+.chatbot-options.species-options .option-btn-label { overflow-wrap: anywhere; }
 .chatbot-options::-webkit-scrollbar       { width: 3px; }
 .chatbot-options::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
 .chatbot-options-label {

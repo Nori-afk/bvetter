@@ -9,7 +9,9 @@ function bookingAnimalCatalog(): array
         'Chicken' => ['group' => 'Chickens', 'category' => 'livestock'],
         'Carabao / Water Buffalo' => ['group' => 'Carabaos / Water Buffalo', 'category' => 'livestock'],
         'Goat / Sheep' => ['group' => 'Goats / Sheep', 'category' => 'livestock'],
+        'Pig' => ['group' => 'Pigs', 'category' => 'livestock'],
         'Rabbit' => ['group' => 'Rabbits', 'category' => 'either'],
+        'Other livestock' => ['group' => 'Other livestock', 'category' => 'livestock'],
     ];
 }
 
@@ -23,6 +25,15 @@ function animalCategory(string $species, string $requested = ''): string
         return in_array($requested, ['companion', 'livestock'], true) ? $requested : '';
     }
     return $catalog[$species]['category'];
+}
+
+/** Map a saved booking species to the chatbot rule's species key. */
+function chatbotSpeciesForBookedAnimal(string $species): string
+{
+    $aliases = ['Canine' => 'Dog', 'Feline' => 'Cat', 'Avian' => 'Chicken', 'Other livestock' => 'Other'];
+    $species = trim($species);
+    if ($species === '') return '';
+    return $aliases[$species] ?? (isset(bookingAnimalCatalog()[$species]) ? $species : 'Other');
 }
 
 function ensureAnimalVisitSchema(PDO $pdo): void

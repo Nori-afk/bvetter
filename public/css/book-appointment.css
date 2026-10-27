@@ -952,6 +952,17 @@ body {
   font-size: 13px;
   line-height: 1.6;
 }
+.chatbot-booking-summary {
+  margin: -8px 0 18px;
+  padding: 12px 14px;
+  border: 1px solid #b7dcc6;
+  border-radius: 10px;
+  background: #f0f9f3;
+  color: #175e3e;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.chatbot-booking-summary[hidden] { display: none; }
 
 .booking-pet-card {
   padding: 18px;

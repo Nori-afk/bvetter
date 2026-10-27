@@ -2059,9 +2059,19 @@ def predict_diagnosis(symptom_cluster: str, animal_group: str,
             "symptom_clusters": model["symptom_clusters"],
         }
 
+    group_code = encode("animal_group", animal_group)
+    if group_code == -1:
+        return {
+            "available": True,
+            "predictions": [],
+            "unknown_animal_group": True,
+            "message": "This animal group is not in the model's training data. Record the veterinarian's diagnosis directly.",
+            "animal_groups": model["animal_groups"],
+        }
+
     # barangay / month_no are accepted by the caller for interface stability
     # but are deliberately NOT features -- see get_diagnosis_model().
-    row = np.array([[cluster_code, encode("animal_group", animal_group)]])
+    row = np.array([[cluster_code, group_code]])
 
     clf = model["classifier"]
     proba = clf.predict_proba(row)[0]
@@ -3485,7 +3495,9 @@ def load_db_consult_rows(after_year: int, after_month: int) -> pd.DataFrame:
                         WHEN 'Chicken' THEN 'Chickens'
                         WHEN 'Carabao / Water Buffalo' THEN 'Carabaos / Water Buffalo'
                         WHEN 'Goat / Sheep' THEN 'Goats / Sheep'
+                        WHEN 'Pig' THEN 'Pigs'
                         WHEN 'Rabbit' THEN 'Rabbits'
+                        WHEN 'Other livestock' THEN 'Other livestock'
                         ELSE NULL
                     END AS animal_group
                 FROM patient_visit_records pvr

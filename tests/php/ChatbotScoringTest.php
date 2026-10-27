@@ -69,28 +69,20 @@ final class ChatbotScoringTest extends TestCase
         $this->assertSame(5, scoreRule($rule, 'Dog', $noise, 'More than 3 days', 'Critical'));
     }
 
-    public function testOtherPetTypeActsAsWildcardWhenSymptomsOverlap(): void
+    public function testOtherRuleOnlyMatchesUnlistedSpecies(): void
     {
-        // A rule saved as pet_type 'Other' scores its +2 against every species,
-        // not just pets whose type is literally "Other" -- but the wildcard is
-        // no exception to the overlap guard below: it only fires once there is
-        // a real symptom in common.
+        // Named species need their own clinic-approved rules. "Other" is for an
+        // animal that is not represented by one of those named species.
         $rule = $this->rule('Other', ['Vomiting'], 'Less Than 24 Hours', 'Active');
-
-        foreach (['Dog', 'Cat', 'Other'] as $petType) {
-            $this->assertSame(
-                5, // 2 (Other wildcard) + 3 (one overlapping symptom)
-                scoreRule($rule, $petType, ['Vomiting'], 'More than 3 days', 'Critical'),
-                "pet_type 'Other' should match {$petType} once symptoms overlap"
-            );
+        $this->assertSame(5, scoreRule($rule, 'Other', ['Vomiting'], 'More than 3 days', 'Critical'));
+        foreach (['Dog', 'Cat', 'Chicken', 'Carabao / Water Buffalo', 'Goat / Sheep', 'Pig', 'Rabbit'] as $petType) {
+            $this->assertSame(0, scoreRule($rule, $petType, ['Vomiting'], 'More than 3 days', 'Critical'));
         }
     }
 
-    public function testOtherPetTypeWildcardStillRequiresSymptomOverlap(): void
+    public function testOtherRuleStillRequiresSymptomOverlap(): void
     {
-        // Same rule and pet types as above, but the reported symptom (Wounds)
-        // is not one the rule lists (Vomiting) -- the wildcard does not exempt
-        // this rule from the guard, so it must still be rejected.
+        // The generic bucket does not permit a rule with unrelated symptoms.
         $rule = $this->rule('Other', ['Vomiting'], 'Less Than 24 Hours', 'Active');
 
         foreach (['Dog', 'Cat', 'Other'] as $petType) {

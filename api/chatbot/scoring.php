@@ -19,7 +19,7 @@
  * evidence for the condition it names (verification report, 2026-08-24:
  * 23/27 swept combinations blind-matched this way). A rule with at least
  * one symptom in the request is presumed selectable only when the species
- * matches or the rule is generic Other; anything else is rejected before
+ * matches; anything else is rejected before
  * the facet weights are ever added, regardless of how
  * high they'd otherwise push the score.
  */
@@ -28,13 +28,13 @@ require_once __DIR__ . '/normalize.php';
 
 function scoreRule($rule, $petType, $symptoms, $duration, $severity)
 {
-    if ($rule['pet_type'] !== $petType && $rule['pet_type'] !== 'Other') return 0;
+    if ($rule['pet_type'] !== $petType) return 0;
     $ruleSymptoms = decodeSymptoms($rule['symptoms_json']);
     $overlap = array_intersect($symptoms, $ruleSymptoms);
     if (!$overlap) return 0;
 
     $score = 0;
-    if ($rule['pet_type'] === $petType || $rule['pet_type'] === 'Other') $score += 2;
+    $score += 2;
     if ($rule['duration'] === $duration) $score += 2;
     if ($rule['severity'] === $severity) $score += 2;
     $score += 3 * count($overlap);

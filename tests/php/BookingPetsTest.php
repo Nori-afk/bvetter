@@ -3,6 +3,7 @@
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../../api/includes/booking_pets.php';
+require_once __DIR__ . '/../../api/includes/animal_visit_schema.php';
 
 final class BookingPetsTest extends TestCase
 {
@@ -23,7 +24,7 @@ final class BookingPetsTest extends TestCase
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Pet 2');
-        bookingPetEntries(['pets' => [$this->pet(), array_replace($this->pet('Milo'), ['pet_breed' => ''])]]);
+        bookingPetEntries(['pets' => [$this->pet(), array_replace($this->pet('Milo'), ['pet_type' => ''])]]);
     }
 
     public function testEmptyOrMalformedPetListsCannotFallBackToTheFirstPet(): void
@@ -59,11 +60,27 @@ final class BookingPetsTest extends TestCase
         bookingPetEntries(['pets' => [$this->pet(), $unknownAge]], true);
     }
 
+    public function testBreedIsOptionalForVisitsAndCastrationRegistration(): void
+    {
+        $unknownBreed = array_replace($this->pet(), ['pet_breed' => '']);
+        $this->assertCount(1, bookingPetEntries(['pets' => [$unknownBreed]]));
+        $this->assertCount(1, bookingPetEntries(['pets' => [$unknownBreed]], true));
+    }
+
     public function testUnknownSexAndAnExistingPetCanBeBooked(): void
     {
         $newPet = array_replace($this->pet(), ['pet_sex' => '']);
         $this->assertCount(1, bookingPetEntries(['pets' => [$newPet]]));
         $this->assertCount(1, bookingPetEntries(['pets' => [['pet_id' => 12]]]));
+    }
+
+    public function testBookingSpeciesMatchesTheChatbotRuleSpecies(): void
+    {
+        $this->assertSame('Pig', chatbotSpeciesForBookedAnimal('Pig'));
+        $this->assertSame('Chicken', chatbotSpeciesForBookedAnimal('Avian'));
+        $this->assertSame('Dog', chatbotSpeciesForBookedAnimal('Canine'));
+        $this->assertSame('Other', chatbotSpeciesForBookedAnimal('Other livestock'));
+        $this->assertSame('', chatbotSpeciesForBookedAnimal(''));
     }
 
     public function testInvalidDetailsOnAdditionalPetsAreRejected(): void
