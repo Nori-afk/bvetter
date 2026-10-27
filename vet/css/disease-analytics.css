@@ -844,8 +844,8 @@ ul img { width: 16px; height: 16px; margin-right: 6px; opacity: 0.5; }
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
 }
-.insight-grid.is-filtered { grid-template-columns: minmax(0, 1fr); justify-items: center; }
-.insight-grid.is-filtered .insight-card { width: 100%; max-width: 900px; }
+.insight-grid.is-single { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+.insight-grid.is-single .insight-card { width: 100%; max-width: 900px; }
 
 /* ── Create Event modal ──────────────────────────────────────── */
 .modal {

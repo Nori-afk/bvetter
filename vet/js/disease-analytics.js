@@ -53,7 +53,7 @@ let diseaseAnalyticsData = {
 
 const state = {
     selectedInsightId: null,
-    insightBarangay: '',
+    insightStatus: '',
     // Which column drives the order BOTH bar charts are drawn in.
     chartSort: 'actual',
     mapActionMode: false,
@@ -909,8 +909,8 @@ function bindEvents() {
         renderBarChart('actualChart',    diseaseAnalyticsData.actualCases,    'actual');
         renderBarChart('predictedChart', diseaseAnalyticsData.predictedCases, 'predicted');
     });
-    document.getElementById('insightBarangayFilter')?.addEventListener('change', (ev) => {
-        state.insightBarangay = ev.target.value;
+    document.getElementById('insightStatusFilter')?.addEventListener('change', (ev) => {
+        state.insightStatus = ev.target.value;
         renderInsightCards();
     });
 
@@ -1170,34 +1170,31 @@ function renderOverview() {
 
 function renderInsightCards() {
     const insights = Array.isArray(diseaseAnalyticsData.insights) ? diseaseAnalyticsData.insights : [];
-    const barangays = [...new Set(insights.map(insight => String(insight.barangay || '').trim()).filter(Boolean))]
-        .sort((a, b) => a.localeCompare(b));
-    if (!barangays.includes(state.insightBarangay)) state.insightBarangay = '';
+    const statusLabels = { high: 'Needs Action', medium: 'Watch', low: 'Normal' };
+    const counts = { high: 0, medium: 0, low: 0 };
+    insights.forEach(insight => { counts[actionStatus(insight.action_level).level] += 1; });
+    if (!['', ...Object.keys(statusLabels)].includes(state.insightStatus)) state.insightStatus = '';
 
-    const filter = document.getElementById('insightBarangayFilter');
-    filter.replaceChildren();
-    const allOption = document.createElement('option');
-    allOption.value = '';
-    allOption.textContent = 'All barangays';
-    filter.appendChild(allOption);
-    barangays.forEach(name => {
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = name;
-        filter.appendChild(option);
+    const filter = document.getElementById('insightStatusFilter');
+    [...filter.options].forEach(option => {
+        option.textContent = option.value === ''
+            ? `All statuses (${insights.length})`
+            : `${statusLabels[option.value]} (${counts[option.value]})`;
     });
-    filter.value = state.insightBarangay;
-    filter.disabled = barangays.length === 0;
+    filter.value = state.insightStatus;
+    filter.disabled = insights.length === 0;
 
-    const visibleInsights = state.insightBarangay
-        ? insights.filter(insight => String(insight.barangay || '').trim() === state.insightBarangay)
+    const visibleInsights = state.insightStatus
+        ? insights.filter(insight => actionStatus(insight.action_level).level === state.insightStatus)
         : insights;
     document.getElementById('insightFilterSummary').textContent = insights.length
-        ? `Showing ${visibleInsights.length} of ${insights.length} barangay insights`
+        ? state.insightStatus
+            ? `Showing ${visibleInsights.length} of ${insights.length} barangays with ${statusLabels[state.insightStatus]} status`
+            : `Showing all ${insights.length} barangay insights`
         : 'No barangay insights available for this selection';
 
     const insightRoot = document.getElementById('insightCards');
-    insightRoot.classList.toggle('is-filtered', !!state.insightBarangay);
+    insightRoot.classList.toggle('is-single', visibleInsights.length === 1);
     insightRoot.innerHTML = visibleInsights.length ? visibleInsights
         .map((insight, idx) => {
             const status = actionStatus(insight.action_level);
@@ -1215,7 +1212,9 @@ function renderInsightCards() {
                 <p>${esc(insight.recommendation || 'No recommendation yet.')}</p>
                 <button class="action-link" data-insight-id="${esc(insight.id)}">View Action <span class="arrow">→</span></button>
             </article>`;
-        }).join('') : '<p class="insight-empty">No barangay insights to show for this selection.</p>';
+        }).join('') : `<p class="insight-empty">${state.insightStatus
+            ? `No barangays with ${statusLabels[state.insightStatus]} status for this disease and period.`
+            : 'No barangay insights to show for this selection.'}</p>`;
 
     insightRoot.querySelectorAll('.action-link').forEach(btn => {
         btn.addEventListener('click', () => {
