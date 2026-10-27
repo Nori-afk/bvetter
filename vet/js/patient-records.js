@@ -67,13 +67,13 @@ async function loadDiagnosisModel() {
 	}
 }
 
-const SPECIES_OPTIONS = ['Canine', 'Feline', 'Chicken', 'Carabao / Water Buffalo', 'Goat / Sheep', 'Pig', 'Rabbit', 'Other livestock', 'Avian', 'Exotic'];
+const SPECIES_OPTIONS = ['Canine', 'Feline', 'Chicken', 'Carabao / Water Buffalo', 'Cow', 'Goat / Sheep', 'Pig', 'Rabbit', 'Other livestock', 'Avian', 'Exotic'];
 function speciesOptions(selected) {
 	return SPECIES_OPTIONS.map(item => `<option ${item === selected ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('');
 }
 const SPECIES_TO_ANIMAL_GROUP = {
 	Canine: 'Dogs', Feline: 'Cats', Avian: 'Chickens', Chicken: 'Chickens',
-	Dog: 'Dogs', Cat: 'Cats', 'Carabao / Water Buffalo': 'Carabaos / Water Buffalo',
+	Dog: 'Dogs', Cat: 'Cats', 'Carabao / Water Buffalo': 'Carabaos / Water Buffalo', Cow: 'Cows',
 	'Goat / Sheep': 'Goats / Sheep', Pig: 'Pigs', Rabbit: 'Rabbits', 'Other livestock': 'Other livestock'
 };
 
@@ -2566,7 +2566,7 @@ function bindGlobalEvents() {
 		if (!category) return;
 		const species = event.target.value;
 		if (['Dog', 'Cat', 'Canine', 'Feline'].includes(species)) category.value = 'companion';
-		else if (['Chicken', 'Avian', 'Carabao / Water Buffalo', 'Goat / Sheep', 'Pig', 'Other livestock'].includes(species)) category.value = 'livestock';
+		else if (['Chicken', 'Avian', 'Carabao / Water Buffalo', 'Cow', 'Goat / Sheep', 'Pig', 'Other livestock'].includes(species)) category.value = 'livestock';
 		else if (species !== 'Rabbit') category.value = '';
 	});
 	app.addEventListener('click', async (event) => {

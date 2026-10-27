@@ -201,6 +201,7 @@
 		Cat: 'chatbot-cats.png',
 		Chicken: 'chatbot-chicken.svg',
 		'Carabao / Water Buffalo': 'chatbot-buffalo.svg',
+		Cow: 'chatbot-cow.svg',
 		'Goat / Sheep': 'chatbot-sheep.svg',
 		Pig: 'chatbot-pig.svg',
 		Rabbit: 'chatbot-rabbit.svg',

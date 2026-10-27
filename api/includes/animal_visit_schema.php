@@ -8,6 +8,7 @@ function bookingAnimalCatalog(): array
         'Cat' => ['group' => 'Cats', 'category' => 'companion'],
         'Chicken' => ['group' => 'Chickens', 'category' => 'livestock'],
         'Carabao / Water Buffalo' => ['group' => 'Carabaos / Water Buffalo', 'category' => 'livestock'],
+        'Cow' => ['group' => 'Cows', 'category' => 'livestock'],
         'Goat / Sheep' => ['group' => 'Goats / Sheep', 'category' => 'livestock'],
         'Pig' => ['group' => 'Pigs', 'category' => 'livestock'],
         'Rabbit' => ['group' => 'Rabbits', 'category' => 'either'],

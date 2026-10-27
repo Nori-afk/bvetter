@@ -77,6 +77,9 @@ final class BookingPetsTest extends TestCase
     public function testBookingSpeciesMatchesTheChatbotRuleSpecies(): void
     {
         $this->assertSame('Pig', chatbotSpeciesForBookedAnimal('Pig'));
+        $this->assertSame('Cow', chatbotSpeciesForBookedAnimal('Cow'));
+        $this->assertSame('livestock', animalCategory('Cow'));
+        $this->assertSame('Cows', animalGroupFromSpecies('Cow'));
         $this->assertSame('Chicken', chatbotSpeciesForBookedAnimal('Avian'));
         $this->assertSame('Dog', chatbotSpeciesForBookedAnimal('Canine'));
         $this->assertSame('Other', chatbotSpeciesForBookedAnimal('Other livestock'));

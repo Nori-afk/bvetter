@@ -75,7 +75,7 @@ final class ChatbotScoringTest extends TestCase
         // animal that is not represented by one of those named species.
         $rule = $this->rule('Other', ['Vomiting'], 'Less Than 24 Hours', 'Active');
         $this->assertSame(5, scoreRule($rule, 'Other', ['Vomiting'], 'More than 3 days', 'Critical'));
-        foreach (['Dog', 'Cat', 'Chicken', 'Carabao / Water Buffalo', 'Goat / Sheep', 'Pig', 'Rabbit'] as $petType) {
+        foreach (['Dog', 'Cat', 'Chicken', 'Carabao / Water Buffalo', 'Cow', 'Goat / Sheep', 'Pig', 'Rabbit'] as $petType) {
             $this->assertSame(0, scoreRule($rule, $petType, ['Vomiting'], 'More than 3 days', 'Critical'));
         }
     }

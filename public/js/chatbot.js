@@ -990,7 +990,7 @@ function closeChat() {
     showOptionLabel(cOpts, 'What would you like to do next?');
 
     addOptionBtn(cOpts, 'chatbot-appointment.png', 'Book an Appointment',
-      cState.animalCategory === 'livestock' ? 'Request a livestock field visit' : 'Schedule a clinic visit',
+      cState.animalCategory === 'livestock' ? 'Choose a clinic or field visit' : 'Schedule a clinic visit',
       function () {
         try {
           sessionStorage.setItem('bvetter_chatbot_booking_context', JSON.stringify({
@@ -1034,6 +1034,7 @@ function closeChat() {
           { label: 'Cat', icon: 'chatbot-cats.png' },
           { label: 'Chicken', icon: 'chatbot-chicken.svg' },
           { label: 'Carabao / Water Buffalo', icon: 'chatbot-buffalo.svg' },
+          { label: 'Cow', icon: 'chatbot-cow.svg' },
           { label: 'Goat / Sheep', icon: 'chatbot-sheep.svg' },
           { label: 'Pig', icon: 'chatbot-pig.svg' },
           { label: 'Rabbit', icon: 'chatbot-rabbit.svg' },
@@ -1180,7 +1181,7 @@ function closeChat() {
         addDivider(cMsgs, 'Assessment Result');
         addInfoBox(cMsgs, 'Recommended Action',
           cState.animalCategory === 'livestock'
-            ? 'We could not complete the symptom check. Contact the clinic for advice or request a livestock field visit.'
+            ? 'We could not complete the symptom check. Contact the clinic for advice or request a livestock appointment.'
             : 'We could not complete the symptom check. Contact the clinic for advice or book a clinic visit.'
         );
         showConsultActions();

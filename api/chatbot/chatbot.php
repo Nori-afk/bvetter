@@ -572,7 +572,7 @@ function fallbackAssessment($pdo, $symptoms, $duration, $severity)
 function assessConsultation($pdo, $data)
 {
     $petType = normalizePetType($data['petType'] ?? $data['pet_type'] ?? '');
-    $fieldVisit = clean($data['animalCategory'] ?? $data['animal_category'] ?? '') === 'livestock';
+    $livestock = clean($data['animalCategory'] ?? $data['animal_category'] ?? '') === 'livestock';
     $ageGroup = clean($data['ageGroup'] ?? $data['age_group'] ?? '');
     $duration = normalizeDuration($data['duration'] ?? '');
     $severity = normalizeSeverity($data['severity'] ?? '');
@@ -615,8 +615,8 @@ function assessConsultation($pdo, $data)
                 'level' => $urgent ? 'high' : 'moderate',
                 'recommendation' => $urgent
                     ? 'Contact the clinic immediately. Keep the animal calm and safe while arranging veterinary care; do not give human medicine.'
-                    : ($fieldVisit
-                        ? 'The clinic has no approved home-care rule for these symptoms. Contact the clinic for advice or request a livestock field visit.'
+                    : ($livestock
+                        ? 'The clinic has no approved home-care rule for these symptoms. Contact the clinic for advice or request a livestock appointment.'
                         : 'The clinic has no approved home-care rule for these symptoms. Contact the clinic for advice or continue booking a consultation.'),
             ]
             : fallbackAssessment($pdo, $symptoms, $duration, $severity);

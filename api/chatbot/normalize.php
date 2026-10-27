@@ -40,6 +40,7 @@ function normalizePetType($value)
         'dog' => 'Dog', 'canine' => 'Dog',
         'chicken' => 'Chicken', 'avian' => 'Chicken',
         'carabao / water buffalo' => 'Carabao / Water Buffalo', 'carabao' => 'Carabao / Water Buffalo', 'water buffalo' => 'Carabao / Water Buffalo',
+        'cow' => 'Cow', 'cattle' => 'Cow', 'calf' => 'Cow', 'bovine' => 'Cow',
         'goat / sheep' => 'Goat / Sheep', 'goat' => 'Goat / Sheep', 'sheep' => 'Goat / Sheep',
         'pig' => 'Pig', 'swine' => 'Pig', 'hog' => 'Pig',
         'rabbit' => 'Rabbit',
